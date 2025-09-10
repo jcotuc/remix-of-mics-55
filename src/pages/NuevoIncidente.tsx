@@ -24,6 +24,8 @@ export default function NuevoIncidente() {
   // Tab 1: General
   const [codigoProducto, setCodigoProducto] = useState("");
   const [productoSeleccionado, setProductoSeleccionado] = useState<Producto | null>(null);
+  const [productosEncontrados, setProductosEncontrados] = useState<Producto[]>([]);
+  const [mostrarResultados, setMostrarResultados] = useState(false);
   const [descripcionFalla, setDescripcionFalla] = useState("");
   const [archivos, setArchivos] = useState<File[]>([]);
   
@@ -41,15 +43,34 @@ export default function NuevoIncidente() {
   // Búsqueda automática de producto cuando se escribe
   useEffect(() => {
     if (codigoProducto.length >= 3) {
-      const producto = productos.find(p => 
+      const productosCoincidentes = productos.filter(p => 
         p.codigo.toLowerCase().includes(codigoProducto.toLowerCase()) || 
         p.clave.toLowerCase().includes(codigoProducto.toLowerCase())
       );
-      setProductoSeleccionado(producto || null);
+      
+      setProductosEncontrados(productosCoincidentes);
+      setMostrarResultados(productosCoincidentes.length > 1);
+      
+      // Si solo hay un producto, seleccionarlo automáticamente
+      if (productosCoincidentes.length === 1) {
+        setProductoSeleccionado(productosCoincidentes[0]);
+      } else if (productosCoincidentes.length === 0) {
+        setProductoSeleccionado(null);
+      } else {
+        // Si hay múltiples productos, limpiar la selección para que el usuario elija
+        setProductoSeleccionado(null);
+      }
     } else {
+      setProductosEncontrados([]);
+      setMostrarResultados(false);
       setProductoSeleccionado(null);
     }
   }, [codigoProducto]);
+
+  const seleccionarProducto = (producto: Producto) => {
+    setProductoSeleccionado(producto);
+    setMostrarResultados(false);
+  };
 
   const agregarRepuesto = (repuesto: Repuesto) => {
     const existente = repuestosSeleccionados.find(r => r.numero === repuesto.numero);
@@ -134,6 +155,52 @@ export default function NuevoIncidente() {
                   <p className="text-sm text-muted-foreground mt-1">
                     Escriba al menos 3 caracteres para buscar
                   </p>
+                )}
+                
+                {/* Mostrar resultados de búsqueda cuando hay múltiples productos */}
+                {mostrarResultados && (
+                  <div className="mt-2 border rounded-lg max-h-60 overflow-y-auto bg-background">
+                    <div className="p-2 border-b bg-muted/50">
+                      <p className="text-sm font-medium">
+                        {productosEncontrados.length} producto{productosEncontrados.length !== 1 ? 's' : ''} encontrado{productosEncontrados.length !== 1 ? 's' : ''}
+                      </p>
+                    </div>
+                    {productosEncontrados.map((producto) => (
+                      <div 
+                        key={producto.codigo}
+                        className="p-3 hover:bg-muted cursor-pointer border-b last:border-b-0 transition-colors"
+                        onClick={() => seleccionarProducto(producto)}
+                      >
+                        <div className="flex items-center gap-3">
+                          <img 
+                            src={producto.urlFoto} 
+                            alt={producto.descripcion}
+                            className="w-12 h-12 object-cover rounded"
+                          />
+                          <div className="flex-1">
+                            <h4 className="font-medium text-sm">{producto.descripcion}</h4>
+                            <p className="text-xs text-muted-foreground">
+                              Código: {producto.codigo} | Clave: {producto.clave}
+                            </p>
+                            {producto.descontinuado && (
+                              <Badge variant="destructive" className="mt-1 text-xs">
+                                Descontinuado
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                
+                {/* Mostrar mensaje cuando no se encuentren productos */}
+                {codigoProducto.length >= 3 && productosEncontrados.length === 0 && (
+                  <div className="mt-2 p-3 border rounded-lg bg-muted/30">
+                    <p className="text-sm text-muted-foreground">
+                      No se encontraron productos que coincidan con "{codigoProducto}"
+                    </p>
+                  </div>
                 )}
               </div>
 
