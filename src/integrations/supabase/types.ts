@@ -14,7 +14,248 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      clientes: {
+        Row: {
+          celular: string
+          codigo: string
+          created_at: string
+          id: string
+          nit: string
+          nombre: string
+          updated_at: string
+        }
+        Insert: {
+          celular: string
+          codigo: string
+          created_at?: string
+          id?: string
+          nit: string
+          nombre: string
+          updated_at?: string
+        }
+        Update: {
+          celular?: string
+          codigo?: string
+          created_at?: string
+          id?: string
+          nit?: string
+          nombre?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      incidentes: {
+        Row: {
+          cobertura_garantia: boolean
+          codigo_cliente: string
+          codigo_producto: string
+          codigo_tecnico: string
+          created_at: string
+          descripcion_problema: string
+          fecha_ingreso: string
+          id: string
+          producto_descontinuado: boolean | null
+          status: Database["public"]["Enums"]["status_incidente"]
+          updated_at: string
+        }
+        Insert: {
+          cobertura_garantia?: boolean
+          codigo_cliente: string
+          codigo_producto: string
+          codigo_tecnico: string
+          created_at?: string
+          descripcion_problema: string
+          fecha_ingreso?: string
+          id?: string
+          producto_descontinuado?: boolean | null
+          status?: Database["public"]["Enums"]["status_incidente"]
+          updated_at?: string
+        }
+        Update: {
+          cobertura_garantia?: boolean
+          codigo_cliente?: string
+          codigo_producto?: string
+          codigo_tecnico?: string
+          created_at?: string
+          descripcion_problema?: string
+          fecha_ingreso?: string
+          id?: string
+          producto_descontinuado?: boolean | null
+          status?: Database["public"]["Enums"]["status_incidente"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "incidentes_codigo_cliente_fkey"
+            columns: ["codigo_cliente"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["codigo"]
+          },
+          {
+            foreignKeyName: "incidentes_codigo_producto_fkey"
+            columns: ["codigo_producto"]
+            isOneToOne: false
+            referencedRelation: "productos"
+            referencedColumns: ["codigo"]
+          },
+          {
+            foreignKeyName: "incidentes_codigo_tecnico_fkey"
+            columns: ["codigo_tecnico"]
+            isOneToOne: false
+            referencedRelation: "tecnicos"
+            referencedColumns: ["codigo"]
+          },
+        ]
+      }
+      media_files: {
+        Row: {
+          created_at: string
+          descripcion: string | null
+          id: string
+          incidente_id: string
+          nombre: string
+          tipo: Database["public"]["Enums"]["media_tipo"]
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          descripcion?: string | null
+          id?: string
+          incidente_id: string
+          nombre: string
+          tipo: Database["public"]["Enums"]["media_tipo"]
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          created_at?: string
+          descripcion?: string | null
+          id?: string
+          incidente_id?: string
+          nombre?: string
+          tipo?: Database["public"]["Enums"]["media_tipo"]
+          updated_at?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "media_files_incidente_id_fkey"
+            columns: ["incidente_id"]
+            isOneToOne: false
+            referencedRelation: "incidentes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      productos: {
+        Row: {
+          clave: string
+          codigo: string
+          created_at: string
+          descontinuado: boolean
+          descripcion: string
+          id: string
+          updated_at: string
+          url_foto: string | null
+        }
+        Insert: {
+          clave: string
+          codigo: string
+          created_at?: string
+          descontinuado?: boolean
+          descripcion: string
+          id?: string
+          updated_at?: string
+          url_foto?: string | null
+        }
+        Update: {
+          clave?: string
+          codigo?: string
+          created_at?: string
+          descontinuado?: boolean
+          descripcion?: string
+          id?: string
+          updated_at?: string
+          url_foto?: string | null
+        }
+        Relationships: []
+      }
+      repuestos: {
+        Row: {
+          clave: string
+          codigo: string
+          codigo_producto: string
+          created_at: string
+          descripcion: string
+          id: string
+          numero: string
+          updated_at: string
+          url_foto: string | null
+        }
+        Insert: {
+          clave: string
+          codigo: string
+          codigo_producto: string
+          created_at?: string
+          descripcion: string
+          id?: string
+          numero: string
+          updated_at?: string
+          url_foto?: string | null
+        }
+        Update: {
+          clave?: string
+          codigo?: string
+          codigo_producto?: string
+          created_at?: string
+          descripcion?: string
+          id?: string
+          numero?: string
+          updated_at?: string
+          url_foto?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "repuestos_codigo_producto_fkey"
+            columns: ["codigo_producto"]
+            isOneToOne: false
+            referencedRelation: "productos"
+            referencedColumns: ["codigo"]
+          },
+        ]
+      }
+      tecnicos: {
+        Row: {
+          apellido: string
+          codigo: string
+          created_at: string
+          email: string
+          id: string
+          nombre: string
+          updated_at: string
+        }
+        Insert: {
+          apellido: string
+          codigo: string
+          created_at?: string
+          email: string
+          id?: string
+          nombre: string
+          updated_at?: string
+        }
+        Update: {
+          apellido?: string
+          codigo?: string
+          created_at?: string
+          email?: string
+          id?: string
+          nombre?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +264,14 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      media_tipo: "foto" | "video"
+      status_incidente:
+        | "Ingresado"
+        | "Diagnostico"
+        | "Repuestos solicitados"
+        | "Reparado"
+        | "Documentado"
+        | "Entregado"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +398,16 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      media_tipo: ["foto", "video"],
+      status_incidente: [
+        "Ingresado",
+        "Diagnostico",
+        "Repuestos solicitados",
+        "Reparado",
+        "Documentado",
+        "Entregado",
+      ],
+    },
   },
 } as const
