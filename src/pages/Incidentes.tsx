@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Plus, Search, Edit, Eye, AlertTriangle, CheckCircle, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +12,7 @@ import { incidentes, clientes, productos, tecnicos } from "@/data/mockData";
 import { Incidente, StatusIncidente } from "@/types";
 
 export default function Incidentes() {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [incidentesList, setIncidentesList] = useState<Incidente[]>(incidentes);
@@ -58,7 +60,10 @@ export default function Incidentes() {
             Seguimiento de reparaciones y servicios técnicos
           </p>
         </div>
-        <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
+        <Button 
+          className="bg-primary text-primary-foreground hover:bg-primary/90"
+          onClick={() => navigate("/incidentes/nuevo")}
+        >
           <Plus className="h-4 w-4 mr-2" />
           Nuevo Incidente
         </Button>
