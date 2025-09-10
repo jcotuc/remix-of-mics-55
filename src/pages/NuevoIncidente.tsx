@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,10 +38,18 @@ export default function NuevoIncidente() {
   // Tab 4: Documentación
   const [comentarios, setComentarios] = useState("");
 
-  const buscarProducto = () => {
-    const producto = productos.find(p => p.codigo === codigoProducto || p.clave === codigoProducto);
-    setProductoSeleccionado(producto || null);
-  };
+  // Búsqueda automática de producto cuando se escribe
+  useEffect(() => {
+    if (codigoProducto.length >= 3) {
+      const producto = productos.find(p => 
+        p.codigo.toLowerCase().includes(codigoProducto.toLowerCase()) || 
+        p.clave.toLowerCase().includes(codigoProducto.toLowerCase())
+      );
+      setProductoSeleccionado(producto || null);
+    } else {
+      setProductoSeleccionado(null);
+    }
+  }, [codigoProducto]);
 
   const agregarRepuesto = (repuesto: Repuesto) => {
     const existente = repuestosSeleccionados.find(r => r.numero === repuesto.numero);
@@ -114,20 +122,19 @@ export default function NuevoIncidente() {
               <CardDescription>Selecciona el producto y describe la falla</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex gap-2">
-                <div className="flex-1">
-                  <Label htmlFor="codigoProducto">Código del Producto</Label>
-                  <Input
-                    id="codigoProducto"
-                    value={codigoProducto}
-                    onChange={(e) => setCodigoProducto(e.target.value)}
-                    placeholder="Ingrese código o clave del producto"
-                  />
-                </div>
-                <Button onClick={buscarProducto} className="mt-6">
-                  <Search className="w-4 h-4 mr-2" />
-                  Buscar
-                </Button>
+              <div>
+                <Label htmlFor="codigoProducto">Código del Producto</Label>
+                <Input
+                  id="codigoProducto"
+                  value={codigoProducto}
+                  onChange={(e) => setCodigoProducto(e.target.value)}
+                  placeholder="Ingrese código o clave del producto (mín. 3 caracteres)"
+                />
+                {codigoProducto.length > 0 && codigoProducto.length < 3 && (
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Escriba al menos 3 caracteres para buscar
+                  </p>
+                )}
               </div>
 
               {productoSeleccionado && (
