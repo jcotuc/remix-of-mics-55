@@ -1,0 +1,135 @@
+import { useState } from "react";
+import { Plus, Search, Edit, Trash2, Package } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { repuestos, productos } from "@/data/mockData";
+import { Repuesto } from "@/types";
+
+export default function Repuestos() {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedProduct, setSelectedProduct] = useState<string>("all");
+  const [repuestosList, setRepuestosList] = useState<Repuesto[]>(repuestos);
+
+  const filteredRepuestos = repuestosList.filter(repuesto => {
+    const matchesSearch = repuesto.descripcion.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      repuesto.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      repuesto.clave.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesProduct = selectedProduct === "all" || repuesto.codigoProducto === selectedProduct;
+    
+    return matchesSearch && matchesProduct;
+  });
+
+  const getProductDescription = (codigoProducto: string) => {
+    const producto = productos.find(p => p.codigo === codigoProducto);
+    return producto ? producto.descripcion : "Producto no encontrado";
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">Catálogo de Repuestos</h1>
+          <p className="text-muted-foreground">
+            Administra los repuestos disponibles para cada producto
+          </p>
+        </div>
+        <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
+          <Plus className="h-4 w-4 mr-2" />
+          Nuevo Repuesto
+        </Button>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Lista de Repuestos</CardTitle>
+          <CardDescription>
+            {filteredRepuestos.length} repuestos disponibles
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center space-x-4 mb-4">
+            <div className="flex items-center space-x-2">
+              <Search className="h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar repuestos..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="max-w-sm"
+              />
+            </div>
+            
+            <Select value={selectedProduct} onValueChange={setSelectedProduct}>
+              <SelectTrigger className="w-[250px]">
+                <Package className="h-4 w-4 mr-2" />
+                <SelectValue placeholder="Filtrar por producto" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos los productos</SelectItem>
+                {productos.map((producto) => (
+                  <SelectItem key={producto.codigo} value={producto.codigo}>
+                    {producto.descripcion}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Foto</TableHead>
+                  <TableHead>Número</TableHead>
+                  <TableHead>Código</TableHead>
+                  <TableHead>Clave</TableHead>
+                  <TableHead>Descripción</TableHead>
+                  <TableHead>Producto</TableHead>
+                  <TableHead className="text-right">Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredRepuestos.map((repuesto) => (
+                  <TableRow key={repuesto.numero}>
+                    <TableCell>
+                      <div className="w-12 h-12 bg-muted rounded-md flex items-center justify-center">
+                        <img 
+                          src={repuesto.urlFoto} 
+                          alt={repuesto.descripcion}
+                          className="w-10 h-10 object-cover rounded"
+                          onError={(e) => {
+                            e.currentTarget.src = "/api/placeholder/40/40";
+                          }}
+                        />
+                      </div>
+                    </TableCell>
+                    <TableCell className="font-medium">{repuesto.numero}</TableCell>
+                    <TableCell>{repuesto.codigo}</TableCell>
+                    <TableCell>{repuesto.clave}</TableCell>
+                    <TableCell>{repuesto.descripcion}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {getProductDescription(repuesto.codigoProducto)}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end space-x-2">
+                        <Button variant="outline" size="sm">
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button variant="outline" size="sm" className="text-destructive hover:text-destructive">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
