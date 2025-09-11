@@ -1,17 +1,76 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus, Search, Edit, Trash2, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { repuestos, productos } from "@/data/mockData";
-import { Repuesto } from "@/types";
+import { supabase } from "@/integrations/supabase/client";
+import { Repuesto, Producto } from "@/types";
 
 export default function Repuestos() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedProduct, setSelectedProduct] = useState<string>("all");
-  const [repuestosList, setRepuestosList] = useState<Repuesto[]>(repuestos);
+  const [repuestosList, setRepuestosList] = useState<Repuesto[]>([]);
+  const [productosList, setProductosList] = useState<Producto[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchRepuestosAndProductos();
+  }, []);
+
+  const fetchRepuestosAndProductos = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch repuestos
+      const { data: repuestosData, error: repuestosError } = await supabase
+        .from('repuestos')
+        .select('*')
+        .order('numero');
+
+      if (repuestosError) {
+        console.error('Error fetching repuestos:', repuestosError);
+        return;
+      }
+
+      // Fetch productos
+      const { data: productosData, error: productosError } = await supabase
+        .from('productos')
+        .select('*')
+        .order('descripcion');
+
+      if (productosError) {
+        console.error('Error fetching productos:', productosError);
+        return;
+      }
+
+      // Transform data to match frontend types
+      const transformedRepuestos: Repuesto[] = repuestosData?.map((r: any) => ({
+        numero: r.numero,
+        codigo: r.codigo,
+        clave: r.clave,
+        descripcion: r.descripcion,
+        urlFoto: r.url_foto || "/api/placeholder/40/40",
+        codigoProducto: r.codigo_producto
+      })) || [];
+
+      const transformedProductos: Producto[] = productosData?.map((p: any) => ({
+        codigo: p.codigo,
+        clave: p.clave,
+        descripcion: p.descripcion,
+        descontinuado: p.descontinuado,
+        urlFoto: p.url_foto || "/api/placeholder/400/300"
+      })) || [];
+
+      setRepuestosList(transformedRepuestos);
+      setProductosList(transformedProductos);
+    } catch (error) {
+      console.error('Error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredRepuestos = repuestosList.filter(repuesto => {
     const matchesSearch = repuesto.descripcion.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -24,7 +83,7 @@ export default function Repuestos() {
   });
 
   const getProductDescription = (codigoProducto: string) => {
-    const producto = productos.find(p => p.codigo === codigoProducto);
+    const producto = productosList.find(p => p.codigo === codigoProducto);
     return producto ? producto.descripcion : "Producto no encontrado";
   };
 
@@ -69,7 +128,7 @@ export default function Repuestos() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos los productos</SelectItem>
-                {productos.map((producto) => (
+                {productosList.map((producto) => (
                   <SelectItem key={producto.codigo} value={producto.codigo}>
                     {producto.descripcion}
                   </SelectItem>
