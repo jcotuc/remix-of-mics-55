@@ -127,6 +127,7 @@ export default function NuevoIncidente() {
 
   const seleccionarProducto = (producto: Producto) => {
     setProductoSeleccionado(producto);
+    setCodigoProducto(producto.codigo);
     setMostrarResultados(false);
   };
 
