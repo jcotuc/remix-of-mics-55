@@ -27,7 +27,7 @@ export default function Repuestos() {
       const { data: repuestosData, error: repuestosError } = await supabase
         .from('repuestos')
         .select('*')
-        .order('numero');
+        .order('numero', { ascending: true });
 
       if (repuestosError) {
         console.error('Error fetching repuestos:', repuestosError);
