@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Search, Upload, Plus, Minus } from "lucide-react";
-import { productos, repuestos } from "@/data/mockData";
+import { supabase } from "@/integrations/supabase/client";
 import { Producto, Repuesto } from "@/types";
 
 interface RepuestoSeleccionado extends Repuesto {
@@ -36,30 +36,88 @@ export default function NuevoIncidente() {
   // Tab 3: Repuestos
   const [repuestosSeleccionados, setRepuestosSeleccionados] = useState<RepuestoSeleccionado[]>([]);
   const [busquedaRepuesto, setBusquedaRepuesto] = useState("");
+  const [repuestos, setRepuestos] = useState<Repuesto[]>([]);
   
   // Tab 4: Documentación
   const [comentarios, setComentarios] = useState("");
 
+  // Load repuestos on component mount
+  useEffect(() => {
+    const fetchRepuestos = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('repuestos')
+          .select('*');
+        
+        if (error) {
+          console.error('Error fetching repuestos:', error);
+          return;
+        }
+
+        // Transform Supabase data to match Repuesto type
+        const transformedData: Repuesto[] = data.map(item => ({
+          numero: item.numero,
+          codigo: item.codigo,
+          clave: item.clave,
+          descripcion: item.descripcion,
+          urlFoto: item.url_foto || "/api/placeholder/150/150",
+          codigoProducto: item.codigo_producto
+        }));
+
+        setRepuestos(transformedData);
+      } catch (error) {
+        console.error('Error:', error);
+      }
+    };
+
+    fetchRepuestos();
+  }, []);
+
   // Búsqueda automática de producto cuando se escribe
   useEffect(() => {
     if (codigoProducto.length >= 3) {
-      const productosCoincidentes = productos.filter(p => 
-        p.codigo.toLowerCase().includes(codigoProducto.toLowerCase()) || 
-        p.clave.toLowerCase().includes(codigoProducto.toLowerCase())
-      );
-      
-      setProductosEncontrados(productosCoincidentes);
-      setMostrarResultados(productosCoincidentes.length > 1);
-      
-      // Si solo hay un producto, seleccionarlo automáticamente
-      if (productosCoincidentes.length === 1) {
-        setProductoSeleccionado(productosCoincidentes[0]);
-      } else if (productosCoincidentes.length === 0) {
-        setProductoSeleccionado(null);
-      } else {
-        // Si hay múltiples productos, limpiar la selección para que el usuario elija
-        setProductoSeleccionado(null);
-      }
+      const fetchProductos = async () => {
+        try {
+          const { data, error } = await supabase
+            .from('productos')
+            .select('*')
+            .or(`codigo.ilike.%${codigoProducto}%,clave.ilike.%${codigoProducto}%`);
+          
+          if (error) {
+            console.error('Error fetching productos:', error);
+            return;
+          }
+
+          // Transform Supabase data to match Producto type
+          const transformedData: Producto[] = data.map(item => ({
+            codigo: item.codigo.trim(),
+            clave: item.clave.trim(),
+            descripcion: item.descripcion.trim(),
+            descontinuado: item.descontinuado,
+            urlFoto: item.url_foto || "/api/placeholder/200/200"
+          }));
+
+          setProductosEncontrados(transformedData);
+          setMostrarResultados(transformedData.length > 1);
+          
+          // Si solo hay un producto, seleccionarlo automáticamente
+          if (transformedData.length === 1) {
+            setProductoSeleccionado(transformedData[0]);
+          } else if (transformedData.length === 0) {
+            setProductoSeleccionado(null);
+          } else {
+            // Si hay múltiples productos, limpiar la selección para que el usuario elija
+            setProductoSeleccionado(null);
+          }
+        } catch (error) {
+          console.error('Error:', error);
+          setProductosEncontrados([]);
+          setMostrarResultados(false);
+          setProductoSeleccionado(null);
+        }
+      };
+
+      fetchProductos();
     } else {
       setProductosEncontrados([]);
       setMostrarResultados(false);
