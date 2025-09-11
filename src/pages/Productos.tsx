@@ -1,16 +1,50 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus, Search, Edit, Trash2, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { productos } from "@/data/mockData";
+import { supabase } from "@/integrations/supabase/client";
 import { Producto } from "@/types";
 
 export default function Productos() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [productosList, setProductosList] = useState<Producto[]>(productos);
+  const [productosList, setProductosList] = useState<Producto[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchProductos = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('productos')
+          .select('*')
+          .order('codigo');
+        
+        if (error) {
+          console.error('Error fetching productos:', error);
+          return;
+        }
+
+        // Transform Supabase data to match Producto type
+        const transformedData: Producto[] = data.map(item => ({
+          codigo: item.codigo,
+          clave: item.clave,
+          descripcion: item.descripcion,
+          descontinuado: item.descontinuado,
+          urlFoto: item.url_foto || "/api/placeholder/200/200"
+        }));
+
+        setProductosList(transformedData);
+      } catch (error) {
+        console.error('Error:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProductos();
+  }, []);
 
   const filteredProductos = productosList.filter(producto =>
     producto.descripcion.toLowerCase().includes(searchTerm.toLowerCase()) ||
