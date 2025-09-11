@@ -87,6 +87,16 @@ export default function Repuestos() {
     return producto ? producto.descripcion : "Producto no encontrado";
   };
 
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-center p-8">
+          <div className="text-lg">Cargando repuestos...</div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
