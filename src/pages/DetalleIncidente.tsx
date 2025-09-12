@@ -26,15 +26,21 @@ export default function DetalleIncidente() {
   // Estado del formulario de diagnóstico
   const [diagnosticoStarted, setDiagnosticoStarted] = useState(false);
   const [descripcion, setDescripcion] = useState("");
-  const [fallaInput, setFallaInput] = useState("");
-  const [fallas, setFallas] = useState<string[]>([]);
-  const [recomendaciones, setRecomendaciones] = useState("");
+  const [aplicaGarantia, setAplicaGarantia] = useState(false);
   const [requiereRepuestos, setRequiereRepuestos] = useState(false);
-  const [tiempoEstimado, setTiempoEstimado] = useState("");
-  const [costoEstimado, setCostoEstimado] = useState<string>("");
 
   type RepuestoItem = { repuestoCodigo: string; cantidad: number };
   const [repuestosList, setRepuestosList] = useState<RepuestoItem[]>([]);
+
+  // Generar estado aleatorio para repuestos
+  const getRandomRepuestoStatus = () => {
+    const statuses = [
+      { status: 'en-stock', label: 'En stock', color: 'bg-green-500 text-white' },
+      { status: 'otra-bodega', label: 'Otra bodega', color: 'bg-yellow-500 text-white' },
+      { status: 'no-disponible', label: 'No disponible', color: 'bg-red-500 text-white' }
+    ];
+    return statuses[Math.floor(Math.random() * statuses.length)];
+  };
 
   useEffect(() => {
     if (id) {
@@ -115,13 +121,6 @@ export default function DetalleIncidente() {
     return tecnico ? tecnico.email : "";
   };
 
-  const addFalla = () => {
-    const v = fallaInput.trim();
-    if (!v) return;
-    setFallas(prev => [...prev, v]);
-    setFallaInput("");
-  };
-  const removeFalla = (idx: number) => setFallas(prev => prev.filter((_, i) => i !== idx));
 
   const addRepuestoFromAvailable = (repuesto: any) => {
     const existing = repuestosList.find(r => r.repuestoCodigo === repuesto.codigo);
@@ -156,7 +155,7 @@ export default function DetalleIncidente() {
     setDiagnosticoStarted(true);
     toast({
       title: "Diagnóstico iniciado",
-      description: `Puedes registrar hallazgos y repuestos para el incidente ${incidente?.id}.`,
+      description: `Puedes registrar el diagnóstico para el incidente ${incidente?.id}.`,
     });
   };
 
@@ -177,15 +176,16 @@ export default function DetalleIncidente() {
     incidentes[idx] = {
       ...incidentes[idx],
       status: estadoNuevo,
+      coberturaGarantia: aplicaGarantia,
       diagnostico: {
         fecha: today,
         tecnicoCodigo: incidentes[idx].codigoTecnico,
         descripcion: descripcion.trim(),
-        fallasEncontradas: fallas,
-        recomendaciones: recomendaciones.trim(),
+        fallasEncontradas: repuestosList.map(r => `Repuesto requerido: ${r.repuestoCodigo} (Cantidad: ${r.cantidad})`),
+        recomendaciones: requiere ? "Se requieren repuestos para completar la reparación" : "Reparación completada",
         requiereRepuestos: requiere,
-        tiempoEstimadoReparacion: tiempoEstimado.trim() || "",
-        costoEstimado: costoEstimado ? Number(costoEstimado) : undefined,
+        tiempoEstimadoReparacion: requiere ? "Pendiente de repuestos" : "2-3 días hábiles",
+        costoEstimado: aplicaGarantia ? 0 : undefined,
       },
       repuestosSolicitados: requiere
         ? repuestosList.map(r => ({
@@ -211,11 +211,8 @@ export default function DetalleIncidente() {
     setDiagnosticoStarted(false);
     // Reset form
     setDescripcion("");
-    setFallas([]);
-    setRecomendaciones("");
+    setAplicaGarantia(false);
     setRequiereRepuestos(false);
-    setTiempoEstimado("");
-    setCostoEstimado("");
     setRepuestosList([]);
     
     toast({ title: "Diagnóstico guardado", description: `Incidente ${incidente.id} actualizado.` });
@@ -378,65 +375,16 @@ export default function DetalleIncidente() {
                         placeholder="Escribe el análisis técnico y observaciones..."
                         value={descripcion}
                         onChange={(e) => setDescripcion(e.target.value)}
+                        rows={6}
                       />
                     </div>
 
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Fallas encontradas</label>
-                      <div className="flex gap-2">
-                        <Input
-                          placeholder="Ej. Rodamientos desgastados"
-                          value={fallaInput}
-                          onChange={(e) => setFallaInput(e.target.value)}
-                          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addFalla(); } }}
-                        />
-                        <Button type="button" variant="secondary" onClick={addFalla} aria-label="Agregar falla">
-                          <Plus className="w-4 h-4" />
-                        </Button>
-                      </div>
-                      {fallas.length > 0 && (
-                        <div className="flex flex-wrap gap-2 mt-2">
-                          {fallas.map((f, i) => (
-                            <Badge key={i} variant="outline" className="flex items-center gap-1">
-                              {f}
-                              <button type="button" onClick={() => removeFalla(i)} aria-label="Quitar falla">
-                                <X className="w-3 h-3" />
-                              </button>
-                            </Badge>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Recomendaciones</label>
-                        <Textarea
-                          placeholder="Acciones sugeridas, piezas a revisar/reemplazar..."
-                          value={recomendaciones}
-                          onChange={(e) => setRecomendaciones(e.target.value)}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">Tiempo estimado de reparación</label>
-                        <Input
-                          placeholder="Ej. 2-3 días hábiles"
-                          value={tiempoEstimado}
-                          onChange={(e) => setTiempoEstimado(e.target.value)}
-                        />
-                        <label className="text-sm font-medium mt-2">Costo estimado (opcional)</label>
-                        <Input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          placeholder="Ej. 0 (en garantía)"
-                          value={costoEstimado}
-                          onChange={(e) => setCostoEstimado(e.target.value)}
-                        />
-                      </div>
-                    </div>
-
                     <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Switch checked={aplicaGarantia} onCheckedChange={setAplicaGarantia} id="aplica-garantia" />
+                        <label htmlFor="aplica-garantia" className="text-sm">¿Aplica garantía?</label>
+                      </div>
+
                       <div className="flex items-center gap-2">
                         <Switch checked={requiereRepuestos} onCheckedChange={setRequiereRepuestos} id="req-repuestos" />
                         <label htmlFor="req-repuestos" className="text-sm">Requiere repuestos</label>
@@ -452,7 +400,7 @@ export default function DetalleIncidente() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3 text-sm text-muted-foreground">
                       <Info className="w-4 h-4" />
-                      Al continuar, podrás registrar hallazgos y repuestos.
+                      Al continuar, podrás registrar el diagnóstico técnico.
                     </div>
                     <Button onClick={iniciarDiagnostico} className="bg-primary text-primary-foreground hover:bg-primary/90">
                       Iniciar Diagnóstico
@@ -588,10 +536,17 @@ export default function DetalleIncidente() {
                                     <div className="text-sm text-muted-foreground">{repuestoSelec.repuestoCodigo}</div>
                                   </div>
                                   <div className="col-span-2">
-                                    <Badge variant="outline" className="text-xs">
-                                      <CheckCircle className="w-3 h-3 mr-1" />
-                                      En stock
-                                    </Badge>
+                                    {(() => {
+                                      const status = getRandomRepuestoStatus();
+                                      return (
+                                        <Badge className={status.color}>
+                                          {status.status === 'en-stock' && <CheckCircle className="w-3 h-3 mr-1" />}
+                                          {status.status === 'otra-bodega' && <Clock className="w-3 h-3 mr-1" />}
+                                          {status.status === 'no-disponible' && <X className="w-3 h-3 mr-1" />}
+                                          {status.label}
+                                        </Badge>
+                                      );
+                                    })()}
                                   </div>
                                   <div className="col-span-2">
                                     <div className="flex items-center gap-1">
@@ -808,23 +763,71 @@ export default function DetalleIncidente() {
           <Card>
             <CardHeader>
               <CardTitle>Documentación</CardTitle>
-              <CardDescription>Archivos multimedia relacionados con el incidente</CardDescription>
+              <CardDescription>Archivos multimedia y documentos relacionados con el incidente</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center">
-                  <FileText className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                  <p className="text-muted-foreground mb-4">Arrastra archivos aquí o haz clic para seleccionar</p>
-                  <p className="text-sm text-muted-foreground mb-4">Formatos soportados: JPG, PNG, PDF, MP4, DOC</p>
-                  <Button variant="outline">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Seleccionar archivos
-                  </Button>
-                </div>
-                
-                {/* Aquí se mostrarían los archivos subidos */}
-                <div className="text-center py-4">
-                  <p className="text-sm text-muted-foreground">No hay archivos subidos aún</p>
+              <div className="space-y-6">
+                {/* Diagnóstico realizado */}
+                {incidente.diagnostico && (
+                  <div className="space-y-4">
+                    <h4 className="font-medium flex items-center gap-2">
+                      <FileText className="w-4 h-4" />
+                      Diagnóstico Técnico
+                    </h4>
+                    <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+                      <div>
+                        <p className="text-sm font-medium">Fecha: {incidente.diagnostico.fecha}</p>
+                        <p className="text-sm font-medium">Técnico: {getTecnicoName(incidente.diagnostico.tecnicoCodigo)}</p>
+                        <p className="text-sm font-medium">Garantía: {incidente.coberturaGarantia ? 'Sí aplica' : 'No aplica'}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium mb-2">Descripción:</p>
+                        <p className="text-sm text-muted-foreground">{incidente.diagnostico.descripcion}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Fallas de repuestos solicitados */}
+                {incidente.repuestosSolicitados && incidente.repuestosSolicitados.length > 0 && (
+                  <div className="space-y-4">
+                    <h4 className="font-medium flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4" />
+                      Fallas y Repuestos Solicitados
+                    </h4>
+                    <div className="space-y-2">
+                      {incidente.repuestosSolicitados.map((repuesto, index) => (
+                        <div key={index} className="bg-muted/50 rounded-lg p-3">
+                          <p className="text-sm font-medium">Repuesto: {repuesto.repuestoCodigo}</p>
+                          <p className="text-sm text-muted-foreground">Cantidad: {repuesto.cantidad}</p>
+                          <p className="text-sm text-muted-foreground">Estado: {repuesto.estado}</p>
+                          <p className="text-sm text-muted-foreground">Fecha solicitud: {repuesto.fechaSolicitud}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Subir archivos multimedia */}
+                <div className="space-y-4">
+                  <h4 className="font-medium flex items-center gap-2">
+                    <Package className="w-4 h-4" />
+                    Archivos Multimedia
+                  </h4>
+                  <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center">
+                    <FileText className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                    <p className="text-muted-foreground mb-4">Arrastra archivos aquí o haz clic para seleccionar</p>
+                    <p className="text-sm text-muted-foreground mb-4">Formatos soportados: JPG, PNG, PDF, MP4, DOC</p>
+                    <Button variant="outline">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Seleccionar archivos
+                    </Button>
+                  </div>
+                  
+                  {/* Lista de archivos subidos (placeholder) */}
+                  <div className="text-center py-4">
+                    <p className="text-sm text-muted-foreground">No hay archivos subidos aún</p>
+                  </div>
                 </div>
               </div>
             </CardContent>
