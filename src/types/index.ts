@@ -30,12 +30,14 @@ export interface Tecnico {
 }
 
 export type StatusIncidente = 
-  | "Ingresado" 
-  | "Diagnostico" 
-  | "Repuestos solicitados" 
-  | "Reparado" 
-  | "Documentado" 
-  | "Entregado";
+  | "Pendiente de diagnostico"
+  | "En diagnostico" 
+  | "Pendiente por repuestos"
+  | "Reparado"
+  | "Presupuesto"
+  | "Canje"
+  | "Nota de credito"
+  | "Cambio por garantia";
 
 export interface Incidente {
   id: string;

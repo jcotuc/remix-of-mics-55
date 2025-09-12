@@ -99,7 +99,7 @@ export const incidentes: Incidente[] = [
     codigoProducto: "PROD001",
     codigoCliente: "CLI001",
     codigoTecnico: "TEC001",
-    status: "Ingresado",
+    status: "Pendiente de diagnostico",
     coberturaGarantia: true,
     descripcionProblema: "El taladro no enciende al presionar el gatillo",
     fechaIngreso: "2024-01-15",
@@ -110,7 +110,7 @@ export const incidentes: Incidente[] = [
     codigoProducto: "PROD002", 
     codigoCliente: "CLI002",
     codigoTecnico: "TEC002",
-    status: "Diagnostico",
+    status: "En diagnostico",
     coberturaGarantia: false,
     descripcionProblema: "La sierra hace ruido extraño y vibra excesivamente",
     fechaIngreso: "2024-01-14",
@@ -125,6 +125,50 @@ export const incidentes: Incidente[] = [
     coberturaGarantia: true,
     descripcionProblema: "Lijadora no mantiene velocidad constante",
     fechaIngreso: "2024-01-10",
+    productoDescontinuado: false
+  },
+  {
+    id: "INC004",
+    codigoProducto: "PROD001",
+    codigoCliente: "CLI002",
+    codigoTecnico: "TEC001",
+    status: "Pendiente por repuestos",
+    coberturaGarantia: true,
+    descripcionProblema: "Motor quemado, necesita reemplazo completo",
+    fechaIngreso: "2024-01-12",
+    productoDescontinuado: false
+  },
+  {
+    id: "INC005",
+    codigoProducto: "PROD002",
+    codigoCliente: "CLI001",
+    codigoTecnico: "TEC002",
+    status: "Presupuesto",
+    coberturaGarantia: false,
+    descripcionProblema: "Disco dañado y problemas en el motor",
+    fechaIngreso: "2024-01-08",
+    productoDescontinuado: true
+  },
+  {
+    id: "INC006",
+    codigoProducto: "PROD003",
+    codigoCliente: "CLI003",
+    codigoTecnico: "TEC003",
+    status: "Pendiente de diagnostico",
+    coberturaGarantia: false,
+    descripcionProblema: "Vibración excesiva durante el uso",
+    fechaIngreso: "2024-01-16",
+    productoDescontinuado: false
+  },
+  {
+    id: "INC007",
+    codigoProducto: "PROD001",
+    codigoCliente: "CLI001",
+    codigoTecnico: "TEC001",
+    status: "Canje",
+    coberturaGarantia: false,
+    descripcionProblema: "Múltiples componentes dañados por sobrecarga",
+    fechaIngreso: "2024-01-05",
     productoDescontinuado: false
   }
 ];

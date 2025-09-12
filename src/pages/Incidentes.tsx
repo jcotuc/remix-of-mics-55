@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { StatusBadge } from "@/components/StatusBadge";
 import { incidentes, clientes, productos, tecnicos } from "@/data/mockData";
 import { Incidente, StatusIncidente } from "@/types";
@@ -16,20 +17,43 @@ export default function Incidentes() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [incidentesList, setIncidentesList] = useState<Incidente[]>(incidentes);
+  const [selectedIncidentes, setSelectedIncidentes] = useState<string[]>([]);
 
   const statusOptions: StatusIncidente[] = [
-    "Ingresado", "Diagnostico", "Repuestos solicitados", 
-    "Reparado", "Documentado", "Entregado"
+    "Pendiente de diagnostico", "En diagnostico", "Pendiente por repuestos",
+    "Reparado", "Presupuesto", "Canje", "Nota de credito", "Cambio por garantia"
   ];
 
   const filteredIncidentes = incidentesList.filter(incidente => {
     const matchesSearch = incidente.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      incidente.descripcionProblema.toLowerCase().includes(searchTerm.toLowerCase());
+      incidente.descripcionProblema.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      getClienteName(incidente.codigoCliente).toLowerCase().includes(searchTerm.toLowerCase()) ||
+      getProductDescription(incidente.codigoProducto).toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesStatus = statusFilter === "all" || incidente.status === statusFilter;
     
     return matchesSearch && matchesStatus;
   });
+
+  const handleSelectIncidente = (incidenteId: string, checked: boolean) => {
+    if (checked) {
+      setSelectedIncidentes(prev => [...prev, incidenteId]);
+    } else {
+      setSelectedIncidentes(prev => prev.filter(id => id !== incidenteId));
+    }
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedIncidentes(filteredIncidentes.map(i => i.id));
+    } else {
+      setSelectedIncidentes([]);
+    }
+  };
+
+  const handleVerIncidente = (incidenteId: string) => {
+    navigate(`/incidentes/${incidenteId}`);
+  };
 
   const getClienteName = (codigo: string) => {
     const cliente = clientes.find(c => c.codigo === codigo);
@@ -77,7 +101,7 @@ export default function Incidentes() {
               <div>
                 <p className="text-sm text-muted-foreground">Pendientes</p>
                 <p className="text-2xl font-bold">
-                  {incidentesList.filter(i => i.status === "Ingresado").length}
+                  {incidentesList.filter(i => i.status === "Pendiente de diagnostico").length}
                 </p>
               </div>
             </div>
@@ -91,7 +115,7 @@ export default function Incidentes() {
               <div>
                 <p className="text-sm text-muted-foreground">En Proceso</p>
                 <p className="text-2xl font-bold">
-                  {incidentesList.filter(i => ["Diagnostico", "Repuestos solicitados", "Reparado"].includes(i.status)).length}
+                  {incidentesList.filter(i => ["En diagnostico", "Pendiente por repuestos", "Presupuesto"].includes(i.status)).length}
                 </p>
               </div>
             </div>
@@ -105,7 +129,7 @@ export default function Incidentes() {
               <div>
                 <p className="text-sm text-muted-foreground">Completados</p>
                 <p className="text-2xl font-bold">
-                  {incidentesList.filter(i => i.status === "Entregado").length}
+                  {incidentesList.filter(i => ["Reparado", "Canje", "Nota de credito", "Cambio por garantia"].includes(i.status)).length}
                 </p>
               </div>
             </div>
@@ -135,36 +159,58 @@ export default function Incidentes() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center space-x-4 mb-4">
-            <div className="flex items-center space-x-2">
-              <Search className="h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar incidentes..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="max-w-sm"
-              />
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2">
+                <Search className="h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar incidentes..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="max-w-sm"
+                />
+              </div>
+              
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Filtrar por estado" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos los estados</SelectItem>
+                  {statusOptions.map((status) => (
+                    <SelectItem key={status} value={status}>
+                      {status}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-            
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Filtrar por estado" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos los estados</SelectItem>
-                {statusOptions.map((status) => (
-                  <SelectItem key={status} value={status}>
-                    {status}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+
+            {selectedIncidentes.length > 0 && (
+              <div className="flex items-center space-x-2">
+                <Badge variant="secondary">
+                  {selectedIncidentes.length} seleccionado(s)
+                </Badge>
+                <Button variant="outline" size="sm">
+                  Asignar Técnico
+                </Button>
+                <Button variant="outline" size="sm">
+                  Cambiar Estado
+                </Button>
+              </div>
+            )}
           </div>
 
           <div className="rounded-md border">
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-12">
+                    <Checkbox
+                      checked={selectedIncidentes.length === filteredIncidentes.length && filteredIncidentes.length > 0}
+                      onCheckedChange={handleSelectAll}
+                    />
+                  </TableHead>
                   <TableHead>ID</TableHead>
                   <TableHead>Cliente</TableHead>
                   <TableHead>Producto</TableHead>
@@ -177,7 +223,16 @@ export default function Incidentes() {
               </TableHeader>
               <TableBody>
                 {filteredIncidentes.map((incidente) => (
-                  <TableRow key={incidente.id}>
+                  <TableRow 
+                    key={incidente.id}
+                    className={selectedIncidentes.includes(incidente.id) ? "bg-muted/50" : ""}
+                  >
+                    <TableCell>
+                      <Checkbox
+                        checked={selectedIncidentes.includes(incidente.id)}
+                        onCheckedChange={(checked) => handleSelectIncidente(incidente.id, checked as boolean)}
+                      />
+                    </TableCell>
                     <TableCell className="font-medium">{incidente.id}</TableCell>
                     <TableCell>{getClienteName(incidente.codigoCliente)}</TableCell>
                     <TableCell>
@@ -209,7 +264,11 @@ export default function Incidentes() {
                     <TableCell>{incidente.fechaIngreso}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end space-x-2">
-                        <Button variant="outline" size="sm">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleVerIncidente(incidente.id)}
+                        >
                           <Eye className="h-4 w-4" />
                         </Button>
                         <Button variant="outline" size="sm">

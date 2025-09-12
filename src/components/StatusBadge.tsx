@@ -8,17 +8,21 @@ interface StatusBadgeProps {
 export function StatusBadge({ status }: StatusBadgeProps) {
   const getStatusVariant = (status: StatusIncidente) => {
     switch (status) {
-      case "Ingresado":
+      case "Pendiente de diagnostico":
         return "secondary";
-      case "Diagnostico":
+      case "En diagnostico":
         return "outline";
-      case "Repuestos solicitados":
+      case "Pendiente por repuestos":
         return "outline";
       case "Reparado":
         return "default";
-      case "Documentado":
+      case "Presupuesto":
+        return "outline";
+      case "Canje":
         return "default";
-      case "Entregado":
+      case "Nota de credito":
+        return "default";
+      case "Cambio por garantia":
         return "default";
       default:
         return "secondary";
@@ -27,18 +31,22 @@ export function StatusBadge({ status }: StatusBadgeProps) {
 
   const getStatusColor = (status: StatusIncidente) => {
     switch (status) {
-      case "Ingresado":
+      case "Pendiente de diagnostico":
         return "bg-info text-info-foreground";
-      case "Diagnostico":
+      case "En diagnostico":
         return "bg-warning text-warning-foreground";
-      case "Repuestos solicitados":
+      case "Pendiente por repuestos":
         return "bg-warning text-warning-foreground";
       case "Reparado":
         return "bg-success text-success-foreground";
-      case "Documentado":
-        return "bg-success text-success-foreground";
-      case "Entregado":
-        return "bg-success text-success-foreground";
+      case "Presupuesto":
+        return "bg-blue-500 text-white";
+      case "Canje":
+        return "bg-orange-500 text-white";
+      case "Nota de credito":
+        return "bg-purple-500 text-white";
+      case "Cambio por garantia":
+        return "bg-green-600 text-white";
       default:
         return "bg-muted text-muted-foreground";
     }

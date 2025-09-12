@@ -6,8 +6,8 @@ const Index = () => {
   const totalClientes = clientes.length;
   const totalProductos = productos.length;
   const productosActivos = productos.filter(p => !p.descontinuado).length;
-  const incidentesPendientes = incidentes.filter(i => i.status === "Ingresado").length;
-  const incidentesEnProceso = incidentes.filter(i => ["Diagnostico", "Repuestos solicitados", "Reparado"].includes(i.status)).length;
+  const incidentesPendientes = incidentes.filter(i => i.status === "Pendiente de diagnostico").length;
+  const incidentesEnProceso = incidentes.filter(i => ["En diagnostico", "Pendiente por repuestos", "Presupuesto"].includes(i.status)).length;
 
   return (
     <div className="space-y-6">

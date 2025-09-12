@@ -39,7 +39,9 @@ const getRandomDisponibilidad = () => {
   const randomStatus = statuses[Math.floor(Math.random() * statuses.length)];
   
   if (randomStatus === 'otra-bodega') {
-    const randomCentro = centrosServicio[Math.floor(Math.random() * centrosServicio.length)];
+    // Excluir "Zona 5 (Principal)" ya que estamos ahí
+    const centrosDisponibles = centrosServicio.filter(centro => centro !== 'Zona 5 (Principal)');
+    const randomCentro = centrosDisponibles[Math.floor(Math.random() * centrosDisponibles.length)];
     return { status: randomStatus, ubicacion: randomCentro };
   }
   
@@ -178,6 +180,16 @@ export default function NuevoIncidente() {
   const realizarPedido = () => {
     if (repuestosSeleccionados.length === 0) {
       toast.error("No hay repuestos seleccionados para realizar el pedido");
+      return;
+    }
+
+    // Verificar si hay repuestos no disponibles
+    const repuestosNoDisponibles = repuestosSeleccionados.filter(
+      r => r.disponibilidad?.status === 'no-disponible'
+    );
+
+    if (repuestosNoDisponibles.length > 0) {
+      toast.error("No se puede realizar el pedido. Hay repuestos no disponibles en el inventario");
       return;
     }
     
