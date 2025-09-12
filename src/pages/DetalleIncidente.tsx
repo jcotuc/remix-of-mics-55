@@ -271,10 +271,11 @@ export default function DetalleIncidente() {
       </div>
 
       <Tabs defaultValue="detalles" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="detalles">Detalles</TabsTrigger>
           <TabsTrigger value="diagnostico">Diagnóstico</TabsTrigger>
           <TabsTrigger value="repuestos">Repuestos</TabsTrigger>
+          <TabsTrigger value="documentacion">Documentación</TabsTrigger>
           <TabsTrigger value="historial">Historial</TabsTrigger>
         </TabsList>
 
@@ -326,7 +327,7 @@ export default function DetalleIncidente() {
             <CardContent>
               {incidente.status === "Pendiente de diagnostico" ? (
                 diagnosticoStarted ? (
-                  <div className="space-y-6">
+                  <div className="space-y-4">
                     <div className="space-y-2">
                       <label className="text-sm font-medium">Descripción del diagnóstico</label>
                       <Textarea
@@ -396,45 +397,6 @@ export default function DetalleIncidente() {
                         <Switch checked={requiereRepuestos} onCheckedChange={setRequiereRepuestos} id="req-repuestos" />
                         <label htmlFor="req-repuestos" className="text-sm">Requiere repuestos</label>
                       </div>
-
-                      {(requiereRepuestos || repuestosList.length > 0) && (
-                        <div className="rounded-lg border p-4 space-y-3">
-                          <div className="flex gap-2">
-                            <Input
-                              placeholder="Código del repuesto (ej. ESC-ROT-15679)"
-                              value={repCodigo}
-                              onChange={(e) => setRepCodigo(e.target.value)}
-                              className="flex-1"
-                            />
-                            <Input
-                              type="number"
-                              min={1}
-                              value={repCantidad}
-                              onChange={(e) => setRepCantidad(Number(e.target.value))}
-                              className="w-28"
-                            />
-                            <Button type="button" onClick={addRepuesto} aria-label="Agregar repuesto">
-                              <Plus className="w-4 h-4" />
-                            </Button>
-                          </div>
-
-                          {repuestosList.length > 0 && (
-                            <div className="space-y-2">
-                              {repuestosList.map((r, i) => (
-                                <div key={`${r.repuestoCodigo}-${i}`} className="flex items-center justify-between rounded border p-2">
-                                  <div className="text-sm">
-                                    <div className="font-medium">{r.repuestoCodigo}</div>
-                                    <div className="text-muted-foreground">Cantidad: {r.cantidad}</div>
-                                  </div>
-                                  <Button type="button" variant="ghost" size="icon" onClick={() => removeRepuesto(i)} aria-label="Quitar">
-                                    <X className="w-4 h-4" />
-                                  </Button>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      )}
                     </div>
 
                     <div className="flex justify-end gap-2">
@@ -539,7 +501,45 @@ export default function DetalleIncidente() {
               <CardDescription>Lista de componentes necesarios para la reparación</CardDescription>
             </CardHeader>
             <CardContent>
-              {incidente.repuestosSolicitados && incidente.repuestosSolicitados.length > 0 ? (
+              {incidente.status === "Pendiente de diagnostico" && diagnosticoStarted && requiereRepuestos ? (
+                <div className="rounded-lg border p-4 space-y-3">
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Código del repuesto (ej. ESC-ROT-15679)"
+                      value={repCodigo}
+                      onChange={(e) => setRepCodigo(e.target.value)}
+                      className="flex-1"
+                    />
+                    <Input
+                      type="number"
+                      min={1}
+                      value={repCantidad}
+                      onChange={(e) => setRepCantidad(Number(e.target.value))}
+                      className="w-28"
+                      placeholder="Cant."
+                    />
+                    <Button type="button" onClick={addRepuesto} aria-label="Agregar repuesto">
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                  </div>
+
+                  {repuestosList.length > 0 && (
+                    <div className="space-y-2">
+                      {repuestosList.map((r, i) => (
+                        <div key={`${r.repuestoCodigo}-${i}`} className="flex items-center justify-between rounded border p-2">
+                          <div className="text-sm">
+                            <div className="font-medium">{r.repuestoCodigo}</div>
+                            <div className="text-muted-foreground">Cantidad: {r.cantidad}</div>
+                          </div>
+                          <Button type="button" variant="ghost" size="icon" onClick={() => removeRepuesto(i)} aria-label="Quitar">
+                            <X className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : incidente.repuestosSolicitados && incidente.repuestosSolicitados.length > 0 ? (
                 <div className="space-y-4">
                   {incidente.repuestosSolicitados.map((repuesto, index) => (
                     <div key={index} className="border rounded-lg p-4">
@@ -595,9 +595,41 @@ export default function DetalleIncidente() {
               ) : (
                 <div className="text-center py-8">
                   <Package className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                  <p className="text-muted-foreground">No se han solicitado repuestos aún</p>
+                  <p className="text-muted-foreground">
+                    {incidente.status === "Pendiente de diagnostico" 
+                      ? "Primero debes completar el diagnóstico en la pestaña de Diagnóstico"
+                      : "No se han solicitado repuestos aún"
+                    }
+                  </p>
                 </div>
               )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="documentacion" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Documentación</CardTitle>
+              <CardDescription>Archivos multimedia relacionados con el incidente</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-8 text-center">
+                  <FileText className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground mb-4">Arrastra archivos aquí o haz clic para seleccionar</p>
+                  <p className="text-sm text-muted-foreground mb-4">Formatos soportados: JPG, PNG, PDF, MP4, DOC</p>
+                  <Button variant="outline">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Seleccionar archivos
+                  </Button>
+                </div>
+                
+                {/* Aquí se mostrarían los archivos subidos */}
+                <div className="text-center py-4">
+                  <p className="text-sm text-muted-foreground">No hay archivos subidos aún</p>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
