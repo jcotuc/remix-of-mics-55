@@ -243,7 +243,7 @@ export default function NuevoIncidente() {
                               Código: {producto.codigo} | Clave: {producto.clave}
                             </p>
                             {producto.descontinuado && (
-                              <Badge variant="destructive" className="mt-1 text-xs">
+                              <Badge variant="destructive" className="mt-1 text-xs bg-red-500 text-white border-red-600">
                                 Descontinuado
                               </Badge>
                             )}
@@ -279,7 +279,7 @@ export default function NuevoIncidente() {
                           Código: {productoSeleccionado.codigo} | Clave: {productoSeleccionado.clave}
                         </p>
                         {productoSeleccionado.descontinuado && (
-                          <Badge variant="destructive" className="mt-1">
+                          <Badge variant="destructive" className="mt-1 bg-red-500 text-white border-red-600">
                             Producto Descontinuado
                           </Badge>
                         )}
