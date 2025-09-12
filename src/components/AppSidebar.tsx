@@ -31,13 +31,13 @@ export function AppSidebar() {
   const getNavCls = ({ isActive }: { isActive: boolean }) =>
     isActive 
       ? "bg-primary text-primary-foreground font-medium" 
-      : "text-black hover:bg-muted hover:text-black dark:text-white dark:hover:text-white";
+      : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground";
 
   return (
     <Sidebar className={isCollapsed ? "w-16" : "w-64"} collapsible="icon">
       <SidebarContent>
         <div className="p-4">
-          <h2 className={`font-bold text-lg text-black dark:text-white ${isCollapsed ? "hidden" : "block"}`}>
+          <h2 className={`font-bold text-lg text-sidebar-foreground ${isCollapsed ? "hidden" : "block"}`}>
             Centro de Servicio
           </h2>
           {isCollapsed && (
@@ -48,7 +48,7 @@ export function AppSidebar() {
         </div>
         
         <SidebarGroup>
-          <SidebarGroupLabel className={`text-black dark:text-white font-semibold ${isCollapsed ? "sr-only" : ""}`}>
+          <SidebarGroupLabel className={`text-sidebar-foreground font-semibold ${isCollapsed ? "sr-only" : ""}`}>
             Gestión
           </SidebarGroupLabel>
           <SidebarGroupContent>
