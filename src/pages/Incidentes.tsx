@@ -11,6 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { StatusBadge } from "@/components/StatusBadge";
 import { incidentes, clientes, productos, tecnicos } from "@/data/mockData";
 import { Incidente, StatusIncidente } from "@/types";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function Incidentes() {
   const navigate = useNavigate();
@@ -28,7 +29,7 @@ export default function Incidentes() {
     const matchesSearch = incidente.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
       incidente.descripcionProblema.toLowerCase().includes(searchTerm.toLowerCase()) ||
       getClienteName(incidente.codigoCliente).toLowerCase().includes(searchTerm.toLowerCase()) ||
-      getProductDescription(incidente.codigoProducto).toLowerCase().includes(searchTerm.toLowerCase());
+      getProductDisplayName(incidente.codigoProducto).toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesStatus = statusFilter === "all" || incidente.status === statusFilter;
     
@@ -55,14 +56,48 @@ export default function Incidentes() {
     navigate(`/incidentes/${incidenteId}`);
   };
 
+  const handleRowClick = (incidenteId: string, event: React.MouseEvent) => {
+    // Evitar navegación si se hace click en checkbox o botones
+    if ((event.target as HTMLElement).closest('input[type="checkbox"]') || 
+        (event.target as HTMLElement).closest('button')) {
+      return;
+    }
+    navigate(`/incidentes/${incidenteId}`);
+  };
+
   const getClienteName = (codigo: string) => {
     const cliente = clientes.find(c => c.codigo === codigo);
     return cliente ? cliente.nombre : "Cliente no encontrado";
   };
 
-  const getProductDescription = (codigo: string) => {
+  const getProductDescription = async (codigo: string) => {
+    // Primero buscar en productos de mock data
     const producto = productos.find(p => p.codigo === codigo);
-    return producto ? producto.descripcion : "Producto no encontrado";
+    if (producto) {
+      return producto.descripcion;
+    }
+    
+    // Si no se encuentra, buscar en la base de datos
+    try {
+      const { data, error } = await supabase
+        .from('productos')
+        .select('descripcion')
+        .eq('codigo', codigo)
+        .single();
+      
+      if (error || !data) {
+        return "Producto no encontrado";
+      }
+      
+      return data.descripcion;
+    } catch (error) {
+      return "Producto no encontrado";
+    }
+  };
+
+  // Función síncrona para mostrar el código del producto
+  const getProductDisplayName = (codigo: string) => {
+    return `Código: ${codigo}`;
   };
 
   const getTecnicoName = (codigo: string) => {
@@ -225,7 +260,8 @@ export default function Incidentes() {
                 {filteredIncidentes.map((incidente) => (
                   <TableRow 
                     key={incidente.id}
-                    className={selectedIncidentes.includes(incidente.id) ? "bg-muted/50" : ""}
+                    className={`${selectedIncidentes.includes(incidente.id) ? "bg-muted/50" : ""} cursor-pointer hover:bg-muted/30`}
+                    onClick={(e) => handleRowClick(incidente.id, e)}
                   >
                     <TableCell>
                       <Checkbox
@@ -237,7 +273,7 @@ export default function Incidentes() {
                     <TableCell>{getClienteName(incidente.codigoCliente)}</TableCell>
                     <TableCell>
                       <div className="flex items-center space-x-2">
-                        <span className="text-sm">{getProductDescription(incidente.codigoProducto)}</span>
+                        <span className="text-sm">{getProductDisplayName(incidente.codigoProducto)}</span>
                         {isProductDiscontinued(incidente.codigoProducto) && (
                           <Badge variant="destructive" className="text-xs">
                             <AlertTriangle className="h-3 w-3 mr-1" />

@@ -96,78 +96,78 @@ export const tecnicos: Tecnico[] = [
 export const incidentes: Incidente[] = [
   {
     id: "INC001",
-    codigoProducto: "PROD001",
+    codigoProducto: "15679",
     codigoCliente: "CLI001",
     codigoTecnico: "TEC001",
     status: "Pendiente de diagnostico",
     coberturaGarantia: true,
-    descripcionProblema: "El taladro no enciende al presionar el gatillo",
+    descripcionProblema: "El rotomartillo no enciende al presionar el gatillo",
     fechaIngreso: "2024-01-15",
     productoDescontinuado: false
   },
   {
     id: "INC002",
-    codigoProducto: "PROD002", 
+    codigoProducto: "16441", 
     codigoCliente: "CLI002",
     codigoTecnico: "TEC002",
     status: "En diagnostico",
     coberturaGarantia: false,
-    descripcionProblema: "La sierra hace ruido extraño y vibra excesivamente",
+    descripcionProblema: "El esmeril hace ruido extraño y vibra excesivamente",
     fechaIngreso: "2024-01-14",
-    productoDescontinuado: true
+    productoDescontinuado: false
   },
   {
     id: "INC003",
-    codigoProducto: "PROD003",
+    codigoProducto: "15679",
     codigoCliente: "CLI003", 
     codigoTecnico: "TEC003",
     status: "Reparado",
     coberturaGarantia: true,
-    descripcionProblema: "Lijadora no mantiene velocidad constante",
+    descripcionProblema: "Rotomartillo no mantiene velocidad constante",
     fechaIngreso: "2024-01-10",
     productoDescontinuado: false
   },
   {
     id: "INC004",
-    codigoProducto: "PROD001",
+    codigoProducto: "16441",
     codigoCliente: "CLI002",
     codigoTecnico: "TEC001",
     status: "Pendiente por repuestos",
     coberturaGarantia: true,
-    descripcionProblema: "Motor quemado, necesita reemplazo completo",
+    descripcionProblema: "Motor quemado, necesita reemplazo completo del esmeril",
     fechaIngreso: "2024-01-12",
     productoDescontinuado: false
   },
   {
     id: "INC005",
-    codigoProducto: "PROD002",
+    codigoProducto: "15679",
     codigoCliente: "CLI001",
     codigoTecnico: "TEC002",
     status: "Presupuesto",
     coberturaGarantia: false,
-    descripcionProblema: "Disco dañado y problemas en el motor",
+    descripcionProblema: "Chuck dañado y problemas en el motor del rotomartillo",
     fechaIngreso: "2024-01-08",
-    productoDescontinuado: true
+    productoDescontinuado: false
   },
   {
     id: "INC006",
-    codigoProducto: "PROD003",
+    codigoProducto: "16441",
     codigoCliente: "CLI003",
     codigoTecnico: "TEC003",
     status: "Pendiente de diagnostico",
     coberturaGarantia: false,
-    descripcionProblema: "Vibración excesiva durante el uso",
+    descripcionProblema: "Vibración excesiva durante el uso del esmeril",
     fechaIngreso: "2024-01-16",
     productoDescontinuado: false
   },
   {
     id: "INC007",
-    codigoProducto: "PROD001",
+    codigoProducto: "15679",
     codigoCliente: "CLI001",
     codigoTecnico: "TEC001",
     status: "Canje",
     coberturaGarantia: false,
-    descripcionProblema: "Múltiples componentes dañados por sobrecarga",
+    descripcionProblema: "Múltiples componentes del rotomartillo dañados por sobrecarga",
     fechaIngreso: "2024-01-05",
     productoDescontinuado: false
   }
