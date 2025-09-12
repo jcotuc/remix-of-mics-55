@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { StatusBadge } from "@/components/StatusBadge";
-import { incidentes, clientes, productos, tecnicos } from "@/data/mockData";
+import { incidentes, clientes, productos, tecnicos, repuestos } from "@/data/mockData";
 import { Incidente } from "@/types";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -501,108 +501,233 @@ export default function DetalleIncidente() {
               <CardDescription>Lista de componentes necesarios para la reparación</CardDescription>
             </CardHeader>
             <CardContent>
-              {incidente.status === "Pendiente de diagnostico" && diagnosticoStarted && requiereRepuestos ? (
-                <div className="rounded-lg border p-4 space-y-3">
-                  <div className="flex gap-2">
-                    <Input
-                      placeholder="Código del repuesto (ej. ESC-ROT-15679)"
-                      value={repCodigo}
-                      onChange={(e) => setRepCodigo(e.target.value)}
-                      className="flex-1"
-                    />
-                    <Input
-                      type="number"
-                      min={1}
-                      value={repCantidad}
-                      onChange={(e) => setRepCantidad(Number(e.target.value))}
-                      className="w-28"
-                      placeholder="Cant."
-                    />
-                    <Button type="button" onClick={addRepuesto} aria-label="Agregar repuesto">
-                      <Plus className="w-4 h-4" />
-                    </Button>
-                  </div>
-
-                  {repuestosList.length > 0 && (
-                    <div className="space-y-2">
-                      {repuestosList.map((r, i) => (
-                        <div key={`${r.repuestoCodigo}-${i}`} className="flex items-center justify-between rounded border p-2">
-                          <div className="text-sm">
-                            <div className="font-medium">{r.repuestoCodigo}</div>
-                            <div className="text-muted-foreground">Cantidad: {r.cantidad}</div>
-                          </div>
-                          <Button type="button" variant="ghost" size="icon" onClick={() => removeRepuesto(i)} aria-label="Quitar">
-                            <X className="w-4 h-4" />
+              {(() => {
+                const repuestosDelProducto = repuestos.filter(r => r.codigoProducto === incidente.codigoProducto);
+                
+                if (incidente.status === "Pendiente de diagnostico" && diagnosticoStarted && requiereRepuestos) {
+                  return (
+                    <div className="space-y-6">
+                      <div className="rounded-lg border p-4 space-y-3">
+                        <h4 className="font-medium text-sm">Agregar repuesto al diagnóstico</h4>
+                        <div className="flex gap-2">
+                          <Input
+                            placeholder="Código del repuesto (ej. ESC-ROT-15679)"
+                            value={repCodigo}
+                            onChange={(e) => setRepCodigo(e.target.value)}
+                            className="flex-1"
+                          />
+                          <Input
+                            type="number"
+                            min={1}
+                            value={repCantidad}
+                            onChange={(e) => setRepCantidad(Number(e.target.value))}
+                            className="w-28"
+                            placeholder="Cant."
+                          />
+                          <Button type="button" onClick={addRepuesto} aria-label="Agregar repuesto">
+                            <Plus className="w-4 h-4" />
                           </Button>
                         </div>
+
+                        {repuestosList.length > 0 && (
+                          <div className="space-y-2">
+                            <h5 className="font-medium text-sm">Repuestos agregados al diagnóstico:</h5>
+                            {repuestosList.map((r, i) => (
+                              <div key={`${r.repuestoCodigo}-${i}`} className="flex items-center justify-between rounded border p-2">
+                                <div className="text-sm">
+                                  <div className="font-medium">{r.repuestoCodigo}</div>
+                                  <div className="text-muted-foreground">Cantidad: {r.cantidad}</div>
+                                </div>
+                                <Button type="button" variant="ghost" size="icon" onClick={() => removeRepuesto(i)} aria-label="Quitar">
+                                  <X className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {repuestosDelProducto.length > 0 && (
+                        <div className="space-y-4">
+                          <h4 className="font-medium">Repuestos disponibles para este producto:</h4>
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {repuestosDelProducto.map((repuesto) => (
+                              <div key={repuesto.numero} className="border rounded-lg p-4 space-y-2">
+                                <div className="aspect-square bg-muted rounded-lg mb-2">
+                                  <img 
+                                    src={repuesto.urlFoto} 
+                                    alt={repuesto.descripcion}
+                                    className="w-full h-full object-cover rounded-lg"
+                                  />
+                                </div>
+                                <h5 className="font-medium text-sm">{repuesto.descripcion}</h5>
+                                <p className="text-xs text-muted-foreground">Código: {repuesto.codigo}</p>
+                                <p className="text-xs text-muted-foreground">Clave: {repuesto.clave}</p>
+                                <Button 
+                                  size="sm" 
+                                  variant="outline" 
+                                  className="w-full"
+                                  onClick={() => {
+                                    setRepCodigo(repuesto.codigo);
+                                    setRepCantidad(1);
+                                  }}
+                                >
+                                  Seleccionar
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+
+                if (incidente.repuestosSolicitados && incidente.repuestosSolicitados.length > 0) {
+                  return (
+                    <div className="space-y-4">
+                      <h4 className="font-medium">Repuestos solicitados para esta reparación:</h4>
+                      {incidente.repuestosSolicitados.map((repuesto, index) => (
+                        <div key={index} className="border rounded-lg p-4">
+                          <div className="flex items-center justify-between mb-3">
+                            <div>
+                              <p className="font-medium">{repuesto.repuestoCodigo}</p>
+                              <p className="text-sm text-muted-foreground">Cantidad: {repuesto.cantidad}</p>
+                            </div>
+                            <div className="text-right">
+                              {repuesto.estado === 'recibido' && (
+                                <Badge className="bg-success text-success-foreground">
+                                  <CheckCircle className="w-3 h-3 mr-1" />
+                                  Recibido
+                                </Badge>
+                              )}
+                              {repuesto.estado === 'en-transito' && (
+                                <Badge className="bg-warning text-warning-foreground">
+                                  <Truck className="w-3 h-3 mr-1" />
+                                  En Tránsito
+                                </Badge>
+                              )}
+                              {repuesto.estado === 'pendiente' && (
+                                <Badge variant="outline">
+                                  <Clock className="w-3 h-3 mr-1" />
+                                  Pendiente
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                          
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs text-muted-foreground">
+                            <div>Solicitado: {repuesto.fechaSolicitud}</div>
+                            {repuesto.bodegaOrigen && (
+                              <div>Bodega: {repuesto.bodegaOrigen}</div>
+                            )}
+                            {repuesto.fechaEstimadaLlegada && (
+                              <div>Estimado: {repuesto.fechaEstimadaLlegada}</div>
+                            )}
+                          </div>
+                        </div>
                       ))}
-                    </div>
-                  )}
-                </div>
-              ) : incidente.repuestosSolicitados && incidente.repuestosSolicitados.length > 0 ? (
-                <div className="space-y-4">
-                  {incidente.repuestosSolicitados.map((repuesto, index) => (
-                    <div key={index} className="border rounded-lg p-4">
-                      <div className="flex items-center justify-between mb-3">
-                        <div>
-                          <p className="font-medium">{repuesto.repuestoCodigo}</p>
-                          <p className="text-sm text-muted-foreground">Cantidad: {repuesto.cantidad}</p>
+
+                      {repuestosDelProducto.length > 0 && (
+                        <div className="space-y-4 mt-6">
+                          <h4 className="font-medium">Otros repuestos disponibles para este producto:</h4>
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {repuestosDelProducto.map((repuesto) => (
+                              <div key={repuesto.numero} className="border rounded-lg p-4 space-y-2">
+                                <div className="aspect-square bg-muted rounded-lg mb-2">
+                                  <img 
+                                    src={repuesto.urlFoto} 
+                                    alt={repuesto.descripcion}
+                                    className="w-full h-full object-cover rounded-lg"
+                                  />
+                                </div>
+                                <h5 className="font-medium text-sm">{repuesto.descripcion}</h5>
+                                <p className="text-xs text-muted-foreground">Código: {repuesto.codigo}</p>
+                                <p className="text-xs text-muted-foreground">Clave: {repuesto.clave}</p>
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                        <div className="text-right">
-                          {repuesto.estado === 'recibido' && (
-                            <Badge className="bg-success text-success-foreground">
-                              <CheckCircle className="w-3 h-3 mr-1" />
-                              Recibido
-                            </Badge>
-                          )}
-                          {repuesto.estado === 'en-transito' && (
-                            <Badge className="bg-warning text-warning-foreground">
-                              <Truck className="w-3 h-3 mr-1" />
-                              En Tránsito
-                            </Badge>
-                          )}
-                          {repuesto.estado === 'pendiente' && (
-                            <Badge variant="outline">
-                              <Clock className="w-3 h-3 mr-1" />
-                              Pendiente
-                            </Badge>
+                      )}
+                    </div>
+                  );
+                }
+
+                if (incidente.status === "Pendiente por repuestos") {
+                  return (
+                    <div className="space-y-4">
+                      <Badge variant="outline" className="bg-warning/10 text-warning">
+                        <AlertTriangle className="w-3 h-3 mr-1" />
+                        Esperando repuestos
+                      </Badge>
+                      <p className="text-sm text-muted-foreground">
+                        Los repuestos necesarios están siendo gestionados.
+                      </p>
+
+                      {repuestosDelProducto.length > 0 && (
+                        <div className="space-y-4 mt-6">
+                          <h4 className="font-medium">Repuestos disponibles para este producto:</h4>
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {repuestosDelProducto.map((repuesto) => (
+                              <div key={repuesto.numero} className="border rounded-lg p-4 space-y-2">
+                                <div className="aspect-square bg-muted rounded-lg mb-2">
+                                  <img 
+                                    src={repuesto.urlFoto} 
+                                    alt={repuesto.descripcion}
+                                    className="w-full h-full object-cover rounded-lg"
+                                  />
+                                </div>
+                                <h5 className="font-medium text-sm">{repuesto.descripcion}</h5>
+                                <p className="text-xs text-muted-foreground">Código: {repuesto.codigo}</p>
+                                <p className="text-xs text-muted-foreground">Clave: {repuesto.clave}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+
+                // Estado por defecto - mostrar repuestos del producto
+                return (
+                  <div className="space-y-4">
+                    {repuestosDelProducto.length > 0 ? (
+                      <>
+                        <div className="flex items-center justify-between">
+                          <h4 className="font-medium">Repuestos disponibles para este producto</h4>
+                          {incidente.status === "Pendiente de diagnostico" && (
+                            <p className="text-sm text-muted-foreground">
+                              Para solicitar repuestos, inicia el diagnóstico
+                            </p>
                           )}
                         </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {repuestosDelProducto.map((repuesto) => (
+                            <div key={repuesto.numero} className="border rounded-lg p-4 space-y-2">
+                              <div className="aspect-square bg-muted rounded-lg mb-2">
+                                <img 
+                                  src={repuesto.urlFoto} 
+                                  alt={repuesto.descripcion}
+                                  className="w-full h-full object-cover rounded-lg"
+                                />
+                              </div>
+                              <h5 className="font-medium text-sm">{repuesto.descripcion}</h5>
+                              <p className="text-xs text-muted-foreground">Código: {repuesto.codigo}</p>
+                              <p className="text-xs text-muted-foreground">Clave: {repuesto.clave}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    ) : (
+                      <div className="text-center py-8">
+                        <Package className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                        <p className="text-muted-foreground">No hay repuestos disponibles para este producto</p>
                       </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs text-muted-foreground">
-                        <div>Solicitado: {repuesto.fechaSolicitud}</div>
-                        {repuesto.bodegaOrigen && (
-                          <div>Bodega: {repuesto.bodegaOrigen}</div>
-                        )}
-                        {repuesto.fechaEstimadaLlegada && (
-                          <div>Estimado: {repuesto.fechaEstimadaLlegada}</div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : incidente.status === "Pendiente por repuestos" ? (
-                <div className="space-y-4">
-                  <Badge variant="outline" className="bg-warning/10 text-warning">
-                    <AlertTriangle className="w-3 h-3 mr-1" />
-                    Esperando repuestos
-                  </Badge>
-                  <p className="text-sm text-muted-foreground">
-                    Los repuestos necesarios están siendo gestionados.
-                  </p>
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <Package className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                  <p className="text-muted-foreground">
-                    {incidente.status === "Pendiente de diagnostico" 
-                      ? "Primero debes completar el diagnóstico en la pestaña de Diagnóstico"
-                      : "No se han solicitado repuestos aún"
-                    }
-                  </p>
-                </div>
-              )}
+                    )}
+                  </div>
+                );
+              })()}
             </CardContent>
           </Card>
         </TabsContent>
