@@ -462,11 +462,22 @@ export default function NuevoIncidente() {
                       'Selecciona un producto primero'
                     }
                   </CardDescription>
+                  {productoSeleccionado && (
+                    <div className="relative">
+                      <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Buscar repuesto..."
+                        value={busquedaRepuesto}
+                        onChange={(e) => setBusquedaRepuesto(e.target.value)}
+                        className="pl-8"
+                      />
+                    </div>
+                  )}
                 </CardHeader>
                 <CardContent>
                   {productoSeleccionado ? (
                     <div className="space-y-2 max-h-96 overflow-y-auto">
-                      {repuestos
+                      {repuestosFiltrados
                         .filter(repuesto => repuesto.codigoProducto === productoSeleccionado.codigo)
                         .map((repuesto) => (
                           <div 
@@ -493,7 +504,7 @@ export default function NuevoIncidente() {
                           </div>
                         ))
                       }
-                      {repuestos.filter(repuesto => repuesto.codigoProducto === productoSeleccionado.codigo).length === 0 && (
+                      {repuestosFiltrados.filter(repuesto => repuesto.codigoProducto === productoSeleccionado.codigo).length === 0 && (
                         <div className="text-center py-4 text-muted-foreground">
                           <p className="text-sm">No hay repuestos disponibles para este producto</p>
                         </div>
