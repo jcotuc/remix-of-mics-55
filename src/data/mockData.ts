@@ -114,7 +114,25 @@ export const incidentes: Incidente[] = [
     coberturaGarantia: false,
     descripcionProblema: "El esmeril hace ruido extraño y vibra excesivamente",
     fechaIngreso: "2024-01-14",
-    productoDescontinuado: false
+    productoDescontinuado: false,
+    diagnostico: {
+      fecha: "2024-01-14",
+      tecnicoCodigo: "TEC002",
+      descripcion: "Se ha iniciado el diagnóstico del esmeril. Ruido detectado en rodamientos.",
+      fallasEncontradas: ["Rodamientos desgastados", "Desbalance en el disco"],
+      recomendaciones: "Reemplazar rodamientos y revisar disco",
+      requiereRepuestos: true,
+      tiempoEstimadoReparacion: "2-3 días hábiles"
+    },
+    historialEstados: [
+      {
+        fecha: "2024-01-14",
+        estadoAnterior: "Pendiente de diagnostico",
+        estadoNuevo: "En diagnostico",
+        tecnicoCodigo: "TEC002",
+        observaciones: "Iniciando diagnóstico completo"
+      }
+    ]
   },
   {
     id: "INC003",
@@ -125,7 +143,54 @@ export const incidentes: Incidente[] = [
     coberturaGarantia: true,
     descripcionProblema: "Rotomartillo no mantiene velocidad constante",
     fechaIngreso: "2024-01-10",
-    productoDescontinuado: false
+    productoDescontinuado: false,
+    diagnostico: {
+      fecha: "2024-01-11",
+      tecnicoCodigo: "TEC003",
+      descripcion: "Escobillas del motor desgastadas. Motor en buen estado general.",
+      fallasEncontradas: ["Escobillas desgastadas", "Carbones del motor deteriorados"],
+      recomendaciones: "Reemplazar escobillas y carbones del motor",
+      requiereRepuestos: true,
+      tiempoEstimadoReparacion: "1 día hábil",
+      costoEstimado: 0
+    },
+    repuestosSolicitados: [
+      {
+        repuestoCodigo: "ESC-ROT-15679",
+        cantidad: 2,
+        fechaSolicitud: "2024-01-11",
+        estado: "recibido"
+      },
+      {
+        repuestoCodigo: "CAR-MOT-15679", 
+        cantidad: 2,
+        fechaSolicitud: "2024-01-11",
+        estado: "recibido"
+      }
+    ],
+    historialEstados: [
+      {
+        fecha: "2024-01-10",
+        estadoAnterior: "Pendiente de diagnostico",
+        estadoNuevo: "En diagnostico",
+        tecnicoCodigo: "TEC003",
+        observaciones: "Iniciando diagnóstico"
+      },
+      {
+        fecha: "2024-01-11",
+        estadoAnterior: "En diagnostico",
+        estadoNuevo: "Pendiente por repuestos",
+        tecnicoCodigo: "TEC003",
+        observaciones: "Solicitando escobillas y carbones"
+      },
+      {
+        fecha: "2024-01-12",
+        estadoAnterior: "Pendiente por repuestos",
+        estadoNuevo: "Reparado",
+        tecnicoCodigo: "TEC003",
+        observaciones: "Reparación completada. Producto funcional."
+      }
+    ]
   },
   {
     id: "INC004",
@@ -136,7 +201,42 @@ export const incidentes: Incidente[] = [
     coberturaGarantia: true,
     descripcionProblema: "Motor quemado, necesita reemplazo completo del esmeril",
     fechaIngreso: "2024-01-12",
-    productoDescontinuado: false
+    productoDescontinuado: false,
+    diagnostico: {
+      fecha: "2024-01-13",
+      tecnicoCodigo: "TEC001",
+      descripcion: "Motor completamente quemado por sobrecarga. Bobinado irreparable.",
+      fallasEncontradas: ["Motor quemado", "Bobinado dañado", "Escobillas fundidas"],
+      recomendaciones: "Reemplazo completo del motor",
+      requiereRepuestos: true,
+      tiempoEstimadoReparacion: "3-5 días hábiles",
+      costoEstimado: 0
+    },
+    repuestosSolicitados: [
+      {
+        repuestoCodigo: "MOT-ESM-16441",
+        cantidad: 1,
+        fechaSolicitud: "2024-01-13",
+        estado: "en-transito",
+        bodegaOrigen: "Zona 4",
+        fechaEstimadaLlegada: "2024-01-17"
+      }
+    ],
+    historialEstados: [
+      {
+        fecha: "2024-01-12",
+        estadoAnterior: "Pendiente de diagnostico",
+        estadoNuevo: "En diagnostico",
+        tecnicoCodigo: "TEC001"
+      },
+      {
+        fecha: "2024-01-13",
+        estadoAnterior: "En diagnostico",
+        estadoNuevo: "Pendiente por repuestos",
+        tecnicoCodigo: "TEC001",
+        observaciones: "Motor en pedido desde Zona 4"
+      }
+    ]
   },
   {
     id: "INC005",
@@ -147,7 +247,52 @@ export const incidentes: Incidente[] = [
     coberturaGarantia: false,
     descripcionProblema: "Chuck dañado y problemas en el motor del rotomartillo",
     fechaIngreso: "2024-01-08",
-    productoDescontinuado: false
+    productoDescontinuado: false,
+    diagnostico: {
+      fecha: "2024-01-09",
+      tecnicoCodigo: "TEC002",
+      descripcion: "Chuck completamente dañado y motor presenta fallas menores. Sin garantía vigente.",
+      fallasEncontradas: ["Chuck fracturado", "Escobillas desgastadas", "Rodamientos con juego"],
+      recomendaciones: "Reemplazar chuck, escobillas y rodamientos",
+      requiereRepuestos: true,
+      tiempoEstimadoReparacion: "2-3 días hábiles",
+      costoEstimado: 850.00
+    },
+    repuestosSolicitados: [
+      {
+        repuestoCodigo: "CHK-ROT-15679",
+        cantidad: 1,
+        fechaSolicitud: "2024-01-09",
+        estado: "pendiente"
+      },
+      {
+        repuestoCodigo: "ESC-ROT-15679",
+        cantidad: 2,
+        fechaSolicitud: "2024-01-09", 
+        estado: "pendiente"
+      },
+      {
+        repuestoCodigo: "ROD-ROT-15679",
+        cantidad: 2,
+        fechaSolicitud: "2024-01-09",
+        estado: "pendiente"
+      }
+    ],
+    historialEstados: [
+      {
+        fecha: "2024-01-08",
+        estadoAnterior: "Pendiente de diagnostico",
+        estadoNuevo: "En diagnostico",
+        tecnicoCodigo: "TEC002"
+      },
+      {
+        fecha: "2024-01-09",
+        estadoAnterior: "En diagnostico",
+        estadoNuevo: "Presupuesto",
+        tecnicoCodigo: "TEC002",
+        observaciones: "Esperando aprobación del cliente para reparación Q850.00"
+      }
+    ]
   },
   {
     id: "INC006",
@@ -169,6 +314,31 @@ export const incidentes: Incidente[] = [
     coberturaGarantia: false,
     descripcionProblema: "Múltiples componentes del rotomartillo dañados por sobrecarga",
     fechaIngreso: "2024-01-05",
-    productoDescontinuado: false
+    productoDescontinuado: false,
+    diagnostico: {
+      fecha: "2024-01-06",
+      tecnicoCodigo: "TEC001",
+      descripcion: "Daños severos en múltiples componentes por uso inadecuado. Costo de reparación excede 70% del valor del producto.",
+      fallasEncontradas: ["Motor quemado", "Chuck fracturado", "Carcasa agrietada", "Sistema eléctrico dañado"],
+      recomendaciones: "Canje del producto debido a daños extensos",
+      requiereRepuestos: false,
+      tiempoEstimadoReparacion: "No aplica",
+      costoEstimado: 1250.00
+    },
+    historialEstados: [
+      {
+        fecha: "2024-01-05",
+        estadoAnterior: "Pendiente de diagnostico",
+        estadoNuevo: "En diagnostico",
+        tecnicoCodigo: "TEC001"
+      },
+      {
+        fecha: "2024-01-06",
+        estadoAnterior: "En diagnostico",
+        estadoNuevo: "Canje",
+        tecnicoCodigo: "TEC001",
+        observaciones: "Daños exceden 70% del valor. Se procede a canje."
+      }
+    ]
   }
 ];

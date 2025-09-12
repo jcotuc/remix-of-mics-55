@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Edit, Calendar, User, Package, AlertTriangle, CheckCircle, Clock } from "lucide-react";
+import { ArrowLeft, Edit, Calendar, User, Package, AlertTriangle, CheckCircle, Clock, Truck, DollarSign, FileText, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -218,14 +218,79 @@ export default function DetalleIncidente() {
                     Iniciar Diagnóstico
                   </Button>
                 </div>
-              ) : (
-                <div className="space-y-4">
-                  <p className="text-sm">Estado del diagnóstico: <StatusBadge status={incidente.status} /></p>
-                  <div className="p-4 bg-muted/50 rounded-lg">
-                    <p className="text-sm text-muted-foreground">
-                      El diagnóstico detallado se mostrará aquí una vez completado.
-                    </p>
+              ) : incidente.diagnostico ? (
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium">Fecha de Diagnóstico:</p>
+                      <p className="text-sm text-muted-foreground">{incidente.diagnostico.fecha}</p>
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium">Técnico:</p>
+                      <p className="text-sm text-muted-foreground">{getTecnicoName(incidente.diagnostico.tecnicoCodigo)}</p>
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium">Tiempo Estimado:</p>
+                      <p className="text-sm text-muted-foreground">{incidente.diagnostico.tiempoEstimadoReparacion}</p>
+                    </div>
+                    {incidente.diagnostico.costoEstimado !== undefined && (
+                      <div className="space-y-2">
+                        <p className="text-sm font-medium">Costo Estimado:</p>
+                        <p className="text-sm text-muted-foreground">
+                          {incidente.diagnostico.costoEstimado === 0 
+                            ? "Sin costo (Garantía)" 
+                            : `Q${incidente.diagnostico.costoEstimado.toFixed(2)}`}
+                        </p>
+                      </div>
+                    )}
                   </div>
+
+                  <div className="space-y-4">
+                    <div>
+                      <h4 className="font-medium mb-2">Descripción del Diagnóstico:</h4>
+                      <p className="text-sm text-muted-foreground p-3 bg-muted/50 rounded-lg">
+                        {incidente.diagnostico.descripcion}
+                      </p>
+                    </div>
+
+                    <div>
+                      <h4 className="font-medium mb-2">Fallas Encontradas:</h4>
+                      <div className="space-y-2">
+                        {incidente.diagnostico.fallasEncontradas.map((falla, index) => (
+                          <div key={index} className="flex items-center gap-2">
+                            <AlertTriangle className="w-4 h-4 text-warning" />
+                            <span className="text-sm">{falla}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <h4 className="font-medium mb-2">Recomendaciones:</h4>
+                      <p className="text-sm text-muted-foreground p-3 bg-muted/50 rounded-lg">
+                        {incidente.diagnostico.recomendaciones}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {incidente.diagnostico.requiereRepuestos ? (
+                        <Badge className="bg-warning text-warning-foreground">
+                          <Package className="w-3 h-3 mr-1" />
+                          Requiere Repuestos
+                        </Badge>
+                      ) : (
+                        <Badge className="bg-success text-success-foreground">
+                          <CheckCircle className="w-3 h-3 mr-1" />
+                          No Requiere Repuestos
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <Wrench className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground">Diagnóstico en proceso</p>
                 </div>
               )}
             </CardContent>
@@ -239,7 +304,50 @@ export default function DetalleIncidente() {
               <CardDescription>Lista de componentes necesarios para la reparación</CardDescription>
             </CardHeader>
             <CardContent>
-              {incidente.status === "Pendiente por repuestos" ? (
+              {incidente.repuestosSolicitados && incidente.repuestosSolicitados.length > 0 ? (
+                <div className="space-y-4">
+                  {incidente.repuestosSolicitados.map((repuesto, index) => (
+                    <div key={index} className="border rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <div>
+                          <p className="font-medium">{repuesto.repuestoCodigo}</p>
+                          <p className="text-sm text-muted-foreground">Cantidad: {repuesto.cantidad}</p>
+                        </div>
+                        <div className="text-right">
+                          {repuesto.estado === 'recibido' && (
+                            <Badge className="bg-success text-success-foreground">
+                              <CheckCircle className="w-3 h-3 mr-1" />
+                              Recibido
+                            </Badge>
+                          )}
+                          {repuesto.estado === 'en-transito' && (
+                            <Badge className="bg-warning text-warning-foreground">
+                              <Truck className="w-3 h-3 mr-1" />
+                              En Tránsito
+                            </Badge>
+                          )}
+                          {repuesto.estado === 'pendiente' && (
+                            <Badge variant="outline">
+                              <Clock className="w-3 h-3 mr-1" />
+                              Pendiente
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs text-muted-foreground">
+                        <div>Solicitado: {repuesto.fechaSolicitud}</div>
+                        {repuesto.bodegaOrigen && (
+                          <div>Bodega: {repuesto.bodegaOrigen}</div>
+                        )}
+                        {repuesto.fechaEstimadaLlegada && (
+                          <div>Estimado: {repuesto.fechaEstimadaLlegada}</div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : incidente.status === "Pendiente por repuestos" ? (
                 <div className="space-y-4">
                   <Badge variant="outline" className="bg-warning/10 text-warning">
                     <AlertTriangle className="w-3 h-3 mr-1" />
@@ -278,12 +386,53 @@ export default function DetalleIncidente() {
                   </div>
                 </div>
                 
-                {incidente.status !== "Pendiente de diagnostico" && (
+                {incidente.historialEstados && incidente.historialEstados.map((historial, index) => (
+                  <div key={index} className="flex items-start gap-3 p-3 border-l-2 border-muted/40 bg-muted/30 rounded-r">
+                    <div className="w-2 h-2 bg-muted-foreground rounded-full mt-2"></div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">
+                        Cambio de estado: {historial.estadoAnterior} → {historial.estadoNuevo}
+                      </p>
+                      <p className="text-xs text-muted-foreground">{historial.fecha}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Técnico: {getTecnicoName(historial.tecnicoCodigo)}
+                      </p>
+                      {historial.observaciones && (
+                        <p className="text-xs text-muted-foreground mt-1 italic">
+                          {historial.observaciones}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+
+                {incidente.diagnostico && (
+                  <div className="flex items-start gap-3 p-3 border-l-2 border-info/20 bg-muted/30 rounded-r">
+                    <div className="w-2 h-2 bg-info rounded-full mt-2"></div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">Diagnóstico completado</p>
+                      <p className="text-xs text-muted-foreground">{incidente.diagnostico.fecha}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Técnico: {getTecnicoName(incidente.diagnostico.tecnicoCodigo)}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {incidente.diagnostico.fallasEncontradas.length} falla(s) identificada(s)
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {incidente.repuestosSolicitados && incidente.repuestosSolicitados.length > 0 && (
                   <div className="flex items-start gap-3 p-3 border-l-2 border-warning/20 bg-muted/30 rounded-r">
                     <div className="w-2 h-2 bg-warning rounded-full mt-2"></div>
                     <div className="flex-1">
-                      <p className="text-sm font-medium">Diagnóstico iniciado</p>
-                      <p className="text-xs text-muted-foreground">Estado actual: {incidente.status}</p>
+                      <p className="text-sm font-medium">Repuestos solicitados</p>
+                      <p className="text-xs text-muted-foreground">
+                        {incidente.repuestosSolicitados[0].fechaSolicitud}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {incidente.repuestosSolicitados.length} repuesto(s) solicitado(s)
+                      </p>
                     </div>
                   </div>
                 )}
