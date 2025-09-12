@@ -1,20 +1,39 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Edit, Calendar, User, Package, AlertTriangle, CheckCircle, Clock, Truck, DollarSign, FileText, Wrench } from "lucide-react";
+import { ArrowLeft, Edit, Calendar, User, Package, AlertTriangle, CheckCircle, Clock, Truck, DollarSign, FileText, Wrench, Plus, X, Stethoscope, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import { StatusBadge } from "@/components/StatusBadge";
 import { incidentes, clientes, productos, tecnicos } from "@/data/mockData";
 import { Incidente } from "@/types";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
 
 export default function DetalleIncidente() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [incidente, setIncidente] = useState<Incidente | null>(null);
   const [productoInfo, setProductoInfo] = useState<any>(null);
+  
+  // Estado del formulario de diagnóstico
+  const [diagnosticoStarted, setDiagnosticoStarted] = useState(false);
+  const [descripcion, setDescripcion] = useState("");
+  const [fallaInput, setFallaInput] = useState("");
+  const [fallas, setFallas] = useState<string[]>([]);
+  const [recomendaciones, setRecomendaciones] = useState("");
+  const [requiereRepuestos, setRequiereRepuestos] = useState(false);
+  const [tiempoEstimado, setTiempoEstimado] = useState("");
+  const [costoEstimado, setCostoEstimado] = useState<string>("");
+
+  type RepuestoItem = { repuestoCodigo: string; cantidad: number };
+  const [repCodigo, setRepCodigo] = useState("");
+  const [repCantidad, setRepCantidad] = useState<number>(1);
+  const [repuestosList, setRepuestosList] = useState<RepuestoItem[]>([]);
 
   useEffect(() => {
     if (id) {
@@ -76,6 +95,93 @@ export default function DetalleIncidente() {
   const getTecnicoEmail = (codigo: string) => {
     const tecnico = tecnicos.find(t => t.codigo === codigo);
     return tecnico ? tecnico.email : "";
+  };
+
+  // Funciones del diagnóstico
+  const addFalla = () => {
+    const v = fallaInput.trim();
+    if (!v) return;
+    setFallas(prev => [...prev, v]);
+    setFallaInput("");
+  };
+  const removeFalla = (idx: number) => setFallas(prev => prev.filter((_, i) => i !== idx));
+
+  const addRepuesto = () => {
+    const code = repCodigo.trim();
+    if (!code || repCantidad <= 0) return;
+    setRepuestosList(prev => [...prev, { repuestoCodigo: code, cantidad: repCantidad }]);
+    setRepCodigo("");
+    setRepCantidad(1);
+  };
+  const removeRepuesto = (idx: number) => setRepuestosList(prev => prev.filter((_, i) => i !== idx));
+
+  const iniciarDiagnostico = () => {
+    setDiagnosticoStarted(true);
+    toast({
+      title: "Diagnóstico iniciado",
+      description: `Puedes registrar hallazgos y repuestos para el incidente ${incidente?.id}.`,
+    });
+  };
+
+  const onGuardarDiagnostico = () => {
+    if (!incidente) return;
+    if (!descripcion.trim()) {
+      toast({ title: "Falta descripción", description: "Escribe la descripción del diagnóstico.", variant: "destructive" });
+      return;
+    }
+    const idx = incidentes.findIndex(i => i.id === incidente.id);
+    if (idx === -1) return;
+
+    const today = new Date().toISOString().slice(0, 10);
+    const requiere = requiereRepuestos || repuestosList.length > 0;
+    const estadoAnterior = incidentes[idx].status;
+    const estadoNuevo = requiere ? "Pendiente por repuestos" : "En diagnostico" as const;
+
+    incidentes[idx] = {
+      ...incidentes[idx],
+      status: estadoNuevo,
+      diagnostico: {
+        fecha: today,
+        tecnicoCodigo: incidentes[idx].codigoTecnico,
+        descripcion: descripcion.trim(),
+        fallasEncontradas: fallas,
+        recomendaciones: recomendaciones.trim(),
+        requiereRepuestos: requiere,
+        tiempoEstimadoReparacion: tiempoEstimado.trim() || "",
+        costoEstimado: costoEstimado ? Number(costoEstimado) : undefined,
+      },
+      repuestosSolicitados: requiere
+        ? repuestosList.map(r => ({
+            repuestoCodigo: r.repuestoCodigo,
+            cantidad: r.cantidad,
+            fechaSolicitud: today,
+            estado: 'pendiente' as const,
+          }))
+        : undefined,
+      historialEstados: [
+        ...(incidentes[idx].historialEstados ?? []),
+        {
+          fecha: today,
+          estadoAnterior,
+          estadoNuevo,
+          tecnicoCodigo: incidentes[idx].codigoTecnico,
+          observaciones: "Diagnóstico registrado",
+        },
+      ],
+    };
+
+    setIncidente(incidentes[idx]);
+    setDiagnosticoStarted(false);
+    // Reset form
+    setDescripcion("");
+    setFallas([]);
+    setRecomendaciones("");
+    setRequiereRepuestos(false);
+    setTiempoEstimado("");
+    setCostoEstimado("");
+    setRepuestosList([]);
+    
+    toast({ title: "Diagnóstico guardado", description: `Incidente ${incidente.id} actualizado.` });
   };
 
   return (
@@ -206,18 +312,147 @@ export default function DetalleIncidente() {
         <TabsContent value="diagnostico" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Diagnóstico Técnico</CardTitle>
-              <CardDescription>Análisis y evaluación del problema</CardDescription>
+              <CardTitle className="flex items-center gap-2">
+                <Stethoscope className="w-5 h-5" />
+                Diagnóstico Técnico
+              </CardTitle>
+              <CardDescription>
+                {incidente.status === "Pendiente de diagnostico" 
+                  ? "Inicia el proceso de diagnóstico técnico"
+                  : "Análisis y evaluación del problema"
+                }
+              </CardDescription>
             </CardHeader>
             <CardContent>
               {incidente.status === "Pendiente de diagnostico" ? (
-                <div className="text-center py-8">
-                  <Clock className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                  <p className="text-muted-foreground">El diagnóstico aún no ha sido realizado</p>
-                  <Button className="mt-4" variant="outline" onClick={() => navigate(`/incidentes/${incidente.id}/diagnostico`)}>
-                    Iniciar Diagnóstico
-                  </Button>
-                </div>
+                diagnosticoStarted ? (
+                  <div className="space-y-6">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Descripción del diagnóstico</label>
+                      <Textarea
+                        placeholder="Escribe el análisis técnico y observaciones..."
+                        value={descripcion}
+                        onChange={(e) => setDescripcion(e.target.value)}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">Fallas encontradas</label>
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="Ej. Rodamientos desgastados"
+                          value={fallaInput}
+                          onChange={(e) => setFallaInput(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addFalla(); } }}
+                        />
+                        <Button type="button" variant="secondary" onClick={addFalla} aria-label="Agregar falla">
+                          <Plus className="w-4 h-4" />
+                        </Button>
+                      </div>
+                      {fallas.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          {fallas.map((f, i) => (
+                            <Badge key={i} variant="outline" className="flex items-center gap-1">
+                              {f}
+                              <button type="button" onClick={() => removeFalla(i)} aria-label="Quitar falla">
+                                <X className="w-3 h-3" />
+                              </button>
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Recomendaciones</label>
+                        <Textarea
+                          placeholder="Acciones sugeridas, piezas a revisar/reemplazar..."
+                          value={recomendaciones}
+                          onChange={(e) => setRecomendaciones(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">Tiempo estimado de reparación</label>
+                        <Input
+                          placeholder="Ej. 2-3 días hábiles"
+                          value={tiempoEstimado}
+                          onChange={(e) => setTiempoEstimado(e.target.value)}
+                        />
+                        <label className="text-sm font-medium mt-2">Costo estimado (opcional)</label>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          placeholder="Ej. 0 (en garantía)"
+                          value={costoEstimado}
+                          onChange={(e) => setCostoEstimado(e.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <Switch checked={requiereRepuestos} onCheckedChange={setRequiereRepuestos} id="req-repuestos" />
+                        <label htmlFor="req-repuestos" className="text-sm">Requiere repuestos</label>
+                      </div>
+
+                      {(requiereRepuestos || repuestosList.length > 0) && (
+                        <div className="rounded-lg border p-4 space-y-3">
+                          <div className="flex gap-2">
+                            <Input
+                              placeholder="Código del repuesto (ej. ESC-ROT-15679)"
+                              value={repCodigo}
+                              onChange={(e) => setRepCodigo(e.target.value)}
+                              className="flex-1"
+                            />
+                            <Input
+                              type="number"
+                              min={1}
+                              value={repCantidad}
+                              onChange={(e) => setRepCantidad(Number(e.target.value))}
+                              className="w-28"
+                            />
+                            <Button type="button" onClick={addRepuesto} aria-label="Agregar repuesto">
+                              <Plus className="w-4 h-4" />
+                            </Button>
+                          </div>
+
+                          {repuestosList.length > 0 && (
+                            <div className="space-y-2">
+                              {repuestosList.map((r, i) => (
+                                <div key={`${r.repuestoCodigo}-${i}`} className="flex items-center justify-between rounded border p-2">
+                                  <div className="text-sm">
+                                    <div className="font-medium">{r.repuestoCodigo}</div>
+                                    <div className="text-muted-foreground">Cantidad: {r.cantidad}</div>
+                                  </div>
+                                  <Button type="button" variant="ghost" size="icon" onClick={() => removeRepuesto(i)} aria-label="Quitar">
+                                    <X className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex justify-end gap-2">
+                      <Button variant="outline" onClick={() => setDiagnosticoStarted(false)}>Cancelar</Button>
+                      <Button onClick={onGuardarDiagnostico} className="bg-primary text-primary-foreground hover:bg-primary/90">Guardar diagnóstico</Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                      <Info className="w-4 h-4" />
+                      Al continuar, podrás registrar hallazgos y repuestos.
+                    </div>
+                    <Button onClick={iniciarDiagnostico} className="bg-primary text-primary-foreground hover:bg-primary/90">
+                      Iniciar Diagnóstico
+                    </Button>
+                  </div>
+                )
               ) : incidente.diagnostico ? (
                 <div className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
