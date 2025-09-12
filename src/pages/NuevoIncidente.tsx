@@ -10,13 +10,41 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
-import { ArrowLeft, Search, Upload, Plus, Minus } from "lucide-react";
+import { ArrowLeft, Search, Upload, Plus, Minus, CheckCircle, XCircle, AlertCircle, ShoppingCart } from "lucide-react";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Producto, Repuesto } from "@/types";
 
 interface RepuestoSeleccionado extends Repuesto {
   cantidad: number;
+  disponibilidad?: {
+    status: 'disponible' | 'no-disponible' | 'otra-bodega';
+    ubicacion?: string;
+  };
 }
+
+const centrosServicio = [
+  'Zona 5 (Principal)',
+  'Zona 4',
+  'Chimaltenango', 
+  'Río Hondo',
+  'Escuintla',
+  'Xela',
+  'Jutiapa',
+  'Huehuetenango'
+];
+
+const getRandomDisponibilidad = () => {
+  const statuses = ['disponible', 'no-disponible', 'otra-bodega'] as const;
+  const randomStatus = statuses[Math.floor(Math.random() * statuses.length)];
+  
+  if (randomStatus === 'otra-bodega') {
+    const randomCentro = centrosServicio[Math.floor(Math.random() * centrosServicio.length)];
+    return { status: randomStatus, ubicacion: randomCentro };
+  }
+  
+  return { status: randomStatus };
+};
 
 export default function NuevoIncidente() {
   const navigate = useNavigate();
@@ -139,8 +167,22 @@ export default function NuevoIncidente() {
         prev.map(r => r.numero === repuesto.numero ? { ...r, cantidad: r.cantidad + 1 } : r)
       );
     } else {
-      setRepuestosSeleccionados(prev => [...prev, { ...repuesto, cantidad: 1 }]);
+      setRepuestosSeleccionados(prev => [...prev, { 
+        ...repuesto, 
+        cantidad: 1,
+        disponibilidad: getRandomDisponibilidad()
+      }]);
     }
+  };
+
+  const realizarPedido = () => {
+    if (repuestosSeleccionados.length === 0) {
+      toast.error("No hay repuestos seleccionados para realizar el pedido");
+      return;
+    }
+    
+    console.log("Realizando pedido de repuestos:", repuestosSeleccionados);
+    toast.success(`Pedido realizado para ${repuestosSeleccionados.length} repuesto(s)`);
   };
 
   const actualizarCantidadRepuesto = (numero: string, nuevaCantidad: number) => {
@@ -382,6 +424,12 @@ export default function NuevoIncidente() {
                 <CardHeader>
                   <CardTitle>Repuestos Seleccionados</CardTitle>
                   <CardDescription>Lista de repuestos requeridos para la reparación</CardDescription>
+                  {repuestosSeleccionados.length > 0 && (
+                    <Button onClick={realizarPedido} className="w-fit">
+                      <ShoppingCart className="w-4 h-4 mr-2" />
+                      Realizar Pedido
+                    </Button>
+                  )}
                 </CardHeader>
                 <CardContent>
                   {repuestosSeleccionados.length > 0 ? (
@@ -390,6 +438,7 @@ export default function NuevoIncidente() {
                         <TableRow>
                           <TableHead>Repuesto</TableHead>
                           <TableHead>Código</TableHead>
+                          <TableHead>Disponibilidad</TableHead>
                           <TableHead>Cantidad</TableHead>
                           <TableHead>Acciones</TableHead>
                         </TableRow>
@@ -408,6 +457,35 @@ export default function NuevoIncidente() {
                               </div>
                             </TableCell>
                             <TableCell>{repuesto.codigo}</TableCell>
+                            <TableCell>
+                              {repuesto.disponibilidad && (
+                                <div className="flex items-center gap-2">
+                                  {repuesto.disponibilidad.status === 'disponible' && (
+                                    <>
+                                      <CheckCircle className="w-4 h-4 text-green-500" />
+                                      <span className="text-green-700 text-sm">En stock</span>
+                                    </>
+                                  )}
+                                  {repuesto.disponibilidad.status === 'no-disponible' && (
+                                    <>
+                                      <XCircle className="w-4 h-4 text-red-500" />
+                                      <span className="text-red-700 text-sm">No disponible</span>
+                                    </>
+                                  )}
+                                  {repuesto.disponibilidad.status === 'otra-bodega' && (
+                                    <div className="flex flex-col gap-1">
+                                      <div className="flex items-center gap-2">
+                                        <AlertCircle className="w-4 h-4 text-yellow-500" />
+                                        <span className="text-yellow-700 text-sm">Otra bodega</span>
+                                      </div>
+                                      <span className="text-xs text-muted-foreground">
+                                        {repuesto.disponibilidad.ubicacion}
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </TableCell>
                             <TableCell>
                               <div className="flex items-center gap-2">
                                 <Button 
