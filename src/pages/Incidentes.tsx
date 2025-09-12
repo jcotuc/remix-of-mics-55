@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Search, Edit, Eye, AlertTriangle, CheckCircle, Calendar } from "lucide-react";
+import { Plus, Search, Edit, Eye, AlertTriangle, CheckCircle, Calendar, Stethoscope } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -63,6 +63,12 @@ export default function Incidentes() {
       return;
     }
     navigate(`/incidentes/${incidenteId}`);
+  };
+
+  const handleDiagnosticar = (incidenteId: string, event: React.MouseEvent) => {
+    event.stopPropagation();
+    // Aquí puedes navegar a una página de diagnóstico o abrir un modal
+    navigate(`/incidentes/${incidenteId}/diagnostico`);
   };
 
   const getClienteName = (codigo: string) => {
@@ -300,6 +306,17 @@ export default function Incidentes() {
                     <TableCell>{incidente.fechaIngreso}</TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end space-x-2">
+                        {incidente.status === "Pendiente de diagnostico" && (
+                          <Button 
+                            variant="default" 
+                            size="sm"
+                            onClick={(e) => handleDiagnosticar(incidente.id, e)}
+                            className="bg-primary text-primary-foreground hover:bg-primary/90"
+                          >
+                            <Stethoscope className="h-4 w-4 mr-1" />
+                            Diagnosticar
+                          </Button>
+                        )}
                         <Button 
                           variant="outline" 
                           size="sm"
