@@ -503,7 +503,24 @@ export default function DetalleIncidente() {
                       <CardHeader className="pb-4">
                         <div className="flex items-center justify-between">
                           <CardTitle className="text-lg">Repuestos Seleccionados</CardTitle>
-                          <Button size="sm" className="gap-2">
+                          <Button 
+                            size="sm" 
+                            className="gap-2"
+                            onClick={() => {
+                              if (repuestosList.length === 0) {
+                                toast({ 
+                                  title: "Sin repuestos", 
+                                  description: "Debe seleccionar al menos un repuesto para realizar el pedido.",
+                                  variant: "destructive"
+                                });
+                                return;
+                              }
+                              toast({ 
+                                title: "Pedido realizado", 
+                                description: `Se ha solicitado el pedido de ${repuestosList.length} repuesto(s) para el incidente ${incidente.id}.`
+                              });
+                            }}
+                          >
                             <ShoppingCart className="w-4 h-4" />
                             Realizar Pedido
                           </Button>
