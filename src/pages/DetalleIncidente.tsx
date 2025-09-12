@@ -32,14 +32,16 @@ export default function DetalleIncidente() {
   type RepuestoItem = { repuestoCodigo: string; cantidad: number };
   const [repuestosList, setRepuestosList] = useState<RepuestoItem[]>([]);
 
-  // Generar estado aleatorio para repuestos
-  const getRandomRepuestoStatus = () => {
+  // Generar estado consistente para repuestos basado en su código
+  const getRepuestoStatus = (repuestoCodigo: string) => {
     const statuses = [
       { status: 'en-stock', label: 'En stock', color: 'bg-green-500 text-white' },
       { status: 'otra-bodega', label: 'Otra bodega', color: 'bg-yellow-500 text-white' },
       { status: 'no-disponible', label: 'No disponible', color: 'bg-red-500 text-white' }
     ];
-    return statuses[Math.floor(Math.random() * statuses.length)];
+    // Use a consistent hash based on the spare part code to determine status
+    const hash = repuestoCodigo.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    return statuses[hash % statuses.length];
   };
 
   useEffect(() => {
@@ -537,7 +539,7 @@ export default function DetalleIncidente() {
                                   </div>
                                   <div className="col-span-2">
                                     {(() => {
-                                      const status = getRandomRepuestoStatus();
+                                      const status = getRepuestoStatus(repuestoSelec.repuestoCodigo);
                                       return (
                                         <Badge className={status.color}>
                                           {status.status === 'en-stock' && <CheckCircle className="w-3 h-3 mr-1" />}
