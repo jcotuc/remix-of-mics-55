@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { ArrowLeft, Search, Upload, Plus, Minus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Producto, Repuesto } from "@/types";
@@ -375,10 +376,9 @@ export default function NuevoIncidente() {
         </TabsContent>
 
         <TabsContent value="repuestos" className="space-y-6">
-          <div className="grid grid-cols-4 gap-6 h-full">
-            {/* Columna izquierda - 75% del ancho (3/4) */}
-            <div className="col-span-3">
-              <Card className="h-full">
+          <ResizablePanelGroup direction="horizontal" className="min-h-[600px] rounded-lg border">
+            <ResizablePanel defaultSize={60} minSize={30}>
+              <Card className="h-full border-0 rounded-r-none">
                 <CardHeader>
                   <CardTitle>Repuestos Seleccionados</CardTitle>
                   <CardDescription>Lista de repuestos requeridos para la reparación</CardDescription>
@@ -448,11 +448,12 @@ export default function NuevoIncidente() {
                   )}
                 </CardContent>
               </Card>
-            </div>
-
-            {/* Columna derecha - 25% del ancho (1/4) */}
-            <div className="col-span-1">
-              <Card className="h-full">
+            </ResizablePanel>
+            
+            <ResizableHandle withHandle />
+            
+            <ResizablePanel defaultSize={40} minSize={25}>
+              <Card className="h-full border-0 rounded-l-none">
                 <CardHeader>
                   <CardTitle>Repuestos Disponibles</CardTitle>
                   <CardDescription>
@@ -505,8 +506,8 @@ export default function NuevoIncidente() {
                   )}
                 </CardContent>
               </Card>
-            </div>
-          </div>
+            </ResizablePanel>
+          </ResizablePanelGroup>
         </TabsContent>
 
         <TabsContent value="documentacion" className="space-y-6">
