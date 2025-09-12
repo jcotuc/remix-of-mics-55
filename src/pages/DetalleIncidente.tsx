@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { StatusBadge } from "@/components/StatusBadge";
 import { incidentes, clientes, productos, tecnicos } from "@/data/mockData";
 import { Incidente } from "@/types";
@@ -545,136 +546,149 @@ export default function DetalleIncidente() {
             </CardHeader>
             <CardContent>
               {incidente.status === "Pendiente de diagnostico" && diagnosticoStarted && requiereRepuestos ? (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* Repuestos Seleccionados */}
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <h4 className="font-medium">Repuestos Seleccionados</h4>
-                      <Button size="sm" className="gap-2">
-                        <ShoppingCart className="w-4 h-4" />
-                        Realizar Pedido
-                      </Button>
-                    </div>
-                    <p className="text-sm text-muted-foreground">Lista de repuestos requeridos para la reparación</p>
-                    
-                    {repuestosList.length > 0 ? (
-                      <div className="space-y-3">
-                        <div className="grid grid-cols-12 gap-2 text-xs font-medium text-muted-foreground border-b pb-2">
-                          <div className="col-span-1"></div>
-                          <div className="col-span-4">Repuesto</div>
-                          <div className="col-span-2">Código</div>
-                          <div className="col-span-2">Disponibilidad</div>
-                          <div className="col-span-2">Cantidad</div>
-                          <div className="col-span-1">Acciones</div>
-                        </div>
-                        
-                        {repuestosList.map((repuestoSelec) => {
-                          const repuestoInfo = repuestosDisponibles.find(r => r.codigo === repuestoSelec.repuestoCodigo);
-                          return (
-                            <div key={repuestoSelec.repuestoCodigo} className="grid grid-cols-12 gap-2 items-center py-2 border-b border-muted/50">
-                              <div className="col-span-1">
-                                <div className="w-8 h-8 bg-muted rounded flex items-center justify-center">
-                                  <Package className="w-4 h-4" />
-                                </div>
-                              </div>
-                              <div className="col-span-4">
-                                <div className="font-medium text-sm">{repuestoInfo?.descripcion || repuestoSelec.repuestoCodigo}</div>
-                              </div>
-                              <div className="col-span-2">
-                                <div className="text-sm text-muted-foreground">{repuestoSelec.repuestoCodigo}</div>
-                              </div>
-                              <div className="col-span-2">
-                                <Badge variant="outline" className="text-xs">
-                                  <CheckCircle className="w-3 h-3 mr-1" />
-                                  En stock
-                                </Badge>
-                              </div>
-                              <div className="col-span-2">
-                                <div className="flex items-center gap-1">
-                                  <Button 
-                                    size="icon" 
-                                    variant="outline" 
-                                    className="h-6 w-6"
-                                    onClick={() => updateRepuestoCantidad(repuestoSelec.repuestoCodigo, repuestoSelec.cantidad - 1)}
-                                  >
-                                    <Minus className="w-3 h-3" />
-                                  </Button>
-                                  <span className="text-sm w-8 text-center">{repuestoSelec.cantidad}</span>
-                                  <Button 
-                                    size="icon" 
-                                    variant="outline" 
-                                    className="h-6 w-6"
-                                    onClick={() => updateRepuestoCantidad(repuestoSelec.repuestoCodigo, repuestoSelec.cantidad + 1)}
-                                  >
-                                    <Plus className="w-3 h-3" />
-                                  </Button>
-                                </div>
-                              </div>
-                              <div className="col-span-1">
-                                <Button 
-                                  size="sm" 
-                                  variant="destructive"
-                                  onClick={() => removeRepuesto(repuestoSelec.repuestoCodigo)}
-                                >
-                                  Eliminar
-                                </Button>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <div className="text-center py-8 text-muted-foreground">
-                        <Package className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                        <p>No hay repuestos seleccionados</p>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Repuestos Disponibles */}
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <h4 className="font-medium">Repuestos Disponibles</h4>
-                    </div>
-                    <p className="text-sm text-muted-foreground">Para {productoInfo?.descripcion || 'este producto'}</p>
-                    
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        placeholder="Buscar repuesto..."
-                        value={searchRepuesto}
-                        onChange={(e) => setSearchRepuesto(e.target.value)}
-                        className="pl-10"
-                      />
-                    </div>
-
-                    <div className="space-y-2 max-h-96 overflow-y-auto">
-                      {filteredRepuestos.map((repuesto) => (
-                        <div key={repuesto.id} className="flex items-center gap-3 p-3 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
-                             onClick={() => addRepuestoFromAvailable(repuesto)}>
-                          <div className="w-10 h-10 bg-muted rounded flex items-center justify-center flex-shrink-0">
-                            <Package className="w-5 h-5" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="font-medium text-sm">{repuesto.descripcion}</div>
-                            <div className="text-xs text-muted-foreground">{repuesto.codigo}</div>
-                            <div className="text-xs text-muted-foreground">{repuesto.clave}</div>
-                          </div>
-                          <Button size="sm" variant="outline">
-                            <Plus className="w-4 h-4" />
+                <ResizablePanelGroup direction="horizontal" className="min-h-[600px] rounded-lg border">
+                  {/* Panel de Repuestos Seleccionados */}
+                  <ResizablePanel defaultSize={50} minSize={30}>
+                    <Card className="h-full border-0 rounded-none">
+                      <CardHeader className="pb-4">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-lg">Repuestos Seleccionados</CardTitle>
+                          <Button size="sm" className="gap-2">
+                            <ShoppingCart className="w-4 h-4" />
+                            Realizar Pedido
                           </Button>
                         </div>
-                      ))}
-                      
-                      {filteredRepuestos.length === 0 && (
-                        <div className="text-center py-8 text-muted-foreground">
-                          <Search className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                          <p>No se encontraron repuestos</p>
+                        <CardDescription>Lista de repuestos requeridos para la reparación</CardDescription>
+                      </CardHeader>
+                      <CardContent className="h-[calc(100%-120px)] overflow-auto">
+                        {repuestosList.length > 0 ? (
+                          <div className="space-y-3">
+                            <div className="grid grid-cols-12 gap-2 text-xs font-medium text-muted-foreground border-b pb-2">
+                              <div className="col-span-1"></div>
+                              <div className="col-span-4">Repuesto</div>
+                              <div className="col-span-2">Código</div>
+                              <div className="col-span-2">Disponibilidad</div>
+                              <div className="col-span-2">Cantidad</div>
+                              <div className="col-span-1">Acciones</div>
+                            </div>
+                            
+                            {repuestosList.map((repuestoSelec) => {
+                              const repuestoInfo = repuestosDisponibles.find(r => r.codigo === repuestoSelec.repuestoCodigo);
+                              return (
+                                <div key={repuestoSelec.repuestoCodigo} className="grid grid-cols-12 gap-2 items-center py-2 border-b border-muted/50">
+                                  <div className="col-span-1">
+                                    <div className="w-8 h-8 bg-muted rounded flex items-center justify-center">
+                                      <Package className="w-4 h-4" />
+                                    </div>
+                                  </div>
+                                  <div className="col-span-4">
+                                    <div className="font-medium text-sm">{repuestoInfo?.descripcion || repuestoSelec.repuestoCodigo}</div>
+                                  </div>
+                                  <div className="col-span-2">
+                                    <div className="text-sm text-muted-foreground">{repuestoSelec.repuestoCodigo}</div>
+                                  </div>
+                                  <div className="col-span-2">
+                                    <Badge variant="outline" className="text-xs">
+                                      <CheckCircle className="w-3 h-3 mr-1" />
+                                      En stock
+                                    </Badge>
+                                  </div>
+                                  <div className="col-span-2">
+                                    <div className="flex items-center gap-1">
+                                      <Button 
+                                        size="icon" 
+                                        variant="outline" 
+                                        className="h-6 w-6"
+                                        onClick={() => updateRepuestoCantidad(repuestoSelec.repuestoCodigo, repuestoSelec.cantidad - 1)}
+                                      >
+                                        <Minus className="w-3 h-3" />
+                                      </Button>
+                                      <span className="text-sm w-8 text-center">{repuestoSelec.cantidad}</span>
+                                      <Button 
+                                        size="icon" 
+                                        variant="outline" 
+                                        className="h-6 w-6"
+                                        onClick={() => updateRepuestoCantidad(repuestoSelec.repuestoCodigo, repuestoSelec.cantidad + 1)}
+                                      >
+                                        <Plus className="w-3 h-3" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                  <div className="col-span-1">
+                                    <Button 
+                                      size="sm" 
+                                      variant="destructive"
+                                      className="text-xs px-2"
+                                      onClick={() => removeRepuesto(repuestoSelec.repuestoCodigo)}
+                                    >
+                                      Eliminar
+                                    </Button>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+                            <Package className="w-12 h-12 mb-2 opacity-50" />
+                            <p>No hay repuestos seleccionados</p>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </ResizablePanel>
+                  
+                  <ResizableHandle />
+                  
+                  {/* Panel de Repuestos Disponibles */}
+                  <ResizablePanel defaultSize={50} minSize={30}>
+                    <Card className="h-full border-0 rounded-none">
+                      <CardHeader className="pb-4">
+                        <CardTitle className="text-lg">Repuestos Disponibles</CardTitle>
+                        <CardDescription>Para {productoInfo?.descripcion || 'este producto'}</CardDescription>
+                      </CardHeader>
+                      <CardContent className="h-[calc(100%-120px)]">
+                        <div className="space-y-4 h-full flex flex-col">
+                          <div className="relative">
+                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                              placeholder="Buscar repuesto..."
+                              value={searchRepuesto}
+                              onChange={(e) => setSearchRepuesto(e.target.value)}
+                              className="pl-10"
+                            />
+                          </div>
+
+                          <div className="flex-1 overflow-auto space-y-2">
+                            {filteredRepuestos.map((repuesto) => (
+                              <div key={repuesto.id} className="flex items-center gap-3 p-3 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
+                                   onClick={() => addRepuestoFromAvailable(repuesto)}>
+                                <div className="w-10 h-10 bg-muted rounded flex items-center justify-center flex-shrink-0">
+                                  <Package className="w-5 h-5" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="font-medium text-sm">{repuesto.descripcion}</div>
+                                  <div className="text-xs text-muted-foreground">{repuesto.codigo}</div>
+                                  <div className="text-xs text-muted-foreground">{repuesto.clave}</div>
+                                </div>
+                                <Button size="sm" variant="outline">
+                                  <Plus className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            ))}
+                            
+                            {filteredRepuestos.length === 0 && (
+                              <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+                                <Search className="w-12 h-12 mb-2 opacity-50" />
+                                <p>No se encontraron repuestos</p>
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
+                      </CardContent>
+                    </Card>
+                  </ResizablePanel>
+                </ResizablePanelGroup>
               ) : incidente.repuestosSolicitados && incidente.repuestosSolicitados.length > 0 ? (
                 <div className="space-y-4">
                   <h4 className="font-medium">Repuestos solicitados para esta reparación:</h4>
