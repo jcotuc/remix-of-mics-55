@@ -214,7 +214,7 @@ export default function DetalleIncidente() {
                 <div className="text-center py-8">
                   <Clock className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
                   <p className="text-muted-foreground">El diagnóstico aún no ha sido realizado</p>
-                  <Button className="mt-4" variant="outline">
+                  <Button className="mt-4" variant="outline" onClick={() => navigate(`/incidentes/${incidente.id}/diagnostico`)}>
                     Iniciar Diagnóstico
                   </Button>
                 </div>
