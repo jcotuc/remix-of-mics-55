@@ -122,7 +122,56 @@ export const incidentes: Incidente[] = [
     coberturaGarantia: true,
     descripcionProblema: "El rotomartillo no enciende al presionar el gatillo",
     fechaIngreso: "2024-01-15",
-    productoDescontinuado: false
+    productoDescontinuado: false,
+    lugarIngreso: "Mostrador"
+  },
+  {
+    id: "INC008",
+    codigoProducto: "PROD001",
+    codigoCliente: "CLI002",
+    codigoTecnico: "TEC001",
+    status: "Pendiente de diagnostico",
+    coberturaGarantia: true,
+    descripcionProblema: "Taladro no gira al presionar el gatillo, posible problema en motor",
+    fechaIngreso: "2024-01-18",
+    productoDescontinuado: false,
+    lugarIngreso: "Logistica"
+  },
+  {
+    id: "INC009",
+    codigoProducto: "PROD003",
+    codigoCliente: "CLI003",
+    codigoTecnico: "TEC002",
+    status: "Pendiente de diagnostico",
+    coberturaGarantia: false,
+    descripcionProblema: "Lijadora orbital vibra excesivamente y no mantiene velocidad",
+    fechaIngreso: "2024-01-17",
+    productoDescontinuado: false,
+    lugarIngreso: "Mostrador"
+  },
+  {
+    id: "INC010",
+    codigoProducto: "16441",
+    codigoCliente: "CLI001",
+    codigoTecnico: "TEC003",
+    status: "Pendiente de diagnostico",
+    coberturaGarantia: true,
+    descripcionProblema: "Esmeril angular genera chispas y se calienta demasiado",
+    fechaIngreso: "2024-01-19",
+    productoDescontinuado: false,
+    lugarIngreso: "Logistica"
+  },
+  {
+    id: "INC011",
+    codigoProducto: "15679",
+    codigoCliente: "CLI002",
+    codigoTecnico: "TEC001",
+    status: "Pendiente de diagnostico",
+    coberturaGarantia: false,
+    descripcionProblema: "Rotomartillo pierde potencia y hace ruido extraño en el motor",
+    fechaIngreso: "2024-01-16",
+    productoDescontinuado: false,
+    lugarIngreso: "Mostrador"
   },
   {
     id: "INC002",
