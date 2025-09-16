@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Edit, Calendar, User, Package, AlertTriangle, CheckCircle, Clock, Truck, DollarSign, FileText, Wrench, Plus, X, Stethoscope, Info, Search, ShoppingCart, Minus } from "lucide-react";
+import { ArrowLeft, Edit, Calendar, User, Package, AlertTriangle, CheckCircle, Clock, Truck, DollarSign, FileText, Wrench, Plus, X, Stethoscope, Info, Search, ShoppingCart, Minus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { StatusBadge } from "@/components/StatusBadge";
 import { incidentes, clientes, productos, tecnicos } from "@/data/mockData";
@@ -23,14 +24,18 @@ export default function DetalleIncidente() {
   const [repuestosDisponibles, setRepuestosDisponibles] = useState<any[]>([]);
   const [searchRepuesto, setSearchRepuesto] = useState("");
   
-  // Estado del formulario de diagnóstico
+  // Estado del formulario de diagnóstico con pasos
   const [diagnosticoStarted, setDiagnosticoStarted] = useState(false);
+  const [currentStep, setCurrentStep] = useState(1); // 1: Info básica, 2: Repuestos, 3: Documentación
   const [falla, setFalla] = useState("");
   const [causa, setCausa] = useState("");
   const [recomendacion, setRecomendacion] = useState("");
   const [resolucion, setResolucion] = useState("");
   const [aplicaGarantia, setAplicaGarantia] = useState(false);
   const [requiereRepuestos, setRequiereRepuestos] = useState(false);
+  const [descripcionProblema, setDescripcionProblema] = useState("");
+  const [lugarIngreso, setLugarIngreso] = useState<"Mostrador" | "Logistica">("Mostrador");
+  const [tecnicoAsignado, setTecnicoAsignado] = useState("");
 
   type RepuestoItem = { repuestoCodigo: string; cantidad: number };
   const [repuestosList, setRepuestosList] = useState<RepuestoItem[]>([]);
@@ -138,6 +143,7 @@ export default function DetalleIncidente() {
     } else {
       setRepuestosList(prev => [...prev, { repuestoCodigo: repuesto.codigo, cantidad: 1 }]);
     }
+    toast({ title: "Repuesto agregado", description: `${repuesto.descripcion} añadido a la lista.` });
   };
 
   const updateRepuestoCantidad = (codigo: string, cantidad: number) => {
@@ -158,9 +164,13 @@ export default function DetalleIncidente() {
 
   const iniciarDiagnostico = () => {
     setDiagnosticoStarted(true);
+    setCurrentStep(1);
+    setDescripcionProblema(incidente?.descripcionProblema || "");
+    setLugarIngreso(incidente?.lugarIngreso || "Mostrador");
+    setTecnicoAsignado(incidente?.codigoTecnico || "");
     toast({
       title: "Diagnóstico iniciado",
-      description: `Puedes registrar el diagnóstico para el incidente ${incidente?.id}.`,
+      description: "Completa la información paso a paso.",
     });
   };
 
@@ -221,6 +231,7 @@ export default function DetalleIncidente() {
 
     setIncidente(incidentes[idx]);
     setDiagnosticoStarted(false);
+    setCurrentStep(1);
     // Reset form
     setFalla("");
     setCausa("");
@@ -229,6 +240,9 @@ export default function DetalleIncidente() {
     setAplicaGarantia(false);
     setRequiereRepuestos(false);
     setRepuestosList([]);
+    setDescripcionProblema("");
+    setLugarIngreso("Mostrador");
+    setTecnicoAsignado("");
     
     toast({ title: "Diagnóstico guardado", description: `Incidente ${incidente.id} actualizado.` });
   };
@@ -384,95 +398,274 @@ export default function DetalleIncidente() {
               {incidente.status === "Pendiente de diagnostico" ? (
                 diagnosticoStarted ? (
                   <div className="space-y-6">
-                    <div className="space-y-4">
-                      <h3 className="text-lg font-medium">Información del Diagnóstico</h3>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <label className="text-sm font-medium">Lugar de Ingreso</label>
-                          <p className="text-sm text-muted-foreground px-3 py-2 bg-muted/50 rounded-lg">
-                            {incidente.lugarIngreso || "Mostrador"}
-                          </p>
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-sm font-medium">Técnico Asignado</label>
-                          <p className="text-sm text-muted-foreground px-3 py-2 bg-muted/50 rounded-lg">
-                            {getTecnicoName(incidente.codigoTecnico)}
-                          </p>
-                        </div>
+                    {/* Progress indicator */}
+                    <div className="flex items-center justify-center space-x-2 mb-6">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${currentStep >= 1 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
+                        1
                       </div>
-
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            checked={aplicaGarantia}
-                            onChange={(e) => setAplicaGarantia(e.target.checked)}
-                            className="rounded"
-                          />
-                          ¿Aplica garantía?
-                        </label>
-                        <p className="text-xs text-muted-foreground">
-                          Marca esta opción si el problema está cubierto por la garantía del producto
-                        </p>
+                      <div className={`w-16 h-0.5 ${currentStep > 1 ? 'bg-primary' : 'bg-muted'}`}></div>
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${currentStep >= 2 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
+                        2
+                      </div>
+                      <div className={`w-16 h-0.5 ${currentStep > 2 ? 'bg-primary' : 'bg-muted'}`}></div>
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${currentStep >= 3 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
+                        3
                       </div>
                     </div>
 
-                    <div className="space-y-4">
-                      <h3 className="text-lg font-medium">Análisis Técnico</h3>
-                      
-                      <div className="space-y-4">
-                        <div className="space-y-2">
-                          <label className="text-sm font-medium">Falla:</label>
-                          <Textarea
-                            placeholder="Describe la falla encontrada en el equipo..."
-                            value={falla}
-                            onChange={(e) => setFalla(e.target.value)}
-                            className="min-h-[80px]"
-                          />
+                    {/* Step 1: Información Básica */}
+                    {currentStep === 1 && (
+                      <div className="space-y-6">
+                        <div className="text-center">
+                          <h3 className="text-lg font-medium">Paso 1: Información Básica</h3>
+                          <p className="text-sm text-muted-foreground">Registra la información inicial del diagnóstico</p>
                         </div>
 
-                        <div className="space-y-2">
-                          <label className="text-sm font-medium">Causa:</label>
-                          <Textarea
-                            placeholder="Explica la causa que originó la falla..."
-                            value={causa}
-                            onChange={(e) => setCausa(e.target.value)}
-                            className="min-h-[80px]"
-                          />
+                        <div className="space-y-4">
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium">Descripción del Problema</label>
+                            <Textarea
+                              placeholder="Describe el problema reportado por el cliente..."
+                              value={descripcionProblema}
+                              onChange={(e) => setDescripcionProblema(e.target.value)}
+                              className="min-h-[100px]"
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <label className="text-sm font-medium">Lugar de Ingreso</label>
+                              <Select value={lugarIngreso} onValueChange={(value: "Mostrador" | "Logistica") => setLugarIngreso(value)}>
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="Mostrador">Mostrador</SelectItem>
+                                  <SelectItem value="Logistica">Logística</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+
+                            <div className="space-y-2">
+                              <label className="text-sm font-medium">Técnico Asignado</label>
+                              <Select value={tecnicoAsignado} onValueChange={setTecnicoAsignado}>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Seleccionar técnico" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {tecnicos.map((tecnico) => (
+                                    <SelectItem key={tecnico.codigo} value={tecnico.codigo}>
+                                      {tecnico.nombre} {tecnico.apellido}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                checked={aplicaGarantia}
+                                onChange={(e) => setAplicaGarantia(e.target.checked)}
+                                className="rounded"
+                              />
+                              ¿Aplica garantía?
+                            </label>
+                            <p className="text-xs text-muted-foreground">
+                              Marca esta opción si el problema está cubierto por la garantía del producto
+                            </p>
+                          </div>
+
+                          {/* Mostrar reingresos si existen */}
+                          {incidente.incidentesAnteriores && incidente.incidentesAnteriores.length > 0 && (
+                            <div className="space-y-2">
+                              <label className="text-sm font-medium">Historial de Reingresos</label>
+                              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <AlertTriangle className="w-4 h-4 text-yellow-600" />
+                                  <span className="text-sm font-medium text-yellow-800">Equipo con reingresos anteriores</span>
+                                </div>
+                                <div className="space-y-1">
+                                  {incidente.incidentesAnteriores.map((incidenteId, index) => (
+                                    <div key={index} className="text-xs text-yellow-700">
+                                      • Incidente anterior: {incidenteId}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          )}
                         </div>
 
-                        <div className="space-y-2">
-                          <label className="text-sm font-medium">Recomendación:</label>
-                          <Textarea
-                            placeholder="Indica las recomendaciones para la reparación..."
-                            value={recomendacion}
-                            onChange={(e) => setRecomendacion(e.target.value)}
-                            className="min-h-[80px]"
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <label className="text-sm font-medium">Resolución:</label>
-                          <Textarea
-                            placeholder="Detalla el proceso de resolución del problema..."
-                            value={resolucion}
-                            onChange={(e) => setResolucion(e.target.value)}
-                            className="min-h-[80px]"
-                          />
+                        <div className="flex justify-between">
+                          <Button variant="outline" onClick={() => setDiagnosticoStarted(false)}>
+                            Cancelar
+                          </Button>
+                          <Button 
+                            onClick={() => setCurrentStep(2)}
+                            disabled={!descripcionProblema.trim() || !tecnicoAsignado}
+                          >
+                            Siguiente: Repuestos
+                          </Button>
                         </div>
                       </div>
+                    )}
 
-                      <div className="flex items-center gap-2">
-                        <Switch checked={requiereRepuestos} onCheckedChange={setRequiereRepuestos} id="req-repuestos" />
-                        <label htmlFor="req-repuestos" className="text-sm">Requiere repuestos</label>
+                    {/* Step 2: Repuestos */}
+                    {currentStep === 2 && (
+                      <div className="space-y-6">
+                        <div className="text-center">
+                          <h3 className="text-lg font-medium">Paso 2: Solicitud de Repuestos</h3>
+                          <p className="text-sm text-muted-foreground">Selecciona los repuestos necesarios para la reparación</p>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <Switch checked={requiereRepuestos} onCheckedChange={setRequiereRepuestos} id="req-repuestos" />
+                          <label htmlFor="req-repuestos" className="text-sm font-medium">¿Requiere repuestos?</label>
+                        </div>
+
+                        {requiereRepuestos && (
+                          <div className="space-y-4">
+                            <div className="space-y-2">
+                              <label className="text-sm font-medium">Buscar repuestos</label>
+                              <Input
+                                placeholder="Buscar por código, clave o descripción..."
+                                value={searchRepuesto}
+                                onChange={(e) => setSearchRepuesto(e.target.value)}
+                              />
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-64 overflow-y-auto">
+                              {filteredRepuestos.slice(0, 12).map((repuesto) => (
+                                <div key={repuesto.numero} className="border rounded-lg p-3 space-y-2">
+                                  <h5 className="font-medium text-sm">{repuesto.descripcion}</h5>
+                                  <p className="text-xs text-muted-foreground">Código: {repuesto.codigo}</p>
+                                  <Button
+                                    size="sm"
+                                    onClick={() => addRepuestoFromAvailable(repuesto)}
+                                    className="w-full"
+                                  >
+                                    <Plus className="w-3 h-3 mr-1" />
+                                    Agregar
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
+
+                            {repuestosList.length > 0 && (
+                              <div className="space-y-3">
+                                <h4 className="font-medium">Repuestos seleccionados:</h4>
+                                {repuestosList.map((item, index) => (
+                                  <div key={index} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                                    <span className="text-sm">{item.repuestoCodigo}</span>
+                                    <div className="flex items-center gap-2">
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => updateRepuestoCantidad(item.repuestoCodigo, item.cantidad - 1)}
+                                      >
+                                        -
+                                      </Button>
+                                      <span className="text-sm w-8 text-center">{item.cantidad}</span>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => updateRepuestoCantidad(item.repuestoCodigo, item.cantidad + 1)}
+                                      >
+                                        +
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="destructive"
+                                        onClick={() => removeRepuesto(item.repuestoCodigo)}
+                                      >
+                                        <Trash2 className="w-3 h-3" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        <div className="flex justify-between">
+                          <Button variant="outline" onClick={() => setCurrentStep(1)}>
+                            Anterior
+                          </Button>
+                          <Button onClick={() => setCurrentStep(3)}>
+                            Siguiente: Documentación
+                          </Button>
+                        </div>
                       </div>
-                    </div>
+                    )}
 
-                    <div className="flex justify-end gap-2">
-                      <Button variant="outline" onClick={() => setDiagnosticoStarted(false)}>Cancelar</Button>
-                      <Button onClick={onGuardarDiagnostico} className="bg-primary text-primary-foreground hover:bg-primary/90">Guardar diagnóstico</Button>
-                    </div>
+                    {/* Step 3: Documentación */}
+                    {currentStep === 3 && (
+                      <div className="space-y-6">
+                        <div className="text-center">
+                          <h3 className="text-lg font-medium">Paso 3: Análisis Técnico</h3>
+                          <p className="text-sm text-muted-foreground">Completa la documentación técnica del diagnóstico</p>
+                        </div>
+
+                        <div className="space-y-4">
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium">Falla:</label>
+                            <Textarea
+                              placeholder="Describe la falla encontrada en el equipo..."
+                              value={falla}
+                              onChange={(e) => setFalla(e.target.value)}
+                              className="min-h-[80px]"
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium">Causa:</label>
+                            <Textarea
+                              placeholder="Explica la causa que originó la falla..."
+                              value={causa}
+                              onChange={(e) => setCausa(e.target.value)}
+                              className="min-h-[80px]"
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium">Recomendación:</label>
+                            <Textarea
+                              placeholder="Indica las recomendaciones para la reparación..."
+                              value={recomendacion}
+                              onChange={(e) => setRecomendacion(e.target.value)}
+                              className="min-h-[80px]"
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium">Resolución:</label>
+                            <Textarea
+                              placeholder="Detalla el proceso de resolución del problema..."
+                              value={resolucion}
+                              onChange={(e) => setResolucion(e.target.value)}
+                              className="min-h-[80px]"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex justify-between">
+                          <Button variant="outline" onClick={() => setCurrentStep(2)}>
+                            Anterior
+                          </Button>
+                          <Button 
+                            onClick={onGuardarDiagnostico}
+                            disabled={!falla.trim() || !causa.trim() || !recomendacion.trim() || !resolucion.trim()}
+                            className="bg-primary text-primary-foreground hover:bg-primary/90"
+                          >
+                            Guardar Diagnóstico
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div className="flex items-center justify-between">
