@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Search, Edit, Eye, AlertTriangle, CheckCircle, Calendar, Stethoscope } from "lucide-react";
+import { Plus, Search, Edit, Eye, AlertTriangle, CheckCircle, Calendar, Stethoscope, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,6 +17,7 @@ export default function Incidentes() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [incidentesList, setIncidentesList] = useState<Incidente[]>(incidentes);
   const [selectedIncidentes, setSelectedIncidentes] = useState<string[]>([]);
 
@@ -45,16 +46,23 @@ export default function Incidentes() {
     "Reparado", "Presupuesto", "Canje", "Nota de credito", "Cambio por garantia"
   ];
 
-  const filteredIncidentes = incidentesList.filter(incidente => {
-    const matchesSearch = incidente.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      incidente.descripcionProblema.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      getClienteName(incidente.codigoCliente).toLowerCase().includes(searchTerm.toLowerCase()) ||
-      getProductDisplayName(incidente.codigoProducto).toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesStatus = statusFilter === "all" || incidente.status === statusFilter;
-    
-    return matchesSearch && matchesStatus;
-  });
+  const categoryOptions = ["Electricas", "Neumaticas", "Hidraulicas", "4 tiempos", "2 tiempos", "Estacionarias"];
+
+  const filteredIncidentes = incidentesList
+    .filter(incidente => {
+      const matchesSearch = incidente.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        incidente.descripcionProblema.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        getClienteName(incidente.codigoCliente).toLowerCase().includes(searchTerm.toLowerCase()) ||
+        getProductDisplayName(incidente.codigoProducto).toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const matchesStatus = statusFilter === "all" || incidente.status === statusFilter;
+      
+      const producto = productos.find(p => p.codigo === incidente.codigoProducto);
+      const matchesCategory = categoryFilter === "all" || (producto && producto.categoria === categoryFilter);
+      
+      return matchesSearch && matchesStatus && matchesCategory;
+    })
+    .sort((a, b) => new Date(a.fechaIngreso).getTime() - new Date(b.fechaIngreso).getTime()); // FIFO ordering
 
   const handleSelectIncidente = (incidenteId: string, checked: boolean) => {
     if (checked) {
@@ -225,6 +233,20 @@ export default function Incidentes() {
                   ))}
                 </SelectContent>
               </Select>
+
+              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Filtrar por familia" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas las familias</SelectItem>
+                  {categoryOptions.map((category) => (
+                    <SelectItem key={category} value={category}>
+                      {category}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {selectedIncidentes.length > 0 && (
@@ -304,19 +326,38 @@ export default function Incidentes() {
                       )}
                     </TableCell>
                     <TableCell>{incidente.fechaIngreso}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end space-x-2">
-                        {incidente.status === "Pendiente de diagnostico" && (
-                          <Button 
-                            variant="default" 
-                            size="sm"
-                            onClick={(e) => handleDiagnosticar(incidente.id, e)}
-                            className="bg-primary text-primary-foreground hover:bg-primary/90"
-                          >
-                            <Stethoscope className="h-4 w-4 mr-1" />
-                            Diagnosticar
-                          </Button>
-                        )}
+                     <TableCell className="text-right">
+                       <div className="flex items-center justify-end space-x-2">
+                         {incidente.status === "Pendiente de diagnostico" && (
+                           <>
+                             <Button 
+                               variant="secondary" 
+                               size="sm"
+                               onClick={(e) => {
+                                 e.stopPropagation();
+                                 // Asignar técnico al incidente
+                                 const updatedIncidentes = incidentesList.map(inc => 
+                                   inc.id === incidente.id 
+                                     ? { ...inc, tecnicoAsignado: "TEC001" } // En un caso real, esto sería dinámico
+                                     : inc
+                                 );
+                                 setIncidentesList(updatedIncidentes);
+                               }}
+                             >
+                               <User className="h-4 w-4 mr-1" />
+                               Asignarme
+                             </Button>
+                             <Button 
+                               variant="default" 
+                               size="sm"
+                               onClick={(e) => handleDiagnosticar(incidente.id, e)}
+                               className="bg-primary text-primary-foreground hover:bg-primary/90"
+                             >
+                               <Stethoscope className="h-4 w-4 mr-1" />
+                               Diagnosticar
+                             </Button>
+                           </>
+                         )}
                         <Button 
                           variant="outline" 
                           size="sm"

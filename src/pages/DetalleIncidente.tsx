@@ -25,7 +25,10 @@ export default function DetalleIncidente() {
   
   // Estado del formulario de diagnóstico
   const [diagnosticoStarted, setDiagnosticoStarted] = useState(false);
-  const [descripcion, setDescripcion] = useState("");
+  const [falla, setFalla] = useState("");
+  const [causa, setCausa] = useState("");
+  const [recomendacion, setRecomendacion] = useState("");
+  const [resolucion, setResolucion] = useState("");
   const [aplicaGarantia, setAplicaGarantia] = useState(false);
   const [requiereRepuestos, setRequiereRepuestos] = useState(false);
 
@@ -163,8 +166,12 @@ export default function DetalleIncidente() {
 
   const onGuardarDiagnostico = () => {
     if (!incidente) return;
-    if (!descripcion.trim()) {
-      toast({ title: "Falta descripción", description: "Escribe la descripción del diagnóstico.", variant: "destructive" });
+    if (!falla.trim() || !causa.trim() || !recomendacion.trim() || !resolucion.trim()) {
+      toast({ 
+        title: "Campos incompletos", 
+        description: "Completa todos los campos del diagnóstico (falla, causa, recomendación, resolución).", 
+        variant: "destructive" 
+      });
       return;
     }
     const idx = incidentes.findIndex(i => i.id === incidente.id);
@@ -182,9 +189,9 @@ export default function DetalleIncidente() {
       diagnostico: {
         fecha: today,
         tecnicoCodigo: incidentes[idx].codigoTecnico,
-        descripcion: descripcion.trim(),
-        fallasEncontradas: repuestosList.map(r => `Falla en componente que requiere: ${r.repuestoCodigo} (Cantidad: ${r.cantidad})`),
-        recomendaciones: productoInfo ? `Recomendado para ${productoInfo.categoria}: ${requiere ? "Reemplazar componentes defectuosos" : "Mantenimiento preventivo"}` : "Seguir protocolo de reparación",
+        descripcion: `Falla: ${falla.trim()}\n\nCausa: ${causa.trim()}\n\nRecomendación: ${recomendacion.trim()}\n\nResolución: ${resolucion.trim()}`,
+        fallasEncontradas: [falla.trim()],
+        recomendaciones: recomendacion.trim(),
         requiereRepuestos: requiere,
         tiempoEstimadoReparacion: requiere ? "Pendiente de repuestos" : "2-3 días hábiles",
         costoEstimado: aplicaGarantia ? 0 : undefined,
@@ -215,7 +222,10 @@ export default function DetalleIncidente() {
     setIncidente(incidentes[idx]);
     setDiagnosticoStarted(false);
     // Reset form
-    setDescripcion("");
+    setFalla("");
+    setCausa("");
+    setRecomendacion("");
+    setResolucion("");
     setAplicaGarantia(false);
     setRequiereRepuestos(false);
     setRepuestosList([]);
@@ -373,21 +383,84 @@ export default function DetalleIncidente() {
             <CardContent>
               {incidente.status === "Pendiente de diagnostico" ? (
                 diagnosticoStarted ? (
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <label className="text-sm font-medium">Descripción del diagnóstico</label>
-                      <Textarea
-                        placeholder="Escribe el análisis técnico y observaciones..."
-                        value={descripcion}
-                        onChange={(e) => setDescripcion(e.target.value)}
-                        rows={6}
-                      />
+                  <div className="space-y-6">
+                    <div className="space-y-4">
+                      <h3 className="text-lg font-medium">Información del Diagnóstico</h3>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Lugar de Ingreso</label>
+                          <p className="text-sm text-muted-foreground px-3 py-2 bg-muted/50 rounded-lg">
+                            {incidente.lugarIngreso || "Mostrador"}
+                          </p>
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Técnico Asignado</label>
+                          <p className="text-sm text-muted-foreground px-3 py-2 bg-muted/50 rounded-lg">
+                            {getTecnicoName(incidente.codigoTecnico)}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={aplicaGarantia}
+                            onChange={(e) => setAplicaGarantia(e.target.checked)}
+                            className="rounded"
+                          />
+                          ¿Aplica garantía?
+                        </label>
+                        <p className="text-xs text-muted-foreground">
+                          Marca esta opción si el problema está cubierto por la garantía del producto
+                        </p>
+                      </div>
                     </div>
 
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-2">
-                        <Switch checked={aplicaGarantia} onCheckedChange={setAplicaGarantia} id="aplica-garantia" />
-                        <label htmlFor="aplica-garantia" className="text-sm">¿Aplica garantía?</label>
+                    <div className="space-y-4">
+                      <h3 className="text-lg font-medium">Análisis Técnico</h3>
+                      
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Falla:</label>
+                          <Textarea
+                            placeholder="Describe la falla encontrada en el equipo..."
+                            value={falla}
+                            onChange={(e) => setFalla(e.target.value)}
+                            className="min-h-[80px]"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Causa:</label>
+                          <Textarea
+                            placeholder="Explica la causa que originó la falla..."
+                            value={causa}
+                            onChange={(e) => setCausa(e.target.value)}
+                            className="min-h-[80px]"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Recomendación:</label>
+                          <Textarea
+                            placeholder="Indica las recomendaciones para la reparación..."
+                            value={recomendacion}
+                            onChange={(e) => setRecomendacion(e.target.value)}
+                            className="min-h-[80px]"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">Resolución:</label>
+                          <Textarea
+                            placeholder="Detalla el proceso de resolución del problema..."
+                            value={resolucion}
+                            onChange={(e) => setResolucion(e.target.value)}
+                            className="min-h-[80px]"
+                          />
+                        </div>
                       </div>
 
                       <div className="flex items-center gap-2">
