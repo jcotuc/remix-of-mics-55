@@ -622,7 +622,7 @@ export default function DetalleIncidente() {
                             Anterior
                           </Button>
                           <Button onClick={() => setCurrentStep(3)}>
-                            Siguiente: Documentación
+                            Finalizar: Revisión del Diagnóstico
                           </Button>
                         </div>
                       </div>
@@ -632,7 +632,7 @@ export default function DetalleIncidente() {
                     {currentStep === 3 && (
                       <div className="space-y-6">
                         <div className="text-center">
-                          <h3 className="text-lg font-medium">Paso 3: Documentación Automática</h3>
+                          <h3 className="text-lg font-medium">Paso 3: Revisión Final del Diagnóstico</h3>
                           <p className="text-sm text-muted-foreground">Revisión del análisis técnico generado automáticamente</p>
                         </div>
 
