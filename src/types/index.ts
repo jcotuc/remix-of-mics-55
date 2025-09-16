@@ -11,6 +11,7 @@ export interface Producto {
   descripcion: string;
   descontinuado: boolean;
   urlFoto: string;
+  categoria: CategoriaProducto;
 }
 
 export interface Repuesto {
@@ -33,11 +34,23 @@ export type StatusIncidente =
   | "Pendiente de diagnostico"
   | "En diagnostico" 
   | "Pendiente por repuestos"
+  | "Reparacion en garantia"
+  | "Mantenimiento"
   | "Reparado"
   | "Presupuesto"
   | "Canje"
   | "Nota de credito"
   | "Cambio por garantia";
+
+export type CategoriaProducto = 
+  | "Electricas"
+  | "Neumaticas" 
+  | "Hidraulicas"
+  | "4 tiempos"
+  | "2 tiempos"
+  | "Estacionarias";
+
+export type LugarIngreso = "Mostrador" | "Logistica";
 
 export interface Incidente {
   id: string;
@@ -52,6 +65,14 @@ export interface Incidente {
   diagnostico?: Diagnostico;
   repuestosSolicitados?: RepuestoSolicitado[];
   historialEstados?: HistorialEstado[];
+  lugarIngreso?: LugarIngreso;
+  tecnicoAsignado?: string;
+  incidentesAnteriores?: string[];
+  fotosIngreso?: string[];
+  fotosDiagnostico?: string[];
+  fotosSalida?: string[];
+  porcentajeDescuento?: 10 | 40;
+  codigoReemplazo?: string;
 }
 
 export interface Diagnostico {
@@ -63,6 +84,9 @@ export interface Diagnostico {
   requiereRepuestos: boolean;
   tiempoEstimadoReparacion: string;
   costoEstimado?: number;
+  aplicaGarantia: boolean;
+  lugarIngreso: LugarIngreso;
+  tecnicoAsignado: string;
 }
 
 export interface RepuestoSolicitado {

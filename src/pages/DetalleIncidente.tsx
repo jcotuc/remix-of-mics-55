@@ -188,6 +188,9 @@ export default function DetalleIncidente() {
         requiereRepuestos: requiere,
         tiempoEstimadoReparacion: requiere ? "Pendiente de repuestos" : "2-3 días hábiles",
         costoEstimado: aplicaGarantia ? 0 : undefined,
+        aplicaGarantia: aplicaGarantia,
+        lugarIngreso: "Mostrador",
+        tecnicoAsignado: incidentes[idx].codigoTecnico
       },
       repuestosSolicitados: requiere
         ? repuestosList.map(r => ({

@@ -60,7 +60,8 @@ export default function Repuestos() {
         clave: p.clave,
         descripcion: p.descripcion,
         descontinuado: p.descontinuado,
-        urlFoto: p.url_foto || "/api/placeholder/400/300"
+        urlFoto: p.url_foto || "/api/placeholder/400/300",
+        categoria: "Electricas" as const
       })) || [];
 
       setRepuestosList(transformedRepuestos);

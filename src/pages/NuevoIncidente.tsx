@@ -125,7 +125,8 @@ export default function NuevoIncidente() {
             clave: item.clave.trim(),
             descripcion: item.descripcion.trim(),
             descontinuado: item.descontinuado,
-            urlFoto: item.url_foto || "/api/placeholder/200/200"
+            urlFoto: item.url_foto || "/api/placeholder/200/200",
+            categoria: "Electricas" as const
           }));
 
           setProductosEncontrados(transformedData);

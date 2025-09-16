@@ -32,7 +32,8 @@ export default function Productos() {
           clave: item.clave,
           descripcion: item.descripcion,
           descontinuado: item.descontinuado,
-          urlFoto: item.url_foto || "/api/placeholder/200/200"
+          urlFoto: item.url_foto || "/api/placeholder/200/200",
+          categoria: "Electricas" as const
         }));
 
         setProductosList(transformedData);

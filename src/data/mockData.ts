@@ -27,21 +27,40 @@ export const productos: Producto[] = [
     clave: "TALADRO-001",
     descripcion: "Taladro Eléctrico 500W",
     descontinuado: false,
-    urlFoto: "/api/placeholder/200/200"
+    urlFoto: "/api/placeholder/200/200",
+    categoria: "Electricas"
   },
   {
     codigo: "PROD002",
     clave: "SIERRA-002", 
     descripcion: "Sierra Circular 1200W",
     descontinuado: true,
-    urlFoto: "/api/placeholder/200/200"
+    urlFoto: "/api/placeholder/200/200",
+    categoria: "Electricas"
   },
   {
     codigo: "PROD003",
     clave: "LIJADORA-003",
     descripcion: "Lijadora Orbital 300W",
     descontinuado: false,
-    urlFoto: "/api/placeholder/200/200"
+    urlFoto: "/api/placeholder/200/200",
+    categoria: "Electricas"
+  },
+  {
+    codigo: "15679",
+    clave: "ROTOMARTILLO-001",
+    descripcion: "Rotomartillo Neumático 700W",
+    descontinuado: false,
+    urlFoto: "/api/placeholder/200/200",
+    categoria: "Neumaticas"
+  },
+  {
+    codigo: "16441",
+    clave: "ESMERIL-001",
+    descripcion: "Esmeril Angular 900W",
+    descontinuado: false,
+    urlFoto: "/api/placeholder/200/200",
+    categoria: "Electricas"
   }
 ];
 
@@ -122,7 +141,10 @@ export const incidentes: Incidente[] = [
       fallasEncontradas: ["Rodamientos desgastados", "Desbalance en el disco"],
       recomendaciones: "Reemplazar rodamientos y revisar disco",
       requiereRepuestos: true,
-      tiempoEstimadoReparacion: "2-3 días hábiles"
+      tiempoEstimadoReparacion: "2-3 días hábiles",
+      aplicaGarantia: false,
+      lugarIngreso: "Mostrador",
+      tecnicoAsignado: "TEC002"
     },
     historialEstados: [
       {
@@ -152,7 +174,10 @@ export const incidentes: Incidente[] = [
       recomendaciones: "Reemplazar escobillas y carbones del motor",
       requiereRepuestos: true,
       tiempoEstimadoReparacion: "1 día hábil",
-      costoEstimado: 0
+      costoEstimado: 0,
+      aplicaGarantia: true,
+      lugarIngreso: "Logistica",
+      tecnicoAsignado: "TEC003"
     },
     repuestosSolicitados: [
       {
@@ -210,7 +235,10 @@ export const incidentes: Incidente[] = [
       recomendaciones: "Reemplazo completo del motor",
       requiereRepuestos: true,
       tiempoEstimadoReparacion: "3-5 días hábiles",
-      costoEstimado: 0
+      costoEstimado: 0,
+      aplicaGarantia: true,
+      lugarIngreso: "Mostrador",
+      tecnicoAsignado: "TEC001"
     },
     repuestosSolicitados: [
       {
@@ -256,7 +284,10 @@ export const incidentes: Incidente[] = [
       recomendaciones: "Reemplazar chuck, escobillas y rodamientos",
       requiereRepuestos: true,
       tiempoEstimadoReparacion: "2-3 días hábiles",
-      costoEstimado: 850.00
+      costoEstimado: 850.00,
+      aplicaGarantia: false,
+      lugarIngreso: "Mostrador",
+      tecnicoAsignado: "TEC002"
     },
     repuestosSolicitados: [
       {
@@ -323,7 +354,10 @@ export const incidentes: Incidente[] = [
       recomendaciones: "Canje del producto debido a daños extensos",
       requiereRepuestos: false,
       tiempoEstimadoReparacion: "No aplica",
-      costoEstimado: 1250.00
+      costoEstimado: 1250.00,
+      aplicaGarantia: false,
+      lugarIngreso: "Logistica",
+      tecnicoAsignado: "TEC001"
     },
     historialEstados: [
       {
