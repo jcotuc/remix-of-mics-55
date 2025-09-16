@@ -176,14 +176,40 @@ export default function DetalleIncidente() {
 
   const onGuardarDiagnostico = () => {
     if (!incidente) return;
-    if (!falla.trim() || !causa.trim() || !recomendacion.trim() || !resolucion.trim()) {
-      toast({ 
-        title: "Campos incompletos", 
-        description: "Completa todos los campos del diagnóstico (falla, causa, recomendación, resolución).", 
-        variant: "destructive" 
-      });
-      return;
-    }
+    
+    // Generar documentación automática basada en repuestos
+    const fallasGeneradas = repuestosList.length > 0 
+      ? repuestosList.map(r => `Falla en componente que requiere: ${r.repuestoCodigo} (Cantidad: ${r.cantidad})`)
+      : ["No se requieren repuestos - Falla menor o de mantenimiento"];
+    
+    const causaGenerada = aplicaGarantia 
+      ? "Desgaste normal de componentes cubierto por garantía"
+      : repuestosList.length > 0 
+        ? "Desgaste por uso normal o sobrecarga del equipo"
+        : "Problema menor que no requiere reemplazo de componentes";
+    
+    const recomendacionGenerada = productoInfo 
+      ? `Para equipos ${productoInfo.categoria}: ${
+          repuestosList.length > 0 
+            ? "Reemplazar componentes defectuosos y realizar mantenimiento preventivo" 
+            : "Realizar mantenimiento preventivo y verificación general"
+        }`
+      : repuestosList.length > 0 
+        ? "Reemplazar los componentes identificados según especificaciones técnicas"
+        : "Continuar con mantenimiento preventivo regular";
+    
+    const resolucionGenerada = aplicaGarantia 
+      ? `Reparación bajo garantía. ${
+          repuestosList.length > 0 
+            ? `Se procederá al reemplazo de ${repuestosList.length} componente(s) sin costo.` 
+            : "Ajustes y calibración sin costo."
+        }`
+      : repuestosList.length > 0 
+        ? `Reparación comercial. Cotización por repuestos y mano de obra. Tiempo estimado: 2-3 días hábiles.`
+        : "Mantenimiento completado. Equipo funcional y listo para uso.";
+    
+    const descripcionCompleta = `Falla: ${fallasGeneradas.join('; ')}\n\nCausa: ${causaGenerada}\n\nRecomendación: ${recomendacionGenerada}\n\nResolución: ${resolucionGenerada}`;
+    
     const idx = incidentes.findIndex(i => i.id === incidente.id);
     if (idx === -1) return;
 
@@ -198,16 +224,16 @@ export default function DetalleIncidente() {
       coberturaGarantia: aplicaGarantia,
       diagnostico: {
         fecha: today,
-        tecnicoCodigo: incidentes[idx].codigoTecnico,
-        descripcion: `Falla: ${falla.trim()}\n\nCausa: ${causa.trim()}\n\nRecomendación: ${recomendacion.trim()}\n\nResolución: ${resolucion.trim()}`,
-        fallasEncontradas: [falla.trim()],
-        recomendaciones: recomendacion.trim(),
+        tecnicoCodigo: tecnicoAsignado,
+        descripcion: descripcionCompleta,
+        fallasEncontradas: fallasGeneradas,
+        recomendaciones: recomendacionGenerada,
         requiereRepuestos: requiere,
         tiempoEstimadoReparacion: requiere ? "Pendiente de repuestos" : "2-3 días hábiles",
         costoEstimado: aplicaGarantia ? 0 : undefined,
         aplicaGarantia: aplicaGarantia,
-        lugarIngreso: "Mostrador",
-        tecnicoAsignado: incidentes[idx].codigoTecnico
+        lugarIngreso: lugarIngreso,
+        tecnicoAsignado: tecnicoAsignado
       },
       repuestosSolicitados: requiere
         ? repuestosList.map(r => ({
@@ -602,53 +628,95 @@ export default function DetalleIncidente() {
                       </div>
                     )}
 
-                    {/* Step 3: Documentación */}
+                    {/* Step 3: Documentación Automática */}
                     {currentStep === 3 && (
                       <div className="space-y-6">
                         <div className="text-center">
-                          <h3 className="text-lg font-medium">Paso 3: Análisis Técnico</h3>
-                          <p className="text-sm text-muted-foreground">Completa la documentación técnica del diagnóstico</p>
+                          <h3 className="text-lg font-medium">Paso 3: Documentación Automática</h3>
+                          <p className="text-sm text-muted-foreground">Revisión del análisis técnico generado automáticamente</p>
                         </div>
 
-                        <div className="space-y-4">
-                          <div className="space-y-2">
-                            <label className="text-sm font-medium">Falla:</label>
-                            <Textarea
-                              placeholder="Describe la falla encontrada en el equipo..."
-                              value={falla}
-                              onChange={(e) => setFalla(e.target.value)}
-                              className="min-h-[80px]"
-                            />
+                        <div className="space-y-6 bg-muted/30 rounded-lg p-6">
+                          <div className="space-y-3">
+                            <h4 className="font-medium text-sm text-primary">FALLA:</h4>
+                            <div className="bg-background rounded-lg p-4 border">
+                              {repuestosList.length > 0 ? (
+                                <div className="space-y-2">
+                                  {repuestosList.map((item, index) => (
+                                    <div key={index} className="text-sm">
+                                      • Falla en componente que requiere: {item.repuestoCodigo} (Cantidad: {item.cantidad})
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <p className="text-sm text-muted-foreground">No se requieren repuestos - Falla menor o de mantenimiento</p>
+                              )}
+                            </div>
                           </div>
 
-                          <div className="space-y-2">
-                            <label className="text-sm font-medium">Causa:</label>
-                            <Textarea
-                              placeholder="Explica la causa que originó la falla..."
-                              value={causa}
-                              onChange={(e) => setCausa(e.target.value)}
-                              className="min-h-[80px]"
-                            />
+                          <div className="space-y-3">
+                            <h4 className="font-medium text-sm text-primary">CAUSA:</h4>
+                            <div className="bg-background rounded-lg p-4 border">
+                              <p className="text-sm">
+                                {aplicaGarantia 
+                                  ? "Desgaste normal de componentes cubierto por garantía"
+                                  : repuestosList.length > 0 
+                                    ? "Desgaste por uso normal o sobrecarga del equipo"
+                                    : "Problema menor que no requiere reemplazo de componentes"
+                                }
+                              </p>
+                            </div>
                           </div>
 
-                          <div className="space-y-2">
-                            <label className="text-sm font-medium">Recomendación:</label>
-                            <Textarea
-                              placeholder="Indica las recomendaciones para la reparación..."
-                              value={recomendacion}
-                              onChange={(e) => setRecomendacion(e.target.value)}
-                              className="min-h-[80px]"
-                            />
+                          <div className="space-y-3">
+                            <h4 className="font-medium text-sm text-primary">RECOMENDACIÓN:</h4>
+                            <div className="bg-background rounded-lg p-4 border">
+                              <p className="text-sm">
+                                {productoInfo 
+                                  ? `Para equipos ${productoInfo.categoria}: ${
+                                      repuestosList.length > 0 
+                                        ? "Reemplazar componentes defectuosos y realizar mantenimiento preventivo" 
+                                        : "Realizar mantenimiento preventivo y verificación general"
+                                    }`
+                                  : repuestosList.length > 0 
+                                    ? "Reemplazar los componentes identificados según especificaciones técnicas"
+                                    : "Continuar con mantenimiento preventivo regular"
+                                }
+                              </p>
+                            </div>
                           </div>
 
-                          <div className="space-y-2">
-                            <label className="text-sm font-medium">Resolución:</label>
-                            <Textarea
-                              placeholder="Detalla el proceso de resolución del problema..."
-                              value={resolucion}
-                              onChange={(e) => setResolucion(e.target.value)}
-                              className="min-h-[80px]"
-                            />
+                          <div className="space-y-3">
+                            <h4 className="font-medium text-sm text-primary">RESOLUCIÓN:</h4>
+                            <div className="bg-background rounded-lg p-4 border">
+                              <p className="text-sm">
+                                {aplicaGarantia 
+                                  ? `Reparación bajo garantía. ${
+                                      repuestosList.length > 0 
+                                        ? `Se procederá al reemplazo de ${repuestosList.length} componente(s) sin costo.` 
+                                        : "Ajustes y calibración sin costo."
+                                    }`
+                                  : repuestosList.length > 0 
+                                    ? `Reparación comercial. Cotización por repuestos y mano de obra. Tiempo estimado: 2-3 días hábiles.`
+                                    : "Mantenimiento completado. Equipo funcional y listo para uso."
+                                }
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="bg-info/10 border border-info/20 rounded-lg p-4">
+                            <div className="flex items-start gap-3">
+                              <Info className="w-5 h-5 text-info mt-0.5" />
+                              <div className="space-y-2">
+                                <p className="text-sm font-medium text-info">Información del diagnóstico:</p>
+                                <div className="text-xs space-y-1">
+                                  <p>• Técnico: {getTecnicoName(tecnicoAsignado)}</p>
+                                  <p>• Lugar de ingreso: {lugarIngreso}</p>
+                                  <p>• Garantía: {aplicaGarantia ? "Aplica" : "No aplica"}</p>
+                                  <p>• Repuestos requeridos: {repuestosList.length > 0 ? `${repuestosList.length} componente(s)` : "Ninguno"}</p>
+                                </div>
+                              </div>
+                            </div>
                           </div>
                         </div>
 
@@ -658,10 +726,9 @@ export default function DetalleIncidente() {
                           </Button>
                           <Button 
                             onClick={onGuardarDiagnostico}
-                            disabled={!falla.trim() || !causa.trim() || !recomendacion.trim() || !resolucion.trim()}
                             className="bg-primary text-primary-foreground hover:bg-primary/90"
                           >
-                            Guardar Diagnóstico
+                            Confirmar y Guardar Diagnóstico
                           </Button>
                         </div>
                       </div>
