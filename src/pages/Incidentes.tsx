@@ -20,6 +20,26 @@ export default function Incidentes() {
   const [incidentesList, setIncidentesList] = useState<Incidente[]>(incidentes);
   const [selectedIncidentes, setSelectedIncidentes] = useState<string[]>([]);
 
+  // Helper functions moved before they are used
+  const getClienteName = (codigo: string) => {
+    const cliente = clientes.find(c => c.codigo === codigo);
+    return cliente ? cliente.nombre : "Cliente no encontrado";
+  };
+
+  const getProductDisplayName = (codigo: string) => {
+    return `Código: ${codigo}`;
+  };
+
+  const getTecnicoName = (codigo: string) => {
+    const tecnico = tecnicos.find(t => t.codigo === codigo);
+    return tecnico ? `${tecnico.nombre} ${tecnico.apellido}` : "Técnico no encontrado";
+  };
+
+  const isProductDiscontinued = (codigoProducto: string) => {
+    const producto = productos.find(p => p.codigo === codigoProducto);
+    return producto?.descontinuado || false;
+  };
+
   const statusOptions: StatusIncidente[] = [
     "Pendiente de diagnostico", "En diagnostico", "Pendiente por repuestos",
     "Reparado", "Presupuesto", "Canje", "Nota de credito", "Cambio por garantia"
@@ -71,11 +91,6 @@ export default function Incidentes() {
     navigate(`/incidentes/${incidenteId}/diagnostico`);
   };
 
-  const getClienteName = (codigo: string) => {
-    const cliente = clientes.find(c => c.codigo === codigo);
-    return cliente ? cliente.nombre : "Cliente no encontrado";
-  };
-
   const getProductDescription = async (codigo: string) => {
     // Primero buscar en productos de mock data
     const producto = productos.find(p => p.codigo === codigo);
@@ -99,21 +114,6 @@ export default function Incidentes() {
     } catch (error) {
       return "Producto no encontrado";
     }
-  };
-
-  // Función síncrona para mostrar el código del producto
-  const getProductDisplayName = (codigo: string) => {
-    return `Código: ${codigo}`;
-  };
-
-  const getTecnicoName = (codigo: string) => {
-    const tecnico = tecnicos.find(t => t.codigo === codigo);
-    return tecnico ? `${tecnico.nombre} ${tecnico.apellido}` : "Técnico no encontrado";
-  };
-
-  const isProductDiscontinued = (codigoProducto: string) => {
-    const producto = productos.find(p => p.codigo === codigoProducto);
-    return producto?.descontinuado || false;
   };
 
   return (
