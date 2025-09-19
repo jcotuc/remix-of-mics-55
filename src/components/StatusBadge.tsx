@@ -36,7 +36,7 @@ export function StatusBadge({ status }: StatusBadgeProps) {
       case "En diagnostico":
         return "bg-warning text-warning-foreground";
       case "Pendiente por repuestos":
-        return "bg-warning text-warning-foreground";
+        return "bg-destructive text-destructive-foreground";
       case "Reparado":
         return "bg-success text-success-foreground";
       case "Presupuesto":
