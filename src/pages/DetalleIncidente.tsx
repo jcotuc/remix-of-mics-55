@@ -216,7 +216,7 @@ export default function DetalleIncidente() {
     const today = new Date().toISOString().slice(0, 10);
     const requiere = requiereRepuestos || repuestosList.length > 0;
     const estadoAnterior = incidentes[idx].status;
-    const estadoNuevo = requiere ? "Pendiente por repuestos" : "En diagnostico" as const;
+    const estadoNuevo = requiere ? "pendiente repuestos" : "En diagnostico" as const;
 
     incidentes[idx] = {
       ...incidentes[idx],

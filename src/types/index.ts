@@ -33,7 +33,7 @@ export interface Tecnico {
 export type StatusIncidente = 
   | "Pendiente de diagnostico"
   | "En diagnostico" 
-  | "Pendiente por repuestos"
+  | "pendiente repuestos"
   | "Reparacion en garantia"
   | "Mantenimiento"
   | "Reparado"

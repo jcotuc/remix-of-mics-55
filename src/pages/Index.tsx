@@ -19,7 +19,7 @@ const Index = () => {
   
   // Métricas específicas para el dashboard del taller
   const incidentesPendienteDiagnostico = incidentes.filter(i => i.status === "Pendiente de diagnostico").length;
-  const incidentesPendienteRepuestos = incidentes.filter(i => i.status === "Pendiente por repuestos").length;
+  const incidentesPendienteRepuestos = incidentes.filter(i => i.status === "pendiente repuestos").length;
   const incidentesEnDiagnostico = incidentes.filter(i => i.status === "En diagnostico").length;
   
   // Filtros para el buscador

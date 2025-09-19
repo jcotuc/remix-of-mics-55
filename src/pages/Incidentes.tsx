@@ -42,7 +42,7 @@ export default function Incidentes() {
   };
 
   const statusOptions: StatusIncidente[] = [
-    "Pendiente de diagnostico", "En diagnostico", "Pendiente por repuestos",
+    "Pendiente de diagnostico", "En diagnostico", "pendiente repuestos",
     "Reparado", "Presupuesto", "Canje", "Nota de credito", "Cambio por garantia"
   ];
 
@@ -164,7 +164,7 @@ export default function Incidentes() {
               <div>
                 <p className="text-sm text-muted-foreground">En Proceso</p>
                 <p className="text-2xl font-bold">
-                  {incidentesList.filter(i => ["En diagnostico", "Pendiente por repuestos", "Presupuesto"].includes(i.status)).length}
+                  {incidentesList.filter(i => ["En diagnostico", "pendiente repuestos", "Presupuesto"].includes(i.status)).length}
                 </p>
               </div>
             </div>

@@ -12,7 +12,7 @@ export function StatusBadge({ status }: StatusBadgeProps) {
         return "secondary";
       case "En diagnostico":
         return "outline";
-      case "Pendiente por repuestos":
+      case "pendiente repuestos":
         return "outline";
       case "Reparado":
         return "default";
@@ -35,8 +35,8 @@ export function StatusBadge({ status }: StatusBadgeProps) {
         return "bg-info text-info-foreground";
       case "En diagnostico":
         return "bg-warning text-warning-foreground";
-      case "Pendiente por repuestos":
-        return "bg-destructive text-destructive-foreground";
+      case "pendiente repuestos":
+        return "bg-warning text-warning-foreground";
       case "Reparado":
         return "bg-success text-success-foreground";
       case "Presupuesto":

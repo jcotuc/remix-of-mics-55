@@ -253,13 +253,13 @@ export const incidentes: Incidente[] = [
       {
         fecha: "2024-01-11",
         estadoAnterior: "En diagnostico",
-        estadoNuevo: "Pendiente por repuestos",
+        estadoNuevo: "pendiente repuestos",
         tecnicoCodigo: "TEC003",
         observaciones: "Solicitando escobillas y carbones"
       },
       {
         fecha: "2024-01-12",
-        estadoAnterior: "Pendiente por repuestos",
+        estadoAnterior: "pendiente repuestos",
         estadoNuevo: "Reparado",
         tecnicoCodigo: "TEC003",
         observaciones: "Reparación completada. Producto funcional."
@@ -271,7 +271,7 @@ export const incidentes: Incidente[] = [
     codigoProducto: "16441",
     codigoCliente: "CLI002",
     codigoTecnico: "TEC001",
-    status: "Pendiente por repuestos",
+    status: "pendiente repuestos",
     coberturaGarantia: true,
     descripcionProblema: "Motor quemado, necesita reemplazo completo del esmeril",
     fechaIngreso: "2024-01-12",
@@ -309,7 +309,7 @@ export const incidentes: Incidente[] = [
       {
         fecha: "2024-01-13",
         estadoAnterior: "En diagnostico",
-        estadoNuevo: "Pendiente por repuestos",
+        estadoNuevo: "pendiente repuestos",
         tecnicoCodigo: "TEC001",
         observaciones: "Motor en pedido desde Zona 4"
       }
