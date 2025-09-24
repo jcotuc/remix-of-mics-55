@@ -554,17 +554,32 @@ export default function DetalleIncidente() {
                             </div>
                           </div>
 
-                          <div className="space-y-2">
+                          <div className="space-y-3">
                             <label className="text-sm font-medium">Tipo de Trabajo</label>
-                            <Select value={tipoDiagnostico} onValueChange={(value: "reparacion" | "servicio") => setTipoDiagnostico(value)}>
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="reparacion">Reparación</SelectItem>
-                                <SelectItem value="servicio">Servicio</SelectItem>
-                              </SelectContent>
-                            </Select>
+                            <div className="flex gap-4">
+                              <label className="flex items-center gap-2 cursor-pointer">
+                                <input
+                                  type="radio"
+                                  name="tipoDiagnostico"
+                                  value="reparacion"
+                                  checked={tipoDiagnostico === "reparacion"}
+                                  onChange={(e) => setTipoDiagnostico(e.target.value as "reparacion" | "servicio")}
+                                  className="w-4 h-4"
+                                />
+                                <span className="text-sm">Reparación</span>
+                              </label>
+                              <label className="flex items-center gap-2 cursor-pointer">
+                                <input
+                                  type="radio"
+                                  name="tipoDiagnostico"
+                                  value="servicio"
+                                  checked={tipoDiagnostico === "servicio"}
+                                  onChange={(e) => setTipoDiagnostico(e.target.value as "reparacion" | "servicio")}
+                                  className="w-4 h-4"
+                                />
+                                <span className="text-sm">Mantenimiento/Servicio</span>
+                              </label>
+                            </div>
                           </div>
 
                           <div className="space-y-2">
@@ -1469,17 +1484,32 @@ export default function DetalleIncidente() {
           </DialogHeader>
           
           <div className="space-y-4 py-4">
-            <div className="space-y-2">
+            <div className="space-y-3">
               <label className="text-sm font-medium">Tipo de Trabajo</label>
-              <Select value={tipoDiagnostico} onValueChange={(value: "reparacion" | "servicio") => setTipoDiagnostico(value)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="reparacion">Reparación</SelectItem>
-                  <SelectItem value="servicio">Mantenimiento/Servicio</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="flex gap-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="tipoDiagnosticoDialog"
+                    value="reparacion"
+                    checked={tipoDiagnostico === "reparacion"}
+                    onChange={(e) => setTipoDiagnostico(e.target.value as "reparacion" | "servicio")}
+                    className="w-4 h-4"
+                  />
+                  <span className="text-sm">Reparación</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="tipoDiagnosticoDialog"
+                    value="servicio"
+                    checked={tipoDiagnostico === "servicio"}
+                    onChange={(e) => setTipoDiagnostico(e.target.value as "reparacion" | "servicio")}
+                    className="w-4 h-4"
+                  />
+                  <span className="text-sm">Mantenimiento/Servicio</span>
+                </label>
+              </div>
             </div>
             
             <div className="text-sm space-y-1">
