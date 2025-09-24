@@ -1464,14 +1464,26 @@ export default function DetalleIncidente() {
           <DialogHeader>
             <DialogTitle>Confirmar Diagnóstico</DialogTitle>
             <DialogDescription>
-              ¿Estás seguro de que deseas guardar el diagnóstico? Esta acción actualizará el estado del incidente.
+              Revisa y confirma la información del diagnóstico antes de guardar.
             </DialogDescription>
           </DialogHeader>
           
-          <div className="space-y-3 py-4">
-            <div className="text-sm">
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Tipo de Trabajo</label>
+              <Select value={tipoDiagnostico} onValueChange={(value: "reparacion" | "servicio") => setTipoDiagnostico(value)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="reparacion">Reparación</SelectItem>
+                  <SelectItem value="servicio">Mantenimiento/Servicio</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="text-sm space-y-1">
               <p><strong>Técnico:</strong> {getTecnicoName(tecnicoAsignado)}</p>
-              <p><strong>Tipo:</strong> {tipoDiagnostico === "reparacion" ? "Reparación" : "Servicio"}</p>
               <p><strong>Aplica garantía:</strong> {aplicaGarantia ? "Sí" : "No"}</p>
               <p><strong>Requiere repuestos:</strong> {(requiereRepuestos || repuestosList.length > 0) ? "Sí" : "No"}</p>
               {repuestosList.length > 0 && (
