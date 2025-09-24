@@ -37,7 +37,7 @@ export default function DetalleIncidente() {
   const [descripcionProblema, setDescripcionProblema] = useState("");
   const [lugarIngreso, setLugarIngreso] = useState<"Mostrador" | "Logistica">("Mostrador");
   const [tecnicoAsignado, setTecnicoAsignado] = useState("");
-  const [tipoDiagnostico, setTipoDiagnostico] = useState<"reparacion" | "servicio">("reparacion");
+  const [tipoDiagnostico, setTipoDiagnostico] = useState<"reparacion" | "servicio" | "">("");
   
   // Campos del formulario general
   const [motivoIngreso, setMotivoIngreso] = useState("");
@@ -284,7 +284,7 @@ export default function DetalleIncidente() {
     setDescripcionProblema("");
     setLugarIngreso("Mostrador");
     setTecnicoAsignado("");
-    setTipoDiagnostico("reparacion");
+    setTipoDiagnostico("");
     setMotivoIngreso("");
     setObservacionesCliente("");
     setEstadoVisual("");
@@ -555,7 +555,7 @@ export default function DetalleIncidente() {
                           </div>
 
                           <div className="space-y-3">
-                            <label className="text-sm font-medium">Tipo de Trabajo</label>
+                            <label className="text-sm font-medium">Tipo de Trabajo <span className="text-red-500">*</span></label>
                             <div className="flex gap-4">
                               <label className="flex items-center gap-2 cursor-pointer">
                                 <input
@@ -580,6 +580,9 @@ export default function DetalleIncidente() {
                                 <span className="text-sm">Mantenimiento/Servicio</span>
                               </label>
                             </div>
+                            {!tipoDiagnostico && (
+                              <p className="text-xs text-red-500">Debes seleccionar un tipo de trabajo</p>
+                            )}
                           </div>
 
                           <div className="space-y-2">
@@ -624,7 +627,7 @@ export default function DetalleIncidente() {
                           </Button>
                           <Button 
                             onClick={() => setCurrentStep(2)}
-                            disabled={!descripcionProblema.trim() || !tecnicoAsignado}
+                            disabled={!descripcionProblema.trim() || !tecnicoAsignado || !tipoDiagnostico}
                           >
                             Siguiente: Repuestos
                           </Button>
@@ -935,6 +938,7 @@ export default function DetalleIncidente() {
                           </Button>
                           <Button 
                             onClick={handleGuardarDiagnostico}
+                            disabled={!tipoDiagnostico}
                             className="bg-primary text-primary-foreground hover:bg-primary/90"
                           >
                             Confirmar y Guardar Diagnóstico
@@ -1485,7 +1489,7 @@ export default function DetalleIncidente() {
           
           <div className="space-y-4 py-4">
             <div className="space-y-3">
-              <label className="text-sm font-medium">Tipo de Trabajo</label>
+              <label className="text-sm font-medium">Tipo de Trabajo <span className="text-red-500">*</span></label>
               <div className="flex gap-4">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
@@ -1510,6 +1514,9 @@ export default function DetalleIncidente() {
                   <span className="text-sm">Mantenimiento/Servicio</span>
                 </label>
               </div>
+              {!tipoDiagnostico && (
+                <p className="text-xs text-red-500">Debes seleccionar un tipo de trabajo</p>
+              )}
             </div>
             
             <div className="text-sm space-y-1">
@@ -1534,6 +1541,7 @@ export default function DetalleIncidente() {
                 onGuardarDiagnostico();
                 setShowConfirmDialog(false);
               }}
+              disabled={!tipoDiagnostico}
               className="bg-primary text-primary-foreground hover:bg-primary/90"
             >
               Confirmar y Guardar
