@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { StatusBadge } from "@/components/StatusBadge";
 import { incidentes, clientes, productos, tecnicos } from "@/data/mockData";
 import { Incidente } from "@/types";
@@ -37,6 +38,15 @@ export default function DetalleIncidente() {
   const [lugarIngreso, setLugarIngreso] = useState<"Mostrador" | "Logistica">("Mostrador");
   const [tecnicoAsignado, setTecnicoAsignado] = useState("");
   const [tipoDiagnostico, setTipoDiagnostico] = useState<"reparacion" | "servicio">("reparacion");
+  
+  // Campos del formulario general
+  const [motivoIngreso, setMotivoIngreso] = useState("");
+  const [observacionesCliente, setObservacionesCliente] = useState("");
+  const [estadoVisual, setEstadoVisual] = useState("");
+  const [accesoriosIncluidos, setAccesoriosIncluidos] = useState("");
+  
+  // Estado del dialog de confirmación
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 
   type RepuestoItem = { repuestoCodigo: string; cantidad: number };
   const [repuestosList, setRepuestosList] = useState<RepuestoItem[]>([]);
@@ -175,6 +185,10 @@ export default function DetalleIncidente() {
     });
   };
 
+  const handleGuardarDiagnostico = () => {
+    setShowConfirmDialog(true);
+  };
+
   const onGuardarDiagnostico = () => {
     if (!incidente) return;
     
@@ -271,6 +285,10 @@ export default function DetalleIncidente() {
     setLugarIngreso("Mostrador");
     setTecnicoAsignado("");
     setTipoDiagnostico("reparacion");
+    setMotivoIngreso("");
+    setObservacionesCliente("");
+    setEstadoVisual("");
+    setAccesoriosIncluidos("");
     
     toast({ title: "Diagnóstico guardado", description: `Incidente ${incidente.id} actualizado.` });
   };
@@ -450,6 +468,51 @@ export default function DetalleIncidente() {
                         </div>
 
                         <div className="space-y-4">
+                          {/* Información General */}
+                          <div className="border rounded-lg p-4 space-y-4">
+                            <h4 className="font-medium text-sm">Información General</h4>
+                            
+                            <div className="space-y-2">
+                              <label className="text-sm font-medium">Motivo de Ingreso</label>
+                              <Textarea
+                                placeholder="Motivo por el cual ingresa el equipo..."
+                                value={motivoIngreso}
+                                onChange={(e) => setMotivoIngreso(e.target.value)}
+                                className="min-h-[80px]"
+                              />
+                            </div>
+                            
+                            <div className="space-y-2">
+                              <label className="text-sm font-medium">Observaciones del Cliente</label>
+                              <Textarea
+                                placeholder="Observaciones adicionales del cliente..."
+                                value={observacionesCliente}
+                                onChange={(e) => setObservacionesCliente(e.target.value)}
+                                className="min-h-[80px]"
+                              />
+                            </div>
+                            
+                            <div className="space-y-2">
+                              <label className="text-sm font-medium">Estado Visual del Equipo</label>
+                              <Textarea
+                                placeholder="Descripción del estado físico y visual del equipo..."
+                                value={estadoVisual}
+                                onChange={(e) => setEstadoVisual(e.target.value)}
+                                className="min-h-[80px]"
+                              />
+                            </div>
+                            
+                            <div className="space-y-2">
+                              <label className="text-sm font-medium">Accesorios Incluidos</label>
+                              <Textarea
+                                placeholder="Lista de accesorios que acompañan al equipo..."
+                                value={accesoriosIncluidos}
+                                onChange={(e) => setAccesoriosIncluidos(e.target.value)}
+                                className="min-h-[60px]"
+                              />
+                            </div>
+                          </div>
+
                           <div className="space-y-2">
                             <label className="text-sm font-medium">Descripción del Problema</label>
                             <Textarea
@@ -856,7 +919,7 @@ export default function DetalleIncidente() {
                             Anterior
                           </Button>
                           <Button 
-                            onClick={onGuardarDiagnostico}
+                            onClick={handleGuardarDiagnostico}
                             className="bg-primary text-primary-foreground hover:bg-primary/90"
                           >
                             Confirmar y Guardar Diagnóstico
@@ -1394,6 +1457,48 @@ export default function DetalleIncidente() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Dialog de confirmación */}
+      <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Confirmar Diagnóstico</DialogTitle>
+            <DialogDescription>
+              ¿Estás seguro de que deseas guardar el diagnóstico? Esta acción actualizará el estado del incidente.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-3 py-4">
+            <div className="text-sm">
+              <p><strong>Técnico:</strong> {getTecnicoName(tecnicoAsignado)}</p>
+              <p><strong>Tipo:</strong> {tipoDiagnostico === "reparacion" ? "Reparación" : "Servicio"}</p>
+              <p><strong>Aplica garantía:</strong> {aplicaGarantia ? "Sí" : "No"}</p>
+              <p><strong>Requiere repuestos:</strong> {(requiereRepuestos || repuestosList.length > 0) ? "Sí" : "No"}</p>
+              {repuestosList.length > 0 && (
+                <p><strong>Repuestos:</strong> {repuestosList.length} item(s)</p>
+              )}
+            </div>
+          </div>
+          
+          <DialogFooter className="flex-col-reverse sm:flex-row">
+            <Button
+              variant="outline"
+              onClick={() => setShowConfirmDialog(false)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={() => {
+                onGuardarDiagnostico();
+                setShowConfirmDialog(false);
+              }}
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
+            >
+              Confirmar y Guardar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
