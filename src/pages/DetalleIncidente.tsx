@@ -32,7 +32,7 @@ export default function DetalleIncidente() {
   const [causa, setCausa] = useState("");
   const [recomendacion, setRecomendacion] = useState("");
   const [resolucion, setResolucion] = useState("");
-  const [aplicaGarantia, setAplicaGarantia] = useState<boolean | null>(null);
+  const [aplicaGarantia, setAplicaGarantia] = useState(false);
   const [requiereRepuestos, setRequiereRepuestos] = useState(false);
   const [descripcionProblema, setDescripcionProblema] = useState("");
   const [lugarIngreso, setLugarIngreso] = useState<"Mostrador" | "Logistica">("Mostrador");
@@ -197,7 +197,7 @@ export default function DetalleIncidente() {
       ? repuestosList.map(r => `Falla en componente que requiere: ${r.repuestoCodigo} (Cantidad: ${r.cantidad})`)
       : ["No se requieren repuestos - Falla menor o de mantenimiento"];
     
-    const causaGenerada = aplicaGarantia === true 
+    const causaGenerada = aplicaGarantia 
       ? "Desgaste normal de componentes cubierto por garantía"
       : repuestosList.length > 0 
         ? "Desgaste por uso normal o sobrecarga del equipo"
@@ -213,7 +213,7 @@ export default function DetalleIncidente() {
         ? "Reemplazar los componentes identificados según especificaciones técnicas"
         : "Continuar con mantenimiento preventivo regular";
     
-    const resolucionGenerada = aplicaGarantia === true 
+    const resolucionGenerada = aplicaGarantia 
       ? `Reparación bajo garantía. ${
           repuestosList.length > 0 
             ? `Se procederá al reemplazo de ${repuestosList.length} componente(s) sin costo.` 
@@ -245,7 +245,7 @@ export default function DetalleIncidente() {
         recomendaciones: recomendacionGenerada,
         requiereRepuestos: requiere,
         tiempoEstimadoReparacion: requiere ? "Pendiente de repuestos" : "2-3 días hábiles",
-        costoEstimado: aplicaGarantia === true ? 0 : undefined,
+        costoEstimado: aplicaGarantia ? 0 : undefined,
         aplicaGarantia: aplicaGarantia,
         lugarIngreso: lugarIngreso,
         tecnicoAsignado: tecnicoAsignado
@@ -278,7 +278,7 @@ export default function DetalleIncidente() {
     setCausa("");
     setRecomendacion("");
     setResolucion("");
-    setAplicaGarantia(null);
+    setAplicaGarantia(false);
     setRequiereRepuestos(false);
     setRepuestosList([]);
     setDescripcionProblema("");
@@ -586,36 +586,17 @@ export default function DetalleIncidente() {
                           </div>
 
                           <div className="space-y-2">
-                            <label className="text-sm font-medium">¿Aplica garantía? <span className="text-red-500">*</span></label>
-                            <div className="flex gap-4">
-                              <label className="flex items-center gap-2 cursor-pointer">
-                                <input
-                                  type="radio"
-                                  name="aplicaGarantia"
-                                  value="true"
-                                  checked={aplicaGarantia === true}
-                                  onChange={() => setAplicaGarantia(true)}
-                                  className="w-4 h-4"
-                                />
-                                <span className="text-sm">Sí, aplica garantía</span>
-                              </label>
-                              <label className="flex items-center gap-2 cursor-pointer">
-                                <input
-                                  type="radio"
-                                  name="aplicaGarantia"
-                                  value="false"
-                                  checked={aplicaGarantia === false}
-                                  onChange={() => setAplicaGarantia(false)}
-                                  className="w-4 h-4"
-                                />
-                                <span className="text-sm">No aplica garantía</span>
-                              </label>
-                            </div>
-                            {aplicaGarantia === null && (
-                              <p className="text-xs text-red-500">Debes seleccionar si aplica garantía</p>
-                            )}
+                            <label className="text-sm font-medium flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                checked={aplicaGarantia}
+                                onChange={(e) => setAplicaGarantia(e.target.checked)}
+                                className="rounded"
+                              />
+                              ¿Aplica garantía?
+                            </label>
                             <p className="text-xs text-muted-foreground">
-                              Selecciona si el problema está cubierto por la garantía del producto
+                              Marca esta opción si el problema está cubierto por la garantía del producto
                             </p>
                           </div>
 
@@ -646,7 +627,7 @@ export default function DetalleIncidente() {
                           </Button>
                           <Button 
                             onClick={() => setCurrentStep(2)}
-                            disabled={!descripcionProblema.trim() || !tecnicoAsignado || !tipoDiagnostico || aplicaGarantia === null}
+                            disabled={!descripcionProblema.trim() || !tecnicoAsignado || !tipoDiagnostico}
                           >
                             Siguiente: Repuestos
                           </Button>
@@ -957,7 +938,7 @@ export default function DetalleIncidente() {
                           </Button>
                           <Button 
                             onClick={handleGuardarDiagnostico}
-                            disabled={!tipoDiagnostico || aplicaGarantia === null}
+                            disabled={!tipoDiagnostico}
                             className="bg-primary text-primary-foreground hover:bg-primary/90"
                           >
                             Confirmar y Guardar Diagnóstico
@@ -1540,7 +1521,7 @@ export default function DetalleIncidente() {
             
             <div className="text-sm space-y-1">
               <p><strong>Técnico:</strong> {getTecnicoName(tecnicoAsignado)}</p>
-              <p><strong>Aplica garantía:</strong> {aplicaGarantia === true ? "Sí" : aplicaGarantia === false ? "No" : "No seleccionado"}</p>
+              <p><strong>Aplica garantía:</strong> {aplicaGarantia ? "Sí" : "No"}</p>
               <p><strong>Requiere repuestos:</strong> {(requiereRepuestos || repuestosList.length > 0) ? "Sí" : "No"}</p>
               {repuestosList.length > 0 && (
                 <p><strong>Repuestos:</strong> {repuestosList.length} item(s)</p>
@@ -1560,7 +1541,7 @@ export default function DetalleIncidente() {
                 onGuardarDiagnostico();
                 setShowConfirmDialog(false);
               }}
-              disabled={!tipoDiagnostico || aplicaGarantia === null}
+              disabled={!tipoDiagnostico}
               className="bg-primary text-primary-foreground hover:bg-primary/90"
             >
               Confirmar y Guardar
