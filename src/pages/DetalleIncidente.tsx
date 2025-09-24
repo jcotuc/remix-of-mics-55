@@ -36,6 +36,7 @@ export default function DetalleIncidente() {
   const [descripcionProblema, setDescripcionProblema] = useState("");
   const [lugarIngreso, setLugarIngreso] = useState<"Mostrador" | "Logistica">("Mostrador");
   const [tecnicoAsignado, setTecnicoAsignado] = useState("");
+  const [tipoDiagnostico, setTipoDiagnostico] = useState<"reparacion" | "servicio">("reparacion");
 
   type RepuestoItem = { repuestoCodigo: string; cantidad: number };
   const [repuestosList, setRepuestosList] = useState<RepuestoItem[]>([]);
@@ -269,6 +270,7 @@ export default function DetalleIncidente() {
     setDescripcionProblema("");
     setLugarIngreso("Mostrador");
     setTecnicoAsignado("");
+    setTipoDiagnostico("reparacion");
     
     toast({ title: "Diagnóstico guardado", description: `Incidente ${incidente.id} actualizado.` });
   };
@@ -487,6 +489,19 @@ export default function DetalleIncidente() {
                                 </SelectContent>
                               </Select>
                             </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium">Tipo de Trabajo</label>
+                            <Select value={tipoDiagnostico} onValueChange={(value: "reparacion" | "servicio") => setTipoDiagnostico(value)}>
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="reparacion">Reparación</SelectItem>
+                                <SelectItem value="servicio">Servicio</SelectItem>
+                              </SelectContent>
+                            </Select>
                           </div>
 
                           <div className="space-y-2">
