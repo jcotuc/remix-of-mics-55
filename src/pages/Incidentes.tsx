@@ -9,13 +9,14 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { StatusBadge } from "@/components/StatusBadge";
-import { clientes, productos, tecnicos } from "@/data/mockData";
+import { productos, tecnicos } from "@/data/mockData";
 import { Incidente, StatusIncidente } from "@/types";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
 
 type IncidenteDB = Database['public']['Tables']['incidentes']['Row'];
+type ClienteDB = Database['public']['Tables']['clientes']['Row'];
 
 export default function Incidentes() {
   const navigate = useNavigate();
@@ -23,29 +24,39 @@ export default function Incidentes() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [incidentesList, setIncidentesList] = useState<IncidenteDB[]>([]);
+  const [clientesList, setClientesList] = useState<ClienteDB[]>([]);
   const [selectedIncidentes, setSelectedIncidentes] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchIncidentes();
+    fetchData();
   }, []);
 
-  const fetchIncidentes = async () => {
+  const fetchData = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('incidentes')
-        .select('*')
-        .order('fecha_ingreso', { ascending: false });
+      
+      // Cargar incidentes y clientes en paralelo
+      const [incidentesResult, clientesResult] = await Promise.all([
+        supabase.from('incidentes').select('*').order('fecha_ingreso', { ascending: false }),
+        supabase.from('clientes').select('*')
+      ]);
 
-      if (error) throw error;
-      setIncidentesList(data || []);
+      if (incidentesResult.error) throw incidentesResult.error;
+      if (clientesResult.error) throw clientesResult.error;
+      
+      setIncidentesList(incidentesResult.data || []);
+      setClientesList(clientesResult.data || []);
     } catch (error) {
-      console.error('Error al cargar incidentes:', error);
-      toast.error('Error al cargar los incidentes');
+      console.error('Error al cargar datos:', error);
+      toast.error('Error al cargar los datos');
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchIncidentes = async () => {
+    await fetchData();
   };
 
   const handleDeleteAll = async () => {
@@ -69,7 +80,7 @@ export default function Incidentes() {
 
   // Helper functions moved before they are used
   const getClienteName = (codigo: string) => {
-    const cliente = clientes.find(c => c.codigo === codigo);
+    const cliente = clientesList.find(c => c.codigo === codigo);
     return cliente ? cliente.nombre : "Cliente no encontrado";
   };
 
