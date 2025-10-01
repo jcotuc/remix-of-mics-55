@@ -73,6 +73,7 @@ export type Database = {
           accesorios: string | null
           centro_servicio: string | null
           cobertura_garantia: boolean
+          codigo: string
           codigo_cliente: string
           codigo_producto: string
           codigo_tecnico: string | null
@@ -94,6 +95,7 @@ export type Database = {
           accesorios?: string | null
           centro_servicio?: string | null
           cobertura_garantia?: boolean
+          codigo: string
           codigo_cliente: string
           codigo_producto: string
           codigo_tecnico?: string | null
@@ -115,6 +117,7 @@ export type Database = {
           accesorios?: string | null
           centro_servicio?: string | null
           cobertura_garantia?: boolean
+          codigo?: string
           codigo_cliente?: string
           codigo_producto?: string
           codigo_tecnico?: string | null
@@ -303,6 +306,10 @@ export type Database = {
     }
     Functions: {
       generar_codigo_hpc: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      generar_codigo_incidente: {
         Args: Record<PropertyKey, never>
         Returns: string
       }

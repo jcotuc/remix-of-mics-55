@@ -96,7 +96,7 @@ export default function Incidentes() {
 
   const filteredIncidentes = incidentesList
     .filter(incidente => {
-      const matchesSearch = incidente.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      const matchesSearch = incidente.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
         incidente.descripcion_problema.toLowerCase().includes(searchTerm.toLowerCase()) ||
         getClienteName(incidente.codigo_cliente).toLowerCase().includes(searchTerm.toLowerCase()) ||
         getProductDisplayName(incidente.codigo_producto).toLowerCase().includes(searchTerm.toLowerCase());
@@ -329,7 +329,7 @@ export default function Incidentes() {
                       onCheckedChange={handleSelectAll}
                     />
                   </TableHead>
-                  <TableHead>ID</TableHead>
+                  <TableHead>Código</TableHead>
                   <TableHead>Cliente</TableHead>
                   <TableHead>Producto</TableHead>
                   <TableHead>Técnico</TableHead>
@@ -365,7 +365,7 @@ export default function Incidentes() {
                         onCheckedChange={(checked) => handleSelectIncidente(incidente.id, checked as boolean)}
                       />
                     </TableCell>
-                    <TableCell className="font-medium">{incidente.id}</TableCell>
+                    <TableCell className="font-medium">{incidente.codigo}</TableCell>
                     <TableCell>{getClienteName(incidente.codigo_cliente)}</TableCell>
                     <TableCell>
                       <div className="flex items-center space-x-2">

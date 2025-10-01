@@ -334,10 +334,17 @@ export default function NuevoIncidente() {
         if (updateError) throw updateError;
       }
 
+      // Generar código de incidente
+      const { data: codigoIncidente, error: codigoError } = await supabase
+        .rpc('generar_codigo_incidente');
+      
+      if (codigoError) throw codigoError;
+
       // Crear el incidente
       const { error: incidenteError } = await supabase
         .from('incidentes')
         .insert({
+          codigo: codigoIncidente,
           codigo_cliente: codigoCliente,
           codigo_producto: productoSeleccionado!.codigo,
           sku_maquina: skuMaquina,
@@ -359,7 +366,7 @@ export default function NuevoIncidente() {
 
       toast({ 
         title: "Incidente creado exitosamente", 
-        description: "El incidente ha sido registrado en el sistema" 
+        description: `Código: ${codigoIncidente}` 
       });
       
       navigate("/incidentes");
