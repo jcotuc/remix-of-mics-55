@@ -18,70 +18,118 @@ export type Database = {
         Row: {
           celular: string
           codigo: string
+          correo: string | null
           created_at: string
+          departamento: string | null
+          direccion: string | null
           id: string
+          municipio: string | null
           nit: string
           nombre: string
+          nombre_facturacion: string | null
+          pais: string | null
+          telefono_principal: string | null
+          telefono_secundario: string | null
           updated_at: string
         }
         Insert: {
           celular: string
           codigo: string
+          correo?: string | null
           created_at?: string
+          departamento?: string | null
+          direccion?: string | null
           id?: string
+          municipio?: string | null
           nit: string
           nombre: string
+          nombre_facturacion?: string | null
+          pais?: string | null
+          telefono_principal?: string | null
+          telefono_secundario?: string | null
           updated_at?: string
         }
         Update: {
           celular?: string
           codigo?: string
+          correo?: string | null
           created_at?: string
+          departamento?: string | null
+          direccion?: string | null
           id?: string
+          municipio?: string | null
           nit?: string
           nombre?: string
+          nombre_facturacion?: string | null
+          pais?: string | null
+          telefono_principal?: string | null
+          telefono_secundario?: string | null
           updated_at?: string
         }
         Relationships: []
       }
       incidentes: {
         Row: {
+          accesorios: string | null
+          centro_servicio: string | null
           cobertura_garantia: boolean
           codigo_cliente: string
           codigo_producto: string
           codigo_tecnico: string
           created_at: string
           descripcion_problema: string
+          es_reingreso: boolean | null
           fecha_ingreso: string
           id: string
+          ingresado_en_mostrador: boolean | null
+          log_observaciones: string | null
           producto_descontinuado: boolean | null
+          quiere_envio: boolean | null
+          sku_maquina: string | null
           status: Database["public"]["Enums"]["status_incidente"]
+          tipologia: string | null
           updated_at: string
         }
         Insert: {
+          accesorios?: string | null
+          centro_servicio?: string | null
           cobertura_garantia?: boolean
           codigo_cliente: string
           codigo_producto: string
           codigo_tecnico: string
           created_at?: string
           descripcion_problema: string
+          es_reingreso?: boolean | null
           fecha_ingreso?: string
           id?: string
+          ingresado_en_mostrador?: boolean | null
+          log_observaciones?: string | null
           producto_descontinuado?: boolean | null
+          quiere_envio?: boolean | null
+          sku_maquina?: string | null
           status?: Database["public"]["Enums"]["status_incidente"]
+          tipologia?: string | null
           updated_at?: string
         }
         Update: {
+          accesorios?: string | null
+          centro_servicio?: string | null
           cobertura_garantia?: boolean
           codigo_cliente?: string
           codigo_producto?: string
           codigo_tecnico?: string
           created_at?: string
           descripcion_problema?: string
+          es_reingreso?: boolean | null
           fecha_ingreso?: string
           id?: string
+          ingresado_en_mostrador?: boolean | null
+          log_observaciones?: string | null
           producto_descontinuado?: boolean | null
+          quiere_envio?: boolean | null
+          sku_maquina?: string | null
           status?: Database["public"]["Enums"]["status_incidente"]
+          tipologia?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -261,7 +309,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      generar_codigo_hpc: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
     }
     Enums: {
       media_tipo: "foto" | "video"
