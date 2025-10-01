@@ -25,15 +25,46 @@ const centrosServicio = [
 ];
 
 const tipologias = [
-  'Cambio de aceite',
-  'Reparación de motor',
-  'Revisión eléctrica',
-  'Cambio de repuestos',
-  'Mantenimiento preventivo',
-  'Calibración',
-  'Limpieza general',
-  'Otros'
+  'Mantenimiento',
+  'Reparación',
+  'Daños por transporte',
+  'Venta de repuestos'
 ];
+
+// Departamentos de Guatemala
+const DEPARTAMENTOS = [
+  "Guatemala", "Alta Verapaz", "Baja Verapaz", "Chimaltenango", "Chiquimula",
+  "El Progreso", "Escuintla", "Huehuetenango", "Izabal", "Jalapa",
+  "Jutiapa", "Petén", "Quetzaltenango", "Quiché", "Retalhuleu",
+  "Sacatepéquez", "San Marcos", "Santa Rosa", "Sololá", "Suchitepéquez",
+  "Totonicapán", "Zacapa"
+];
+
+// Municipios por departamento
+const MUNICIPIOS: Record<string, string[]> = {
+  "Guatemala": ["Guatemala", "Santa Catarina Pinula", "San José Pinula", "San José del Golfo", "Palencia", "Chinautla", "San Pedro Ayampuc", "Mixco", "San Pedro Sacatepéquez", "San Juan Sacatepéquez", "San Raymundo", "Chuarrancho", "Fraijanes", "Amatitlán", "Villa Nueva", "Villa Canales", "San Miguel Petapa"],
+  "Alta Verapaz": ["Cobán", "Santa Cruz Verapaz", "San Cristóbal Verapaz", "Tactic", "Tamahú", "Tucurú", "Panzós", "Senahú", "San Pedro Carchá", "San Juan Chamelco", "Lanquín", "Cahabón", "Chisec", "Chahal", "Fray Bartolomé de las Casas", "Santa Catarina La Tinta", "Raxruhá"],
+  "Baja Verapaz": ["Salamá", "San Miguel Chicaj", "Rabinal", "Cubulco", "Granados", "Santa Cruz El Chol", "San Jerónimo", "Purulhá"],
+  "Chimaltenango": ["Chimaltenango", "San José Poaquil", "San Martín Jilotepeque", "San Juan Comalapa", "Santa Apolonia", "Tecpán Guatemala", "Patzún", "San Miguel Pochuta", "Patzicía", "Santa Cruz Balanyá", "Acatenango", "San Pedro Yepocapa", "San Andrés Itzapa", "Parramos", "Zaragoza", "El Tejar"],
+  "Chiquimula": ["Chiquimula", "San José La Arada", "San Juan Ermita", "Jocotán", "Camotán", "Olopa", "Esquipulas", "Concepción Las Minas", "Quezaltepeque", "San Jacinto", "Ipala"],
+  "El Progreso": ["Guastatoya", "Morazán", "San Agustín Acasaguastlán", "San Cristóbal Acasaguastlán", "El Jícaro", "Sansare", "Sanarate", "San Antonio La Paz"],
+  "Escuintla": ["Escuintla", "Santa Lucía Cotzumalguapa", "La Democracia", "Siquinalá", "Masagua", "Tiquisate", "La Gomera", "Guanagazapa", "San José", "Iztapa", "Palín", "San Vicente Pacaya", "Nueva Concepción", "Puerto San José"],
+  "Huehuetenango": ["Huehuetenango", "Chiantla", "Malacatancito", "Cuilco", "Nentón", "San Pedro Necta", "Jacaltenango", "San Pedro Soloma", "San Ildefonso Ixtahuacán", "Santa Bárbara", "La Libertad", "La Democracia", "San Miguel Acatán", "San Rafael La Independencia", "Todos Santos Cuchumatán", "San Juan Atitán", "Santa Eulalia", "San Mateo Ixtatán", "Colotenango", "San Sebastián Huehuetenango", "Tectitán", "Concepción Huista", "San Juan Ixcoy", "San Antonio Huista", "Santa Cruz Barillas", "San Sebastián Coatán", "Aguacatán", "San Rafael Petzal", "San Gaspar Ixchil", "Santiago Chimaltenango", "Santa Ana Huista", "Unión Cantinil", "Petatán"],
+  "Izabal": ["Puerto Barrios", "Livingston", "El Estor", "Morales", "Los Amates"],
+  "Jalapa": ["Jalapa", "San Pedro Pinula", "San Luis Jilotepeque", "San Manuel Chaparrón", "San Carlos Alzatate", "Monjas", "Mataquescuintla"],
+  "Jutiapa": ["Jutiapa", "El Progreso", "Santa Catarina Mita", "Agua Blanca", "Asunción Mita", "Yupiltepeque", "Atescatempa", "Jerez", "El Adelanto", "Zapotitlán", "Comapa", "Jalpatagua", "Conguaco", "Moyuta", "Pasaco", "Quesada", "San José Acatempa"],
+  "Petén": ["Flores", "San José", "San Benito", "San Andrés", "La Libertad", "San Francisco", "Santa Ana", "Dolores", "San Luis", "Sayaxché", "Melchor de Mencos", "Poptún", "Las Cruces", "El Chal"],
+  "Quetzaltenango": ["Quetzaltenango", "Salcajá", "Olintepeque", "San Carlos Sija", "Sibilia", "Cabricán", "Cajolá", "San Miguel Sigüilá", "San Juan Ostuncalco", "San Mateo", "Concepción Chiquirichapa", "San Martín Sacatepéquez", "Almolonga", "Cantel", "Huitán", "Zunil", "Colomba Costa Cuca", "San Francisco La Unión", "El Palmar", "Coatepeque", "Génova", "Flores Costa Cuca", "La Esperanza", "Palestina de Los Altos"],
+  "Quiché": ["Santa Cruz del Quiché", "Chiché", "Chinique", "Zacualpa", "Chajul", "Santo Tomás Chichicastenango", "Patzité", "San Antonio Ilotenango", "San Pedro Jocopilas", "Cunén", "San Juan Cotzal", "Joyabaj", "Nebaj", "San Andrés Sajcabajá", "San Miguel Uspantán", "Sacapulas", "San Bartolomé Jocotenango", "Canillá", "Chicamán", "Ixcán", "Pachalum"],
+  "Retalhuleu": ["Retalhuleu", "San Sebastián", "Santa Cruz Muluá", "San Martín Zapotitlán", "San Felipe", "San Andrés Villa Seca", "Champerico", "Nuevo San Carlos", "El Asintal"],
+  "Sacatepéquez": ["Antigua Guatemala", "Jocotenango", "Pastores", "Sumpango", "Santo Domingo Xenacoj", "Santiago Sacatepéquez", "San Bartolomé Milpas Altas", "San Lucas Sacatepéquez", "Santa Lucía Milpas Altas", "Magdalena Milpas Altas", "Santa María de Jesús", "Ciudad Vieja", "San Miguel Dueñas", "Alotenango", "San Antonio Aguas Calientes", "Santa Catarina Barahona"],
+  "San Marcos": ["San Marcos", "San Pedro Sacatepéquez", "San Antonio Sacatepéquez", "Comitancillo", "San Miguel Ixtahuacán", "Concepción Tutuapa", "Tacaná", "Sibinal", "Tajumulco", "Tejutla", "San Rafael Pie de la Cuesta", "Nuevo Progreso", "El Tumbador", "San José El Rodeo", "Malacatán", "Catarina", "Ayutla", "Ocós", "San Pablo", "El Quetzal", "La Reforma", "Pajapita", "Ixchiguán", "San José Ojetenam", "San Cristóbal Cucho", "Sipacapa", "Esquipulas Palo Gordo", "Río Blanco", "San Lorenzo"],
+  "Santa Rosa": ["Cuilapa", "Barberena", "Santa Rosa de Lima", "Casillas", "San Rafael Las Flores", "Oratorio", "San Juan Tecuaco", "Chiquimulilla", "Taxisco", "Santa María Ixhuatán", "Guazacapán", "Santa Cruz Naranjo", "Pueblo Nuevo Viñas", "Nueva Santa Rosa"],
+  "Sololá": ["Sololá", "San José Chacayá", "Santa María Visitación", "Santa Lucía Utatlán", "Nahualá", "Santa Catarina Ixtahuacán", "Santa Clara La Laguna", "Concepción", "San Andrés Semetabaj", "Panajachel", "Santa Catarina Palopó", "San Antonio Palopó", "San Lucas Tolimán", "Santa Cruz La Laguna", "San Pablo La Laguna", "San Marcos La Laguna", "San Juan La Laguna", "San Pedro La Laguna", "Santiago Atitlán"],
+  "Suchitepéquez": ["Mazatenango", "Cuyotenango", "San Francisco Zapotitlán", "San Bernardino", "San José El Ídolo", "Santo Domingo Suchitepéquez", "San Lorenzo", "Samayac", "San Pablo Jocopilas", "San Antonio Suchitepéquez", "San Miguel Panán", "San Gabriel", "Chicacao", "Patulul", "Santa Bárbara", "San Juan Bautista", "Santo Tomás La Unión", "Zunilito", "Pueblo Nuevo", "Río Bravo"],
+  "Totonicapán": ["Totonicapán", "San Cristóbal Totonicapán", "San Francisco El Alto", "San Andrés Xecul", "Momostenango", "Santa María Chiquimula", "Santa Lucía La Reforma", "San Bartolo"],
+  "Zacapa": ["Zacapa", "Estanzuela", "Río Hondo", "Gualán", "Teculután", "Usumatlán", "Cabañas", "San Diego", "La Unión", "Huité", "San Jorge"]
+};
 
 interface Cliente {
   codigo: string;
@@ -73,6 +104,8 @@ export default function NuevoIncidente() {
     municipio: ""
   });
 
+  const [municipiosDisponibles, setMunicipiosDisponibles] = useState<string[]>([]);
+
   // Datos del cliente existente
   const [datosClienteExistente, setDatosClienteExistente] = useState({
     nombre: "",
@@ -87,14 +120,42 @@ export default function NuevoIncidente() {
   const [productoSeleccionado, setProductoSeleccionado] = useState<Producto | null>(null);
   const [productosEncontrados, setProductosEncontrados] = useState<Producto[]>([]);
   const [descripcionProblema, setDescripcionProblema] = useState("");
-  const [accesorios, setAccesorios] = useState("");
+  const [accesoriosSeleccionados, setAccesoriosSeleccionados] = useState<string[]>([]);
+  const [accesoriosDisponibles, setAccesoriosDisponibles] = useState<any[]>([]);
   const [centroServicio, setCentroServicio] = useState("");
-  const [quiereEnvio, setQuiereEnvio] = useState<string>("");
+  const [opcionEnvio, setOpcionEnvio] = useState<string>("");
   const [ingresadoMostrador, setIngresadoMostrador] = useState(true);
   const [esReingreso, setEsReingreso] = useState(false);
   const [logObservaciones, setLogObservaciones] = useState("");
   const [tipologia, setTipologia] = useState("");
   const [guardando, setGuardando] = useState(false);
+
+  // Actualizar municipios cuando cambia el departamento
+  useEffect(() => {
+    if (nuevoCliente.departamento) {
+      setMunicipiosDisponibles(MUNICIPIOS[nuevoCliente.departamento] || []);
+      setNuevoCliente(prev => ({ ...prev, municipio: "" }));
+    }
+  }, [nuevoCliente.departamento]);
+
+  // Cargar accesorios disponibles
+  useEffect(() => {
+    const fetchAccesorios = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('productos')
+          .select('*')
+          .eq('clave', 'ACC');
+        
+        if (error) throw error;
+        setAccesoriosDisponibles(data || []);
+      } catch (error) {
+        console.error('Error fetching accesorios:', error);
+      }
+    };
+    
+    fetchAccesorios();
+  }, []);
 
   // Buscar clientes
   useEffect(() => {
@@ -204,8 +265,8 @@ export default function NuevoIncidente() {
       toast({ title: "Error", description: "Seleccione un centro de servicio", variant: "destructive" });
       return false;
     }
-    if (!quiereEnvio) {
-      toast({ title: "Error", description: "Indique si quiere envío o viene a recoger", variant: "destructive" });
+    if (!opcionEnvio) {
+      toast({ title: "Error", description: "Seleccione una opción de entrega", variant: "destructive" });
       return false;
     }
     if (!tipologia) {
@@ -281,9 +342,9 @@ export default function NuevoIncidente() {
           codigo_producto: productoSeleccionado!.codigo,
           sku_maquina: skuMaquina,
           descripcion_problema: descripcionProblema,
-          accesorios: accesorios || null,
+          accesorios: accesoriosSeleccionados.join(", ") || null,
           centro_servicio: centroServicio,
-          quiere_envio: quiereEnvio === 'envio',
+          quiere_envio: opcionEnvio !== 'recoger',
           ingresado_en_mostrador: ingresadoMostrador,
           es_reingreso: esReingreso,
           log_observaciones: logObservaciones || null,
@@ -469,22 +530,41 @@ export default function NuevoIncidente() {
 
                   <div>
                     <Label htmlFor="departamento">Departamento *</Label>
-                    <Input
-                      id="departamento"
+                    <Select
                       value={nuevoCliente.departamento}
-                      onChange={(e) => setNuevoCliente({ ...nuevoCliente, departamento: e.target.value })}
-                      placeholder="Departamento"
-                    />
+                      onValueChange={(value) => setNuevoCliente({ ...nuevoCliente, departamento: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccione un departamento" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {DEPARTAMENTOS.map((dept) => (
+                          <SelectItem key={dept} value={dept}>
+                            {dept}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <div>
                     <Label htmlFor="municipio">Municipio *</Label>
-                    <Input
-                      id="municipio"
+                    <Select
                       value={nuevoCliente.municipio}
-                      onChange={(e) => setNuevoCliente({ ...nuevoCliente, municipio: e.target.value })}
-                      placeholder="Municipio"
-                    />
+                      onValueChange={(value) => setNuevoCliente({ ...nuevoCliente, municipio: value })}
+                      disabled={!nuevoCliente.departamento}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccione un municipio" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {municipiosDisponibles.map((muni) => (
+                          <SelectItem key={muni} value={muni}>
+                            {muni}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
               </div>
@@ -608,7 +688,12 @@ export default function NuevoIncidente() {
               <Input
                 id="sku"
                 value={skuMaquina}
-                onChange={(e) => setSkuMaquina(e.target.value)}
+                onChange={(e) => {
+                  setSkuMaquina(e.target.value);
+                  if (!e.target.value) {
+                    setProductoSeleccionado(null);
+                  }
+                }}
                 placeholder="Ingrese código o clave del producto (mín. 3 caracteres)"
               />
               
@@ -633,10 +718,35 @@ export default function NuevoIncidente() {
               )}
 
               {productoSeleccionado && (
-                <div className="mt-2 p-3 border rounded-lg bg-primary/5">
-                  <div className="flex items-center gap-2 text-sm">
-                    <CheckCircle2 className="w-4 h-4 text-primary" />
-                    <span className="font-medium">{productoSeleccionado.descripcion}</span>
+                <div className="mt-4 p-4 border rounded-lg bg-muted/30">
+                  <div className="flex gap-4">
+                    {productoSeleccionado.urlFoto && (
+                      <div className="flex-shrink-0">
+                        <img 
+                          src={productoSeleccionado.urlFoto} 
+                          alt={productoSeleccionado.descripcion}
+                          className="w-32 h-32 object-cover rounded-lg border"
+                        />
+                      </div>
+                    )}
+                    <div className="flex-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <h3 className="font-semibold text-lg">{productoSeleccionado.descripcion}</h3>
+                          <p className="text-sm text-muted-foreground mt-1">Código: {productoSeleccionado.codigo}</p>
+                          <p className="text-sm text-muted-foreground">Clave: {productoSeleccionado.clave}</p>
+                        </div>
+                        {productoSeleccionado.descontinuado ? (
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
+                            Descontinuado
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                            Vigente
+                          </span>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
@@ -654,13 +764,39 @@ export default function NuevoIncidente() {
             </div>
 
             <div>
-              <Label htmlFor="accesorios">Accesorios con los que ingresa</Label>
-              <Input
-                id="accesorios"
-                value={accesorios}
-                onChange={(e) => setAccesorios(e.target.value)}
-                placeholder="Ej: Cable de poder, manual, estuche"
-              />
+              <Label>Accesorios con los que ingresa</Label>
+              <div className="mt-2 border rounded-lg p-4 max-h-60 overflow-y-auto space-y-3">
+                {accesoriosDisponibles.length > 0 ? (
+                  accesoriosDisponibles.map((accesorio) => (
+                    <div key={accesorio.id} className="flex items-center space-x-3">
+                      <Checkbox
+                        id={accesorio.id}
+                        checked={accesoriosSeleccionados.includes(accesorio.descripcion)}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setAccesoriosSeleccionados([...accesoriosSeleccionados, accesorio.descripcion]);
+                          } else {
+                            setAccesoriosSeleccionados(accesoriosSeleccionados.filter(a => a !== accesorio.descripcion));
+                          }
+                        }}
+                      />
+                      <Label
+                        htmlFor={accesorio.id}
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                      >
+                        {accesorio.descripcion}
+                      </Label>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-sm text-muted-foreground">No hay accesorios disponibles</p>
+                )}
+              </div>
+              {accesoriosSeleccionados.length > 0 && (
+                <p className="text-sm text-muted-foreground mt-2">
+                  Seleccionados: {accesoriosSeleccionados.join(", ")}
+                </p>
+              )}
             </div>
 
             <div>
@@ -680,15 +816,25 @@ export default function NuevoIncidente() {
             </div>
 
             <div>
-              <Label>¿Quiere envío o viene a recoger? *</Label>
-              <RadioGroup value={quiereEnvio} onValueChange={setQuiereEnvio} className="flex gap-6 mt-2">
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="envio" id="envio" />
-                  <Label htmlFor="envio" className="cursor-pointer">Quiere envío</Label>
-                </div>
+              <Label>Opciones de Entrega *</Label>
+              <RadioGroup value={opcionEnvio} onValueChange={setOpcionEnvio} className="flex flex-col gap-3 mt-2">
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="recoger" id="recoger" />
-                  <Label htmlFor="recoger" className="cursor-pointer">Viene a recoger</Label>
+                  <Label htmlFor="recoger" className="cursor-pointer font-normal">
+                    Viene a recoger al centro de servicio
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="llamar_antes" id="llamar_antes" />
+                  <Label htmlFor="llamar_antes" className="cursor-pointer font-normal">
+                    Quiere envío pero llamar antes
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="directo" id="directo" />
+                  <Label htmlFor="directo" className="cursor-pointer font-normal">
+                    Envío directo
+                  </Label>
                 </div>
               </RadioGroup>
             </div>
