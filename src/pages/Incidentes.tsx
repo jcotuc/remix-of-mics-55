@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, Search, Edit, Eye, AlertTriangle, CheckCircle, Calendar, Stethoscope, User } from "lucide-react";
+import { Plus, Search, Edit, Eye, AlertTriangle, CheckCircle, Calendar, Stethoscope, User, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,17 +9,63 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { StatusBadge } from "@/components/StatusBadge";
-import { incidentes, clientes, productos, tecnicos } from "@/data/mockData";
+import { clientes, productos, tecnicos } from "@/data/mockData";
 import { Incidente, StatusIncidente } from "@/types";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import type { Database } from "@/integrations/supabase/types";
+
+type IncidenteDB = Database['public']['Tables']['incidentes']['Row'];
 
 export default function Incidentes() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
-  const [incidentesList, setIncidentesList] = useState<Incidente[]>(incidentes);
+  const [incidentesList, setIncidentesList] = useState<IncidenteDB[]>([]);
   const [selectedIncidentes, setSelectedIncidentes] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchIncidentes();
+  }, []);
+
+  const fetchIncidentes = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('incidentes')
+        .select('*')
+        .order('fecha_ingreso', { ascending: false });
+
+      if (error) throw error;
+      setIncidentesList(data || []);
+    } catch (error) {
+      console.error('Error al cargar incidentes:', error);
+      toast.error('Error al cargar los incidentes');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteAll = async () => {
+    if (!confirm('¿Estás seguro de eliminar TODOS los incidentes? Esta acción no se puede deshacer.')) return;
+
+    try {
+      const { error } = await supabase
+        .from('incidentes')
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all
+
+      if (error) throw error;
+      
+      toast.success('Todos los incidentes han sido eliminados');
+      fetchIncidentes();
+    } catch (error) {
+      console.error('Error al eliminar incidentes:', error);
+      toast.error('Error al eliminar los incidentes');
+    }
+  };
 
   // Helper functions moved before they are used
   const getClienteName = (codigo: string) => {
@@ -51,18 +97,18 @@ export default function Incidentes() {
   const filteredIncidentes = incidentesList
     .filter(incidente => {
       const matchesSearch = incidente.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        incidente.descripcionProblema.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        getClienteName(incidente.codigoCliente).toLowerCase().includes(searchTerm.toLowerCase()) ||
-        getProductDisplayName(incidente.codigoProducto).toLowerCase().includes(searchTerm.toLowerCase());
+        incidente.descripcion_problema.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        getClienteName(incidente.codigo_cliente).toLowerCase().includes(searchTerm.toLowerCase()) ||
+        getProductDisplayName(incidente.codigo_producto).toLowerCase().includes(searchTerm.toLowerCase());
       
       const matchesStatus = statusFilter === "all" || incidente.status === statusFilter;
       
-      const producto = productos.find(p => p.codigo === incidente.codigoProducto);
+      const producto = productos.find(p => p.codigo === incidente.codigo_producto);
       const matchesCategory = categoryFilter === "all" || (producto && producto.categoria === categoryFilter);
       
       return matchesSearch && matchesStatus && matchesCategory;
     })
-    .sort((a, b) => new Date(a.fechaIngreso).getTime() - new Date(b.fechaIngreso).getTime()); // FIFO ordering
+    .sort((a, b) => new Date(a.fecha_ingreso).getTime() - new Date(b.fecha_ingreso).getTime()); // FIFO ordering
 
   const handleSelectIncidente = (incidenteId: string, checked: boolean) => {
     if (checked) {
@@ -133,13 +179,22 @@ export default function Incidentes() {
             Seguimiento de reparaciones y servicios técnicos
           </p>
         </div>
-        <Button 
-          className="bg-primary text-primary-foreground hover:bg-primary/90"
-          onClick={() => navigate("/incidentes/nuevo")}
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Nuevo Incidente
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            variant="destructive"
+            onClick={handleDeleteAll}
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            Eliminar Todos
+          </Button>
+          <Button 
+            className="bg-primary text-primary-foreground hover:bg-primary/90"
+            onClick={() => navigate("/incidentes/nuevo")}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Nuevo Incidente
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -150,7 +205,7 @@ export default function Incidentes() {
               <div>
                 <p className="text-sm text-muted-foreground">Pendientes</p>
                 <p className="text-2xl font-bold">
-                  {incidentesList.filter(i => i.status === "Pendiente de diagnostico").length}
+                  {incidentesList.filter(i => i.status === "Ingresado").length}
                 </p>
               </div>
             </div>
@@ -164,7 +219,7 @@ export default function Incidentes() {
               <div>
                 <p className="text-sm text-muted-foreground">En Proceso</p>
                 <p className="text-2xl font-bold">
-                  {incidentesList.filter(i => ["En diagnostico", "pendiente repuestos", "Presupuesto"].includes(i.status)).length}
+                  {incidentesList.filter(i => ["Diagnostico", "Repuestos solicitados", "Documentado"].includes(i.status)).length}
                 </p>
               </div>
             </div>
@@ -178,7 +233,7 @@ export default function Incidentes() {
               <div>
                 <p className="text-sm text-muted-foreground">Completados</p>
                 <p className="text-2xl font-bold">
-                  {incidentesList.filter(i => ["Reparado", "Canje", "Nota de credito", "Cambio por garantia"].includes(i.status)).length}
+                  {incidentesList.filter(i => ["Reparado", "Entregado"].includes(i.status)).length}
                 </p>
               </div>
             </div>
@@ -192,7 +247,7 @@ export default function Incidentes() {
               <div>
                 <p className="text-sm text-muted-foreground">Con Garantía</p>
                 <p className="text-2xl font-bold">
-                  {incidentesList.filter(i => i.coberturaGarantia).length}
+                  {incidentesList.filter(i => i.cobertura_garantia).length}
                 </p>
               </div>
             </div>
@@ -285,7 +340,20 @@ export default function Incidentes() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredIncidentes.map((incidente) => (
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={9} className="text-center">
+                      Cargando incidentes...
+                    </TableCell>
+                  </TableRow>
+                ) : filteredIncidentes.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={9} className="text-center">
+                      No hay incidentes registrados
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredIncidentes.map((incidente) => (
                   <TableRow 
                     key={incidente.id}
                     className={`${selectedIncidentes.includes(incidente.id) ? "bg-muted/50" : ""} cursor-pointer hover:bg-muted/30`}
@@ -298,11 +366,11 @@ export default function Incidentes() {
                       />
                     </TableCell>
                     <TableCell className="font-medium">{incidente.id}</TableCell>
-                    <TableCell>{getClienteName(incidente.codigoCliente)}</TableCell>
+                    <TableCell>{getClienteName(incidente.codigo_cliente)}</TableCell>
                     <TableCell>
                       <div className="flex items-center space-x-2">
-                        <span className="text-sm">{getProductDisplayName(incidente.codigoProducto)}</span>
-                        {isProductDiscontinued(incidente.codigoProducto) && (
+                        <span className="text-sm">{getProductDisplayName(incidente.codigo_producto)}</span>
+                        {isProductDiscontinued(incidente.codigo_producto) && (
                           <Badge variant="destructive" className="text-xs">
                             <AlertTriangle className="h-3 w-3 mr-1" />
                             Descontinuado
@@ -310,12 +378,12 @@ export default function Incidentes() {
                         )}
                       </div>
                     </TableCell>
-                    <TableCell className="text-sm">{getTecnicoName(incidente.codigoTecnico)}</TableCell>
+                    <TableCell className="text-sm">{incidente.codigo_tecnico ? getTecnicoName(incidente.codigo_tecnico) : 'No asignado'}</TableCell>
                     <TableCell>
-                      <StatusBadge status={incidente.status} />
+                      <StatusBadge status={incidente.status as StatusIncidente} />
                     </TableCell>
                     <TableCell>
-                      {incidente.coberturaGarantia ? (
+                      {incidente.cobertura_garantia ? (
                         <Badge className="bg-success text-success-foreground">
                           Sí
                         </Badge>
@@ -325,10 +393,10 @@ export default function Incidentes() {
                         </Badge>
                       )}
                     </TableCell>
-                    <TableCell>{incidente.fechaIngreso}</TableCell>
+                    <TableCell>{new Date(incidente.fecha_ingreso).toLocaleDateString()}</TableCell>
                      <TableCell className="text-right">
                        <div className="flex items-center justify-end space-x-2">
-                         {incidente.status === "Pendiente de diagnostico" && (
+                         {incidente.status === "Ingresado" && (
                            <>
                              <Button 
                                variant="secondary" 
@@ -371,7 +439,8 @@ export default function Incidentes() {
                       </div>
                     </TableCell>
                   </TableRow>
-                ))}
+                  ))
+                )}
               </TableBody>
             </Table>
           </div>

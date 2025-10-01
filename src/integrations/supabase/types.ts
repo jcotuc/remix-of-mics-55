@@ -75,7 +75,7 @@ export type Database = {
           cobertura_garantia: boolean
           codigo_cliente: string
           codigo_producto: string
-          codigo_tecnico: string
+          codigo_tecnico: string | null
           created_at: string
           descripcion_problema: string
           es_reingreso: boolean | null
@@ -96,7 +96,7 @@ export type Database = {
           cobertura_garantia?: boolean
           codigo_cliente: string
           codigo_producto: string
-          codigo_tecnico: string
+          codigo_tecnico?: string | null
           created_at?: string
           descripcion_problema: string
           es_reingreso?: boolean | null
@@ -117,7 +117,7 @@ export type Database = {
           cobertura_garantia?: boolean
           codigo_cliente?: string
           codigo_producto?: string
-          codigo_tecnico?: string
+          codigo_tecnico?: string | null
           created_at?: string
           descripcion_problema?: string
           es_reingreso?: boolean | null
@@ -145,13 +145,6 @@ export type Database = {
             columns: ["codigo_producto"]
             isOneToOne: false
             referencedRelation: "productos"
-            referencedColumns: ["codigo"]
-          },
-          {
-            foreignKeyName: "incidentes_codigo_tecnico_fkey"
-            columns: ["codigo_tecnico"]
-            isOneToOne: false
-            referencedRelation: "tecnicos"
             referencedColumns: ["codigo"]
           },
         ]
