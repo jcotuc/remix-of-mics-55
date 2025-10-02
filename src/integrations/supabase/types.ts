@@ -68,6 +68,36 @@ export type Database = {
         }
         Relationships: []
       }
+      embarques: {
+        Row: {
+          created_at: string
+          fecha_llegada: string
+          id: string
+          notas: string | null
+          numero_embarque: string
+          transportista: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          fecha_llegada?: string
+          id?: string
+          notas?: string | null
+          numero_embarque: string
+          transportista?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          fecha_llegada?: string
+          id?: string
+          notas?: string | null
+          numero_embarque?: string
+          transportista?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       incidentes: {
         Row: {
           accesorios: string | null
@@ -79,6 +109,7 @@ export type Database = {
           codigo_tecnico: string | null
           created_at: string
           descripcion_problema: string
+          embarque_id: string | null
           es_reingreso: boolean | null
           fecha_ingreso: string
           id: string
@@ -101,6 +132,7 @@ export type Database = {
           codigo_tecnico?: string | null
           created_at?: string
           descripcion_problema: string
+          embarque_id?: string | null
           es_reingreso?: boolean | null
           fecha_ingreso?: string
           id?: string
@@ -123,6 +155,7 @@ export type Database = {
           codigo_tecnico?: string | null
           created_at?: string
           descripcion_problema?: string
+          embarque_id?: string | null
           es_reingreso?: boolean | null
           fecha_ingreso?: string
           id?: string
@@ -149,6 +182,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "productos"
             referencedColumns: ["codigo"]
+          },
+          {
+            foreignKeyName: "incidentes_embarque_id_fkey"
+            columns: ["embarque_id"]
+            isOneToOne: false
+            referencedRelation: "embarques"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -226,6 +266,36 @@ export type Database = {
         }
         Relationships: []
       }
+      profiles: {
+        Row: {
+          apellido: string
+          created_at: string
+          email: string
+          id: string
+          nombre: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          apellido: string
+          created_at?: string
+          email: string
+          id?: string
+          nombre: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          apellido?: string
+          created_at?: string
+          email?: string
+          id?: string
+          nombre?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       repuestos: {
         Row: {
           clave: string
@@ -300,6 +370,27 @@ export type Database = {
         }
         Relationships: []
       }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -313,8 +404,16 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
+      app_role: "admin" | "mostrador" | "logistica" | "taller" | "bodega"
       media_tipo: "foto" | "video"
       status_incidente:
         | "Ingresado"
@@ -450,6 +549,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      app_role: ["admin", "mostrador", "logistica", "taller", "bodega"],
       media_tipo: ["foto", "video"],
       status_incidente: [
         "Ingresado",
