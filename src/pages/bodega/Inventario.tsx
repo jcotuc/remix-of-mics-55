@@ -1,0 +1,316 @@
+import { useState, useEffect } from "react";
+import { Package, Search, AlertTriangle, TrendingUp, TrendingDown, Plus, Edit, History } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+
+type Repuesto = {
+  id: string;
+  codigo: string;
+  descripcion: string;
+  stock_actual: number;
+  stock_minimo: number;
+  ubicacion: string;
+  codigo_producto: string;
+};
+
+export default function Inventario() {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [repuestos, setRepuestos] = useState<Repuesto[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showMovimiento, setShowMovimiento] = useState(false);
+  const [selectedRepuesto, setSelectedRepuesto] = useState<Repuesto | null>(null);
+  const [tipoMovimiento, setTipoMovimiento] = useState<"entrada" | "salida">("entrada");
+  const [cantidad, setCantidad] = useState("");
+  const [motivo, setMotivo] = useState("");
+
+  useEffect(() => {
+    fetchRepuestos();
+  }, []);
+
+  const fetchRepuestos = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('repuestos')
+        .select('*')
+        .order('codigo');
+
+      if (error) throw error;
+
+      // Simular datos de inventario
+      const repuestosConStock = (data || []).map((r, idx) => ({
+        id: r.id,
+        codigo: r.codigo,
+        descripcion: r.descripcion,
+        stock_actual: Math.floor(Math.random() * 100),
+        stock_minimo: 10,
+        ubicacion: `Bodega ${String.fromCharCode(65 + (idx % 3))}-${Math.floor(Math.random() * 10) + 1}`,
+        codigo_producto: r.codigo_producto
+      }));
+
+      setRepuestos(repuestosConStock);
+    } catch (error) {
+      console.error('Error:', error);
+      toast.error('Error al cargar inventario');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleMovimiento = (repuesto: Repuesto) => {
+    setSelectedRepuesto(repuesto);
+    setShowMovimiento(true);
+  };
+
+  const guardarMovimiento = async () => {
+    if (!selectedRepuesto || !cantidad) {
+      toast.error('Complete todos los campos');
+      return;
+    }
+
+    const cantidadNum = parseInt(cantidad);
+    const nuevoStock = tipoMovimiento === "entrada" 
+      ? selectedRepuesto.stock_actual + cantidadNum
+      : selectedRepuesto.stock_actual - cantidadNum;
+
+    if (nuevoStock < 0) {
+      toast.error('Stock insuficiente');
+      return;
+    }
+
+    // Actualizar localmente
+    setRepuestos(prev => prev.map(r => 
+      r.id === selectedRepuesto.id 
+        ? { ...r, stock_actual: nuevoStock }
+        : r
+    ));
+
+    toast.success(`Movimiento registrado: ${tipoMovimiento === "entrada" ? "+" : "-"}${cantidadNum} unidades`);
+    setShowMovimiento(false);
+    setCantidad("");
+    setMotivo("");
+  };
+
+  const filteredRepuestos = repuestos.filter(r =>
+    r.descripcion.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    r.codigo.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const stockBajo = repuestos.filter(r => r.stock_actual <= r.stock_minimo).length;
+  const stockTotal = repuestos.reduce((acc, r) => acc + r.stock_actual, 0);
+
+  return (
+    <div className="container mx-auto py-8 space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold flex items-center gap-2">
+          <Package className="h-8 w-8 text-primary" />
+          Control de Inventario
+        </h1>
+        <p className="text-muted-foreground mt-2">
+          Gestión de stock de repuestos y movimientos
+        </p>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Package className="h-4 w-4 text-blue-500" />
+              Stock Total
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stockTotal}</div>
+            <p className="text-xs text-muted-foreground">{repuestos.length} referencias</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-orange-500" />
+              Stock Bajo
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-orange-500">{stockBajo}</div>
+            <p className="text-xs text-muted-foreground">Requieren reabastecimiento</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 text-green-500" />
+              Movimientos Hoy
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">0</div>
+            <p className="text-xs text-muted-foreground">Entradas y salidas</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Inventario de Repuestos</CardTitle>
+          <CardDescription>
+            {filteredRepuestos.length} repuestos en inventario
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center space-x-2 mb-4">
+            <Search className="h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar repuestos..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="max-w-sm"
+            />
+          </div>
+
+          {loading ? (
+            <div className="text-center py-8">Cargando inventario...</div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Código</TableHead>
+                  <TableHead>Descripción</TableHead>
+                  <TableHead>Ubicación</TableHead>
+                  <TableHead>Stock Actual</TableHead>
+                  <TableHead>Stock Mínimo</TableHead>
+                  <TableHead>Estado</TableHead>
+                  <TableHead className="text-right">Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredRepuestos.map((repuesto) => (
+                  <TableRow key={repuesto.id}>
+                    <TableCell className="font-medium">{repuesto.codigo}</TableCell>
+                    <TableCell>{repuesto.descripcion}</TableCell>
+                    <TableCell>{repuesto.ubicacion}</TableCell>
+                    <TableCell>
+                      <span className={repuesto.stock_actual <= repuesto.stock_minimo ? "text-orange-500 font-bold" : ""}>
+                        {repuesto.stock_actual}
+                      </span>
+                    </TableCell>
+                    <TableCell>{repuesto.stock_minimo}</TableCell>
+                    <TableCell>
+                      {repuesto.stock_actual === 0 ? (
+                        <Badge variant="destructive">Sin stock</Badge>
+                      ) : repuesto.stock_actual <= repuesto.stock_minimo ? (
+                        <Badge className="bg-orange-500">Stock bajo</Badge>
+                      ) : (
+                        <Badge className="bg-green-500">Normal</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleMovimiento(repuesto)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      <Dialog open={showMovimiento} onOpenChange={setShowMovimiento}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Registrar Movimiento</DialogTitle>
+            <DialogDescription>
+              {selectedRepuesto?.descripcion}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div>
+              <Label>Tipo de Movimiento</Label>
+              <Select value={tipoMovimiento} onValueChange={(v) => setTipoMovimiento(v as "entrada" | "salida")}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="entrada">
+                    <div className="flex items-center gap-2">
+                      <TrendingUp className="h-4 w-4 text-green-500" />
+                      Entrada
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="salida">
+                    <div className="flex items-center gap-2">
+                      <TrendingDown className="h-4 w-4 text-red-500" />
+                      Salida
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>Cantidad</Label>
+              <Input
+                type="number"
+                value={cantidad}
+                onChange={(e) => setCantidad(e.target.value)}
+                placeholder="0"
+              />
+            </div>
+
+            <div>
+              <Label>Motivo</Label>
+              <Input
+                value={motivo}
+                onChange={(e) => setMotivo(e.target.value)}
+                placeholder="Ej: Reparación INC-000123"
+              />
+            </div>
+
+            <div className="bg-muted p-3 rounded">
+              <p className="text-sm">
+                <strong>Stock actual:</strong> {selectedRepuesto?.stock_actual}
+              </p>
+              {cantidad && (
+                <p className="text-sm mt-1">
+                  <strong>Nuevo stock:</strong> {
+                    tipoMovimiento === "entrada"
+                      ? (selectedRepuesto?.stock_actual || 0) + parseInt(cantidad || "0")
+                      : (selectedRepuesto?.stock_actual || 0) - parseInt(cantidad || "0")
+                  }
+                </p>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowMovimiento(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={guardarMovimiento}>
+              Guardar Movimiento
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

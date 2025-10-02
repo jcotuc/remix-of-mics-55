@@ -29,6 +29,9 @@ const allMenuItems: MenuItem[] = [
   { title: "Incidentes", url: "/incidentes", icon: FileText, roles: ["mostrador", "admin"] },
   { title: "Embarques", url: "/logistica/embarques", icon: Truck, roles: ["logistica", "admin"] },
   { title: "Asignaciones", url: "/taller/asignaciones", icon: Wrench, roles: ["taller", "admin"] },
+  { title: "Presupuestos", url: "/taller/presupuestos", icon: FileText, roles: ["taller", "admin"] },
+  { title: "Inventario", url: "/bodega/inventario", icon: Package, roles: ["bodega", "admin"] },
+  { title: "Solicitudes", url: "/bodega/solicitudes", icon: Wrench, roles: ["bodega", "admin"] },
 ];
 
 export function AppSidebar() {

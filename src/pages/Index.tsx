@@ -1,38 +1,67 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Users, Package, Wrench, FileText, TrendingUp, AlertTriangle, Search, Calendar, Hash } from "lucide-react";
-import { clientes, productos, incidentes } from "@/data/mockData";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import type { Database } from "@/integrations/supabase/types";
+
+type IncidenteDB = Database['public']['Tables']['incidentes']['Row'];
+type ClienteDB = Database['public']['Tables']['clientes']['Row'];
 
 const Index = () => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [searchFilter, setSearchFilter] = useState("all");
+  const [incidentes, setIncidentes] = useState<IncidenteDB[]>([]);
+  const [clientes, setClientes] = useState<ClienteDB[]>([]);
+  const [loading, setLoading] = useState(true);
   
-  const totalClientes = clientes.length;
-  const totalProductos = productos.length;
-  const productosActivos = productos.filter(p => !p.descontinuado).length;
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const [incidentesResult, clientesResult] = await Promise.all([
+        supabase.from('incidentes').select('*').order('fecha_ingreso', { ascending: false }),
+        supabase.from('clientes').select('*')
+      ]);
+
+      if (incidentesResult.data) setIncidentes(incidentesResult.data);
+      if (clientesResult.data) setClientes(clientesResult.data);
+    } catch (error) {
+      console.error('Error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
   
   // Métricas específicas para el dashboard del taller
-  const incidentesPendienteDiagnostico = incidentes.filter(i => i.status === "Pendiente de diagnostico").length;
-  const incidentesPendienteRepuestos = incidentes.filter(i => i.status === "pendiente repuestos").length;
-  const incidentesEnDiagnostico = incidentes.filter(i => i.status === "En diagnostico").length;
+  const incidentesPendienteDiagnostico = incidentes.filter(i => i.status === "Ingresado").length;
+  const incidentesPendienteRepuestos = incidentes.filter(i => i.status === "Repuestos solicitados").length;
+  const incidentesEnDiagnostico = incidentes.filter(i => i.status === "Diagnostico").length;
   
+  const getClienteName = (codigo: string) => {
+    const cliente = clientes.find(c => c.codigo === codigo);
+    return cliente ? cliente.nombre : "Cliente no encontrado";
+  };
+
   // Filtros para el buscador
   const filteredIncidentes = incidentes.filter(incidente => {
     if (!searchTerm) return false;
     
     const matchesSearch = searchFilter === "all" ? 
-      incidente.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      incidente.codigoProducto.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      incidente.fechaIngreso.includes(searchTerm)
-      : searchFilter === "codigo" ? incidente.id.toLowerCase().includes(searchTerm.toLowerCase())
-      : searchFilter === "maquina" ? incidente.codigoProducto.toLowerCase().includes(searchTerm.toLowerCase())
-      : searchFilter === "fecha" ? incidente.fechaIngreso.includes(searchTerm)
+      incidente.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      incidente.codigo_producto.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      new Date(incidente.fecha_ingreso).toLocaleDateString().includes(searchTerm)
+      : searchFilter === "codigo" ? incidente.codigo.toLowerCase().includes(searchTerm.toLowerCase())
+      : searchFilter === "maquina" ? incidente.codigo_producto.toLowerCase().includes(searchTerm.toLowerCase())
+      : searchFilter === "fecha" ? new Date(incidente.fecha_ingreso).toLocaleDateString().includes(searchTerm)
       : false;
     
     return matchesSearch;
@@ -151,12 +180,12 @@ const Index = () => {
                   onClick={() => handleIncidenteClick(incidente.id)}
                 >
                   <div>
-                    <p className="font-medium text-sm">{incidente.id}</p>
+                    <p className="font-medium text-sm">{incidente.codigo}</p>
                     <p className="text-xs text-muted-foreground">
-                      Máquina: {incidente.codigoProducto} | Fecha: {incidente.fechaIngreso}
+                      Máquina: {incidente.codigo_producto} | Fecha: {new Date(incidente.fecha_ingreso).toLocaleDateString('es-GT')}
                     </p>
                   </div>
-                  <StatusBadge status={incidente.status} />
+                  <StatusBadge status={incidente.status as any} />
                 </div>
               ))}
             </div>
@@ -203,11 +232,13 @@ const Index = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {incidentes.slice(0, 5).map((incidente) => (
+              {loading ? (
+                <p className="text-center text-muted-foreground">Cargando...</p>
+              ) : incidentes.slice(0, 5).map((incidente) => (
                 <div key={incidente.id} className="flex items-center justify-between p-2 border-l-2 border-primary/20 pl-4">
                   <div>
-                    <p className="font-medium text-sm">{incidente.id}</p>
-                    <p className="text-xs text-muted-foreground">{incidente.descripcionProblema.substring(0, 50)}...</p>
+                    <p className="font-medium text-sm">{incidente.codigo}</p>
+                    <p className="text-xs text-muted-foreground">{incidente.descripcion_problema.substring(0, 50)}...</p>
                   </div>
                   <span className="text-xs bg-muted px-2 py-1 rounded">{incidente.status}</span>
                 </div>
