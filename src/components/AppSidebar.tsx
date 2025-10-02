@@ -1,4 +1,4 @@
-import { Users, Package, Wrench, FileText, Truck, LogOut } from "lucide-react";
+import { Users, Package, Wrench, FileText, Truck, LogOut, Home, ShoppingCart, DollarSign } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -19,20 +19,31 @@ type MenuItem = {
   title: string;
   url: string;
   icon: any;
-  roles: string[];
 };
 
-const allMenuItems: MenuItem[] = [
-  { title: "Clientes", url: "/clientes", icon: Users, roles: ["mostrador", "admin"] },
-  { title: "Productos", url: "/productos", icon: Package, roles: ["mostrador", "admin"] },
-  { title: "Repuestos", url: "/repuestos", icon: Wrench, roles: ["mostrador", "bodega", "admin"] },
-  { title: "Incidentes", url: "/incidentes", icon: FileText, roles: ["mostrador", "admin"] },
-  { title: "Embarques", url: "/logistica/embarques", icon: Truck, roles: ["logistica", "admin"] },
-  { title: "Asignaciones", url: "/taller/asignaciones", icon: Wrench, roles: ["taller", "admin"] },
-  { title: "Presupuestos", url: "/taller/presupuestos", icon: FileText, roles: ["taller", "admin"] },
-  { title: "Inventario", url: "/bodega/inventario", icon: Package, roles: ["bodega", "admin"] },
-  { title: "Solicitudes", url: "/bodega/solicitudes", icon: Wrench, roles: ["bodega", "admin"] },
-];
+// Menús organizados por área
+const menuAreas = {
+  home: [
+    { title: "Dashboard", url: "/", icon: Home }
+  ],
+  mostrador: [
+    { title: "Clientes", url: "/clientes", icon: Users },
+    { title: "Productos", url: "/productos", icon: Package },
+    { title: "Repuestos", url: "/repuestos", icon: Wrench },
+    { title: "Incidentes", url: "/incidentes", icon: FileText },
+  ],
+  logistica: [
+    { title: "Embarques", url: "/logistica/embarques", icon: Truck },
+  ],
+  taller: [
+    { title: "Asignaciones", url: "/taller/asignaciones", icon: Wrench },
+    { title: "Presupuestos", url: "/taller/presupuestos", icon: DollarSign },
+  ],
+  bodega: [
+    { title: "Inventario", url: "/bodega/inventario", icon: Package },
+    { title: "Solicitudes", url: "/bodega/solicitudes", icon: ShoppingCart },
+  ]
+};
 
 export function AppSidebar() {
   const { state } = useSidebar();
@@ -41,15 +52,32 @@ export function AppSidebar() {
   const isCollapsed = state === "collapsed";
   const { userRole, signOut } = useAuth();
 
-  const menuItems = allMenuItems.filter(item => 
-    userRole && item.roles.includes(userRole)
-  );
-
-  const isActive = (path: string) => currentPath.startsWith(path);
   const getNavCls = ({ isActive }: { isActive: boolean }) =>
     isActive 
       ? "bg-primary text-primary-foreground font-medium" 
       : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground";
+
+  const renderMenuSection = (title: string, items: MenuItem[]) => (
+    <SidebarGroup key={title}>
+      <SidebarGroupLabel className={`text-sidebar-foreground font-semibold ${isCollapsed ? "sr-only" : ""}`}>
+        {title}
+      </SidebarGroupLabel>
+      <SidebarGroupContent>
+        <SidebarMenu>
+          {items.map((item) => (
+            <SidebarMenuItem key={item.title}>
+              <SidebarMenuButton asChild>
+                <NavLink to={item.url} className={getNavCls} end={item.url === "/"}>
+                  <item.icon className="h-4 w-4" />
+                  {!isCollapsed && <span>{item.title}</span>}
+                </NavLink>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          ))}
+        </SidebarMenu>
+      </SidebarGroupContent>
+    </SidebarGroup>
+  );
 
   return (
     <Sidebar className={isCollapsed ? "w-16" : "w-64"} collapsible="icon">
@@ -63,31 +91,25 @@ export function AppSidebar() {
               <Wrench className="h-4 w-4 text-primary-foreground" />
             </div>
           )}
+          {!isCollapsed && userRole && (
+            <div className="mt-2">
+              <span className="text-xs text-muted-foreground uppercase tracking-wide">
+                {userRole === 'mostrador' && 'Mostrador'}
+                {userRole === 'logistica' && 'Logística'}
+                {userRole === 'taller' && 'Taller'}
+                {userRole === 'bodega' && 'Bodega'}
+                {userRole === 'admin' && 'Administrador'}
+              </span>
+            </div>
+          )}
         </div>
         
-        <SidebarGroup>
-          <SidebarGroupLabel className={`text-sidebar-foreground font-semibold ${isCollapsed ? "sr-only" : ""}`}>
-            {userRole === 'mostrador' && 'Mostrador'}
-            {userRole === 'logistica' && 'Logística'}
-            {userRole === 'taller' && 'Taller'}
-            {userRole === 'bodega' && 'Bodega'}
-            {userRole === 'admin' && 'Administración'}
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {menuItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <NavLink to={item.url} className={getNavCls}>
-                      <item.icon className="h-4 w-4" />
-                      {!isCollapsed && <span>{item.title}</span>}
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {/* Mostrar todas las secciones para desarrollo */}
+        {renderMenuSection("Home", menuAreas.home)}
+        {renderMenuSection("Mostrador", menuAreas.mostrador)}
+        {renderMenuSection("Logística", menuAreas.logistica)}
+        {renderMenuSection("Taller", menuAreas.taller)}
+        {renderMenuSection("Bodega", menuAreas.bodega)}
 
         <div className="mt-auto p-4 border-t">
           <Button
