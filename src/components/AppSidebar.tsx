@@ -1,5 +1,7 @@
-import { Users, Package, Wrench, FileText } from "lucide-react";
+import { Users, Package, Wrench, FileText, Truck, LogOut } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
 
 import {
   Sidebar,
@@ -10,15 +12,23 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
 
-const menuItems = [
-  { title: "Clientes", url: "/clientes", icon: Users },
-  { title: "Productos", url: "/productos", icon: Package },
-  { title: "Repuestos", url: "/repuestos", icon: Wrench },
-  { title: "Incidentes", url: "/incidentes", icon: FileText },
+type MenuItem = {
+  title: string;
+  url: string;
+  icon: any;
+  roles: string[];
+};
+
+const allMenuItems: MenuItem[] = [
+  { title: "Clientes", url: "/clientes", icon: Users, roles: ["mostrador", "admin"] },
+  { title: "Productos", url: "/productos", icon: Package, roles: ["mostrador", "admin"] },
+  { title: "Repuestos", url: "/repuestos", icon: Wrench, roles: ["mostrador", "bodega", "admin"] },
+  { title: "Incidentes", url: "/incidentes", icon: FileText, roles: ["mostrador", "admin"] },
+  { title: "Embarques", url: "/logistica/embarques", icon: Truck, roles: ["logistica", "admin"] },
+  { title: "Asignaciones", url: "/taller/asignaciones", icon: Wrench, roles: ["taller", "admin"] },
 ];
 
 export function AppSidebar() {
@@ -26,8 +36,13 @@ export function AppSidebar() {
   const location = useLocation();
   const currentPath = location.pathname;
   const isCollapsed = state === "collapsed";
+  const { userRole, signOut } = useAuth();
 
-  const isActive = (path: string) => currentPath === path;
+  const menuItems = allMenuItems.filter(item => 
+    userRole && item.roles.includes(userRole)
+  );
+
+  const isActive = (path: string) => currentPath.startsWith(path);
   const getNavCls = ({ isActive }: { isActive: boolean }) =>
     isActive 
       ? "bg-primary text-primary-foreground font-medium" 
@@ -49,7 +64,11 @@ export function AppSidebar() {
         
         <SidebarGroup>
           <SidebarGroupLabel className={`text-sidebar-foreground font-semibold ${isCollapsed ? "sr-only" : ""}`}>
-            Gestión
+            {userRole === 'mostrador' && 'Mostrador'}
+            {userRole === 'logistica' && 'Logística'}
+            {userRole === 'taller' && 'Taller'}
+            {userRole === 'bodega' && 'Bodega'}
+            {userRole === 'admin' && 'Administración'}
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
@@ -66,6 +85,17 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        <div className="mt-auto p-4 border-t">
+          <Button
+            variant="ghost"
+            className="w-full justify-start gap-2"
+            onClick={signOut}
+          >
+            <LogOut className="h-4 w-4" />
+            {!isCollapsed && <span>Cerrar Sesión</span>}
+          </Button>
+        </div>
       </SidebarContent>
     </Sidebar>
   );
