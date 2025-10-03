@@ -166,13 +166,17 @@ export default function Clientes() {
                   </TableRow>
                 ) : (
                   filteredClientes.map((cliente) => (
-                    <TableRow key={cliente.codigo}>
+                    <TableRow 
+                      key={cliente.codigo}
+                      className="cursor-pointer hover:bg-muted/50"
+                      onClick={() => window.location.href = `/mostrador/clientes/${cliente.codigo}`}
+                    >
                       <TableCell className="font-medium">{cliente.codigo}</TableCell>
                       <TableCell>{cliente.nombre}</TableCell>
                       <TableCell>{cliente.nit}</TableCell>
                       <TableCell>{cliente.celular}</TableCell>
                       <TableCell className="text-right">
-                        <div className="flex items-center justify-end space-x-2">
+                        <div className="flex items-center justify-end space-x-2" onClick={(e) => e.stopPropagation()}>
                           <Button 
                             variant="outline" 
                             size="sm"

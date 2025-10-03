@@ -34,7 +34,7 @@ export default function Solicitudes() {
       const { data, error } = await supabase
         .from('incidentes')
         .select('codigo, status')
-        .in('status', ['Repuestos solicitados', 'Diagnostico']);
+        .in('status', ['Pendiente por repuestos', 'En diagnostico']);
 
       if (error) throw error;
 

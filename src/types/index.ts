@@ -31,24 +31,29 @@ export interface Tecnico {
 }
 
 export type StatusIncidente = 
+  | "Ingresado"
+  | "En ruta"
   | "Pendiente de diagnostico"
   | "En diagnostico" 
-  | "pendiente repuestos"
-  | "Reparacion en garantia"
-  | "Mantenimiento"
-  | "Reparado"
+  | "Pendiente por repuestos"
   | "Presupuesto"
-  | "Canje"
+  | "Porcentaje"
+  | "Reparado"
+  | "Cambio por garantia"
   | "Nota de credito"
-  | "Cambio por garantia";
+  | "Bodega pedido"
+  | "Rechazado";
 
 export type CategoriaProducto = 
   | "Electricas"
   | "Neumaticas" 
   | "Hidraulicas"
-  | "4 tiempos"
-  | "2 tiempos"
-  | "Estacionarias";
+  | "Compresores"
+  | "Bombas"
+  | "2 Tiempos"
+  | "Estacionarias"
+  | "Hidrolavadoras"
+  | "Herramienta Manual";
 
 export type LugarIngreso = "Mostrador" | "Logistica";
 

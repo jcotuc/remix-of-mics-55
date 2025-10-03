@@ -99,8 +99,8 @@ export default function Incidentes() {
   };
 
   const statusOptions: StatusIncidente[] = [
-    "Pendiente de diagnostico", "En diagnostico", "pendiente repuestos",
-    "Reparado", "Presupuesto", "Canje", "Nota de credito", "Cambio por garantia"
+    "Ingresado", "En ruta", "Pendiente de diagnostico", "En diagnostico", "Pendiente por repuestos",
+    "Presupuesto", "Porcentaje", "Reparado", "Cambio por garantia", "Nota de credito", "Bodega pedido", "Rechazado"
   ];
 
   const categoryOptions = ["Electricas", "Neumaticas", "Hidraulicas", "4 tiempos", "2 tiempos", "Estacionarias"];

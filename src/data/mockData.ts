@@ -253,13 +253,13 @@ export const incidentes: Incidente[] = [
       {
         fecha: "2024-01-11",
         estadoAnterior: "En diagnostico",
-        estadoNuevo: "pendiente repuestos",
+        estadoNuevo: "Pendiente por repuestos",
         tecnicoCodigo: "TEC003",
         observaciones: "Solicitando escobillas y carbones"
       },
       {
         fecha: "2024-01-12",
-        estadoAnterior: "pendiente repuestos",
+        estadoAnterior: "Pendiente por repuestos",
         estadoNuevo: "Reparado",
         tecnicoCodigo: "TEC003",
         observaciones: "Reparación completada. Producto funcional."
@@ -271,7 +271,7 @@ export const incidentes: Incidente[] = [
     codigoProducto: "16441",
     codigoCliente: "CLI002",
     codigoTecnico: "TEC001",
-    status: "pendiente repuestos",
+    status: "Pendiente por repuestos",
     coberturaGarantia: true,
     descripcionProblema: "Motor quemado, necesita reemplazo completo del esmeril",
     fechaIngreso: "2024-01-12",
@@ -309,7 +309,7 @@ export const incidentes: Incidente[] = [
       {
         fecha: "2024-01-13",
         estadoAnterior: "En diagnostico",
-        estadoNuevo: "pendiente repuestos",
+        estadoNuevo: "Pendiente por repuestos",
         tecnicoCodigo: "TEC001",
         observaciones: "Motor en pedido desde Zona 4"
       }
@@ -390,7 +390,7 @@ export const incidentes: Incidente[] = [
     codigoProducto: "15679",
     codigoCliente: "CLI001",
     codigoTecnico: "TEC001",
-    status: "Canje",
+    status: "Cambio por garantia",
     coberturaGarantia: false,
     descripcionProblema: "Múltiples componentes del rotomartillo dañados por sobrecarga",
     fechaIngreso: "2024-01-05",
@@ -418,9 +418,9 @@ export const incidentes: Incidente[] = [
       {
         fecha: "2024-01-06",
         estadoAnterior: "En diagnostico",
-        estadoNuevo: "Canje",
+        estadoNuevo: "Cambio por garantia",
         tecnicoCodigo: "TEC001",
-        observaciones: "Daños exceden 70% del valor. Se procede a canje."
+        observaciones: "Daños exceden 70% del valor. Se procede a cambio."
       }
     ]
   }

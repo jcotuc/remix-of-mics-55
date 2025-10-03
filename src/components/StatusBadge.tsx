@@ -12,14 +12,18 @@ export function StatusBadge({ status }: StatusBadgeProps) {
         return "secondary";
       case "En diagnostico":
         return "outline";
-      case "pendiente repuestos":
+      case "Pendiente por repuestos":
         return "outline";
       case "Reparado":
         return "default";
       case "Presupuesto":
         return "outline";
-      case "Canje":
+      case "Porcentaje":
+        return "outline";
+      case "Bodega pedido":
         return "default";
+      case "Rechazado":
+        return "destructive";
       case "Nota de credito":
         return "default";
       case "Cambio por garantia":
@@ -35,14 +39,18 @@ export function StatusBadge({ status }: StatusBadgeProps) {
         return "bg-info text-info-foreground";
       case "En diagnostico":
         return "bg-warning text-warning-foreground";
-      case "pendiente repuestos":
+      case "Pendiente por repuestos":
         return "bg-warning text-warning-foreground";
       case "Reparado":
         return "bg-success text-success-foreground";
       case "Presupuesto":
         return "bg-blue-500 text-white";
-      case "Canje":
+      case "Porcentaje":
         return "bg-orange-500 text-white";
+      case "Bodega pedido":
+        return "bg-purple-500 text-white";
+      case "Rechazado":
+        return "bg-destructive text-destructive-foreground";
       case "Nota de credito":
         return "bg-purple-500 text-white";
       case "Cambio por garantia":

@@ -22,6 +22,7 @@ export type Database = {
           created_at: string
           departamento: string | null
           direccion: string | null
+          direccion_envio: string | null
           id: string
           municipio: string | null
           nit: string
@@ -39,6 +40,7 @@ export type Database = {
           created_at?: string
           departamento?: string | null
           direccion?: string | null
+          direccion_envio?: string | null
           id?: string
           municipio?: string | null
           nit: string
@@ -56,6 +58,7 @@ export type Database = {
           created_at?: string
           departamento?: string | null
           direccion?: string | null
+          direccion_envio?: string | null
           id?: string
           municipio?: string | null
           nit?: string
@@ -65,6 +68,39 @@ export type Database = {
           telefono_principal?: string | null
           telefono_secundario?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      cotizaciones: {
+        Row: {
+          cantidad: number
+          codigo_cliente: string
+          codigo_producto: string
+          created_at: string
+          created_by: string | null
+          id: string
+          notas: string | null
+          precio_unitario: number | null
+        }
+        Insert: {
+          cantidad?: number
+          codigo_cliente: string
+          codigo_producto: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notas?: string | null
+          precio_unitario?: number | null
+        }
+        Update: {
+          cantidad?: number
+          codigo_cliente?: string
+          codigo_producto?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notas?: string | null
+          precio_unitario?: number | null
         }
         Relationships: []
       }
@@ -107,15 +143,19 @@ export type Database = {
           codigo_cliente: string
           codigo_producto: string
           codigo_tecnico: string | null
+          confirmacion_cliente: Json | null
           created_at: string
           descripcion_problema: string
           embarque_id: string | null
+          es_herramienta_manual: boolean | null
           es_reingreso: boolean | null
+          familia_producto: string | null
           fecha_ingreso: string
           id: string
           ingresado_en_mostrador: boolean | null
           log_observaciones: string | null
           producto_descontinuado: boolean | null
+          producto_sugerido_alternativo: string | null
           quiere_envio: boolean | null
           sku_maquina: string | null
           status: Database["public"]["Enums"]["status_incidente"]
@@ -130,15 +170,19 @@ export type Database = {
           codigo_cliente: string
           codigo_producto: string
           codigo_tecnico?: string | null
+          confirmacion_cliente?: Json | null
           created_at?: string
           descripcion_problema: string
           embarque_id?: string | null
+          es_herramienta_manual?: boolean | null
           es_reingreso?: boolean | null
+          familia_producto?: string | null
           fecha_ingreso?: string
           id?: string
           ingresado_en_mostrador?: boolean | null
           log_observaciones?: string | null
           producto_descontinuado?: boolean | null
+          producto_sugerido_alternativo?: string | null
           quiere_envio?: boolean | null
           sku_maquina?: string | null
           status?: Database["public"]["Enums"]["status_incidente"]
@@ -153,15 +197,19 @@ export type Database = {
           codigo_cliente?: string
           codigo_producto?: string
           codigo_tecnico?: string | null
+          confirmacion_cliente?: Json | null
           created_at?: string
           descripcion_problema?: string
           embarque_id?: string | null
+          es_herramienta_manual?: boolean | null
           es_reingreso?: boolean | null
+          familia_producto?: string | null
           fecha_ingreso?: string
           id?: string
           ingresado_en_mostrador?: boolean | null
           log_observaciones?: string | null
           producto_descontinuado?: boolean | null
+          producto_sugerido_alternativo?: string | null
           quiere_envio?: boolean | null
           sku_maquina?: string | null
           status?: Database["public"]["Enums"]["status_incidente"]
@@ -303,8 +351,12 @@ export type Database = {
           codigo_producto: string
           created_at: string
           descripcion: string
+          disponible_mostrador: boolean | null
+          es_catalogo_truper: boolean | null
           id: string
           numero: string
+          stock_actual: number | null
+          ubicacion_bodega: string | null
           updated_at: string
           url_foto: string | null
         }
@@ -314,8 +366,12 @@ export type Database = {
           codigo_producto: string
           created_at?: string
           descripcion: string
+          disponible_mostrador?: boolean | null
+          es_catalogo_truper?: boolean | null
           id?: string
           numero: string
+          stock_actual?: number | null
+          ubicacion_bodega?: string | null
           updated_at?: string
           url_foto?: string | null
         }
@@ -325,8 +381,12 @@ export type Database = {
           codigo_producto?: string
           created_at?: string
           descripcion?: string
+          disponible_mostrador?: boolean | null
+          es_catalogo_truper?: boolean | null
           id?: string
           numero?: string
+          stock_actual?: number | null
+          ubicacion_bodega?: string | null
           updated_at?: string
           url_foto?: string | null
         }
@@ -417,11 +477,17 @@ export type Database = {
       media_tipo: "foto" | "video"
       status_incidente:
         | "Ingresado"
-        | "Diagnostico"
-        | "Repuestos solicitados"
+        | "En ruta"
+        | "Pendiente de diagnostico"
+        | "En diagnostico"
+        | "Pendiente por repuestos"
+        | "Presupuesto"
+        | "Porcentaje"
         | "Reparado"
-        | "Documentado"
-        | "Entregado"
+        | "Cambio por garantia"
+        | "Nota de credito"
+        | "Bodega pedido"
+        | "Rechazado"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -553,11 +619,17 @@ export const Constants = {
       media_tipo: ["foto", "video"],
       status_incidente: [
         "Ingresado",
-        "Diagnostico",
-        "Repuestos solicitados",
+        "En ruta",
+        "Pendiente de diagnostico",
+        "En diagnostico",
+        "Pendiente por repuestos",
+        "Presupuesto",
+        "Porcentaje",
         "Reparado",
-        "Documentado",
-        "Entregado",
+        "Cambio por garantia",
+        "Nota de credito",
+        "Bodega pedido",
+        "Rechazado",
       ],
     },
   },

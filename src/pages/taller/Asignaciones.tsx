@@ -27,7 +27,7 @@ export default function Asignaciones() {
       const { data, error } = await supabase
         .from('incidentes')
         .select('*')
-        .in('status', ['Ingresado', 'Diagnostico', 'Reparado'])
+        .in('status', ['Ingresado', 'En diagnostico', 'Reparado'])
         .order('fecha_ingreso', { ascending: false });
 
       if (error) throw error;
@@ -44,7 +44,7 @@ export default function Asignaciones() {
     try {
       const { error } = await supabase
         .from('incidentes')
-        .update({ status: 'Diagnostico' })
+        .update({ status: 'En diagnostico' })
         .eq('id', incidenteId);
 
       if (error) throw error;
@@ -93,7 +93,7 @@ export default function Asignaciones() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {incidentes.filter(i => i.status === 'Diagnostico').length}
+              {incidentes.filter(i => i.status === 'En diagnostico').length}
             </div>
           </CardContent>
         </Card>
@@ -176,7 +176,7 @@ export default function Asignaciones() {
                           Asignarme
                         </Button>
                       )}
-                      {inc.status === 'Diagnostico' && (
+                      {inc.status === 'En diagnostico' && (
                         <Badge variant="outline" className="bg-blue-50">
                           Asignado
                         </Badge>

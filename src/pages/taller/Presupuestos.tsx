@@ -45,7 +45,7 @@ export default function Presupuestos() {
       const { data, error } = await supabase
         .from('incidentes')
         .select('codigo, status')
-        .in('status', ['Diagnostico', 'Reparado']);
+        .in('status', ['En diagnostico', 'Reparado']);
 
       if (error) throw error;
 

@@ -13,6 +13,8 @@ import Repuestos from "./pages/Repuestos";
 import Incidentes from "./pages/Incidentes";
 import NuevoIncidente from "./pages/NuevoIncidente";
 import DetalleIncidente from "./pages/DetalleIncidente";
+import DetalleCliente from "./pages/DetalleCliente";
+import ConsultaPrecios from "./pages/mostrador/ConsultaPrecios";
 import Embarques from "./pages/logistica/Embarques";
 import Asignaciones from "./pages/taller/Asignaciones";
 import Presupuestos from "./pages/taller/Presupuestos";
@@ -33,9 +35,11 @@ const App = () => (
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<Auth />} />
-              <Route path="/clientes" element={<Clientes />} />
-              <Route path="/productos" element={<Productos />} />
-              <Route path="/repuestos" element={<Repuestos />} />
+              <Route path="/mostrador/clientes" element={<Clientes />} />
+              <Route path="/mostrador/clientes/:codigo" element={<DetalleCliente />} />
+              <Route path="/mostrador/consulta-precios" element={<ConsultaPrecios />} />
+              <Route path="/mostrador/repuestos" element={<Repuestos />} />
+              <Route path="/mostrador/productos" element={<Productos />} />
               <Route path="/incidentes" element={<Incidentes />} />
               <Route path="/incidentes/nuevo" element={<NuevoIncidente />} />
               <Route path="/incidentes/:id" element={<DetalleIncidente />} />

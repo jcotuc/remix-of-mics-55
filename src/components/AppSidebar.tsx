@@ -27,9 +27,9 @@ const menuAreas = {
     { title: "Dashboard", url: "/", icon: Home }
   ],
   mostrador: [
-    { title: "Clientes", url: "/clientes", icon: Users },
-    { title: "Productos", url: "/productos", icon: Package },
-    { title: "Repuestos", url: "/repuestos", icon: Wrench },
+    { title: "Clientes", url: "/mostrador/clientes", icon: Users },
+    { title: "Repuestos", url: "/mostrador/repuestos", icon: Wrench },
+    { title: "Consulta Precios", url: "/mostrador/consulta-precios", icon: DollarSign },
     { title: "Incidentes", url: "/incidentes", icon: FileText },
   ],
   logistica: [

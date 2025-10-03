@@ -42,9 +42,9 @@ const Index = () => {
   };
   
   // Métricas específicas para el dashboard del taller
-  const incidentesPendienteDiagnostico = incidentes.filter(i => i.status === "Ingresado").length;
-  const incidentesPendienteRepuestos = incidentes.filter(i => i.status === "Repuestos solicitados").length;
-  const incidentesEnDiagnostico = incidentes.filter(i => i.status === "Diagnostico").length;
+  const incidentesPendienteDiagnostico = incidentes.filter(i => i.status === "Pendiente de diagnostico").length;
+  const incidentesPendienteRepuestos = incidentes.filter(i => i.status === "Pendiente por repuestos").length;
+  const incidentesEnDiagnostico = incidentes.filter(i => i.status === "En diagnostico").length;
   
   const getClienteName = (codigo: string) => {
     const cliente = clientes.find(c => c.codigo === codigo);
