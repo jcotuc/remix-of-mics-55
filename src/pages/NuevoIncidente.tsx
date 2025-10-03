@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +8,8 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Search, CheckCircle2, User, Package, AlertCircle } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { ArrowLeft, Search, CheckCircle2, User, Package, AlertCircle, Camera, Upload, X } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Producto } from "@/types";
@@ -129,6 +130,16 @@ export default function NuevoIncidente() {
   const [logObservaciones, setLogObservaciones] = useState("");
   const [tipologia, setTipologia] = useState("");
   const [guardando, setGuardando] = useState(false);
+  
+  // Photos
+  const [fotos, setFotos] = useState<File[]>([]);
+  const [previews, setPreviews] = useState<string[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  
+  // Dialog for adding another machine
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+  const [lastIncidentCode, setLastIncidentCode] = useState("");
 
   // Actualizar municipios cuando cambia el departamento
   useEffect(() => {
@@ -225,6 +236,48 @@ export default function NuevoIncidente() {
     setClientesEncontrados([]);
   };
 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length + fotos.length > 10) {
+      toast({ title: "Límite excedido", description: "Máximo 10 fotos por incidente", variant: "destructive" });
+      return;
+    }
+    
+    setFotos(prev => [...prev, ...files]);
+    
+    files.forEach(file => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPreviews(prev => [...prev, reader.result as string]);
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const removePhoto = (index: number) => {
+    setFotos(prev => prev.filter((_, i) => i !== index));
+    setPreviews(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const resetForm = () => {
+    // Reset incident data
+    setSkuMaquina("");
+    setProductoSeleccionado(null);
+    setProductosEncontrados([]);
+    setDescripcionProblema("");
+    setAccesoriosSeleccionados([]);
+    setCentroServicio("");
+    setOpcionEnvio("");
+    setEsReingreso(false);
+    setLogObservaciones("");
+    setTipologia("");
+    setFotos([]);
+    setPreviews([]);
+    
+    // Go back to step 2 (keeping the same client)
+    setPaso(2);
+  };
+
   const validarPaso1 = () => {
     if (esNuevoCliente === null) {
       toast({ title: "Error", description: "Seleccione si es un cliente nuevo o existente", variant: "destructive" });
@@ -308,7 +361,7 @@ export default function NuevoIncidente() {
             pais: nuevoCliente.pais,
             departamento: nuevoCliente.departamento,
             municipio: nuevoCliente.municipio,
-            celular: nuevoCliente.telefono_principal // Para compatibilidad con el campo existente
+            celular: nuevoCliente.telefono_principal
           })
           .select()
           .single();
@@ -341,7 +394,7 @@ export default function NuevoIncidente() {
       if (codigoError) throw codigoError;
 
       // Crear el incidente
-      const { error: incidenteError } = await supabase
+      const { data: incidenteData, error: incidenteError } = await supabase
         .from('incidentes')
         .insert({
           codigo: codigoIncidente,
@@ -359,17 +412,49 @@ export default function NuevoIncidente() {
           status: 'Ingresado',
           cobertura_garantia: false,
           producto_descontinuado: productoSeleccionado!.descontinuado,
-          codigo_tecnico: 'TEC-001' // Default, se puede cambiar después
-        });
+          codigo_tecnico: 'TEC-001'
+        })
+        .select()
+        .single();
 
       if (incidenteError) throw incidenteError;
 
-      toast({ 
-        title: "Incidente creado exitosamente", 
-        description: `Código: ${codigoIncidente}` 
-      });
-      
-      navigate("/incidentes");
+      // Upload photos if any
+      if (fotos.length > 0) {
+        for (let i = 0; i < fotos.length; i++) {
+          const file = fotos[i];
+          const fileExt = file.name.split('.').pop();
+          const fileName = `${codigoIncidente}_${Date.now()}_${i}.${fileExt}`;
+          const filePath = `${codigoIncidente}/${fileName}`;
+
+          const { error: uploadError } = await supabase.storage
+            .from('incident-photos')
+            .upload(filePath, file);
+
+          if (uploadError) {
+            console.error('Error uploading photo:', uploadError);
+            continue;
+          }
+
+          // Get public URL
+          const { data: { publicUrl } } = supabase.storage
+            .from('incident-photos')
+            .getPublicUrl(filePath);
+
+          // Save to media_files table
+          await supabase
+            .from('media_files')
+            .insert({
+              incidente_id: incidenteData.id,
+              nombre: fileName,
+              url: publicUrl,
+              tipo: 'foto'
+            });
+        }
+      }
+
+      setLastIncidentCode(codigoIncidente);
+      setShowSuccessDialog(true);
     } catch (error) {
       console.error('Error al guardar:', error);
       toast({ 
@@ -447,131 +532,141 @@ export default function NuevoIncidente() {
             </RadioGroup>
 
             {esNuevoCliente === true && (
-              <div className="space-y-4 p-4 border rounded-lg bg-muted/30">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
+              <div className="space-y-6 p-4 border rounded-lg bg-muted/30">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <AlertCircle className="w-4 h-4" />
                   <span>Se generará automáticamente un código HPC para este cliente</span>
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="col-span-2">
-                    <Label htmlFor="nombre">Nombre *</Label>
-                    <Input
-                      id="nombre"
-                      value={nuevoCliente.nombre}
-                      onChange={(e) => setNuevoCliente({ ...nuevoCliente, nombre: e.target.value })}
-                      placeholder="Nombre completo del cliente"
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="nit">NIT *</Label>
-                    <Input
-                      id="nit"
-                      value={nuevoCliente.nit}
-                      onChange={(e) => setNuevoCliente({ ...nuevoCliente, nit: e.target.value })}
-                      placeholder="NIT o CF"
-                    />
-                  </div>
+                {/* Datos Personales */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold border-b pb-2">Datos Personales</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="col-span-2">
+                      <Label htmlFor="nombre">Nombre Completo *</Label>
+                      <Input
+                        id="nombre"
+                        value={nuevoCliente.nombre}
+                        onChange={(e) => setNuevoCliente({ ...nuevoCliente, nombre: e.target.value })}
+                        placeholder="Nombre completo del cliente"
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="correo">Correo Electrónico *</Label>
+                      <Input
+                        id="correo"
+                        type="email"
+                        value={nuevoCliente.correo}
+                        onChange={(e) => setNuevoCliente({ ...nuevoCliente, correo: e.target.value })}
+                        placeholder="correo@ejemplo.com"
+                      />
+                    </div>
 
-                  <div>
-                    <Label htmlFor="nombre-facturacion">Nombre de Facturación *</Label>
-                    <Input
-                      id="nombre-facturacion"
-                      value={nuevoCliente.nombre_facturacion}
-                      onChange={(e) => setNuevoCliente({ ...nuevoCliente, nombre_facturacion: e.target.value })}
-                      placeholder="Nombre para facturar"
-                    />
-                  </div>
-                  
-                  <div className="col-span-2">
-                    <Label htmlFor="direccion">Dirección *</Label>
-                    <Input
-                      id="direccion"
-                      value={nuevoCliente.direccion}
-                      onChange={(e) => setNuevoCliente({ ...nuevoCliente, direccion: e.target.value })}
-                      placeholder="Dirección completa"
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="correo">Correo Electrónico *</Label>
-                    <Input
-                      id="correo"
-                      type="email"
-                      value={nuevoCliente.correo}
-                      onChange={(e) => setNuevoCliente({ ...nuevoCliente, correo: e.target.value })}
-                      placeholder="correo@ejemplo.com"
-                    />
-                  </div>
+                    <div>
+                      <Label htmlFor="telefono-principal">Teléfono Principal *</Label>
+                      <Input
+                        id="telefono-principal"
+                        value={nuevoCliente.telefono_principal}
+                        onChange={(e) => setNuevoCliente({ ...nuevoCliente, telefono_principal: e.target.value })}
+                        placeholder="1234-5678"
+                      />
+                    </div>
 
-                  <div>
-                    <Label htmlFor="telefono-principal">Teléfono Principal *</Label>
-                    <Input
-                      id="telefono-principal"
-                      value={nuevoCliente.telefono_principal}
-                      onChange={(e) => setNuevoCliente({ ...nuevoCliente, telefono_principal: e.target.value })}
-                      placeholder="1234-5678"
-                    />
-                  </div>
+                    <div>
+                      <Label htmlFor="telefono-secundario">Teléfono Secundario</Label>
+                      <Input
+                        id="telefono-secundario"
+                        value={nuevoCliente.telefono_secundario}
+                        onChange={(e) => setNuevoCliente({ ...nuevoCliente, telefono_secundario: e.target.value })}
+                        placeholder="1234-5678"
+                      />
+                    </div>
 
-                  <div>
-                    <Label htmlFor="telefono-secundario">Teléfono Secundario</Label>
-                    <Input
-                      id="telefono-secundario"
-                      value={nuevoCliente.telefono_secundario}
-                      onChange={(e) => setNuevoCliente({ ...nuevoCliente, telefono_secundario: e.target.value })}
-                      placeholder="1234-5678"
-                    />
-                  </div>
+                    <div className="col-span-2">
+                      <Label htmlFor="direccion">Dirección *</Label>
+                      <Input
+                        id="direccion"
+                        value={nuevoCliente.direccion}
+                        onChange={(e) => setNuevoCliente({ ...nuevoCliente, direccion: e.target.value })}
+                        placeholder="Dirección completa"
+                      />
+                    </div>
 
-                  <div>
-                    <Label htmlFor="pais">País *</Label>
-                    <Input
-                      id="pais"
-                      value={nuevoCliente.pais}
-                      onChange={(e) => setNuevoCliente({ ...nuevoCliente, pais: e.target.value })}
-                      placeholder="Guatemala"
-                    />
-                  </div>
+                    <div>
+                      <Label htmlFor="pais">País *</Label>
+                      <Input
+                        id="pais"
+                        value={nuevoCliente.pais}
+                        onChange={(e) => setNuevoCliente({ ...nuevoCliente, pais: e.target.value })}
+                        placeholder="Guatemala"
+                      />
+                    </div>
 
-                  <div>
-                    <Label htmlFor="departamento">Departamento *</Label>
-                    <Select
-                      value={nuevoCliente.departamento}
-                      onValueChange={(value) => setNuevoCliente({ ...nuevoCliente, departamento: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleccione un departamento" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {DEPARTAMENTOS.map((dept) => (
-                          <SelectItem key={dept} value={dept}>
-                            {dept}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                    <div>
+                      <Label htmlFor="departamento">Departamento *</Label>
+                      <Select
+                        value={nuevoCliente.departamento}
+                        onValueChange={(value) => setNuevoCliente({ ...nuevoCliente, departamento: value })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleccione un departamento" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {DEPARTAMENTOS.map((dept) => (
+                            <SelectItem key={dept} value={dept}>
+                              {dept}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-                  <div>
-                    <Label htmlFor="municipio">Municipio *</Label>
-                    <Select
-                      value={nuevoCliente.municipio}
-                      onValueChange={(value) => setNuevoCliente({ ...nuevoCliente, municipio: value })}
-                      disabled={!nuevoCliente.departamento}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleccione un municipio" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {municipiosDisponibles.map((muni) => (
-                          <SelectItem key={muni} value={muni}>
-                            {muni}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <div>
+                      <Label htmlFor="municipio">Municipio *</Label>
+                      <Select
+                        value={nuevoCliente.municipio}
+                        onValueChange={(value) => setNuevoCliente({ ...nuevoCliente, municipio: value })}
+                        disabled={!nuevoCliente.departamento}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleccione un municipio" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {municipiosDisponibles.map((muni) => (
+                            <SelectItem key={muni} value={muni}>
+                              {muni}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Datos de Facturación */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold border-b pb-2">Datos de Facturación</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="nit">NIT *</Label>
+                      <Input
+                        id="nit"
+                        value={nuevoCliente.nit}
+                        onChange={(e) => setNuevoCliente({ ...nuevoCliente, nit: e.target.value })}
+                        placeholder="NIT o CF"
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="nombre-facturacion">Nombre de Facturación *</Label>
+                      <Input
+                        id="nombre-facturacion"
+                        value={nuevoCliente.nombre_facturacion}
+                        onChange={(e) => setNuevoCliente({ ...nuevoCliente, nombre_facturacion: e.target.value })}
+                        placeholder="Nombre para facturar"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -895,6 +990,75 @@ export default function NuevoIncidente() {
               />
             </div>
 
+            {/* Sección de fotos */}
+            <div className="space-y-4 border-t pt-6">
+              <Label>Fotos del Equipo (Opcional - Máximo 10)</Label>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => cameraInputRef.current?.click()}
+                  className="flex-1"
+                >
+                  <Camera className="w-4 h-4 mr-2" />
+                  Tomar Foto
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex-1"
+                >
+                  <Upload className="w-4 h-4 mr-2" />
+                  Subir Archivos
+                </Button>
+              </div>
+              
+              <input
+                ref={cameraInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                multiple
+                onChange={handleFileSelect}
+                className="hidden"
+              />
+              
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handleFileSelect}
+                className="hidden"
+              />
+              
+              {previews.length > 0 && (
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {previews.map((preview, index) => (
+                    <div key={index} className="relative group">
+                      <img
+                        src={preview}
+                        alt={`Preview ${index + 1}`}
+                        className="w-full h-32 object-cover rounded-lg border"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removePhoto(index)}
+                        className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              <p className="text-sm text-muted-foreground">
+                {fotos.length} de 10 fotos seleccionadas
+              </p>
+            </div>
+
             <div className="flex justify-between">
               <Button variant="outline" onClick={() => setPaso(1)}>
                 Atrás
@@ -906,6 +1070,35 @@ export default function NuevoIncidente() {
           </CardContent>
         </Card>
       )}
+
+      {/* Success Dialog */}
+      <AlertDialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <CheckCircle2 className="w-5 h-5 text-primary" />
+              Incidente Creado Exitosamente
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Se ha creado el incidente con código: <strong>{lastIncidentCode}</strong>
+              <br /><br />
+              ¿Desea ingresar otra máquina para este mismo cliente?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => navigate("/incidentes")}>
+              No, Finalizar
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+              setShowSuccessDialog(false);
+              resetForm();
+              toast({ title: "Listo para nuevo ingreso", description: "Complete los datos de la nueva máquina" });
+            }}>
+              Sí, Ingresar Otra Máquina
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
