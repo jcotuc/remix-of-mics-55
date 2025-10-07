@@ -104,6 +104,36 @@ export type Database = {
         }
         Relationships: []
       }
+      direcciones_envio: {
+        Row: {
+          codigo_cliente: string
+          created_at: string
+          direccion: string
+          es_principal: boolean | null
+          id: string
+          nombre_referencia: string | null
+          updated_at: string
+        }
+        Insert: {
+          codigo_cliente: string
+          created_at?: string
+          direccion: string
+          es_principal?: boolean | null
+          id?: string
+          nombre_referencia?: string | null
+          updated_at?: string
+        }
+        Update: {
+          codigo_cliente?: string
+          created_at?: string
+          direccion?: string
+          es_principal?: boolean | null
+          id?: string
+          nombre_referencia?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       embarques: {
         Row: {
           created_at: string
@@ -145,7 +175,9 @@ export type Database = {
           codigo_tecnico: string | null
           confirmacion_cliente: Json | null
           created_at: string
+          created_by: string | null
           descripcion_problema: string
+          direccion_envio_id: string | null
           embarque_id: string | null
           es_herramienta_manual: boolean | null
           es_reingreso: boolean | null
@@ -154,6 +186,7 @@ export type Database = {
           id: string
           ingresado_en_mostrador: boolean | null
           log_observaciones: string | null
+          persona_deja_maquina: string | null
           producto_descontinuado: boolean | null
           producto_sugerido_alternativo: string | null
           quiere_envio: boolean | null
@@ -172,7 +205,9 @@ export type Database = {
           codigo_tecnico?: string | null
           confirmacion_cliente?: Json | null
           created_at?: string
+          created_by?: string | null
           descripcion_problema: string
+          direccion_envio_id?: string | null
           embarque_id?: string | null
           es_herramienta_manual?: boolean | null
           es_reingreso?: boolean | null
@@ -181,6 +216,7 @@ export type Database = {
           id?: string
           ingresado_en_mostrador?: boolean | null
           log_observaciones?: string | null
+          persona_deja_maquina?: string | null
           producto_descontinuado?: boolean | null
           producto_sugerido_alternativo?: string | null
           quiere_envio?: boolean | null
@@ -199,7 +235,9 @@ export type Database = {
           codigo_tecnico?: string | null
           confirmacion_cliente?: Json | null
           created_at?: string
+          created_by?: string | null
           descripcion_problema?: string
+          direccion_envio_id?: string | null
           embarque_id?: string | null
           es_herramienta_manual?: boolean | null
           es_reingreso?: boolean | null
@@ -208,6 +246,7 @@ export type Database = {
           id?: string
           ingresado_en_mostrador?: boolean | null
           log_observaciones?: string | null
+          persona_deja_maquina?: string | null
           producto_descontinuado?: boolean | null
           producto_sugerido_alternativo?: string | null
           quiere_envio?: boolean | null
@@ -230,6 +269,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "productos"
             referencedColumns: ["codigo"]
+          },
+          {
+            foreignKeyName: "incidentes_direccion_envio_id_fkey"
+            columns: ["direccion_envio_id"]
+            isOneToOne: false
+            referencedRelation: "direcciones_envio"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "incidentes_embarque_id_fkey"

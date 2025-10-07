@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { StatusBadge } from "@/components/StatusBadge";
 import { toast } from "sonner";
@@ -19,6 +21,7 @@ export default function DetalleCliente() {
   const [cliente, setCliente] = useState<Cliente | null>(null);
   const [incidentes, setIncidentes] = useState<Incidente[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     if (codigo) {
@@ -101,8 +104,8 @@ export default function DetalleCliente() {
           </CardHeader>
           <CardContent className="space-y-3">
             <div>
-              <p className="text-sm text-muted-foreground">NIT</p>
-              <p className="font-medium">{cliente.nit}</p>
+              <p className="text-sm text-muted-foreground">Nombre Completo</p>
+              <p className="font-medium">{cliente.nombre}</p>
             </div>
             <div>
               <p className="text-sm text-muted-foreground">Celular</p>
@@ -132,12 +135,6 @@ export default function DetalleCliente() {
                 <p className="font-medium">{cliente.direccion}</p>
               </div>
             )}
-            {cliente.direccion_envio && (
-              <div>
-                <p className="text-sm text-muted-foreground">Dirección de Envío</p>
-                <p className="font-medium">{cliente.direccion_envio}</p>
-              </div>
-            )}
           </CardContent>
         </Card>
 
@@ -147,6 +144,10 @@ export default function DetalleCliente() {
             <CardTitle>Datos de Facturación</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
+            <div>
+              <p className="text-sm text-muted-foreground">NIT</p>
+              <p className="font-medium">{cliente.nit}</p>
+            </div>
             {cliente.nombre_facturacion && (
               <div>
                 <p className="text-sm text-muted-foreground">Nombre Facturación</p>
@@ -171,6 +172,12 @@ export default function DetalleCliente() {
                 <p className="font-medium">{cliente.municipio}</p>
               </div>
             )}
+            {cliente.direccion_envio && (
+              <div>
+                <p className="text-sm text-muted-foreground">Dirección de Envío</p>
+                <p className="font-medium">{cliente.direccion_envio}</p>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -178,57 +185,76 @@ export default function DetalleCliente() {
       {/* Historial de Incidentes */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Package className="h-5 w-5" />
-            Historial de Incidentes
-          </CardTitle>
-          <CardDescription>
-            {incidentes.length} {incidentes.length === 1 ? 'incidente registrado' : 'incidentes registrados'}
-          </CardDescription>
+          <div className="flex justify-between items-start gap-4">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Package className="h-5 w-5" />
+                Historial de Incidentes
+              </CardTitle>
+              <CardDescription>
+                {incidentes.length} {incidentes.length === 1 ? 'incidente registrado' : 'incidentes registrados'}
+              </CardDescription>
+            </div>
+            <div className="w-64">
+              <Input
+                placeholder="Buscar incidente..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
-          {incidentes.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <Package className="h-12 w-12 mx-auto mb-2 opacity-50" />
-              <p>No hay incidentes registrados para este cliente</p>
-            </div>
-          ) : (
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Código</TableHead>
-                    <TableHead>Producto</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Fecha Ingreso</TableHead>
-                    <TableHead>Centro Servicio</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {incidentes.map((incidente) => (
-                    <TableRow 
-                      key={incidente.id}
-                      className="cursor-pointer hover:bg-muted/50"
-                      onClick={() => navigate(`/incidentes/${incidente.id}`)}
-                    >
-                      <TableCell className="font-medium">{incidente.codigo}</TableCell>
-                      <TableCell>{incidente.codigo_producto}</TableCell>
-                      <TableCell>
-                        <StatusBadge status={incidente.status as any} />
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Calendar className="h-4 w-4 text-muted-foreground" />
-                          {new Date(incidente.fecha_ingreso).toLocaleDateString('es-GT')}
-                        </div>
-                      </TableCell>
-                      <TableCell>{incidente.centro_servicio || 'N/A'}</TableCell>
+          {(() => {
+            const filtered = incidentes.filter(inc => 
+              inc.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+              inc.codigo_producto?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+              inc.status.toLowerCase().includes(searchTerm.toLowerCase())
+            );
+            
+            return filtered.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Package className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                <p>{searchTerm ? 'No se encontraron incidentes con ese criterio' : 'No hay incidentes registrados para este cliente'}</p>
+              </div>
+            ) : (
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Código</TableHead>
+                      <TableHead>Producto</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Fecha Ingreso</TableHead>
+                      <TableHead>Centro Servicio</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
+                  </TableHeader>
+                  <TableBody>
+                    {filtered.map((incidente) => (
+                      <TableRow 
+                        key={incidente.id}
+                        className="cursor-pointer hover:bg-muted/50"
+                        onClick={() => navigate(`/mostrador/seguimiento/${incidente.id}`)}
+                      >
+                        <TableCell className="font-medium">{incidente.codigo}</TableCell>
+                        <TableCell>{incidente.codigo_producto}</TableCell>
+                        <TableCell>
+                          <StatusBadge status={incidente.status as any} />
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Calendar className="h-4 w-4 text-muted-foreground" />
+                            {new Date(incidente.fecha_ingreso).toLocaleDateString('es-GT')}
+                          </div>
+                        </TableCell>
+                        <TableCell>{incidente.centro_servicio || 'N/A'}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            );
+          })()}
         </CardContent>
       </Card>
     </div>

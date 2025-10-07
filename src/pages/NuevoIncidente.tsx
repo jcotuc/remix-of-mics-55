@@ -121,10 +121,15 @@ export default function NuevoIncidente() {
   const [productoSeleccionado, setProductoSeleccionado] = useState<Producto | null>(null);
   const [productosEncontrados, setProductosEncontrados] = useState<Producto[]>([]);
   const [descripcionProblema, setDescripcionProblema] = useState("");
+  const [personaDejaMaquina, setPersonaDejaMaquina] = useState("");
   const [accesoriosSeleccionados, setAccesoriosSeleccionados] = useState<string[]>([]);
   const [accesoriosDisponibles, setAccesoriosDisponibles] = useState<any[]>([]);
   const [centroServicio, setCentroServicio] = useState("");
   const [opcionEnvio, setOpcionEnvio] = useState<string>("");
+  const [direccionesEnvio, setDireccionesEnvio] = useState<any[]>([]);
+  const [direccionSeleccionada, setDireccionSeleccionada] = useState<string>("");
+  const [nuevaDireccion, setNuevaDireccion] = useState("");
+  const [mostrarNuevaDireccion, setMostrarNuevaDireccion] = useState(false);
   const [ingresadoMostrador, setIngresadoMostrador] = useState(true);
   const [esReingreso, setEsReingreso] = useState(false);
   const [logObservaciones, setLogObservaciones] = useState("");
@@ -137,9 +142,10 @@ export default function NuevoIncidente() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   
-  // Dialog for adding another machine
+  // Dialog for adding another machine and printing
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [lastIncidentCode, setLastIncidentCode] = useState("");
+  const [showPrintDialog, setShowPrintDialog] = useState(false);
 
   // Actualizar municipios cuando cambia el departamento
   useEffect(() => {
@@ -167,6 +173,34 @@ export default function NuevoIncidente() {
     
     fetchAccesorios();
   }, []);
+
+  // Cargar direcciones de envío cuando se selecciona un cliente
+  useEffect(() => {
+    const fetchDirecciones = async () => {
+      if (!clienteSeleccionado) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from('direcciones_envio')
+          .select('*')
+          .eq('codigo_cliente', clienteSeleccionado.codigo)
+          .order('es_principal', { ascending: false });
+        
+        if (error) throw error;
+        setDireccionesEnvio(data || []);
+        
+        // Auto-seleccionar dirección principal si existe
+        const principal = data?.find(d => d.es_principal);
+        if (principal) {
+          setDireccionSeleccionada(principal.id);
+        }
+      } catch (error) {
+        console.error('Error fetching direcciones:', error);
+      }
+    };
+    
+    fetchDirecciones();
+  }, [clienteSeleccionado]);
 
   // Buscar clientes
   useEffect(() => {
@@ -265,9 +299,13 @@ export default function NuevoIncidente() {
     setProductoSeleccionado(null);
     setProductosEncontrados([]);
     setDescripcionProblema("");
+    setPersonaDejaMaquina("");
     setAccesoriosSeleccionados([]);
     setCentroServicio("");
     setOpcionEnvio("");
+    setDireccionSeleccionada("");
+    setNuevaDireccion("");
+    setMostrarNuevaDireccion(false);
     setEsReingreso(false);
     setLogObservaciones("");
     setTipologia("");
@@ -276,6 +314,11 @@ export default function NuevoIncidente() {
     
     // Go back to step 2 (keeping the same client)
     setPaso(2);
+  };
+
+  const handlePrintIncident = () => {
+    window.print();
+    setShowPrintDialog(false);
   };
 
   const validarPaso1 = () => {
@@ -314,12 +357,20 @@ export default function NuevoIncidente() {
       toast({ title: "Error", description: "Ingrese la descripción del problema", variant: "destructive" });
       return false;
     }
+    if (!personaDejaMaquina.trim()) {
+      toast({ title: "Error", description: "Ingrese quién deja la máquina", variant: "destructive" });
+      return false;
+    }
     if (!centroServicio) {
       toast({ title: "Error", description: "Seleccione un centro de servicio", variant: "destructive" });
       return false;
     }
     if (!opcionEnvio) {
       toast({ title: "Error", description: "Seleccione una opción de entrega", variant: "destructive" });
+      return false;
+    }
+    if (opcionEnvio !== 'recoger' && !direccionSeleccionada && !nuevaDireccion.trim()) {
+      toast({ title: "Error", description: "Seleccione o agregue una dirección de envío", variant: "destructive" });
       return false;
     }
     if (!tipologia) {
@@ -335,6 +386,7 @@ export default function NuevoIncidente() {
     setGuardando(true);
     try {
       let codigoCliente = clienteSeleccionado?.codigo;
+      let direccionEnvioId = direccionSeleccionada;
 
       // Si es nuevo cliente, crearlo primero
       if (esNuevoCliente) {
@@ -387,6 +439,26 @@ export default function NuevoIncidente() {
         if (updateError) throw updateError;
       }
 
+      // Si hay nueva dirección, crearla
+      if (nuevaDireccion.trim() && opcionEnvio !== 'recoger') {
+        const { data: dirData, error: dirError } = await supabase
+          .from('direcciones_envio')
+          .insert({
+            codigo_cliente: codigoCliente,
+            direccion: nuevaDireccion,
+            nombre_referencia: `Dirección ${new Date().toLocaleDateString()}`,
+            es_principal: direccionesEnvio.length === 0
+          })
+          .select()
+          .single();
+
+        if (dirError) throw dirError;
+        direccionEnvioId = dirData.id;
+      }
+
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+
       // Generar código de incidente
       const { data: codigoIncidente, error: codigoError } = await supabase
         .rpc('generar_codigo_incidente');
@@ -402,9 +474,11 @@ export default function NuevoIncidente() {
           codigo_producto: productoSeleccionado!.codigo,
           sku_maquina: skuMaquina,
           descripcion_problema: descripcionProblema,
+          persona_deja_maquina: personaDejaMaquina,
           accesorios: accesoriosSeleccionados.join(", ") || null,
           centro_servicio: centroServicio,
           quiere_envio: opcionEnvio !== 'recoger',
+          direccion_envio_id: direccionEnvioId || null,
           ingresado_en_mostrador: ingresadoMostrador,
           es_reingreso: esReingreso,
           log_observaciones: logObservaciones || null,
@@ -412,7 +486,8 @@ export default function NuevoIncidente() {
           status: 'Ingresado',
           cobertura_garantia: false,
           producto_descontinuado: productoSeleccionado!.descontinuado,
-          codigo_tecnico: 'TEC-001'
+          codigo_tecnico: 'TEC-001',
+          created_by: user?.id || null
         })
         .select()
         .single();
@@ -454,7 +529,7 @@ export default function NuevoIncidente() {
       }
 
       setLastIncidentCode(codigoIncidente);
-      setShowSuccessDialog(true);
+      setShowPrintDialog(true);
     } catch (error) {
       console.error('Error al guardar:', error);
       toast({ 
@@ -854,15 +929,28 @@ export default function NuevoIncidente() {
               )}
             </div>
 
-            <div>
-              <Label htmlFor="descripcion">Descripción del Problema *</Label>
-              <Textarea
-                id="descripcion"
-                value={descripcionProblema}
-                onChange={(e) => setDescripcionProblema(e.target.value)}
-                placeholder="Describa el problema reportado por el cliente"
-                rows={4}
-              />
+            <div className="space-y-4 p-4 border rounded-lg bg-muted/30">
+              <h4 className="font-medium">Reporte de Fallas</h4>
+              <div>
+                <Label htmlFor="descripcion">Comentario del cliente (o fallas de la máquina) *</Label>
+                <Textarea
+                  id="descripcion"
+                  value={descripcionProblema}
+                  onChange={(e) => setDescripcionProblema(e.target.value)}
+                  placeholder="Describa las fallas o problema reportado por el cliente"
+                  rows={4}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="persona-deja">Persona quien deja la máquina *</Label>
+                <Input
+                  id="persona-deja"
+                  value={personaDejaMaquina}
+                  onChange={(e) => setPersonaDejaMaquina(e.target.value)}
+                  placeholder="Nombre de quien entrega el equipo"
+                />
+              </div>
             </div>
 
             <div>
@@ -917,9 +1005,20 @@ export default function NuevoIncidente() {
               </Select>
             </div>
 
-            <div>
+            <div className="space-y-4">
               <Label>Opciones de Entrega *</Label>
-              <RadioGroup value={opcionEnvio} onValueChange={setOpcionEnvio} className="flex flex-col gap-3 mt-2">
+              <RadioGroup 
+                value={opcionEnvio} 
+                onValueChange={(value) => {
+                  setOpcionEnvio(value);
+                  if (value === 'recoger') {
+                    setDireccionSeleccionada("");
+                    setNuevaDireccion("");
+                    setMostrarNuevaDireccion(false);
+                  }
+                }} 
+                className="flex flex-col gap-3 mt-2"
+              >
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="recoger" id="recoger" />
                   <Label htmlFor="recoger" className="cursor-pointer font-normal">
@@ -939,6 +1038,62 @@ export default function NuevoIncidente() {
                   </Label>
                 </div>
               </RadioGroup>
+
+              {opcionEnvio !== 'recoger' && opcionEnvio && (
+                <div className="pl-6 space-y-4 border-l-2 border-primary/20">
+                  <div>
+                    <Label htmlFor="direccion-envio">Dirección de Envío *</Label>
+                    {direccionesEnvio.length > 0 ? (
+                      <Select value={direccionSeleccionada} onValueChange={setDireccionSeleccionada}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Seleccione una dirección" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {direccionesEnvio.map((dir) => (
+                            <SelectItem key={dir.id} value={dir.id}>
+                              {dir.direccion} {dir.es_principal && '(Principal)'}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">No hay direcciones guardadas</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm">Agregar nueva dirección</Label>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setMostrarNuevaDireccion(!mostrarNuevaDireccion)}
+                      >
+                        {mostrarNuevaDireccion ? 'Cancelar' : 'Agregar'}
+                      </Button>
+                    </div>
+                    
+                    {mostrarNuevaDireccion && (
+                      <Textarea
+                        value={nuevaDireccion}
+                        onChange={(e) => setNuevaDireccion(e.target.value)}
+                        placeholder="Ingrese la nueva dirección de envío"
+                        rows={3}
+                      />
+                    )}
+                  </div>
+
+                  {direccionSeleccionada && !mostrarNuevaDireccion && (
+                    <div className="p-3 bg-muted/30 rounded-lg">
+                      <p className="text-sm font-medium">Dirección seleccionada:</p>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {direccionesEnvio.find(d => d.id === direccionSeleccionada)?.direccion}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="flex items-center space-x-2">
@@ -1071,8 +1226,8 @@ export default function NuevoIncidente() {
         </Card>
       )}
 
-      {/* Success Dialog */}
-      <AlertDialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
+      {/* Print Dialog */}
+      <AlertDialog open={showPrintDialog} onOpenChange={setShowPrintDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
@@ -1082,7 +1237,34 @@ export default function NuevoIncidente() {
             <AlertDialogDescription>
               Se ha creado el incidente con código: <strong>{lastIncidentCode}</strong>
               <br /><br />
-              ¿Desea ingresar otra máquina para este mismo cliente?
+              ¿Desea imprimir la hoja del incidente para el cliente?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setShowPrintDialog(false);
+              setShowSuccessDialog(true);
+            }}>
+              No Imprimir
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+              handlePrintIncident();
+              setShowPrintDialog(false);
+              setShowSuccessDialog(true);
+            }}>
+              Sí, Imprimir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Success Dialog - Add Another Machine */}
+      <AlertDialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Desea ingresar otra máquina?</AlertDialogTitle>
+            <AlertDialogDescription>
+              ¿Desea ingresar otra máquina para este mismo cliente ({clienteSeleccionado?.nombre || nuevoCliente.nombre})?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
