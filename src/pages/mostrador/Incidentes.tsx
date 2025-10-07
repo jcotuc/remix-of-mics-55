@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Eye, AlertTriangle, CheckCircle, Calendar } from "lucide-react";
+import { Search, Eye, AlertTriangle, CheckCircle, Calendar, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -108,6 +108,10 @@ export default function IncidentesMostrador() {
             Consulte el estado de los incidentes y seguimiento de reparaciones
           </p>
         </div>
+        <Button onClick={() => navigate("/nuevo-incidente")}>
+          <Plus className="h-4 w-4 mr-2" />
+          Crear Incidente
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
