@@ -108,7 +108,7 @@ export default function IncidentesMostrador() {
             Consulte el estado de los incidentes y seguimiento de reparaciones
           </p>
         </div>
-        <Button onClick={() => navigate("/nuevo-incidente")}>
+        <Button onClick={() => navigate("/incidentes/nuevo")}>
           <Plus className="h-4 w-4 mr-2" />
           Crear Incidente
         </Button>
