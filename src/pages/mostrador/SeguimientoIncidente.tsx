@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Package, User, Calendar, MapPin, FileText, DollarSign, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Package, User, Calendar, MapPin, FileText, DollarSign, CheckCircle2, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -110,17 +110,27 @@ export default function SeguimientoIncidente() {
 
   const esPresupuestoOCanje = ["Presupuesto", "Porcentaje", "Cambio por garantia"].includes(incidente.status);
 
+  const handlePrint = () => {
+    window.print();
+  };
+
   return (
     <div className="container mx-auto p-6 max-w-6xl">
-      <div className="flex items-center gap-4 mb-6">
-        <Button variant="ghost" onClick={() => navigate(-1)}>
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Volver
-        </Button>
-        <div>
-          <h1 className="text-2xl font-bold">Seguimiento de Incidente</h1>
-          <p className="text-muted-foreground">Código: {incidente.codigo}</p>
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" onClick={() => navigate(-1)}>
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Volver
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold">Seguimiento de Incidente</h1>
+            <p className="text-muted-foreground">Código: {incidente.codigo}</p>
+          </div>
         </div>
+        <Button onClick={handlePrint} variant="outline">
+          <Printer className="w-4 h-4 mr-2" />
+          Imprimir
+        </Button>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">

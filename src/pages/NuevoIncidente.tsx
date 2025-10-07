@@ -142,10 +142,8 @@ export default function NuevoIncidente() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   
-  // Dialog for adding another machine and printing
+  // Dialog for adding another machine
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
-  const [lastIncidentCode, setLastIncidentCode] = useState("");
-  const [showPrintDialog, setShowPrintDialog] = useState(false);
 
   // Actualizar municipios cuando cambia el departamento
   useEffect(() => {
@@ -314,11 +312,6 @@ export default function NuevoIncidente() {
     
     // Go back to step 2 (keeping the same client)
     setPaso(2);
-  };
-
-  const handlePrintIncident = () => {
-    window.print();
-    setShowPrintDialog(false);
   };
 
   const validarPaso1 = () => {
@@ -528,8 +521,7 @@ export default function NuevoIncidente() {
         }
       }
 
-      setLastIncidentCode(codigoIncidente);
-      setShowPrintDialog(true);
+      setShowSuccessDialog(true);
     } catch (error) {
       console.error('Error al guardar:', error);
       toast({ 
@@ -1225,38 +1217,6 @@ export default function NuevoIncidente() {
           </CardContent>
         </Card>
       )}
-
-      {/* Print Dialog */}
-      <AlertDialog open={showPrintDialog} onOpenChange={setShowPrintDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              <CheckCircle2 className="w-5 h-5 text-primary" />
-              Incidente Creado Exitosamente
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              Se ha creado el incidente con código: <strong>{lastIncidentCode}</strong>
-              <br /><br />
-              ¿Desea imprimir la hoja del incidente para el cliente?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => {
-              setShowPrintDialog(false);
-              setShowSuccessDialog(true);
-            }}>
-              No Imprimir
-            </AlertDialogCancel>
-            <AlertDialogAction onClick={() => {
-              handlePrintIncident();
-              setShowPrintDialog(false);
-              setShowSuccessDialog(true);
-            }}>
-              Sí, Imprimir
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       {/* Success Dialog - Add Another Machine */}
       <AlertDialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
