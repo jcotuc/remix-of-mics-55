@@ -30,7 +30,7 @@ const menuAreas = {
     { title: "Clientes", url: "/mostrador/clientes", icon: Users },
     { title: "Repuestos", url: "/mostrador/repuestos", icon: Wrench },
     { title: "Consulta Precios", url: "/mostrador/consulta-precios", icon: DollarSign },
-    { title: "Incidentes", url: "/incidentes", icon: FileText },
+    { title: "Incidentes", url: "/mostrador/incidentes", icon: FileText },
   ],
   logistica: [
     { title: "Embarques", url: "/logistica/embarques", icon: Truck },

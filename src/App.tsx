@@ -16,6 +16,7 @@ import DetalleIncidente from "./pages/DetalleIncidente";
 import DetalleCliente from "./pages/DetalleCliente";
 import ConsultaPrecios from "./pages/mostrador/ConsultaPrecios";
 import SeguimientoIncidente from "./pages/mostrador/SeguimientoIncidente";
+import IncidentesMostrador from "./pages/mostrador/Incidentes";
 import Embarques from "./pages/logistica/Embarques";
 import Asignaciones from "./pages/taller/Asignaciones";
 import Presupuestos from "./pages/taller/Presupuestos";
@@ -40,6 +41,7 @@ const App = () => (
               <Route path="/mostrador/clientes/:codigo" element={<DetalleCliente />} />
               <Route path="/mostrador/consulta-precios" element={<ConsultaPrecios />} />
               <Route path="/mostrador/seguimiento/:id" element={<SeguimientoIncidente />} />
+              <Route path="/mostrador/incidentes" element={<IncidentesMostrador />} />
               <Route path="/mostrador/repuestos" element={<Repuestos />} />
               <Route path="/mostrador/productos" element={<Productos />} />
               <Route path="/incidentes" element={<Incidentes />} />
