@@ -228,116 +228,169 @@ export default function Asignaciones() {
       </Card>
 
       {/* Sistema Kanban por familias */}
-      <div className="space-y-6">
-        <h2 className="text-2xl font-bold">Tablero Kanban - Por Familias</h2>
+      <div className="space-y-4">
+        <h2 className="text-2xl font-bold">Cola de Asignación por Familias (FIFO)</h2>
         
         {loading ? (
           <div className="text-center py-12">
             <p className="text-muted-foreground">Cargando...</p>
           </div>
         ) : (
-          <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
-            {FAMILIAS.map((familia) => {
-              const incidentesFamilia = getIncidentesPorFamilia(familia);
-              const diaMax = getDiaMaxPorFamilia(familia);
+          <div className="overflow-x-auto pb-4">
+            <div className="flex gap-4 min-w-max">
+              {FAMILIAS.map((familia) => {
+                const incidentesFamilia = getIncidentesPorFamilia(familia);
+                const diaMax = getDiaMaxPorFamilia(familia);
 
-              return (
-                <Card key={familia} className="flex flex-col">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg">{familia}</CardTitle>
-                      <Badge variant="secondary">{incidentesFamilia.length}</Badge>
-                    </div>
-                    {incidentesFamilia.length > 0 && (
-                      <p className="text-xs text-muted-foreground">
-                        Máx: {diaMax} {diaMax === 1 ? 'día' : 'días'}
-                      </p>
-                    )}
-                  </CardHeader>
-                  <CardContent className="flex-1">
-                    {incidentesFamilia.length === 0 ? (
-                      <div className="text-center py-8 text-muted-foreground">
-                        <CheckCircle className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                        <p className="text-sm">Sin incidentes</p>
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        {incidentesFamilia.map((inc, index) => {
-                          const esPrimero = index === 0;
-                          const dias = getDiasDesdeIngreso(inc.fecha_ingreso);
+                return (
+                  <div key={familia} className="flex-shrink-0 w-80">
+                    <Card className="h-full flex flex-col">
+                      <CardHeader className="pb-3 border-b bg-muted/30">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-base font-semibold">{familia}</CardTitle>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="secondary" className="font-bold">
+                              {incidentesFamilia.length}
+                            </Badge>
+                            {diaMax > 0 && (
+                              <Badge variant="outline" className="text-xs">
+                                <Clock className="h-3 w-3 mr-1" />
+                                {diaMax}d
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      </CardHeader>
+                      
+                      <CardContent className="flex-1 p-3 overflow-y-auto max-h-[600px]">
+                        {incidentesFamilia.length === 0 ? (
+                          <div className="text-center py-12 text-muted-foreground">
+                            <CheckCircle className="h-10 w-10 mx-auto mb-2 opacity-30" />
+                            <p className="text-sm">Sin incidentes</p>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            {incidentesFamilia.map((inc, index) => {
+                              const esPrimero = index === 0;
+                              const dias = getDiasDesdeIngreso(inc.fecha_ingreso);
 
-                          return (
-                            <div
-                              key={inc.id}
-                              className={`p-3 border rounded-lg space-y-2 ${
-                                esPrimero 
-                                  ? 'border-primary bg-primary/5 shadow-sm' 
-                                  : 'border-muted bg-muted/30 opacity-60'
-                              }`}
-                            >
-                              <div className="flex items-start justify-between gap-2">
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2">
-                                    <p className="font-medium text-sm truncate">{inc.codigo}</p>
-                                    {esPrimero && (
-                                      <Badge variant="default" className="text-xs">
-                                        Siguiente
+                              return (
+                                <div
+                                  key={inc.id}
+                                  className={`p-2.5 border rounded-lg transition-all duration-200 animate-fade-in ${
+                                    esPrimero 
+                                      ? 'border-primary bg-primary/10 shadow-md hover:shadow-lg hover:scale-[1.02]' 
+                                      : 'border-muted bg-card hover:bg-muted/50'
+                                  }`}
+                                  style={{ animationDelay: `${index * 50}ms` }}
+                                >
+                                  <div className="space-y-2">
+                                    {/* Header */}
+                                    <div className="flex items-start justify-between gap-2">
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-1.5">
+                                          {esPrimero && (
+                                            <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                                          )}
+                                          <p className="font-semibold text-xs truncate">{inc.codigo}</p>
+                                        </div>
+                                        {!esPrimero && (
+                                          <p className="text-xs text-muted-foreground mt-0.5">
+                                            #{index + 1} en fila
+                                          </p>
+                                        )}
+                                      </div>
+                                      
+                                      {esPrimero && (
+                                        <Badge variant="default" className="text-xs px-1.5 py-0">
+                                          SIGUIENTE
+                                        </Badge>
+                                      )}
+                                    </div>
+
+                                    {/* Descripción */}
+                                    <p className="text-xs text-muted-foreground line-clamp-2 leading-tight">
+                                      {inc.descripcion_problema}
+                                    </p>
+
+                                    {/* Badges */}
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                      <Badge 
+                                        variant="outline" 
+                                        className={`text-xs ${
+                                          dias > 7 ? 'bg-red-50 text-red-700 border-red-200' :
+                                          dias > 3 ? 'bg-orange-50 text-orange-700 border-orange-200' :
+                                          'bg-blue-50 text-blue-700 border-blue-200'
+                                        }`}
+                                      >
+                                        <Clock className="h-3 w-3 mr-1" />
+                                        {dias}d
                                       </Badge>
-                                    )}
-                                  </div>
-                                  <p className="text-xs text-muted-foreground truncate mt-1">
-                                    {inc.descripcion_problema}
-                                  </p>
-                                  <div className="flex items-center gap-2 mt-2">
-                                    <Badge variant="outline" className="text-xs">
-                                      <Clock className="h-3 w-3 mr-1" />
-                                      {dias} {dias === 1 ? 'día' : 'días'}
-                                    </Badge>
-                                    {inc.cobertura_garantia && (
-                                      <Badge variant="secondary" className="text-xs bg-green-100 text-green-800">
-                                        Garantía
-                                      </Badge>
-                                    )}
+                                      {inc.cobertura_garantia && (
+                                        <Badge variant="secondary" className="text-xs bg-green-50 text-green-700 border-green-200">
+                                          Garantía
+                                        </Badge>
+                                      )}
+                                    </div>
+
+                                    {/* Actions */}
+                                    <div className="flex gap-1.5 pt-1">
+                                      <Button
+                                        size="sm"
+                                        variant={esPrimero ? "default" : "outline"}
+                                        className={`flex-1 h-8 text-xs ${esPrimero ? 'hover-scale' : ''}`}
+                                        onClick={() => handleAsignar(inc.id, familia)}
+                                        disabled={!esPrimero}
+                                      >
+                                        {esPrimero ? '✓ Asignarme' : '🔒 Bloqueado'}
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        className="h-8 px-2"
+                                        onClick={() => navigate(`/mostrador/seguimiento/${inc.id}`)}
+                                      >
+                                        👁️
+                                      </Button>
+                                    </div>
                                   </div>
                                 </div>
-                              </div>
-
-                              <div className="flex gap-2">
-                                <Button
-                                  size="sm"
-                                  variant={esPrimero ? "default" : "outline"}
-                                  className="flex-1"
-                                  onClick={() => handleAsignar(inc.id, familia)}
-                                  disabled={!esPrimero}
-                                >
-                                  {esPrimero ? 'Asignarme' : 'Bloqueado'}
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => navigate(`/mostrador/seguimiento/${inc.id}`)}
-                                >
-                                  Ver
-                                </Button>
-                              </div>
-
-                              {!esPrimero && (
-                                <p className="text-xs text-muted-foreground flex items-center gap-1">
-                                  <AlertCircle className="h-3 w-3" />
-                                  Posición {index + 1} en fila
-                                </p>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              );
-            })}
+                              );
+                            })}
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
+
+        {/* Leyenda */}
+        <Card className="bg-muted/30">
+          <CardContent className="p-3">
+            <div className="flex items-center gap-6 text-xs text-muted-foreground flex-wrap">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-primary animate-pulse" />
+                <span>Siguiente en asignar (FIFO)</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded bg-red-100 border border-red-200" />
+                <span>+7 días esperando</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded bg-orange-100 border border-orange-200" />
+                <span>4-7 días esperando</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded bg-blue-100 border border-blue-200" />
+                <span>0-3 días esperando</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* En Diagnóstico */}
