@@ -458,6 +458,15 @@ export default function NuevoIncidente() {
       
       if (codigoError) throw codigoError;
 
+      // Obtener la familia del producto seleccionado
+      const { data: productoData, error: productoError } = await supabase
+        .from('productos')
+        .select('familia_producto')
+        .eq('codigo', productoSeleccionado!.codigo)
+        .single();
+
+      if (productoError) throw productoError;
+
       // Crear el incidente
       const { data: incidenteData, error: incidenteError } = await supabase
         .from('incidentes')
@@ -465,6 +474,7 @@ export default function NuevoIncidente() {
           codigo: codigoIncidente,
           codigo_cliente: codigoCliente,
           codigo_producto: productoSeleccionado!.codigo,
+          familia_producto: productoData?.familia_producto || null,
           sku_maquina: skuMaquina,
           descripcion_problema: descripcionProblema,
           persona_deja_maquina: personaDejaMaquina,
