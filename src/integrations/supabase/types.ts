@@ -334,6 +334,7 @@ export type Database = {
           created_at: string
           descontinuado: boolean
           descripcion: string
+          familia_producto: string | null
           id: string
           updated_at: string
           url_foto: string | null
@@ -344,6 +345,7 @@ export type Database = {
           created_at?: string
           descontinuado?: boolean
           descripcion: string
+          familia_producto?: string | null
           id?: string
           updated_at?: string
           url_foto?: string | null
@@ -354,6 +356,7 @@ export type Database = {
           created_at?: string
           descontinuado?: boolean
           descripcion?: string
+          familia_producto?: string | null
           id?: string
           updated_at?: string
           url_foto?: string | null
