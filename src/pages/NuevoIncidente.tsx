@@ -1228,7 +1228,7 @@ export default function NuevoIncidente() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => navigate("/incidentes")}>
+            <AlertDialogCancel onClick={() => navigate("/mostrador/incidentes")}>
               No, Finalizar
             </AlertDialogCancel>
             <AlertDialogAction onClick={() => {
