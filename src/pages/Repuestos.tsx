@@ -141,7 +141,7 @@ export default function Repuestos() {
                 <SelectItem value="all">Todos los productos</SelectItem>
                 {productosList.map((producto) => (
                   <SelectItem key={producto.codigo} value={producto.codigo}>
-                    {producto.descripcion}
+                    {producto.codigo} - {producto.descripcion}
                   </SelectItem>
                 ))}
               </SelectContent>
