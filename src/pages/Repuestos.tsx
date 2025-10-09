@@ -163,7 +163,7 @@ export default function Repuestos() {
               </TableHeader>
               <TableBody>
                 {filteredRepuestos.map((repuesto) => (
-                  <TableRow key={repuesto.numero}>
+                  <TableRow key={repuesto.codigo}>
                     <TableCell>
                       <div className="w-12 h-12 bg-muted rounded-md flex items-center justify-center">
                         <img 
