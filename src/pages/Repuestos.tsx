@@ -72,6 +72,9 @@ export default function Repuestos() {
         categoria: "Electricas" as const
       })) || [];
 
+      console.log('Repuestos transformados:', transformedRepuestos.length);
+      console.log('Productos transformados:', transformedProductos.length);
+
       setRepuestosList(transformedRepuestos);
       setProductosList(transformedProductos);
     } catch (error) {
