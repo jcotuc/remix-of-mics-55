@@ -69,8 +69,8 @@ const repuestos13180 = [
   { numero: "65", codigo: "931427", clave: "R65-CLNE-18", descripcion: "Tapa guía" },
   { numero: "66", codigo: "931428", clave: "R66-CLNE-18", descripcion: "Arandela de presión" },
   { numero: "67", codigo: "931429", clave: "R67-CLNE-18", descripcion: "Pasador de liberación" },
-  { numero: "68", codigo: "931429", clave: "R68-CLNE-18", descripcion: "Arandela" },
-  { numero: "69", codigo: "931429", clave: "R69-CLNE-18", descripcion: "Muelle de torsión" }
+  { numero: "68", codigo: "931430", clave: "R68-CLNE-18", descripcion: "Arandela" },
+  { numero: "69", codigo: "931431", clave: "R69-CLNE-18", descripcion: "Muelle de torsión" }
 ];
 
 // Repuestos para la máquina 14659 (ROTO-1/2A9)
