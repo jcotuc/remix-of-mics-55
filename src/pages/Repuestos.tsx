@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Search, Edit, Trash2, Package, RefreshCw } from "lucide-react";
+import { Plus, Search, Edit, Trash2, Package, RefreshCw, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,6 +7,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { Repuesto, Producto } from "@/types";
+import { insertAllRepuestos } from "@/scripts/insertRepuestos";
+import { useToast } from "@/components/ui/use-toast";
 
 export default function Repuestos() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -14,6 +16,8 @@ export default function Repuestos() {
   const [repuestosList, setRepuestosList] = useState<Repuesto[]>([]);
   const [productosList, setProductosList] = useState<Producto[]>([]);
   const [loading, setLoading] = useState(true);
+  const [importing, setImporting] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     fetchRepuestosAndProductos();
@@ -88,6 +92,35 @@ export default function Repuestos() {
     return producto ? producto.descripcion : "Producto no encontrado";
   };
 
+  const handleImportRepuestos = async () => {
+    setImporting(true);
+    try {
+      const result = await insertAllRepuestos();
+      if (result.success) {
+        toast({
+          title: "Importación exitosa",
+          description: "Los repuestos han sido importados correctamente",
+        });
+        await fetchRepuestosAndProductos();
+      } else {
+        toast({
+          title: "Error en la importación",
+          description: "Hubo un problema al importar los repuestos",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Error importing repuestos:', error);
+      toast({
+        title: "Error",
+        description: "Error al importar los repuestos",
+        variant: "destructive",
+      });
+    } finally {
+      setImporting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -108,6 +141,14 @@ export default function Repuestos() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button 
+            variant="outline"
+            onClick={handleImportRepuestos}
+            disabled={importing || loading}
+          >
+            <Upload className={`h-4 w-4 mr-2 ${importing ? 'animate-pulse' : ''}`} />
+            Importar Repuestos
+          </Button>
           <Button 
             variant="outline"
             onClick={fetchRepuestosAndProductos}
