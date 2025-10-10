@@ -27,18 +27,32 @@ export default function Repuestos() {
     try {
       setLoading(true);
       
-      // Fetch repuestos
-      const { data: repuestosData, error: repuestosError } = await supabase
-        .from('repuestos')
-        .select('*')
-        .order('codigo');
+      // Fetch repuestos (sin límite)
+      let allRepuestos: any[] = [];
+      let from = 0;
+      const pageSize = 1000;
+      
+      while (true) {
+        const { data: repuestosData, error: repuestosError } = await supabase
+          .from('repuestos')
+          .select('*')
+          .order('codigo')
+          .range(from, from + pageSize - 1);
 
-      if (repuestosError) {
-        console.error('Error fetching repuestos:', repuestosError);
-        return;
+        if (repuestosError) {
+          console.error('Error fetching repuestos:', repuestosError);
+          return;
+        }
+
+        if (!repuestosData || repuestosData.length === 0) break;
+        
+        allRepuestos = [...allRepuestos, ...repuestosData];
+        
+        if (repuestosData.length < pageSize) break;
+        from += pageSize;
       }
 
-      console.log('Repuestos fetched:', repuestosData?.length);
+      console.log('Total repuestos cargados:', allRepuestos.length);
 
       // Fetch productos
       const { data: productosData, error: productosError } = await supabase
@@ -54,7 +68,7 @@ export default function Repuestos() {
       console.log('Productos fetched:', productosData?.length);
 
       // Transform data to match frontend types
-      const transformedRepuestos: Repuesto[] = repuestosData?.map((r: any) => ({
+      const transformedRepuestos: Repuesto[] = allRepuestos?.map((r: any) => ({
         numero: r.numero,
         codigo: r.codigo,
         clave: r.clave,
