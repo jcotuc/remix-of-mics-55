@@ -16,7 +16,7 @@ const repuestos15006 = [
   { numero: "12", codigo: "934552", clave: "R12-COMP-25LT", descripcion: "Perno de pistón" },
   { numero: "13", codigo: "934553", clave: "R13-COMP-25LT", descripcion: "Pistón" },
   { numero: "14", codigo: "934554", clave: "R14-COMP-25LT", descripcion: "Set de anillos" },
-  { numero: "15", codigo: "934554", clave: "R15-COMP-25LT", descripcion: "Set de anillos" },
+  { numero: "15", codigo: "934554A", clave: "R15-COMP-25LT", descripcion: "Set de anillos" },
   { numero: "16", codigo: "934555", clave: "R16-COMP-25LT", descripcion: "Junta de cilindro" },
   { numero: "17", codigo: "934556", clave: "R17-COMP-25LT", descripcion: "Cilindro" },
   { numero: "18", codigo: "934557", clave: "R18-COMP-25LT", descripcion: "Soporte de válvula" },
