@@ -31,12 +31,14 @@ export default function Repuestos() {
       const { data: repuestosData, error: repuestosError } = await supabase
         .from('repuestos')
         .select('*')
-        .order('numero', { ascending: true });
+        .order('codigo');
 
       if (repuestosError) {
         console.error('Error fetching repuestos:', repuestosError);
         return;
       }
+
+      console.log('Repuestos fetched:', repuestosData?.length);
 
       // Fetch productos
       const { data: productosData, error: productosError } = await supabase
@@ -48,6 +50,8 @@ export default function Repuestos() {
         console.error('Error fetching productos:', productosError);
         return;
       }
+
+      console.log('Productos fetched:', productosData?.length);
 
       // Transform data to match frontend types
       const transformedRepuestos: Repuesto[] = repuestosData?.map((r: any) => ({
