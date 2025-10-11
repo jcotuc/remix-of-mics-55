@@ -104,6 +104,71 @@ export type Database = {
         }
         Relationships: []
       }
+      diagnosticos: {
+        Row: {
+          accesorios: string | null
+          causas: string[]
+          costo_estimado: number | null
+          created_at: string | null
+          digitador_codigo: string | null
+          estado: string | null
+          fallas: string[]
+          fotos_urls: string[] | null
+          id: string
+          incidente_id: string
+          recomendaciones: string | null
+          repuestos_utilizados: Json | null
+          resolucion: string | null
+          tecnico_codigo: string
+          tiempo_estimado: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          accesorios?: string | null
+          causas: string[]
+          costo_estimado?: number | null
+          created_at?: string | null
+          digitador_codigo?: string | null
+          estado?: string | null
+          fallas: string[]
+          fotos_urls?: string[] | null
+          id?: string
+          incidente_id: string
+          recomendaciones?: string | null
+          repuestos_utilizados?: Json | null
+          resolucion?: string | null
+          tecnico_codigo: string
+          tiempo_estimado?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          accesorios?: string | null
+          causas?: string[]
+          costo_estimado?: number | null
+          created_at?: string | null
+          digitador_codigo?: string | null
+          estado?: string | null
+          fallas?: string[]
+          fotos_urls?: string[] | null
+          id?: string
+          incidente_id?: string
+          recomendaciones?: string | null
+          repuestos_utilizados?: Json | null
+          resolucion?: string | null
+          tecnico_codigo?: string
+          tiempo_estimado?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "diagnosticos_incidente_id_fkey"
+            columns: ["incidente_id"]
+            isOneToOne: false
+            referencedRelation: "incidentes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       direcciones_envio: {
         Row: {
           codigo_cliente: string
@@ -327,6 +392,50 @@ export type Database = {
           },
         ]
       }
+      notificaciones: {
+        Row: {
+          created_at: string | null
+          id: string
+          incidente_id: string | null
+          leido: boolean | null
+          mensaje: string
+          metadata: Json | null
+          tipo: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          incidente_id?: string | null
+          leido?: boolean | null
+          mensaje: string
+          metadata?: Json | null
+          tipo: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          incidente_id?: string | null
+          leido?: boolean | null
+          mensaje?: string
+          metadata?: Json | null
+          tipo?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notificaciones_incidente_id_fkey"
+            columns: ["incidente_id"]
+            isOneToOne: false
+            referencedRelation: "incidentes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       productos: {
         Row: {
           clave: string
@@ -446,6 +555,106 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "productos"
             referencedColumns: ["codigo"]
+          },
+        ]
+      }
+      solicitudes_cambio: {
+        Row: {
+          aprobado_por: string | null
+          created_at: string | null
+          estado: string | null
+          fecha_aprobacion: string | null
+          fotos_urls: string[] | null
+          id: string
+          incidente_id: string
+          justificacion: string
+          observaciones_aprobacion: string | null
+          tecnico_solicitante: string
+          tipo_cambio: string
+          updated_at: string | null
+        }
+        Insert: {
+          aprobado_por?: string | null
+          created_at?: string | null
+          estado?: string | null
+          fecha_aprobacion?: string | null
+          fotos_urls?: string[] | null
+          id?: string
+          incidente_id: string
+          justificacion: string
+          observaciones_aprobacion?: string | null
+          tecnico_solicitante: string
+          tipo_cambio: string
+          updated_at?: string | null
+        }
+        Update: {
+          aprobado_por?: string | null
+          created_at?: string | null
+          estado?: string | null
+          fecha_aprobacion?: string | null
+          fotos_urls?: string[] | null
+          id?: string
+          incidente_id?: string
+          justificacion?: string
+          observaciones_aprobacion?: string | null
+          tecnico_solicitante?: string
+          tipo_cambio?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "solicitudes_cambio_incidente_id_fkey"
+            columns: ["incidente_id"]
+            isOneToOne: false
+            referencedRelation: "incidentes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      solicitudes_repuestos: {
+        Row: {
+          created_at: string | null
+          entregado_por: string | null
+          estado: string | null
+          fecha_entrega: string | null
+          id: string
+          incidente_id: string
+          notas: string | null
+          repuestos: Json
+          tecnico_solicitante: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          entregado_por?: string | null
+          estado?: string | null
+          fecha_entrega?: string | null
+          id?: string
+          incidente_id: string
+          notas?: string | null
+          repuestos: Json
+          tecnico_solicitante: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          entregado_por?: string | null
+          estado?: string | null
+          fecha_entrega?: string | null
+          id?: string
+          incidente_id?: string
+          notas?: string | null
+          repuestos?: Json
+          tecnico_solicitante?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "solicitudes_repuestos_incidente_id_fkey"
+            columns: ["incidente_id"]
+            isOneToOne: false
+            referencedRelation: "incidentes"
+            referencedColumns: ["id"]
           },
         ]
       }
