@@ -12,15 +12,20 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { StatusBadge } from "@/components/StatusBadge";
+import { DiagnosticoTecnico } from "@/components/DiagnosticoTecnico";
 import { incidentes, clientes, productos, tecnicos } from "@/data/mockData";
 import { Incidente } from "@/types";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import type { Database } from "@/integrations/supabase/types";
+
+type IncidenteDB = Database['public']['Tables']['incidentes']['Row'];
 
 export default function DetalleIncidente() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [incidente, setIncidente] = useState<Incidente | null>(null);
+  const [incidenteDB, setIncidenteDB] = useState<IncidenteDB | null>(null);
   const [productoInfo, setProductoInfo] = useState<any>(null);
   const [repuestosDisponibles, setRepuestosDisponibles] = useState<any[]>([]);
   const [searchRepuesto, setSearchRepuesto] = useState("");
@@ -65,48 +70,47 @@ export default function DetalleIncidente() {
 
   useEffect(() => {
     if (id) {
-      const incidenteEncontrado = incidentes.find(i => i.id === id);
-      setIncidente(incidenteEncontrado || null);
-      
-      if (incidenteEncontrado) {
-        // Buscar información del producto en la base de datos
-        const fetchProducto = async () => {
-          try {
-            const { data, error } = await supabase
-              .from('productos')
-              .select('*')
-              .eq('codigo', incidenteEncontrado.codigoProducto)
-              .single();
-            
-            if (data && !error) {
-              setProductoInfo(data);
-            }
-          } catch (error) {
-            console.error('Error fetching producto:', error);
-          }
-        };
-
-        // Buscar repuestos relacionados con el producto
-        const fetchRepuestos = async () => {
-          try {
-            const { data, error } = await supabase
-              .from('repuestos')
-              .select('*')
-              .eq('codigo_producto', incidenteEncontrado.codigoProducto);
-            
-            if (data && !error) {
-              setRepuestosDisponibles(data);
-            }
-          } catch (error) {
-            console.error('Error fetching repuestos:', error);
-          }
-        };
-        
-        fetchProducto();
-        fetchRepuestos();
-      }
+      fetchIncidente();
     }
   }, [id]);
+
+  const fetchIncidente = async () => {
+    try {
+      // Intentar obtener de la base de datos primero
+      const { data: dbIncidente, error } = await supabase
+        .from('incidentes')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (dbIncidente && !error) {
+        setIncidenteDB(dbIncidente);
+        
+        // Buscar información del producto
+        const { data: producto } = await supabase
+          .from('productos')
+          .select('*')
+          .eq('codigo', dbIncidente.codigo_producto)
+          .maybeSingle();
+        
+        if (producto) setProductoInfo(producto);
+
+        // Buscar repuestos
+        const { data: repuestos } = await supabase
+          .from('repuestos')
+          .select('*')
+          .eq('codigo_producto', dbIncidente.codigo_producto);
+        
+        if (repuestos) setRepuestosDisponibles(repuestos);
+      } else {
+        // Fallback a mock data
+        const incidenteEncontrado = incidentes.find(i => i.id === id);
+        setIncidente(incidenteEncontrado || null);
+      }
+    } catch (error) {
+      console.error('Error:', error);
+    }
+  };
 
   if (!incidente) {
     return (
@@ -427,21 +431,28 @@ export default function DetalleIncidente() {
         </TabsContent>
 
         <TabsContent value="diagnostico" className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Stethoscope className="w-5 h-5" />
-                Diagnóstico Técnico
-              </CardTitle>
-              <CardDescription>
-                {incidente.status === "Pendiente de diagnostico" 
-                  ? "Inicia el proceso de diagnóstico técnico"
-                  : "Análisis y evaluación del problema"
-                }
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {incidente.status === "Pendiente de diagnostico" ? (
+          {/* Nuevo flujo para técnicos cuando está en diagnóstico */}
+          {incidenteDB && incidenteDB.status === 'En diagnostico' ? (
+            <DiagnosticoTecnico 
+              incidente={incidenteDB} 
+              onDiagnosticoCompleto={fetchIncidente}
+            />
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Stethoscope className="w-5 h-5" />
+                  Diagnóstico Técnico
+                </CardTitle>
+                <CardDescription>
+                  {incidente && incidente.status === "Pendiente de diagnostico" 
+                    ? "Inicia el proceso de diagnóstico técnico"
+                    : "Análisis y evaluación del problema"
+                  }
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+              {incidente && incidente.status === "Pendiente de diagnostico" ? (
                 diagnosticoStarted ? (
                   <div className="space-y-6">
                     {/* Progress indicator */}
@@ -1035,6 +1046,7 @@ export default function DetalleIncidente() {
               )}
             </CardContent>
           </Card>
+          )}
         </TabsContent>
 
         <TabsContent value="repuestos" className="space-y-6">
