@@ -1,43 +1,38 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Wrench, Clock, Package, Bell } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Wrench, Clock, Bell } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
 
 type IncidenteDB = Database['public']['Tables']['incidentes']['Row'];
-type SolicitudRepuesto = Database['public']['Tables']['solicitudes_repuestos']['Row'];
+type NotificacionDB = Database['public']['Tables']['notificaciones']['Row'];
 
 export default function MisAsignaciones() {
   const navigate = useNavigate();
-  const [misIncidentes, setMisIncidentes] = useState<IncidenteDB[]>([]);
-  const [solicitudesRepuestos, setSolicitudesRepuestos] = useState<SolicitudRepuesto[]>([]);
+  const [incidentes, setIncidentes] = useState<IncidenteDB[]>([]);
+  const [notificaciones, setNotificaciones] = useState<NotificacionDB[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchData();
+    fetchAsignaciones();
+    fetchNotificaciones();
     
-    // Suscripción a cambios en tiempo real
+    // Suscribirse a cambios en notificaciones
     const channel = supabase
-      .channel('mis-asignaciones')
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'incidentes',
-        filter: `status=eq.En diagnostico`
-      }, () => {
-        fetchData();
-      })
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'solicitudes_repuestos'
-      }, () => {
-        fetchData();
-      })
+      .channel('notificaciones-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notificaciones'
+        },
+        () => fetchNotificaciones()
+      )
       .subscribe();
 
     return () => {
@@ -45,49 +40,65 @@ export default function MisAsignaciones() {
     };
   }, []);
 
-  const fetchData = async () => {
+  const fetchAsignaciones = async () => {
     try {
       setLoading(true);
-      
-      // Obtener incidentes en diagnóstico
-      const { data: incidentes, error: incError } = await supabase
+      const { data, error } = await supabase
         .from('incidentes')
         .select('*')
         .eq('status', 'En diagnostico')
         .order('fecha_ingreso', { ascending: true });
 
-      if (incError) throw incError;
-      
-      // Obtener solicitudes de repuestos
-      const { data: solicitudes, error: solError } = await supabase
-        .from('solicitudes_repuestos')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (solError) throw solError;
-
-      setMisIncidentes(incidentes || []);
-      setSolicitudesRepuestos(solicitudes || []);
+      if (error) throw error;
+      setIncidentes(data || []);
     } catch (error) {
       console.error('Error:', error);
-      toast.error('Error al cargar datos');
+      toast.error('Error al cargar asignaciones');
     } finally {
       setLoading(false);
     }
   };
 
-  const getDiasDesdeIngreso = (fechaIngreso: string) => {
-    return Math.floor((Date.now() - new Date(fechaIngreso).getTime()) / (1000 * 60 * 60 * 24));
+  const fetchNotificaciones = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from('notificaciones')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('leido', false)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setNotificaciones(data || []);
+    } catch (error) {
+      console.error('Error:', error);
+    }
   };
 
-  const getEstadoBadge = (estado: string) => {
-    const colores: Record<string, string> = {
-      'pendiente': 'bg-yellow-500',
-      'en_preparacion': 'bg-blue-500',
-      'listo': 'bg-green-500',
-      'entregado': 'bg-gray-500'
-    };
-    return colores[estado] || 'bg-gray-500';
+  const marcarNotificacionLeida = async (id: string, incidenteId?: string) => {
+    try {
+      const { error } = await supabase
+        .from('notificaciones')
+        .update({ leido: true })
+        .eq('id', id);
+
+      if (error) throw error;
+      setNotificaciones(prev => prev.filter(n => n.id !== id));
+      
+      if (incidenteId) {
+        navigate(`/mostrador/seguimiento/${incidenteId}`);
+      }
+    } catch (error) {
+      console.error('Error:', error);
+    }
+  };
+
+  const getDiasDesdeIngreso = (fechaIngreso: string) => {
+    const dias = Math.floor((Date.now() - new Date(fechaIngreso).getTime()) / (1000 * 60 * 60 * 24));
+    return dias;
   };
 
   return (
@@ -98,94 +109,144 @@ export default function MisAsignaciones() {
           Mis Asignaciones
         </h1>
         <p className="text-muted-foreground mt-2">
-          Máquinas asignadas y estado de solicitudes
+          Máquinas asignadas a ti para diagnóstico
         </p>
       </div>
+
+      {/* Notificaciones */}
+      {notificaciones.length > 0 && (
+        <Card className="border-primary/50 bg-primary/5">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Bell className="h-5 w-5 text-primary animate-pulse" />
+              Notificaciones ({notificaciones.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {notificaciones.map((notif) => (
+              <div
+                key={notif.id}
+                className="p-3 bg-card rounded-lg border flex items-center justify-between hover:bg-muted/50 transition-colors"
+              >
+                <div className="flex-1">
+                  <p className="font-medium">{notif.mensaje}</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {new Date(notif.created_at).toLocaleString()}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  {notif.incidente_id && (
+                    <Button
+                      size="sm"
+                      onClick={() => marcarNotificacionLeida(notif.id, notif.incidente_id)}
+                    >
+                      Ver Incidente
+                    </Button>
+                  )}
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => marcarNotificacionLeida(notif.id)}
+                  >
+                    Marcar leída
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Métricas */}
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">En Diagnóstico</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Asignadas</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-primary">{misIncidentes.length}</div>
+            <div className="text-3xl font-bold text-primary">{incidentes.length}</div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">Solicitudes Activas</CardTitle>
+            <CardTitle className="text-sm font-medium">Promedio Días</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-blue-600">
-              {solicitudesRepuestos.filter(s => s.estado !== 'entregado').length}
+              {incidentes.length > 0
+                ? Math.round(
+                    incidentes.reduce((sum, inc) => sum + getDiasDesdeIngreso(inc.fecha_ingreso), 0) /
+                      incidentes.length
+                  )
+                : 0}
             </div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">Repuestos Listos</CardTitle>
+            <CardTitle className="text-sm font-medium">Notificaciones</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-green-600">
-              {solicitudesRepuestos.filter(s => s.estado === 'listo').length}
-            </div>
+            <div className="text-3xl font-bold text-orange-600">{notificaciones.length}</div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Incidentes en diagnóstico */}
+      {/* Lista de asignaciones */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Wrench className="h-5 w-5 text-primary" />
-            Incidentes en Diagnóstico ({misIncidentes.length})
-          </CardTitle>
+          <CardTitle>Máquinas en Diagnóstico</CardTitle>
         </CardHeader>
         <CardContent>
           {loading ? (
             <div className="text-center py-12">
               <p className="text-muted-foreground">Cargando...</p>
             </div>
-          ) : misIncidentes.length === 0 ? (
+          ) : incidentes.length === 0 ? (
             <div className="text-center py-12">
-              <p className="text-muted-foreground">No tienes incidentes asignados</p>
+              <Wrench className="h-16 w-16 mx-auto mb-4 text-muted-foreground opacity-30" />
+              <p className="text-muted-foreground">No tienes máquinas asignadas</p>
             </div>
           ) : (
             <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-              {misIncidentes.map((inc) => {
+              {incidentes.map((inc) => {
                 const dias = getDiasDesdeIngreso(inc.fecha_ingreso);
                 return (
                   <div
                     key={inc.id}
-                    className="p-4 border rounded-lg hover:bg-muted/50 cursor-pointer transition-all"
-                    onClick={() => navigate(`/taller/diagnostico/${inc.id}`)}
+                    className="p-4 border rounded-lg hover:bg-muted/50 cursor-pointer transition-all hover:shadow-md"
+                    onClick={() => navigate(`/mostrador/seguimiento/${inc.id}`)}
                   >
                     <div className="space-y-3">
+                      {/* Header */}
                       <div className="flex items-center justify-between">
-                        <p className="font-semibold">{inc.codigo}</p>
+                        <p className="font-bold text-lg">{inc.codigo}</p>
                         <Badge variant="outline" className="bg-blue-50">
                           {inc.familia_producto || 'Sin familia'}
                         </Badge>
                       </div>
-                      
+
+                      {/* Descripción */}
                       <p className="text-sm text-muted-foreground line-clamp-2">
                         {inc.descripcion_problema}
                       </p>
 
-                      <div className="flex items-center gap-2">
-                        <Badge 
-                          variant="outline" 
+                      {/* Badges */}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Badge
+                          variant="outline"
                           className={`text-xs ${
-                            dias > 7 ? 'bg-red-50 text-red-700 border-red-200' :
-                            dias > 3 ? 'bg-orange-50 text-orange-700 border-orange-200' :
-                            'bg-blue-50 text-blue-700 border-blue-200'
+                            dias > 7
+                              ? 'bg-red-50 text-red-700 border-red-200'
+                              : dias > 3
+                              ? 'bg-orange-50 text-orange-700 border-orange-200'
+                              : 'bg-blue-50 text-blue-700 border-blue-200'
                           }`}
                         >
                           <Clock className="h-3 w-3 mr-1" />
-                          {dias} días
+                          {dias}d
                         </Badge>
                         {inc.cobertura_garantia && (
                           <Badge variant="secondary" className="text-xs bg-green-50 text-green-700">
@@ -194,70 +255,14 @@ export default function MisAsignaciones() {
                         )}
                       </div>
 
+                      {/* Botón */}
                       <Button className="w-full" size="sm">
-                        Ver Diagnóstico
+                        Ir a Diagnóstico
                       </Button>
                     </div>
                   </div>
                 );
               })}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Solicitudes de repuestos */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Package className="h-5 w-5 text-blue-600" />
-            Solicitudes de Repuestos ({solicitudesRepuestos.length})
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {solicitudesRepuestos.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground">No hay solicitudes de repuestos</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {solicitudesRepuestos.map((sol) => (
-                <div key={sol.id} className="p-4 border rounded-lg">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1 space-y-2">
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium">Solicitud #{sol.id.slice(0, 8)}</p>
-                        <Badge className={`${getEstadoBadge(sol.estado)} text-white`}>
-                          {sol.estado.replace('_', ' ')}
-                        </Badge>
-                      </div>
-                      
-                      {sol.estado === 'listo' && (
-                        <div className="flex items-center gap-2 text-green-600 text-sm">
-                          <Bell className="h-4 w-4" />
-                          <span className="font-medium">¡Repuestos listos para recoger!</span>
-                        </div>
-                      )}
-                      
-                      <div className="text-sm text-muted-foreground">
-                        {Array.isArray(sol.repuestos) && sol.repuestos.length > 0 && (
-                          <div className="space-y-1">
-                            {sol.repuestos.map((rep: any, idx: number) => (
-                              <p key={idx}>• {rep.descripcion || rep.codigo} (x{rep.cantidad})</p>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                      
-                      {sol.notas && (
-                        <p className="text-sm text-muted-foreground italic">
-                          Nota: {sol.notas}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
             </div>
           )}
         </CardContent>
