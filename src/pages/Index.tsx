@@ -2,22 +2,26 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
-import { Users, Package, Wrench, FileText, TrendingUp, AlertTriangle, Search, Calendar, Hash } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Search, Calendar, Hash, Wrench } from "lucide-react";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { MostradorDashboard } from "@/components/dashboard/MostradorDashboard";
+import { TallerDashboard } from "@/components/dashboard/TallerDashboard";
+import { LogisticaDashboard } from "@/components/dashboard/LogisticaDashboard";
+import { BodegaDashboard } from "@/components/dashboard/BodegaDashboard";
 import type { Database } from "@/integrations/supabase/types";
 
 type IncidenteDB = Database['public']['Tables']['incidentes']['Row'];
-type ClienteDB = Database['public']['Tables']['clientes']['Row'];
 
 const Index = () => {
   const navigate = useNavigate();
+  const { userRole } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [searchFilter, setSearchFilter] = useState("all");
   const [incidentes, setIncidentes] = useState<IncidenteDB[]>([]);
-  const [clientes, setClientes] = useState<ClienteDB[]>([]);
   const [loading, setLoading] = useState(true);
   
   useEffect(() => {
@@ -27,28 +31,17 @@ const Index = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [incidentesResult, clientesResult] = await Promise.all([
-        supabase.from('incidentes').select('*').order('fecha_ingreso', { ascending: false }),
-        supabase.from('clientes').select('*')
-      ]);
+      const { data } = await supabase
+        .from('incidentes')
+        .select('*')
+        .order('fecha_ingreso', { ascending: false });
 
-      if (incidentesResult.data) setIncidentes(incidentesResult.data);
-      if (clientesResult.data) setClientes(clientesResult.data);
+      if (data) setIncidentes(data);
     } catch (error) {
       console.error('Error:', error);
     } finally {
       setLoading(false);
     }
-  };
-  
-  // Métricas específicas para el dashboard del taller
-  const incidentesPendienteDiagnostico = incidentes.filter(i => i.status === "Pendiente de diagnostico").length;
-  const incidentesPendienteRepuestos = incidentes.filter(i => i.status === "Pendiente por repuestos").length;
-  const incidentesEnDiagnostico = incidentes.filter(i => i.status === "En diagnostico").length;
-  
-  const getClienteName = (codigo: string) => {
-    const cliente = clientes.find(c => c.codigo === codigo);
-    return cliente ? cliente.nombre : "Cliente no encontrado";
   };
 
   // Filtros para el buscador
@@ -71,58 +64,22 @@ const Index = () => {
     navigate(`/incidentes/${id}`);
   };
 
+  // Determinar la pestaña por defecto según el rol
+  const getDefaultTab = () => {
+    if (userRole === 'admin') return 'mostrador';
+    return userRole || 'mostrador';
+  };
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-foreground">Dashboard - Centro de Servicio</h1>
         <p className="text-muted-foreground">
-          Resumen general del sistema de gestión
+          Panel de control interactivo por área
         </p>
       </div>
 
-      {/* Métricas del taller */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pendientes de Diagnóstico</CardTitle>
-            <AlertTriangle className="h-4 w-4 text-warning" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-warning">{incidentesPendienteDiagnostico}</div>
-            <p className="text-xs text-muted-foreground">
-              Requieren diagnóstico
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pendientes por Repuestos</CardTitle>
-            <Package className="h-4 w-4 text-info" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-info">{incidentesPendienteRepuestos}</div>
-            <p className="text-xs text-muted-foreground">
-              Esperando repuestos
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">En Diagnóstico</CardTitle>
-            <TrendingUp className="h-4 w-4 text-success" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-success">{incidentesEnDiagnostico}</div>
-            <p className="text-xs text-muted-foreground">
-              Siendo diagnosticados
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Buscador de incidentes */}
+      {/* Buscador de incidentes - Disponible para todas las áreas */}
       <Card>
         <CardHeader>
           <CardTitle>Buscador de Incidentes</CardTitle>
@@ -193,60 +150,55 @@ const Index = () => {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Accesos Rápidos</CardTitle>
-            <CardDescription>
-              Navegación directa a las secciones principales
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <a href="/clientes" className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
-                <Users className="h-5 w-5 text-primary" />
-                <span className="font-medium">Clientes</span>
-              </a>
-              <a href="/productos" className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
-                <Package className="h-5 w-5 text-primary" />
-                <span className="font-medium">Productos</span>
-              </a>
-              <a href="/repuestos" className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
-                <Wrench className="h-5 w-5 text-primary" />
-                <span className="font-medium">Repuestos</span>
-              </a>
-              <a href="/incidentes" className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
-                <FileText className="h-5 w-5 text-primary" />
-                <span className="font-medium">Incidentes</span>
-              </a>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Dashboards por área */}
+      <Tabs defaultValue={getDefaultTab()} className="space-y-6">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="mostrador">Mostrador</TabsTrigger>
+          <TabsTrigger value="taller">Taller</TabsTrigger>
+          <TabsTrigger value="logistica">Logística</TabsTrigger>
+          <TabsTrigger value="bodega">Bodega</TabsTrigger>
+        </TabsList>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Actividad Reciente</CardTitle>
-            <CardDescription>
-              Últimos incidentes registrados
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {loading ? (
-                <p className="text-center text-muted-foreground">Cargando...</p>
-              ) : incidentes.slice(0, 5).map((incidente) => (
-                <div key={incidente.id} className="flex items-center justify-between p-2 border-l-2 border-primary/20 pl-4">
-                  <div>
-                    <p className="font-medium text-sm">{incidente.codigo}</p>
-                    <p className="text-xs text-muted-foreground">{incidente.descripcion_problema.substring(0, 50)}...</p>
-                  </div>
-                  <span className="text-xs bg-muted px-2 py-1 rounded">{incidente.status}</span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+        <TabsContent value="mostrador" className="space-y-4">
+          {loading ? (
+            <Card>
+              <CardContent className="py-10">
+                <p className="text-center text-muted-foreground">Cargando datos...</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <MostradorDashboard incidentes={incidentes} />
+          )}
+        </TabsContent>
+
+        <TabsContent value="taller" className="space-y-4">
+          {loading ? (
+            <Card>
+              <CardContent className="py-10">
+                <p className="text-center text-muted-foreground">Cargando datos...</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <TallerDashboard incidentes={incidentes} />
+          )}
+        </TabsContent>
+
+        <TabsContent value="logistica" className="space-y-4">
+          {loading ? (
+            <Card>
+              <CardContent className="py-10">
+                <p className="text-center text-muted-foreground">Cargando datos...</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <LogisticaDashboard incidentes={incidentes} />
+          )}
+        </TabsContent>
+
+        <TabsContent value="bodega" className="space-y-4">
+          <BodegaDashboard />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
