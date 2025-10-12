@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { FALLAS_COMUNES, CAUSAS_COMUNES } from "@/data/diagnosticoOptions";
+import { FALLAS_POR_FAMILIA, CAUSAS_POR_FAMILIA, FALLAS_GENERICAS, CAUSAS_GENERICAS } from "@/data/diagnosticoOptions";
 import { Textarea } from "@/components/ui/textarea";
 
 export default function DiagnosticoInicial() {
@@ -37,6 +37,15 @@ export default function DiagnosticoInicial() {
   
   // Control de pasos
   const [paso, setPaso] = useState(1);
+
+  // Obtener fallas y causas según la familia del producto
+  const fallasDisponibles = incidente?.familia_producto && FALLAS_POR_FAMILIA[incidente.familia_producto]
+    ? FALLAS_POR_FAMILIA[incidente.familia_producto]
+    : FALLAS_GENERICAS;
+
+  const causasDisponibles = incidente?.familia_producto && CAUSAS_POR_FAMILIA[incidente.familia_producto]
+    ? CAUSAS_POR_FAMILIA[incidente.familia_producto]
+    : CAUSAS_GENERICAS;
 
   useEffect(() => {
     fetchIncidente();
@@ -263,10 +272,11 @@ export default function DiagnosticoInicial() {
                   <Label className="text-lg font-semibold">Fallas Encontradas</Label>
                   <p className="text-sm text-muted-foreground">
                     Selecciona todas las fallas que apliquen
+                    {incidente.familia_producto && ` - ${incidente.familia_producto}`}
                   </p>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {FALLAS_COMUNES.map((falla) => (
+                  {fallasDisponibles.map((falla) => (
                     <label
                       key={falla}
                       className={`flex items-center space-x-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${
@@ -308,10 +318,11 @@ export default function DiagnosticoInicial() {
                   <Label className="text-lg font-semibold">Causas Identificadas</Label>
                   <p className="text-sm text-muted-foreground">
                     Selecciona todas las causas que apliquen
+                    {incidente.familia_producto && ` - ${incidente.familia_producto}`}
                   </p>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {CAUSAS_COMUNES.map((causa) => (
+                  {causasDisponibles.map((causa) => (
                     <label
                       key={causa}
                       className={`flex items-center space-x-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${
