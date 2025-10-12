@@ -21,6 +21,8 @@ import MisAsignaciones from "./pages/taller/MisAsignaciones";
 import Presupuestos from "./pages/taller/Presupuestos";
 import Inventario from "./pages/bodega/Inventario";
 import Solicitudes from "./pages/bodega/Solicitudes";
+import IncidentesPendientes from "./pages/digitador/IncidentesPendientes";
+import DiagnosticarIncidente from "./pages/digitador/DiagnosticarIncidente";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -50,6 +52,8 @@ const App = () => (
               <Route path="/taller/presupuestos" element={<Presupuestos />} />
               <Route path="/bodega/inventario" element={<Inventario />} />
               <Route path="/bodega/solicitudes" element={<Solicitudes />} />
+              <Route path="/digitador/pendientes" element={<IncidentesPendientes />} />
+              <Route path="/digitador/diagnosticar/:id" element={<DiagnosticarIncidente />} />
               
               <Route path="*" element={<NotFound />} />
             </Routes>

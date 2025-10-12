@@ -32,9 +32,10 @@ type IncidenteDB = Database['public']['Tables']['incidentes']['Row'];
 interface DiagnosticoTecnicoProps {
   incidente: IncidenteDB;
   onDiagnosticoCompleto: () => void;
+  modoDigitador?: boolean;
 }
 
-export function DiagnosticoTecnico({ incidente, onDiagnosticoCompleto }: DiagnosticoTecnicoProps) {
+export function DiagnosticoTecnico({ incidente, onDiagnosticoCompleto, modoDigitador = false }: DiagnosticoTecnicoProps) {
   const [paso, setPaso] = useState(1);
   const [productoInfo, setProductoInfo] = useState<any>(null);
   const [clienteInfo, setClienteInfo] = useState<any>(null);
@@ -221,34 +222,74 @@ export function DiagnosticoTecnico({ incidente, onDiagnosticoCompleto }: Diagnos
       return;
     }
 
+    if (fallas.filter(f => f.trim() !== "").length === 0) {
+      toast.error("Debes agregar al menos una falla");
+      return;
+    }
+
+    if (causas.filter(c => c.trim() !== "").length === 0) {
+      toast.error("Debes agregar al menos una causa");
+      return;
+    }
+
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('No user');
 
       // Guardar diagnóstico
+      const diagnosticoData = {
+        incidente_id: incidente.id,
+        tecnico_codigo: incidente.codigo_tecnico || user.email || 'técnico',
+        digitador_codigo: modoDigitador ? user.email : null,
+        fallas: fallas.filter(f => f.trim() !== ""),
+        causas: causas.filter(c => c.trim() !== ""),
+        repuestos_utilizados: repuestosSeleccionados,
+        recomendaciones: recomendaciones,
+        resolucion: resolucion,
+        fotos_urls: fotosUrls,
+        accesorios: accesorios,
+        tiempo_estimado: tiempoEstimado,
+        costo_estimado: costoEstimado ? parseFloat(costoEstimado) : null,
+        estado: 'completado'
+      };
+
       const { error: diagError } = await supabase
         .from('diagnosticos')
-        .insert({
-          incidente_id: incidente.id,
-          tecnico_codigo: user.email || 'técnico',
-          fallas: fallas.filter(f => f.trim() !== ""),
-          causas: causas.filter(c => c.trim() !== ""),
-          repuestos_utilizados: repuestosSeleccionados,
-          recomendaciones: recomendaciones,
-          resolucion: resolucion,
-          fotos_urls: fotosUrls,
-          accesorios: accesorios,
-          tiempo_estimado: tiempoEstimado,
-          costo_estimado: costoEstimado ? parseFloat(costoEstimado) : null,
-          estado: 'completado'
-        });
+        .insert(diagnosticoData);
 
       if (diagError) throw diagError;
 
-      // Actualizar estatus del incidente
-      const nuevoEstatus = estatusFinal === 'reparado' ? 'Reparado' : 
-                          estatusFinal === 'pendiente_repuestos' ? 'Pendiente por repuestos' :
-                          estatusFinal === 'presupuesto' ? 'Presupuesto' : incidente.status;
+      // Mapear estatus final a los estados del sistema
+      type StatusIncidente = "Ingresado" | "En ruta" | "Pendiente de diagnostico" | "En diagnostico" | "Pendiente por repuestos" | "Presupuesto" | "Porcentaje" | "Reparado" | "Cambio por garantia" | "Nota de credito" | "Bodega pedido" | "Rechazado" | "Pendiente entrega" | "Logistica envio";
+      
+      let nuevoEstatus: StatusIncidente = incidente.status;
+      
+      switch (estatusFinal) {
+        case 'reparado':
+          nuevoEstatus = 'Reparado';
+          break;
+        case 'pendiente_repuestos':
+          nuevoEstatus = 'Pendiente por repuestos';
+          break;
+        case 'presupuesto':
+          nuevoEstatus = 'Presupuesto';
+          break;
+        case 'porcentaje':
+          nuevoEstatus = 'Porcentaje';
+          break;
+        case 'cambio_garantia':
+          nuevoEstatus = 'Cambio por garantia';
+          break;
+        case 'nota_credito':
+          nuevoEstatus = 'Nota de credito';
+          break;
+        case 'pendiente_entrega':
+          nuevoEstatus = 'Pendiente entrega';
+          break;
+        case 'logistica_envio':
+          nuevoEstatus = 'Logistica envio';
+          break;
+      }
 
       const { error: incError } = await supabase
         .from('incidentes')
@@ -257,7 +298,7 @@ export function DiagnosticoTecnico({ incidente, onDiagnosticoCompleto }: Diagnos
 
       if (incError) throw incError;
 
-      toast.success("Diagnóstico guardado exitosamente");
+      toast.success(modoDigitador ? "Diagnóstico digitalizado exitosamente" : "Diagnóstico guardado exitosamente");
       setShowConfirmDialog(false);
       onDiagnosticoCompleto();
     } catch (error) {
@@ -641,17 +682,19 @@ export function DiagnosticoTecnico({ incidente, onDiagnosticoCompleto }: Diagnos
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="reparado">Reparado</SelectItem>
+                  <SelectItem value="pendiente_entrega">Pendiente Entrega</SelectItem>
+                  <SelectItem value="logistica_envio">Logística Envío</SelectItem>
                   <SelectItem value="pendiente_repuestos">Pendiente por Repuestos</SelectItem>
                   <SelectItem value="presupuesto">Presupuesto</SelectItem>
-                  <SelectItem value="garantia">Cambio por Garantía</SelectItem>
-                  <SelectItem value="canje">Canje</SelectItem>
+                  <SelectItem value="porcentaje">Porcentaje/Canje</SelectItem>
+                  <SelectItem value="cambio_garantia">Cambio por Garantía</SelectItem>
                   <SelectItem value="nota_credito">Nota de Crédito</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             {/* Solicitar Cambio/Garantía/Canje */}
-            {(estatusFinal === 'garantia' || estatusFinal === 'canje' || estatusFinal === 'nota_credito') && (
+            {(estatusFinal === 'cambio_garantia' || estatusFinal === 'porcentaje' || estatusFinal === 'nota_credito') && (
               <div className="p-4 border-2 border-primary/20 rounded-lg bg-primary/5">
                 <div className="flex items-start gap-3">
                   <AlertTriangle className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />

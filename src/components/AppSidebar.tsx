@@ -43,6 +43,9 @@ const menuAreas = {
   bodega: [
     { title: "Inventario", url: "/bodega/inventario", icon: Package },
     { title: "Solicitudes", url: "/bodega/solicitudes", icon: ShoppingCart },
+  ],
+  digitador: [
+    { title: "Pendientes", url: "/digitador/pendientes", icon: FileText },
   ]
 };
 
@@ -110,6 +113,7 @@ export function AppSidebar() {
         {renderMenuSection("Mostrador", menuAreas.mostrador)}
         {renderMenuSection("Logística", menuAreas.logistica)}
         {renderMenuSection("Taller", menuAreas.taller)}
+        {renderMenuSection("Digitador", menuAreas.digitador)}
         {renderMenuSection("Bodega", menuAreas.bodega)}
 
         <div className="mt-auto p-4 border-t">
