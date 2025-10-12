@@ -436,42 +436,44 @@ export function DiagnosticoTecnico({ incidente, onDiagnosticoCompleto, modoDigit
         </CardContent>
       </Card>
 
-      {/* Progress Steps */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex items-center justify-between">
-            <div className="flex flex-col items-center flex-1">
-              <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold ${
-                paso >= 1 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
-              }`}>
-                1
+      {/* Progress Steps - Only show for tecnico mode */}
+      {!modoDigitador && (
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div className="flex flex-col items-center flex-1">
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold ${
+                  paso >= 1 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+                }`}>
+                  1
+                </div>
+                <p className="text-xs mt-2 text-center">Revisar<br/>Máquina</p>
               </div>
-              <p className="text-xs mt-2 text-center">Revisar<br/>Máquina</p>
-            </div>
-            <ArrowRight className={`h-6 w-6 ${paso > 1 ? 'text-primary' : 'text-muted'}`} />
-            <div className="flex flex-col items-center flex-1">
-              <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold ${
-                paso >= 2 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
-              }`}>
-                2
+              <ArrowRight className={`h-6 w-6 ${paso > 1 ? 'text-primary' : 'text-muted'}`} />
+              <div className="flex flex-col items-center flex-1">
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold ${
+                  paso >= 2 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+                }`}>
+                  2
+                </div>
+                <p className="text-xs mt-2 text-center">Solicitar<br/>Repuestos</p>
               </div>
-              <p className="text-xs mt-2 text-center">Solicitar<br/>Repuestos</p>
-            </div>
-            <ArrowRight className={`h-6 w-6 ${paso > 2 ? 'text-primary' : 'text-muted'}`} />
-            <div className="flex flex-col items-center flex-1">
-              <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold ${
-                paso >= 3 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
-              }`}>
-                3
+              <ArrowRight className={`h-6 w-6 ${paso > 2 ? 'text-primary' : 'text-muted'}`} />
+              <div className="flex flex-col items-center flex-1">
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold ${
+                  paso >= 3 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+                }`}>
+                  3
+                </div>
+                <p className="text-xs mt-2 text-center">Decisión<br/>Final</p>
               </div>
-              <p className="text-xs mt-2 text-center">Decisión<br/>Final</p>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
-      {/* Paso 1: Revisar Máquina */}
-      {paso === 1 && (
+      {/* Paso 1: Revisar Máquina - Simplified for digitador */}
+      {(paso === 1 || modoDigitador) && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -567,8 +569,8 @@ export function DiagnosticoTecnico({ incidente, onDiagnosticoCompleto, modoDigit
         </Card>
       )}
 
-      {/* Paso 2: Solicitar Repuestos */}
-      {paso === 2 && (
+      {/* Paso 2: Solicitar Repuestos - Only for tecnico mode */}
+      {!modoDigitador && paso === 2 && (
         <div className="grid gap-6 lg:grid-cols-2">
           <Card>
             <CardHeader>
@@ -684,8 +686,8 @@ export function DiagnosticoTecnico({ incidente, onDiagnosticoCompleto, modoDigit
         </div>
       )}
 
-      {/* Paso 3: Decisión Final */}
-      {paso === 3 && (
+      {/* Paso 3: Decisión Final - Also shown in digitador mode */}
+      {(paso === 3 || modoDigitador) && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -783,12 +785,14 @@ export function DiagnosticoTecnico({ incidente, onDiagnosticoCompleto, modoDigit
             <Separator />
 
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setPaso(2)}>
-                Volver
-              </Button>
+              {!modoDigitador && (
+                <Button variant="outline" onClick={() => setPaso(2)}>
+                  Volver
+                </Button>
+              )}
               <Button onClick={() => setShowConfirmDialog(true)} className="flex-1">
                 <CheckCircle className="h-4 w-4 mr-2" />
-                Guardar Diagnóstico
+                {modoDigitador ? 'Completar Digitalización' : 'Guardar Diagnóstico'}
               </Button>
             </div>
           </CardContent>
