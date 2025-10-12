@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { StatusBadge } from "@/components/StatusBadge";
+import { DiagnosticoTecnico } from "@/components/DiagnosticoTecnico";
 
 export default function SeguimientoIncidente() {
   const { id } = useParams();
@@ -132,6 +133,14 @@ export default function SeguimientoIncidente() {
           Imprimir
         </Button>
       </div>
+
+      {/* Mostrar componente de diagnóstico si está en estado "En diagnostico" */}
+      {incidente.status === 'En diagnostico' && (
+        <DiagnosticoTecnico 
+          incidente={incidente} 
+          onDiagnosticoCompleto={fetchData}
+        />
+      )}
 
       <div className="grid gap-6 md:grid-cols-2">
         {/* Estado Actual */}
