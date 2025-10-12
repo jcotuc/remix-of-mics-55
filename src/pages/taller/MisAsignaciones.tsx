@@ -256,8 +256,15 @@ export default function MisAsignaciones() {
                       </div>
 
                       {/* Botón */}
-                      <Button className="w-full" size="sm">
-                        Ir a Diagnóstico
+                      <Button 
+                        className="w-full" 
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/taller/diagnostico/${inc.id}`);
+                        }}
+                      >
+                        Ingresar Diagnóstico
                       </Button>
                     </div>
                   </div>
