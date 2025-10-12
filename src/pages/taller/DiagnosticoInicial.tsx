@@ -21,8 +21,12 @@ export default function DiagnosticoInicial() {
   const [causasSeleccionadas, setCausasSeleccionadas] = useState<string[]>([]);
   const [otraFalla, setOtraFalla] = useState("");
   const [otraCausa, setOtraCausa] = useState("");
-  const [fotosUrls, setFotosUrls] = useState<string[]>([]);
+  const [fotosIniciales, setFotosIniciales] = useState<string[]>([]);
+  const [fotosFinales, setFotosFinales] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [aplicaGarantia, setAplicaGarantia] = useState<boolean | null>(null);
+  const [tipoResolucion, setTipoResolucion] = useState<string>("");
+  const [necesitaRepuestos, setNecesitaRepuestos] = useState(false);
 
   useEffect(() => {
     fetchIncidente();
@@ -49,7 +53,7 @@ export default function DiagnosticoInicial() {
       if (diagnostico) {
         setFallasSeleccionadas(diagnostico.fallas || []);
         setCausasSeleccionadas(diagnostico.causas || []);
-        setFotosUrls(diagnostico.fotos_urls || []);
+        setFotosIniciales(diagnostico.fotos_urls || []);
       }
     } catch (error) {
       console.error('Error:', error);
@@ -75,7 +79,7 @@ export default function DiagnosticoInicial() {
     );
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, tipo: 'inicial' | 'final') => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
@@ -85,9 +89,9 @@ export default function DiagnosticoInicial() {
     try {
       for (const file of Array.from(files)) {
         const fileExt = file.name.split('.').pop();
-        const fileName = `${id}/${Date.now()}-${Math.random()}.${fileExt}`;
+        const fileName = `${id}/${tipo}-${Date.now()}-${Math.random()}.${fileExt}`;
 
-        const { error: uploadError, data } = await supabase.storage
+        const { error: uploadError } = await supabase.storage
           .from('incident-photos')
           .upload(fileName, file);
 
@@ -100,7 +104,11 @@ export default function DiagnosticoInicial() {
         newUrls.push(publicUrl);
       }
 
-      setFotosUrls(prev => [...prev, ...newUrls]);
+      if (tipo === 'inicial') {
+        setFotosIniciales(prev => [...prev, ...newUrls]);
+      } else {
+        setFotosFinales(prev => [...prev, ...newUrls]);
+      }
       toast.success("Fotos subidas exitosamente");
     } catch (error) {
       console.error('Error uploading files:', error);
@@ -108,6 +116,25 @@ export default function DiagnosticoInicial() {
     } finally {
       setUploading(false);
     }
+  };
+
+  const opcionesConGarantia = [
+    { value: "reparar_garantia", label: "Reparar en Garantía", requiereRepuestos: true },
+    { value: "cambio_garantia", label: "Cambio por Garantía", requiereRepuestos: false },
+    { value: "nota_credito", label: "Nota de Crédito", requiereRepuestos: false },
+    { value: "pendiente_repuestos", label: "Pendiente por Repuestos", requiereRepuestos: true },
+  ];
+
+  const opcionesSinGarantia = [
+    { value: "canje", label: "Canje", requiereRepuestos: false },
+    { value: "presupuesto", label: "Presupuesto", requiereRepuestos: true },
+  ];
+
+  const handleTipoResolucionChange = (value: string) => {
+    setTipoResolucion(value);
+    const opciones = aplicaGarantia ? opcionesConGarantia : opcionesSinGarantia;
+    const opcionSeleccionada = opciones.find(op => op.value === value);
+    setNecesitaRepuestos(opcionSeleccionada?.requiereRepuestos || false);
   };
 
   const guardarBorrador = async () => {
@@ -135,7 +162,7 @@ export default function DiagnosticoInicial() {
         tecnico_codigo: tecnicoCodigo,
         fallas: todasFallas,
         causas: todasCausas,
-        fotos_urls: fotosUrls,
+        fotos_urls: fotosIniciales,
         estado: 'borrador'
       };
 
@@ -177,6 +204,16 @@ export default function DiagnosticoInicial() {
       return;
     }
 
+    if (aplicaGarantia === null) {
+      toast.error("Debes indicar si aplica garantía");
+      return;
+    }
+
+    if (!tipoResolucion) {
+      toast.error("Debes seleccionar un tipo de resolución");
+      return;
+    }
+
     setSaving(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -195,8 +232,9 @@ export default function DiagnosticoInicial() {
         tecnico_codigo: tecnicoCodigo,
         fallas: todasFallas,
         causas: todasCausas,
-        fotos_urls: fotosUrls,
-        estado: 'pendiente_digitacion'
+        fotos_urls: fotosIniciales,
+        estado: 'pendiente_digitacion',
+        resolucion: tipoResolucion
       };
 
       const { data: existing } = await supabase
@@ -216,9 +254,13 @@ export default function DiagnosticoInicial() {
           .insert(diagnosticoData);
       }
 
+      // Update incident with warranty info
       await supabase
         .from('incidentes')
-        .update({ status: 'En diagnostico' })
+        .update({ 
+          status: 'En diagnostico',
+          cobertura_garantia: aplicaGarantia 
+        })
         .eq('id', id);
 
       toast.success("Diagnóstico enviado para digitalización");
@@ -277,6 +319,59 @@ export default function DiagnosticoInicial() {
       </div>
 
       <div className="space-y-6">
+        {/* Fotos Iniciales - Estado de la Máquina */}
+        <Card className="border-l-4 border-l-primary/50 hover-lift">
+          <CardHeader className="bg-gradient-to-r from-primary/5 to-transparent">
+            <CardTitle className="flex items-center gap-2 text-2xl">
+              <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
+                <Camera className="w-4 h-4 text-primary" />
+              </div>
+              Fotos Iniciales - Estado de la Máquina
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-6">
+            <div className="space-y-4">
+              <div className="flex items-center justify-center w-full">
+                <label 
+                  htmlFor="fotos-iniciales" 
+                  className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-xl cursor-pointer bg-muted/30 hover:bg-muted/50 border-muted-foreground/25 hover:border-primary/50 transition-all duration-200"
+                >
+                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                    <Camera className="w-10 h-10 mb-3 text-muted-foreground" />
+                    <p className="mb-2 text-sm font-semibold text-muted-foreground">
+                      <span className="text-primary">Click para subir</span> fotos del estado inicial
+                    </p>
+                    <p className="text-xs text-muted-foreground">JPG, PNG o WEBP</p>
+                  </div>
+                  <input
+                    id="fotos-iniciales"
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={(e) => handleFileUpload(e, 'inicial')}
+                    disabled={uploading}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+
+              {fotosIniciales.length > 0 && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+                  {fotosIniciales.map((url, index) => (
+                    <div key={index} className="relative group">
+                      <img
+                        src={url}
+                        alt={`Estado inicial ${index + 1}`}
+                        className="w-full h-32 object-cover rounded-xl border-2 border-border shadow-md group-hover:shadow-xl transition-shadow duration-200"
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Fallas Encontradas - Modern Design */}
         <Card className="border-l-4 border-l-primary hover-lift">
           <CardHeader className="bg-gradient-to-r from-primary/5 to-transparent">
@@ -371,36 +466,119 @@ export default function DiagnosticoInicial() {
           </CardContent>
         </Card>
 
-        {/* Fotos - Modern Design */}
+        {/* Aplica Garantía */}
+        <Card className="border-l-4 border-l-primary hover-lift">
+          <CardHeader className="bg-gradient-to-r from-primary/5 to-transparent">
+            <CardTitle className="flex items-center gap-2 text-2xl">
+              <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
+                <span className="text-primary font-bold">3</span>
+              </div>
+              ¿Aplica Garantía?
+              <span className="text-destructive text-sm">*</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-6">
+            <div className="flex gap-4">
+              <Button
+                type="button"
+                variant={aplicaGarantia === true ? "default" : "outline"}
+                onClick={() => {
+                  setAplicaGarantia(true);
+                  setTipoResolucion("");
+                }}
+                className="flex-1 h-20 text-lg"
+              >
+                Sí, Aplica Garantía
+              </Button>
+              <Button
+                type="button"
+                variant={aplicaGarantia === false ? "default" : "outline"}
+                onClick={() => {
+                  setAplicaGarantia(false);
+                  setTipoResolucion("");
+                }}
+                className="flex-1 h-20 text-lg"
+              >
+                No Aplica Garantía
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Tipo de Resolución */}
+        {aplicaGarantia !== null && (
+          <Card className="border-l-4 border-l-secondary hover-lift">
+            <CardHeader className="bg-gradient-to-r from-secondary/5 to-transparent">
+              <CardTitle className="flex items-center gap-2 text-2xl">
+                <div className="w-8 h-8 bg-secondary/10 rounded-lg flex items-center justify-center">
+                  <span className="text-secondary font-bold">4</span>
+                </div>
+                Tipo de Resolución
+                <span className="text-destructive text-sm">*</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {(aplicaGarantia ? opcionesConGarantia : opcionesSinGarantia).map((opcion) => (
+                  <Button
+                    key={opcion.value}
+                    type="button"
+                    variant={tipoResolucion === opcion.value ? "default" : "outline"}
+                    onClick={() => handleTipoResolucionChange(opcion.value)}
+                    className="h-16 text-base"
+                  >
+                    {opcion.label}
+                  </Button>
+                ))}
+              </div>
+              {tipoResolucion && (
+                <div className="mt-4 p-4 bg-muted/50 rounded-lg">
+                  <p className="text-sm font-medium">
+                    {necesitaRepuestos 
+                      ? "✓ Esta opción permite solicitar repuestos" 
+                      : "✗ Esta opción NO requiere solicitud de repuestos"}
+                  </p>
+                  {tipoResolucion === "presupuesto" && (
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Nota: Los repuestos solo se despacharán después del pago del cliente
+                    </p>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Fotos Finales - Evidencia del Diagnóstico */}
         <Card className="border-l-4 border-l-primary/50 hover-lift">
           <CardHeader className="bg-gradient-to-r from-primary/5 to-transparent">
             <CardTitle className="flex items-center gap-2 text-2xl">
               <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
                 <Camera className="w-4 h-4 text-primary" />
               </div>
-              Evidencia Fotográfica
+              Fotos Finales - Evidencia del Diagnóstico
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-6">
             <div className="space-y-4">
               <div className="flex items-center justify-center w-full">
                 <label 
-                  htmlFor="fotos-diagnostico" 
+                  htmlFor="fotos-finales" 
                   className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-xl cursor-pointer bg-muted/30 hover:bg-muted/50 border-muted-foreground/25 hover:border-primary/50 transition-all duration-200"
                 >
                   <div className="flex flex-col items-center justify-center pt-5 pb-6">
                     <Camera className="w-10 h-10 mb-3 text-muted-foreground" />
                     <p className="mb-2 text-sm font-semibold text-muted-foreground">
-                      <span className="text-primary">Click para subir</span> o arrastra las fotos
+                      <span className="text-primary">Click para subir</span> fotos de evidencia
                     </p>
                     <p className="text-xs text-muted-foreground">JPG, PNG o WEBP</p>
                   </div>
                   <input
-                    id="fotos-diagnostico"
+                    id="fotos-finales"
                     type="file"
                     accept="image/*"
                     multiple
-                    onChange={handleFileUpload}
+                    onChange={(e) => handleFileUpload(e, 'final')}
                     disabled={uploading}
                     className="hidden"
                   />
@@ -414,16 +592,15 @@ export default function DiagnosticoInicial() {
                 </div>
               )}
 
-              {fotosUrls.length > 0 && (
+              {fotosFinales.length > 0 && (
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
-                  {fotosUrls.map((url, index) => (
+                  {fotosFinales.map((url, index) => (
                     <div key={index} className="relative group">
                       <img
                         src={url}
-                        alt={`Evidencia ${index + 1}`}
+                        alt={`Evidencia final ${index + 1}`}
                         className="w-full h-32 object-cover rounded-xl border-2 border-border shadow-md group-hover:shadow-xl transition-shadow duration-200"
                       />
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 rounded-xl transition-colors duration-200"></div>
                     </div>
                   ))}
                 </div>
@@ -438,14 +615,14 @@ export default function DiagnosticoInicial() {
             <CardContent className="p-4">
               <div className="flex gap-3 justify-end items-center">
                 <div className="mr-auto text-sm text-muted-foreground">
-                  {fallasSeleccionadas.length > 0 && causasSeleccionadas.length > 0 ? (
+                  {fallasSeleccionadas.length > 0 && causasSeleccionadas.length > 0 && aplicaGarantia !== null && tipoResolucion ? (
                     <span className="flex items-center gap-2 text-success">
                       <CheckCircle2 className="w-4 h-4" />
                       Listo para enviar
                     </span>
                   ) : (
                     <span>
-                      Selecciona al menos 1 falla y 1 causa
+                      Completa todos los campos requeridos
                     </span>
                   )}
                 </div>
@@ -460,7 +637,13 @@ export default function DiagnosticoInicial() {
                 <Button
                   variant="default"
                   onClick={finalizarDiagnostico}
-                  disabled={saving || (fallasSeleccionadas.length === 0 && !otraFalla.trim()) || (causasSeleccionadas.length === 0 && !otraCausa.trim())}
+                  disabled={
+                    saving || 
+                    aplicaGarantia === null || 
+                    !tipoResolucion || 
+                    (fallasSeleccionadas.length === 0 && !otraFalla.trim()) || 
+                    (causasSeleccionadas.length === 0 && !otraCausa.trim())
+                  }
                   className="gap-2"
                   size="lg"
                 >
