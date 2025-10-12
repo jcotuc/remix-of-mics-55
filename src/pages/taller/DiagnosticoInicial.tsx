@@ -202,6 +202,50 @@ export default function DiagnosticoInicial() {
         <p className="text-muted-foreground">Incidente: {incidente.codigo}</p>
       </div>
 
+      {/* Información del Incidente */}
+      <Card className="mb-6 border-l-4 border-l-primary">
+        <CardHeader className="bg-primary/5">
+          <CardTitle className="flex items-center gap-2">
+            <CheckCircle2 className="w-5 h-5" />
+            Información del Incidente
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pt-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label className="text-sm text-muted-foreground">Cliente</Label>
+              <p className="text-base font-medium">{incidente.codigo_cliente}</p>
+            </div>
+            <div>
+              <Label className="text-sm text-muted-foreground">Producto</Label>
+              <p className="text-base font-medium">{incidente.codigo_producto}</p>
+            </div>
+            {incidente.sku_maquina && (
+              <div>
+                <Label className="text-sm text-muted-foreground">SKU de la Máquina</Label>
+                <p className="text-base font-medium">{incidente.sku_maquina}</p>
+              </div>
+            )}
+            {incidente.familia_producto && (
+              <div>
+                <Label className="text-sm text-muted-foreground">Familia del Producto</Label>
+                <p className="text-base font-medium">{incidente.familia_producto}</p>
+              </div>
+            )}
+            {incidente.accesorios && (
+              <div className="md:col-span-2">
+                <Label className="text-sm text-muted-foreground">Accesorios Incluidos</Label>
+                <p className="text-base">{incidente.accesorios}</p>
+              </div>
+            )}
+            <div className="md:col-span-2">
+              <Label className="text-sm text-muted-foreground">Descripción del Problema (Cliente)</Label>
+              <p className="text-base bg-muted p-3 rounded-md mt-1">{incidente.descripcion_problema}</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       <Card className="mt-6">
         <CardHeader>
           <CardTitle>
