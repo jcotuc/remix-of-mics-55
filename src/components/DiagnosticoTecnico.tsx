@@ -68,6 +68,9 @@ export function DiagnosticoTecnico({ incidente, onDiagnosticoCompleto, modoDigit
   useEffect(() => {
     fetchRepuestos();
     fetchInfoAdicional();
+    if (modoDigitador) {
+      cargarDiagnosticoExistente();
+    }
   }, []);
 
   const fetchInfoAdicional = async () => {
@@ -91,6 +94,31 @@ export function DiagnosticoTecnico({ incidente, onDiagnosticoCompleto, modoDigit
       if (cliente) setClienteInfo(cliente);
     } catch (error) {
       console.error('Error:', error);
+    }
+  };
+
+  const cargarDiagnosticoExistente = async () => {
+    try {
+      const { data: diagnostico } = await supabase
+        .from('diagnosticos')
+        .select('*')
+        .eq('incidente_id', incidente.id)
+        .maybeSingle();
+
+      if (diagnostico) {
+        // Cargar datos del diagnóstico existente
+        if (diagnostico.fallas && Array.isArray(diagnostico.fallas)) setFallas(diagnostico.fallas as string[]);
+        if (diagnostico.causas && Array.isArray(diagnostico.causas)) setCausas(diagnostico.causas as string[]);
+        if (diagnostico.accesorios) setAccesorios(diagnostico.accesorios);
+        if (diagnostico.fotos_urls && Array.isArray(diagnostico.fotos_urls)) setFotosUrls(diagnostico.fotos_urls as string[]);
+        if (diagnostico.repuestos_utilizados && Array.isArray(diagnostico.repuestos_utilizados)) {
+          setRepuestosSeleccionados(diagnostico.repuestos_utilizados as {codigo: string, cantidad: number, descripcion: string}[]);
+        }
+        if (diagnostico.recomendaciones) setRecomendaciones(diagnostico.recomendaciones);
+        if (diagnostico.resolucion) setResolucion(diagnostico.resolucion);
+      }
+    } catch (error) {
+      console.error('Error cargando diagnóstico:', error);
     }
   };
 
@@ -744,6 +772,33 @@ export function DiagnosticoTecnico({ incidente, onDiagnosticoCompleto, modoDigit
                   )}
                 </div>
               ))}
+            </div>
+
+            {/* Fotos del Diagnóstico */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium flex items-center gap-2">
+                <Camera className="h-4 w-4" />
+                Fotos del Diagnóstico Técnico
+              </label>
+              {fotosUrls && fotosUrls.length > 0 ? (
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {fotosUrls.map((url, idx) => (
+                    <div key={idx} className="relative aspect-square rounded-lg overflow-hidden border-2 border-border hover:border-primary transition-colors">
+                      <img 
+                        src={url} 
+                        alt={`Foto diagnóstico ${idx + 1}`}
+                        className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                        onClick={() => window.open(url, '_blank')}
+                      />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="border-2 border-dashed rounded-lg p-8 text-center">
+                  <Camera className="h-10 w-10 mx-auto mb-2 text-muted-foreground opacity-30" />
+                  <p className="text-sm text-muted-foreground">No hay fotos del diagnóstico</p>
+                </div>
+              )}
             </div>
 
             {/* Repuestos Cambiados - solo mostrar los que ya están */}
