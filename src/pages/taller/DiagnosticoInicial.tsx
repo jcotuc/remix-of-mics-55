@@ -494,11 +494,28 @@ export default function DiagnosticoInicial() {
           .insert(diagnosticoData);
       }
 
-      // Actualizar el incidente
+      // Actualizar el incidente - cambiar status según el tipo de resolución
+      type StatusIncidente = "Ingresado" | "En ruta" | "Pendiente de diagnostico" | "En diagnostico" | "Pendiente por repuestos" | "Presupuesto" | "Porcentaje" | "Reparado" | "Cambio por garantia" | "Nota de credito" | "Bodega pedido" | "Rechazado" | "Pendiente entrega" | "Logistica envio";
+      
+      let nuevoStatus: StatusIncidente = "Reparado";
+      
+      // Determinar el siguiente status basado en el tipo de resolución
+      if (tipoResolucion === "Presupuesto") {
+        nuevoStatus = "Presupuesto";
+      } else if (tipoResolucion === "Cambio por Garantía") {
+        nuevoStatus = "Cambio por garantia";
+      } else if (tipoResolucion === "Nota de Crédito") {
+        nuevoStatus = "Nota de credito";
+      } else if (tipoResolucion === "Reparar en Garantía") {
+        nuevoStatus = "Reparado";
+      } else if (tipoResolucion === "Canje") {
+        nuevoStatus = "Cambio por garantia";
+      }
+
       const { error: incidenteError } = await supabase
         .from("incidentes")
         .update({
-          status: "En diagnostico",
+          status: nuevoStatus,
           cobertura_garantia: aplicaGarantia,
         })
         .eq("id", id);

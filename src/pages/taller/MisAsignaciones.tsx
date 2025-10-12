@@ -47,7 +47,7 @@ export default function MisAsignaciones() {
         .from('incidentes')
         .select(`
           *,
-          diagnosticos!inner(
+          diagnosticos(
             id,
             estado
           )
