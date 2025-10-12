@@ -127,7 +127,9 @@ export default function DiagnosticoInicial() {
   };
 
   const guardarBorradorSilencioso = async () => {
-    if (!incidente || fallas.length === 0) return;
+    if (!incidente) return;
+
+    console.log('🔄 Auto-guardando diagnóstico...', { paso, fallas: fallas.length, causas: causas.length });
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -172,14 +174,16 @@ export default function DiagnosticoInicial() {
           .from('diagnosticos')
           .update(borradorData)
           .eq('id', existingDraft.id);
+        console.log('✅ Borrador actualizado automáticamente');
       } else {
         // Crear nuevo borrador
         await supabase
           .from('diagnosticos')
           .insert(borradorData);
+        console.log('✅ Borrador creado automáticamente');
       }
     } catch (error) {
-      console.error('Error guardando borrador:', error);
+      console.error('❌ Error guardando borrador:', error);
     }
   };
 
