@@ -53,20 +53,29 @@ export default function DiagnosticoInicial() {
 
   useEffect(() => {
     fetchIncidente();
-    fetchRepuestos();
   }, [id]);
 
+  useEffect(() => {
+    if (incidente?.codigo_producto) {
+      fetchRepuestos();
+    }
+  }, [incidente?.codigo_producto]);
+
   const fetchRepuestos = async () => {
+    if (!incidente?.codigo_producto) return;
+    
     try {
       const { data, error } = await supabase
         .from('repuestos')
         .select('*')
+        .eq('codigo_producto', incidente.codigo_producto)
         .order('descripcion');
 
       if (error) throw error;
       setRepuestosDisponibles(data || []);
     } catch (error) {
       console.error('Error fetching repuestos:', error);
+      toast.error("Error al cargar los repuestos");
     }
   };
 
