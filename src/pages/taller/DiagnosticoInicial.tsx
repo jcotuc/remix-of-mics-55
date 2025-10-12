@@ -34,6 +34,7 @@ export default function DiagnosticoInicial() {
   const [repuestosDisponibles, setRepuestosDisponibles] = useState<any[]>([]);
   const [repuestosSolicitados, setRepuestosSolicitados] = useState<Array<{codigo: string, descripcion: string, cantidad: number}>>([]);
   const [searchRepuesto, setSearchRepuesto] = useState("");
+  const [solicitudesAnteriores, setSolicitudesAnteriores] = useState<Array<any>>([]);
   const [solicitudRepuestosId, setSolicitudRepuestosId] = useState<string | null>(null);
   const [estadoSolicitud, setEstadoSolicitud] = useState<string | null>(null);
   
@@ -199,14 +200,13 @@ export default function DiagnosticoInicial() {
   // Verificar si ya existe una solicitud de repuestos para este incidente
   const verificarSolicitudRepuestos = async () => {
     try {
-      console.log('🔍 Verificando solicitud de repuestos para incidente:', id);
+      console.log('🔍 Verificando solicitudes de repuestos para incidente:', id);
       
       const { data, error } = await supabase
         .from('solicitudes_repuestos')
         .select('*')
         .eq('incidente_id', id)
-        .order('created_at', { ascending: false })
-        .limit(1);
+        .order('created_at', { ascending: false });
 
       if (error) {
         console.error('Error verificando solicitud:', error);
@@ -214,18 +214,20 @@ export default function DiagnosticoInicial() {
       }
       
       if (data && data.length > 0) {
-        const solicitud = data[0];
-        console.log('✅ Solicitud encontrada:', solicitud);
+        console.log('✅ Solicitudes encontradas:', data.length);
         
-        setSolicitudRepuestosId(solicitud.id);
-        setEstadoSolicitud(solicitud.estado);
+        // Guardar todas las solicitudes anteriores
+        setSolicitudesAnteriores(data);
         
-        if (Array.isArray(solicitud.repuestos)) {
-          console.log('📦 Repuestos cargados:', solicitud.repuestos);
-          setRepuestosSolicitados(solicitud.repuestos as Array<{codigo: string, descripcion: string, cantidad: number}>);
-        }
+        // La más reciente para referencia
+        const solicitudMasReciente = data[0];
+        setSolicitudRepuestosId(solicitudMasReciente.id);
+        setEstadoSolicitud(solicitudMasReciente.estado);
+        
+        console.log('📦 Solicitud más reciente:', solicitudMasReciente);
       } else {
-        console.log('ℹ️ No hay solicitud de repuestos para este incidente');
+        console.log('ℹ️ No hay solicitudes de repuestos para este incidente');
+        setSolicitudesAnteriores([]);
       }
     } catch (error) {
       console.error('❌ Error verificando solicitud:', error);
@@ -391,8 +393,11 @@ export default function DiagnosticoInicial() {
 
       if (error) throw error;
 
-      setSolicitudRepuestosId(data.id);
-      setEstadoSolicitud('pendiente');
+      // Limpiar la lista de repuestos seleccionados para nueva solicitud
+      setRepuestosSolicitados([]);
+      
+      // Recargar solicitudes
+      await verificarSolicitudRepuestos();
       
       // Guardar borrador después de enviar solicitud
       await guardarBorradorSilencioso();
@@ -762,97 +767,82 @@ export default function DiagnosticoInicial() {
                 </p>
               </div>
 
-              {/* Sección de repuestos despachados - Mostrar solo si hay repuestos entregados */}
-              {solicitudRepuestosId && estadoSolicitud === 'entregado' && (
-                <Card className="border-green-500/50 bg-green-50/50">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="flex items-center gap-2 text-base">
-                      <CheckCircle2 className="h-5 w-5 text-green-600" />
-                      Repuestos Despachados
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2">
-                      {repuestosSolicitados.map((item, idx) => (
-                        <div key={idx} className="flex items-center justify-between p-3 bg-white rounded-lg border border-green-200">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-green-100 rounded flex items-center justify-center">
-                              <Package className="w-5 h-5 text-green-600" />
-                            </div>
-                            <div>
-                              <p className="font-medium text-sm">{item.descripcion}</p>
-                              <p className="text-xs text-muted-foreground">Código: {item.codigo}</p>
-                            </div>
-                          </div>
-                          <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300">
-                            Cantidad: {item.cantidad}
-                          </Badge>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Sección de estado de solicitud en proceso */}
-              {solicitudRepuestosId && (estadoSolicitud === 'pendiente' || estadoSolicitud === 'en_proceso') && (
-                <Card className={`${estadoSolicitud === 'pendiente' ? 'border-yellow-500/50 bg-yellow-50/50' : 'border-blue-500/50 bg-blue-50/50'}`}>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="flex items-center gap-2 text-base">
-                      {estadoSolicitud === 'pendiente' ? (
-                        <>
-                          <Clock className="h-5 w-5 text-yellow-600" />
-                          Solicitud Pendiente
-                        </>
-                      ) : (
-                        <>
-                          <Loader2 className="h-5 w-5 text-blue-600 animate-spin" />
-                          En Proceso de Despacho
-                        </>
-                      )}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <p className="text-sm text-muted-foreground">
-                      {estadoSolicitud === 'pendiente' 
-                        ? 'Tu solicitud está pendiente de ser procesada por bodega.'
-                        : 'Bodega está preparando los repuestos solicitados.'}
-                    </p>
-                    
-                    <div className="space-y-2">
-                      <p className="text-sm font-medium">Repuestos solicitados:</p>
-                      {repuestosSolicitados.map((item, idx) => (
-                        <div key={idx} className="flex items-center justify-between p-3 bg-white rounded-lg border">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-muted rounded flex items-center justify-center">
-                              <Package className="w-5 h-5" />
-                            </div>
-                            <div>
-                              <p className="font-medium text-sm">{item.descripcion}</p>
-                              <p className="text-xs text-muted-foreground">Código: {item.codigo}</p>
-                            </div>
-                          </div>
-                          <Badge variant="outline">
-                            Cantidad: {item.cantidad}
-                          </Badge>
-                        </div>
-                      ))}
-                    </div>
-
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={verificarEstadoSolicitud}
-                      className="w-full"
+              {/* Historial de solicitudes anteriores */}
+              {solicitudesAnteriores.length > 0 && (
+                <div className="space-y-3">
+                  <Label className="text-base font-semibold">Solicitudes Anteriores</Label>
+                  {solicitudesAnteriores.map((solicitud) => (
+                    <Card 
+                      key={solicitud.id}
+                      className={`${
+                        solicitud.estado === 'pendiente' 
+                          ? 'border-yellow-500/50 bg-yellow-50/50' 
+                          : solicitud.estado === 'en_proceso'
+                          ? 'border-blue-500/50 bg-blue-50/50'
+                          : 'border-green-500/50 bg-green-50/50'
+                      }`}
                     >
-                      Actualizar Estado
-                    </Button>
-                  </CardContent>
-                </Card>
+                      <CardHeader className="pb-3">
+                        <CardTitle className="flex items-center gap-2 text-base">
+                          {solicitud.estado === 'pendiente' ? (
+                            <>
+                              <Clock className="h-5 w-5 text-yellow-600" />
+                              Pendiente
+                            </>
+                          ) : solicitud.estado === 'en_proceso' ? (
+                            <>
+                              <Loader2 className="h-5 w-5 text-blue-600 animate-spin" />
+                              En Proceso
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle2 className="h-5 w-5 text-green-600" />
+                              Despachado
+                            </>
+                          )}
+                          <span className="text-xs text-muted-foreground ml-auto">
+                            {new Date(solicitud.created_at).toLocaleDateString('es-GT')}
+                          </span>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-2">
+                          {solicitud.repuestos?.map((item: any, idx: number) => (
+                            <div key={idx} className="flex items-center justify-between p-3 bg-white rounded-lg border">
+                              <div className="flex items-center gap-3">
+                                <div className={`w-10 h-10 rounded flex items-center justify-center ${
+                                  solicitud.estado === 'entregado' ? 'bg-green-100' : 'bg-muted'
+                                }`}>
+                                  <Package className={`w-5 h-5 ${
+                                    solicitud.estado === 'entregado' ? 'text-green-600' : ''
+                                  }`} />
+                                </div>
+                                <div>
+                                  <p className="font-medium text-sm">{item.descripcion}</p>
+                                  <p className="text-xs text-muted-foreground">Código: {item.codigo}</p>
+                                </div>
+                              </div>
+                              <Badge variant="outline" className={
+                                solicitud.estado === 'entregado' 
+                                  ? 'bg-green-100 text-green-700 border-green-300'
+                                  : ''
+                              }>
+                                Cantidad: {item.cantidad}
+                              </Badge>
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
               )}
 
-              {/* Panel de selección de repuestos - Solo mostrar si no hay solicitud o está pendiente */}
-              {(!solicitudRepuestosId || estadoSolicitud === 'pendiente') && (
+              {/* Nueva solicitud de repuestos */}
+              <div className="space-y-3">
+                <Label className="text-base font-semibold">
+                  {solicitudesAnteriores.length > 0 ? 'Nueva Solicitud de Repuestos' : 'Seleccionar Repuestos'}
+                </Label>
                 <ResizablePanelGroup direction="horizontal" className="h-[600px] rounded-lg border">
                   {/* Panel izquierdo: Repuestos disponibles */}
                   <ResizablePanel defaultSize={60} className="p-4 flex flex-col">
@@ -870,7 +860,6 @@ export default function DiagnosticoInicial() {
                         value={searchRepuesto}
                         onChange={(e) => setSearchRepuesto(e.target.value)}
                         className="pl-10"
-                        disabled={!!solicitudRepuestosId}
                       />
                     </div>
 
@@ -878,10 +867,8 @@ export default function DiagnosticoInicial() {
                         {filteredRepuestos.map((repuesto) => (
                           <div 
                             key={repuesto.id} 
-                            className={`flex items-center gap-3 p-3 border rounded-lg transition-colors ${
-                              solicitudRepuestosId ? 'opacity-50 cursor-not-allowed' : 'hover:bg-muted/50 cursor-pointer'
-                            }`}
-                            onClick={() => !solicitudRepuestosId && agregarRepuesto(repuesto)}
+                            className="flex items-center gap-3 p-3 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
+                            onClick={() => agregarRepuesto(repuesto)}
                           >
                             <div className="w-10 h-10 bg-muted rounded flex items-center justify-center flex-shrink-0">
                               <Package className="w-5 h-5" />
@@ -897,7 +884,7 @@ export default function DiagnosticoInicial() {
                                 </div>
                               )}
                             </div>
-                            <Button size="sm" variant="outline" disabled={!!solicitudRepuestosId}>
+                            <Button size="sm" variant="outline">
                               <Plus className="w-4 h-4" />
                             </Button>
                           </div>
@@ -942,7 +929,6 @@ export default function DiagnosticoInicial() {
                                         variant="outline"
                                         className="h-7 w-7 p-0"
                                         onClick={() => actualizarCantidad(item.codigo, item.cantidad - 1)}
-                                        disabled={!!solicitudRepuestosId}
                                       >
                                         <Minus className="w-3 h-3" />
                                       </Button>
@@ -952,7 +938,6 @@ export default function DiagnosticoInicial() {
                                         variant="outline"
                                         className="h-7 w-7 p-0"
                                         onClick={() => actualizarCantidad(item.codigo, item.cantidad + 1)}
-                                        disabled={!!solicitudRepuestosId}
                                       >
                                         <Plus className="w-3 h-3" />
                                       </Button>
@@ -963,7 +948,6 @@ export default function DiagnosticoInicial() {
                                     variant="ghost"
                                     className="h-7 w-7 p-0"
                                     onClick={() => eliminarRepuesto(item.codigo)}
-                                    disabled={!!solicitudRepuestosId}
                                   >
                                     <X className="w-4 h-4" />
                                   </Button>
@@ -981,6 +965,17 @@ export default function DiagnosticoInicial() {
                     </div>
                   </ResizablePanel>
                 </ResizablePanelGroup>
+              </div>
+
+              {/* Botón para enviar nueva solicitud */}
+              {repuestosSolicitados.length > 0 && (
+                <Button 
+                  onClick={handleEnviarSolicitudRepuestos}
+                  className="w-full"
+                >
+                  <ShoppingCart className="w-4 h-4 mr-2" />
+                  Enviar Nueva Solicitud a Bodega
+                </Button>
               )}
             </div>
           )}
