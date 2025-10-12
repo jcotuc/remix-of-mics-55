@@ -56,7 +56,132 @@ export default function DiagnosticoInicial() {
   useEffect(() => {
     fetchIncidente();
     verificarSolicitudRepuestos();
+    cargarBorradorDiagnostico();
   }, [id]);
+
+  useEffect(() => {
+    if (incidente?.codigo_producto) {
+      fetchRepuestos();
+    }
+  }, [incidente?.codigo_producto]);
+
+  // Auto-guardado cada 30 segundos
+  useEffect(() => {
+    if (!incidente) return;
+    
+    const interval = setInterval(() => {
+      guardarBorradorSilencioso();
+    }, 30000); // 30 segundos
+
+    return () => clearInterval(interval);
+  }, [fallas, causas, aplicaGarantia, tipoResolucion, observaciones, paso, incidente]);
+
+  // Cargar borrador existente
+  const cargarBorradorDiagnostico = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('diagnosticos')
+        .select('*')
+        .eq('incidente_id', id)
+        .eq('estado', 'borrador')
+        .maybeSingle();
+
+      if (error) throw error;
+
+      if (data) {
+        // Restaurar estado del diagnóstico
+        if (data.fallas && Array.isArray(data.fallas)) {
+          setFallas(data.fallas);
+        }
+        if (data.causas && Array.isArray(data.causas)) {
+          setCausas(data.causas);
+        }
+        if (data.recomendaciones) {
+          setObservaciones(data.recomendaciones);
+        }
+        
+        // Restaurar paso (guardado en el campo tiempo_estimado como hack temporal)
+        if (data.tiempo_estimado) {
+          const pasoGuardado = parseInt(data.tiempo_estimado);
+          if (!isNaN(pasoGuardado)) {
+            setPaso(pasoGuardado);
+          }
+        }
+
+        // Restaurar datos adicionales del metadata (si existen)
+        const metadata = data.resolucion ? JSON.parse(data.resolucion) : null;
+        if (metadata) {
+          if (metadata.aplicaGarantia !== undefined) {
+            setAplicaGarantia(metadata.aplicaGarantia);
+          }
+          if (metadata.tipoResolucion) {
+            setTipoResolucion(metadata.tipoResolucion);
+          }
+        }
+
+        toast.success("Se recuperó el borrador del diagnóstico");
+      }
+    } catch (error) {
+      console.error('Error cargando borrador:', error);
+    }
+  };
+
+  const guardarBorradorSilencioso = async () => {
+    if (!incidente || fallas.length === 0) return;
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('nombre, apellido')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      const tecnicoNombre = profile ? `${profile.nombre} ${profile.apellido}` : user.email || 'Técnico';
+
+      // Guardar metadata en el campo resolucion como JSON
+      const metadata = {
+        aplicaGarantia,
+        tipoResolucion,
+      };
+
+      const borradorData = {
+        incidente_id: id,
+        tecnico_codigo: incidente.codigo_tecnico || 'TEMP',
+        fallas,
+        causas,
+        recomendaciones: observaciones,
+        estado: 'borrador',
+        tiempo_estimado: paso.toString(), // Guardar el paso actual
+        resolucion: JSON.stringify(metadata),
+      };
+
+      // Verificar si ya existe un borrador
+      const { data: existingDraft } = await supabase
+        .from('diagnosticos')
+        .select('id')
+        .eq('incidente_id', id)
+        .eq('estado', 'borrador')
+        .maybeSingle();
+
+      if (existingDraft) {
+        // Actualizar borrador existente
+        await supabase
+          .from('diagnosticos')
+          .update(borradorData)
+          .eq('id', existingDraft.id);
+      } else {
+        // Crear nuevo borrador
+        await supabase
+          .from('diagnosticos')
+          .insert(borradorData);
+      }
+    } catch (error) {
+      console.error('Error guardando borrador:', error);
+    }
+  };
 
   useEffect(() => {
     if (incidente?.codigo_producto) {
@@ -295,19 +420,35 @@ export default function DiagnosticoInicial() {
 
       const diagnosticoData = {
         incidente_id: id,
-        tecnico_codigo: "TEC-001",
-        fallas: [...fallas, ...(otraFalla ? [otraFalla] : [])],
-        causas: [...causas, ...(otraCausa ? [otraCausa] : [])],
-        fotos_urls: fotosUrls,
+        tecnico_codigo: incidente.codigo_tecnico || 'TEMP',
+        fallas,
+        causas,
         recomendaciones: observaciones,
-        estado: "completado",
+        fotos_urls: fotosUrls,
+        resolucion: JSON.stringify({
+          aplicaGarantia,
+          tipoResolucion,
+        }),
+        estado: 'finalizado',
       };
 
-      const { error: diagnosticoError } = await supabase
-        .from("diagnosticos")
-        .insert(diagnosticoData);
+      // Actualizar o crear diagnóstico final
+      const { data: existingDraft } = await supabase
+        .from('diagnosticos')
+        .select('id')
+        .eq('incidente_id', id)
+        .maybeSingle();
 
-      if (diagnosticoError) throw diagnosticoError;
+      if (existingDraft) {
+        await supabase
+          .from('diagnosticos')
+          .update(diagnosticoData)
+          .eq('id', existingDraft.id);
+      } else {
+        await supabase
+          .from('diagnosticos')
+          .insert(diagnosticoData);
+      }
 
       // Actualizar el incidente
       const { error: incidenteError } = await supabase
