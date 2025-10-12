@@ -54,9 +54,12 @@ export default function DiagnosticoInicial() {
     : CAUSAS_GENERICAS;
 
   useEffect(() => {
-    fetchIncidente();
-    verificarSolicitudRepuestos();
-    cargarBorradorDiagnostico();
+    const initDiagnostico = async () => {
+      await fetchIncidente();
+      await verificarSolicitudRepuestos();
+      await cargarBorradorDiagnostico();
+    };
+    initDiagnostico();
   }, [id]);
 
   useEffect(() => {
@@ -196,23 +199,36 @@ export default function DiagnosticoInicial() {
   // Verificar si ya existe una solicitud de repuestos para este incidente
   const verificarSolicitudRepuestos = async () => {
     try {
+      console.log('🔍 Verificando solicitud de repuestos para incidente:', id);
+      
       const { data, error } = await supabase
         .from('solicitudes_repuestos')
         .select('*')
         .eq('incidente_id', id)
-        .maybeSingle();
+        .order('created_at', { ascending: false })
+        .limit(1);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error verificando solicitud:', error);
+        throw error;
+      }
       
-      if (data) {
-        setSolicitudRepuestosId(data.id);
-        setEstadoSolicitud(data.estado);
-        if (Array.isArray(data.repuestos)) {
-          setRepuestosSolicitados(data.repuestos as Array<{codigo: string, descripcion: string, cantidad: number}>);
+      if (data && data.length > 0) {
+        const solicitud = data[0];
+        console.log('✅ Solicitud encontrada:', solicitud);
+        
+        setSolicitudRepuestosId(solicitud.id);
+        setEstadoSolicitud(solicitud.estado);
+        
+        if (Array.isArray(solicitud.repuestos)) {
+          console.log('📦 Repuestos cargados:', solicitud.repuestos);
+          setRepuestosSolicitados(solicitud.repuestos as Array<{codigo: string, descripcion: string, cantidad: number}>);
         }
+      } else {
+        console.log('ℹ️ No hay solicitud de repuestos para este incidente');
       }
     } catch (error) {
-      console.error('Error verificando solicitud:', error);
+      console.error('❌ Error verificando solicitud:', error);
     }
   };
 
@@ -392,16 +408,28 @@ export default function DiagnosticoInicial() {
     if (!solicitudRepuestosId) return;
     
     try {
+      console.log('🔄 Actualizando estado de solicitud:', solicitudRepuestosId);
+      
       const { data, error } = await supabase
         .from('solicitudes_repuestos')
-        .select('estado')
+        .select('estado, repuestos')
         .eq('id', solicitudRepuestosId)
         .single();
 
       if (error) throw error;
+      
+      console.log('✅ Estado actualizado:', data.estado);
       setEstadoSolicitud(data.estado);
+      
+      // Actualizar repuestos también por si cambiaron
+      if (Array.isArray(data.repuestos)) {
+        setRepuestosSolicitados(data.repuestos as Array<{codigo: string, descripcion: string, cantidad: number}>);
+      }
+      
+      toast.success('Estado actualizado');
     } catch (error) {
-      console.error('Error verificando estado:', error);
+      console.error('❌ Error verificando estado:', error);
+      toast.error('Error al verificar estado');
     }
   };
 
