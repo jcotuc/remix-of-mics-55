@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Camera, CheckCircle2, Package } from "lucide-react";
+import { ArrowLeft, Camera, CheckCircle2, Package, Plus, Minus, Search, ShoppingCart, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
+import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { FALLAS_POR_FAMILIA, CAUSAS_POR_FAMILIA, FALLAS_GENERICAS, CAUSAS_GENERICAS } from "@/data/diagnosticoOptions";
@@ -29,7 +31,9 @@ export default function DiagnosticoInicial() {
   
   // Paso 2: Solicitud de Repuestos
   const [necesitaRepuestos, setNecesitaRepuestos] = useState(false);
-  const [estadoSolicitud, setEstadoSolicitud] = useState<string>("");
+  const [repuestosDisponibles, setRepuestosDisponibles] = useState<any[]>([]);
+  const [repuestosSolicitados, setRepuestosSolicitados] = useState<Array<{codigo: string, descripcion: string, cantidad: number}>>([]);
+  const [searchRepuesto, setSearchRepuesto] = useState("");
   
   // Paso 3: Fotos y Observaciones
   const [fotos, setFotos] = useState<File[]>([]);
@@ -49,7 +53,22 @@ export default function DiagnosticoInicial() {
 
   useEffect(() => {
     fetchIncidente();
+    fetchRepuestos();
   }, [id]);
+
+  const fetchRepuestos = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('repuestos')
+        .select('*')
+        .order('descripcion');
+
+      if (error) throw error;
+      setRepuestosDisponibles(data || []);
+    } catch (error) {
+      console.error('Error fetching repuestos:', error);
+    }
+  };
 
   const fetchIncidente = async () => {
     try {
@@ -119,6 +138,79 @@ export default function DiagnosticoInicial() {
       setPaso(2);
     } else {
       setPaso(3);
+    }
+  };
+
+  const filteredRepuestos = repuestosDisponibles.filter(repuesto =>
+    repuesto.descripcion.toLowerCase().includes(searchRepuesto.toLowerCase()) ||
+    repuesto.codigo.toLowerCase().includes(searchRepuesto.toLowerCase()) ||
+    repuesto.clave.toLowerCase().includes(searchRepuesto.toLowerCase())
+  );
+
+  const agregarRepuesto = (repuesto: any) => {
+    const yaExiste = repuestosSolicitados.find(r => r.codigo === repuesto.codigo);
+    if (yaExiste) {
+      setRepuestosSolicitados(repuestosSolicitados.map(r =>
+        r.codigo === repuesto.codigo ? { ...r, cantidad: r.cantidad + 1 } : r
+      ));
+    } else {
+      setRepuestosSolicitados([...repuestosSolicitados, {
+        codigo: repuesto.codigo,
+        descripcion: repuesto.descripcion,
+        cantidad: 1
+      }]);
+    }
+    toast.success("Repuesto agregado");
+  };
+
+  const actualizarCantidad = (codigo: string, nuevaCantidad: number) => {
+    if (nuevaCantidad <= 0) {
+      setRepuestosSolicitados(repuestosSolicitados.filter(r => r.codigo !== codigo));
+    } else {
+      setRepuestosSolicitados(repuestosSolicitados.map(r =>
+        r.codigo === codigo ? { ...r, cantidad: nuevaCantidad } : r
+      ));
+    }
+  };
+
+  const eliminarRepuesto = (codigo: string) => {
+    setRepuestosSolicitados(repuestosSolicitados.filter(r => r.codigo !== codigo));
+  };
+
+  const handleEnviarSolicitudRepuestos = async () => {
+    if (repuestosSolicitados.length === 0) {
+      toast.error("Debes agregar al menos un repuesto");
+      return;
+    }
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("No user found");
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('nombre, apellido')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      const tecnicoNombre = profile ? `${profile.nombre} ${profile.apellido}` : user.email || 'Técnico';
+
+      const { error } = await supabase
+        .from('solicitudes_repuestos')
+        .insert({
+          incidente_id: id,
+          tecnico_solicitante: tecnicoNombre,
+          repuestos: repuestosSolicitados,
+          estado: 'pendiente'
+        });
+
+      if (error) throw error;
+
+      toast.success("Solicitud de repuestos enviada a bodega");
+      setPaso(3);
+    } catch (error) {
+      console.error('Error:', error);
+      toast.error("Error al enviar la solicitud");
     }
   };
 
@@ -431,20 +523,136 @@ export default function DiagnosticoInicial() {
               <div>
                 <Label className="text-lg font-semibold">Solicitud de Repuestos</Label>
                 <p className="text-sm text-muted-foreground">
-                  Agrega los repuestos necesarios para la reparación
+                  Selecciona los repuestos necesarios para la reparación
                 </p>
               </div>
               
-              <div className="border-2 border-dashed rounded-lg p-8 text-center">
-                <Package className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-                <p className="text-muted-foreground mb-2">Solicitud de Repuestos</p>
-                <p className="text-sm text-muted-foreground">
-                  Estado: {estadoSolicitud || "Sin solicitud"}
-                </p>
-                <Button variant="outline" className="mt-4">
-                  Agregar Repuestos
-                </Button>
-              </div>
+              <ResizablePanelGroup direction="horizontal" className="min-h-[500px] rounded-lg border">
+                {/* Panel izquierdo: Repuestos disponibles */}
+                <ResizablePanel defaultSize={60} className="p-4">
+                  <div className="space-y-4 h-full flex flex-col">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-medium">Repuestos Disponibles</h4>
+                      <Badge variant="outline">
+                        {filteredRepuestos.length} disponibles
+                      </Badge>
+                    </div>
+                    
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Buscar por código, clave o descripción..."
+                        value={searchRepuesto}
+                        onChange={(e) => setSearchRepuesto(e.target.value)}
+                        className="pl-10"
+                      />
+                    </div>
+
+                    <div className="flex-1 overflow-auto space-y-2">
+                      {filteredRepuestos.map((repuesto) => (
+                        <div 
+                          key={repuesto.id} 
+                          className="flex items-center gap-3 p-3 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
+                          onClick={() => agregarRepuesto(repuesto)}
+                        >
+                          <div className="w-10 h-10 bg-muted rounded flex items-center justify-center flex-shrink-0">
+                            <Package className="w-5 h-5" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium text-sm">{repuesto.descripcion}</div>
+                            <div className="text-xs text-muted-foreground">
+                              Código: {repuesto.codigo} | Clave: {repuesto.clave}
+                            </div>
+                            {repuesto.stock_actual !== null && (
+                              <div className="text-xs text-muted-foreground">
+                                Stock: {repuesto.stock_actual}
+                              </div>
+                            )}
+                          </div>
+                          <Button size="sm" variant="outline">
+                            <Plus className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      ))}
+                      
+                      {filteredRepuestos.length === 0 && (
+                        <div className="flex flex-col items-center justify-center h-full text-muted-foreground py-12">
+                          <Search className="w-12 h-12 mb-2 opacity-50" />
+                          <p>No se encontraron repuestos</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </ResizablePanel>
+
+                <ResizableHandle />
+
+                {/* Panel derecho: Repuestos seleccionados */}
+                <ResizablePanel defaultSize={40} className="p-4">
+                  <div className="h-full flex flex-col">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2">
+                        <ShoppingCart className="w-4 h-4" />
+                        <h4 className="font-medium">Repuestos Solicitados</h4>
+                        <Badge>{repuestosSolicitados.length}</Badge>
+                      </div>
+                    </div>
+
+                    <div className="flex-1 overflow-auto">
+                      {repuestosSolicitados.length > 0 ? (
+                        <div className="space-y-3">
+                          {repuestosSolicitados.map((item) => (
+                            <div key={item.codigo} className="border rounded-lg p-3">
+                              <div className="flex items-start gap-2">
+                                <div className="w-8 h-8 bg-muted rounded flex items-center justify-center flex-shrink-0">
+                                  <Package className="w-4 h-4" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="font-medium text-sm">{item.descripcion}</div>
+                                  <div className="text-xs text-muted-foreground">{item.codigo}</div>
+                                  <div className="flex items-center gap-2 mt-2">
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="h-7 w-7 p-0"
+                                      onClick={() => actualizarCantidad(item.codigo, item.cantidad - 1)}
+                                    >
+                                      <Minus className="w-3 h-3" />
+                                    </Button>
+                                    <span className="text-sm font-medium w-8 text-center">{item.cantidad}</span>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="h-7 w-7 p-0"
+                                      onClick={() => actualizarCantidad(item.codigo, item.cantidad + 1)}
+                                    >
+                                      <Plus className="w-3 h-3" />
+                                    </Button>
+                                  </div>
+                                </div>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-7 w-7 p-0"
+                                  onClick={() => eliminarRepuesto(item.codigo)}
+                                >
+                                  <X className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+                          <ShoppingCart className="w-12 h-12 mb-2 opacity-50" />
+                          <p className="text-sm">No hay repuestos seleccionados</p>
+                          <p className="text-xs">Selecciona repuestos de la lista</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </ResizablePanel>
+              </ResizablePanelGroup>
             </div>
           )}
 
@@ -510,14 +718,14 @@ export default function DiagnosticoInicial() {
               if (paso === 1) {
                 handleContinuarAPaso2();
               } else if (paso === 2) {
-                setPaso(3);
+                handleEnviarSolicitudRepuestos();
               } else {
                 handleFinalizarDiagnostico();
               }
             }}
             disabled={saving}
           >
-            {paso === 3 ? (saving ? "Guardando..." : "Finalizar Diagnóstico") : "Continuar"}
+            {paso === 2 ? "Enviar Solicitud a Bodega" : (paso === 3 ? (saving ? "Guardando..." : "Finalizar Diagnóstico") : "Continuar")}
           </Button>
         </CardFooter>
       </Card>
