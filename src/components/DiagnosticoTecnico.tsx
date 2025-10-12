@@ -17,7 +17,10 @@ import {
   CheckCircle,
   AlertTriangle,
   ArrowRight,
-  Upload
+  Upload,
+  Package,
+  User,
+  Info
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -33,6 +36,8 @@ interface DiagnosticoTecnicoProps {
 
 export function DiagnosticoTecnico({ incidente, onDiagnosticoCompleto }: DiagnosticoTecnicoProps) {
   const [paso, setPaso] = useState(1);
+  const [productoInfo, setProductoInfo] = useState<any>(null);
+  const [clienteInfo, setClienteInfo] = useState<any>(null);
   const [repuestosDisponibles, setRepuestosDisponibles] = useState<RepuestoDB[]>([]);
   const [searchRepuesto, setSearchRepuesto] = useState("");
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
@@ -61,7 +66,32 @@ export function DiagnosticoTecnico({ incidente, onDiagnosticoCompleto }: Diagnos
 
   useEffect(() => {
     fetchRepuestos();
+    fetchInfoAdicional();
   }, []);
+
+  const fetchInfoAdicional = async () => {
+    try {
+      // Obtener info del producto
+      const { data: producto } = await supabase
+        .from('productos')
+        .select('*')
+        .eq('codigo', incidente.codigo_producto)
+        .maybeSingle();
+      
+      if (producto) setProductoInfo(producto);
+
+      // Obtener info del cliente
+      const { data: cliente } = await supabase
+        .from('clientes')
+        .select('*')
+        .eq('codigo', incidente.codigo_cliente)
+        .maybeSingle();
+      
+      if (cliente) setClienteInfo(cliente);
+    } catch (error) {
+      console.error('Error:', error);
+    }
+  };
 
   const fetchRepuestos = async () => {
     try {
@@ -242,7 +272,108 @@ export function DiagnosticoTecnico({ incidente, onDiagnosticoCompleto }: Diagnos
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 mb-6">
+      {/* Información de la Máquina */}
+      <Card className="border-2 border-primary/20">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Package className="h-5 w-5" />
+            Información de la Máquina
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">Código del Producto</p>
+              <p className="font-semibold">{incidente.codigo_producto}</p>
+            </div>
+            {productoInfo && (
+              <>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Descripción</p>
+                  <p className="font-semibold">{productoInfo.descripcion}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Familia</p>
+                  <p className="font-semibold">{productoInfo.familia_producto || 'N/A'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Clave</p>
+                  <p className="font-semibold">{productoInfo.clave}</p>
+                </div>
+              </>
+            )}
+            {incidente.sku_maquina && (
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">SKU</p>
+                <p className="font-semibold">{incidente.sku_maquina}</p>
+              </div>
+            )}
+            {clienteInfo && (
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Cliente</p>
+                <p className="font-semibold">{clienteInfo.nombre}</p>
+                <p className="text-xs text-muted-foreground">{clienteInfo.codigo}</p>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Información Adicional */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Info className="h-5 w-5" />
+            Información del Ingreso
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {incidente.descripcion_problema && (
+              <div className="md:col-span-2">
+                <p className="text-xs text-muted-foreground mb-1">Problema Reportado por el Cliente</p>
+                <p className="text-sm bg-muted/30 p-3 rounded-lg">{incidente.descripcion_problema}</p>
+              </div>
+            )}
+            {incidente.accesorios && (
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Accesorios Incluidos</p>
+                <p className="text-sm">{incidente.accesorios}</p>
+              </div>
+            )}
+            {incidente.log_observaciones && (
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Observaciones de Logística</p>
+                <p className="text-sm">{incidente.log_observaciones}</p>
+              </div>
+            )}
+            {incidente.persona_deja_maquina && (
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Persona que dejó la máquina</p>
+                <p className="text-sm">{incidente.persona_deja_maquina}</p>
+              </div>
+            )}
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">Garantía</p>
+              {incidente.cobertura_garantia ? (
+                <Badge className="bg-green-500 text-white">Con Garantía</Badge>
+              ) : (
+                <Badge variant="outline">Sin Garantía</Badge>
+              )}
+            </div>
+            {incidente.producto_descontinuado && (
+              <div className="md:col-span-2">
+                <Badge variant="destructive" className="text-sm">
+                  <AlertTriangle className="h-4 w-4 mr-1" />
+                  Producto Descontinuado
+                </Badge>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Progress Steps */}
       <Card>
         <CardContent className="pt-6">
