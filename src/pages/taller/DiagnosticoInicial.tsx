@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Camera, CheckCircle2, Package, Plus, Minus, Search, ShoppingCart, X } from "lucide-react";
+import { ArrowLeft, Camera, CheckCircle2, Package, Plus, Minus, Search, ShoppingCart, X, Clock, Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -34,6 +34,8 @@ export default function DiagnosticoInicial() {
   const [repuestosDisponibles, setRepuestosDisponibles] = useState<any[]>([]);
   const [repuestosSolicitados, setRepuestosSolicitados] = useState<Array<{codigo: string, descripcion: string, cantidad: number}>>([]);
   const [searchRepuesto, setSearchRepuesto] = useState("");
+  const [solicitudRepuestosId, setSolicitudRepuestosId] = useState<string | null>(null);
+  const [estadoSolicitud, setEstadoSolicitud] = useState<string | null>(null);
   
   // Paso 3: Fotos y Observaciones
   const [fotos, setFotos] = useState<File[]>([]);
@@ -53,6 +55,7 @@ export default function DiagnosticoInicial() {
 
   useEffect(() => {
     fetchIncidente();
+    verificarSolicitudRepuestos();
   }, [id]);
 
   useEffect(() => {
@@ -60,6 +63,29 @@ export default function DiagnosticoInicial() {
       fetchRepuestos();
     }
   }, [incidente?.codigo_producto]);
+
+  // Verificar si ya existe una solicitud de repuestos para este incidente
+  const verificarSolicitudRepuestos = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('solicitudes_repuestos')
+        .select('*')
+        .eq('incidente_id', id)
+        .maybeSingle();
+
+      if (error) throw error;
+      
+      if (data) {
+        setSolicitudRepuestosId(data.id);
+        setEstadoSolicitud(data.estado);
+        if (Array.isArray(data.repuestos)) {
+          setRepuestosSolicitados(data.repuestos as Array<{codigo: string, descripcion: string, cantidad: number}>);
+        }
+      }
+    } catch (error) {
+      console.error('Error verificando solicitud:', error);
+    }
+  };
 
   const fetchRepuestos = async () => {
     if (!incidente?.codigo_producto) return;
@@ -204,22 +230,42 @@ export default function DiagnosticoInicial() {
 
       const tecnicoNombre = profile ? `${profile.nombre} ${profile.apellido}` : user.email || 'Técnico';
 
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('solicitudes_repuestos')
         .insert({
           incidente_id: id,
           tecnico_solicitante: tecnicoNombre,
           repuestos: repuestosSolicitados,
           estado: 'pendiente'
-        });
+        })
+        .select()
+        .single();
 
       if (error) throw error;
 
+      setSolicitudRepuestosId(data.id);
+      setEstadoSolicitud('pendiente');
       toast.success("Solicitud de repuestos enviada a bodega");
-      setPaso(3);
     } catch (error) {
       console.error('Error:', error);
       toast.error("Error al enviar la solicitud");
+    }
+  };
+
+  const verificarEstadoSolicitud = async () => {
+    if (!solicitudRepuestosId) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('solicitudes_repuestos')
+        .select('estado')
+        .eq('id', solicitudRepuestosId)
+        .single();
+
+      if (error) throw error;
+      setEstadoSolicitud(data.estado);
+    } catch (error) {
+      console.error('Error verificando estado:', error);
     }
   };
 
@@ -723,14 +769,26 @@ export default function DiagnosticoInicial() {
               if (paso === 1) {
                 handleContinuarAPaso2();
               } else if (paso === 2) {
-                handleEnviarSolicitudRepuestos();
+                if (estadoSolicitud === 'entregado') {
+                  setPaso(3);
+                } else if (!solicitudRepuestosId) {
+                  handleEnviarSolicitudRepuestos();
+                }
               } else {
                 handleFinalizarDiagnostico();
               }
             }}
-            disabled={saving}
+            disabled={saving || (paso === 2 && solicitudRepuestosId && estadoSolicitud !== 'entregado')}
           >
-            {paso === 2 ? "Enviar Solicitud a Bodega" : (paso === 3 ? (saving ? "Guardando..." : "Finalizar Diagnóstico") : "Continuar")}
+            {paso === 2 
+              ? (estadoSolicitud === 'entregado' 
+                  ? "Continuar" 
+                  : (solicitudRepuestosId 
+                      ? "Esperando Despacho..." 
+                      : "Enviar Solicitud a Bodega"))
+              : (paso === 3 
+                  ? (saving ? "Guardando..." : "Finalizar Diagnóstico") 
+                  : "Continuar")}
           </Button>
         </CardFooter>
       </Card>
