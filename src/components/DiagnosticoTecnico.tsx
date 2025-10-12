@@ -64,6 +64,9 @@ export function DiagnosticoTecnico({ incidente, onDiagnosticoCompleto, modoDigit
   // Solicitud de cambio
   const [tipoCambio, setTipoCambio] = useState<'garantia' | 'canje' | 'nota_credito'>('garantia');
   const [justificacion, setJustificacion] = useState("");
+  
+  // Auto-guardado
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
   useEffect(() => {
     fetchRepuestos();
@@ -72,6 +75,17 @@ export function DiagnosticoTecnico({ incidente, onDiagnosticoCompleto, modoDigit
       cargarDiagnosticoExistente();
     }
   }, []);
+
+  // Auto-guardado cada 30 segundos
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (fallas.some(f => f.trim() !== "") || causas.some(c => c.trim() !== "")) {
+        guardarBorradorSilencioso();
+      }
+    }, 30000); // 30 segundos
+
+    return () => clearInterval(interval);
+  }, [fallas, causas, accesorios, fotosUrls, repuestosSeleccionados, recomendaciones, resolucion]);
 
   const fetchInfoAdicional = async () => {
     try {
@@ -209,6 +223,50 @@ export function DiagnosticoTecnico({ incidente, onDiagnosticoCompleto, modoDigit
     } catch (error) {
       console.error('Error:', error);
       toast.error("Error al solicitar repuestos");
+    }
+  };
+
+  const guardarBorradorSilencioso = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: existingDiag } = await supabase
+        .from('diagnosticos')
+        .select('id')
+        .eq('incidente_id', incidente.id)
+        .maybeSingle();
+
+      const diagnosticoData = {
+        incidente_id: incidente.id,
+        tecnico_codigo: incidente.codigo_tecnico || user.email || 'técnico',
+        digitador_codigo: modoDigitador ? user.email : null,
+        fallas: fallas.filter(f => f.trim() !== ""),
+        causas: causas.filter(c => c.trim() !== ""),
+        repuestos_utilizados: repuestosSeleccionados,
+        recomendaciones: recomendaciones,
+        resolucion: resolucion,
+        fotos_urls: fotosUrls,
+        accesorios: accesorios,
+        tiempo_estimado: tiempoEstimado,
+        costo_estimado: costoEstimado ? parseFloat(costoEstimado) : null,
+        estado: 'borrador'
+      };
+
+      if (existingDiag) {
+        await supabase
+          .from('diagnosticos')
+          .update(diagnosticoData)
+          .eq('id', existingDiag.id);
+      } else {
+        await supabase
+          .from('diagnosticos')
+          .insert(diagnosticoData);
+      }
+
+      setLastSaved(new Date());
+    } catch (error) {
+      console.error('Error guardando borrador:', error);
     }
   };
 
@@ -932,35 +990,141 @@ export function DiagnosticoTecnico({ incidente, onDiagnosticoCompleto, modoDigit
 
               <Separator className="my-6" />
 
-              {/* Estatus Final - Destacado */}
+              {/* Estatus Final - Visual con botones */}
               <div className="space-y-3">
                 <label className="text-sm font-semibold flex items-center gap-2">
                   <AlertTriangle className="h-4 w-4 text-primary" />
-                  Estatus Final del Diagnóstico *
+                  Resolución del Diagnóstico *
                 </label>
-                <Select value={estatusFinal} onValueChange={setEstatusFinal}>
-                  <SelectTrigger className="h-12 bg-background text-base">
-                    <SelectValue placeholder="Seleccione el estado final del diagnóstico..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="reparado">✓ Reparado</SelectItem>
-                    <SelectItem value="pendiente_entrega">📦 Pendiente Entrega</SelectItem>
-                    <SelectItem value="logistica_envio">🚚 Logística Envío</SelectItem>
-                    <SelectItem value="pendiente_repuestos">⏳ Pendiente por Repuestos</SelectItem>
-                    <SelectItem value="presupuesto">💰 Presupuesto</SelectItem>
-                    <SelectItem value="porcentaje">🔄 Porcentaje/Canje</SelectItem>
-                    <SelectItem value="cambio_garantia">🛡️ Cambio por Garantía</SelectItem>
-                    <SelectItem value="nota_credito">📝 Nota de Crédito</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setEstatusFinal('reparado')}
+                    className={`p-4 rounded-lg border-2 transition-all text-left ${
+                      estatusFinal === 'reparado'
+                        ? 'border-green-500 bg-green-500/10 shadow-md'
+                        : 'border-border hover:border-green-500/50 hover:bg-muted'
+                    }`}
+                  >
+                    <div className="text-2xl mb-1">✓</div>
+                    <div className="font-semibold text-sm">Reparado</div>
+                    <div className="text-xs text-muted-foreground">Equipo funcional</div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setEstatusFinal('pendiente_entrega')}
+                    className={`p-4 rounded-lg border-2 transition-all text-left ${
+                      estatusFinal === 'pendiente_entrega'
+                        ? 'border-blue-500 bg-blue-500/10 shadow-md'
+                        : 'border-border hover:border-blue-500/50 hover:bg-muted'
+                    }`}
+                  >
+                    <div className="text-2xl mb-1">📦</div>
+                    <div className="font-semibold text-sm">Pendiente Entrega</div>
+                    <div className="text-xs text-muted-foreground">Listo para cliente</div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setEstatusFinal('logistica_envio')}
+                    className={`p-4 rounded-lg border-2 transition-all text-left ${
+                      estatusFinal === 'logistica_envio'
+                        ? 'border-indigo-500 bg-indigo-500/10 shadow-md'
+                        : 'border-border hover:border-indigo-500/50 hover:bg-muted'
+                    }`}
+                  >
+                    <div className="text-2xl mb-1">🚚</div>
+                    <div className="font-semibold text-sm">Logística Envío</div>
+                    <div className="text-xs text-muted-foreground">Enviar al cliente</div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setEstatusFinal('pendiente_repuestos')}
+                    className={`p-4 rounded-lg border-2 transition-all text-left ${
+                      estatusFinal === 'pendiente_repuestos'
+                        ? 'border-amber-500 bg-amber-500/10 shadow-md'
+                        : 'border-border hover:border-amber-500/50 hover:bg-muted'
+                    }`}
+                  >
+                    <div className="text-2xl mb-1">⏳</div>
+                    <div className="font-semibold text-sm">Pendiente Repuestos</div>
+                    <div className="text-xs text-muted-foreground">Falta material</div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setEstatusFinal('presupuesto')}
+                    className={`p-4 rounded-lg border-2 transition-all text-left ${
+                      estatusFinal === 'presupuesto'
+                        ? 'border-purple-500 bg-purple-500/10 shadow-md'
+                        : 'border-border hover:border-purple-500/50 hover:bg-muted'
+                    }`}
+                  >
+                    <div className="text-2xl mb-1">💰</div>
+                    <div className="font-semibold text-sm">Presupuesto</div>
+                    <div className="text-xs text-muted-foreground">Cotizar reparación</div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setEstatusFinal('porcentaje')}
+                    className={`p-4 rounded-lg border-2 transition-all text-left ${
+                      estatusFinal === 'porcentaje'
+                        ? 'border-orange-500 bg-orange-500/10 shadow-md'
+                        : 'border-border hover:border-orange-500/50 hover:bg-muted'
+                    }`}
+                  >
+                    <div className="text-2xl mb-1">🔄</div>
+                    <div className="font-semibold text-sm">Porcentaje/Canje</div>
+                    <div className="text-xs text-muted-foreground">Requiere aprobación</div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setEstatusFinal('cambio_garantia')}
+                    className={`p-4 rounded-lg border-2 transition-all text-left ${
+                      estatusFinal === 'cambio_garantia'
+                        ? 'border-cyan-500 bg-cyan-500/10 shadow-md'
+                        : 'border-border hover:border-cyan-500/50 hover:bg-muted'
+                    }`}
+                  >
+                    <div className="text-2xl mb-1">🛡️</div>
+                    <div className="font-semibold text-sm">Cambio Garantía</div>
+                    <div className="text-xs text-muted-foreground">Defecto de fábrica</div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setEstatusFinal('nota_credito')}
+                    className={`p-4 rounded-lg border-2 transition-all text-left ${
+                      estatusFinal === 'nota_credito'
+                        ? 'border-pink-500 bg-pink-500/10 shadow-md'
+                        : 'border-border hover:border-pink-500/50 hover:bg-muted'
+                    }`}
+                  >
+                    <div className="text-2xl mb-1">📝</div>
+                    <div className="font-semibold text-sm">Nota de Crédito</div>
+                    <div className="text-xs text-muted-foreground">Devolución</div>
+                  </button>
+                </div>
               </div>
 
-              {/* Botón de Acción */}
-              <div className="pt-4">
+              {/* Botón de Acción con indicador de guardado */}
+              <div className="pt-4 space-y-2">
+                {lastSaved && (
+                  <div className="text-center">
+                    <p className="text-xs text-muted-foreground">
+                      Último guardado: {lastSaved.toLocaleTimeString()}
+                    </p>
+                  </div>
+                )}
                 <Button 
                   onClick={() => setShowConfirmDialog(true)} 
                   className="w-full h-12 text-base shadow-lg hover:shadow-xl transition-all" 
                   size="lg"
+                  disabled={!estatusFinal}
                 >
                   <CheckCircle className="h-5 w-5 mr-2" />
                   Completar Digitalización
@@ -981,24 +1145,125 @@ export function DiagnosticoTecnico({ incidente, onDiagnosticoCompleto, modoDigit
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
-            {/* Estatus Final */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Estatus Final *</label>
-              <Select value={estatusFinal} onValueChange={setEstatusFinal}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecciona el estatus final..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="reparado">Reparado</SelectItem>
-                  <SelectItem value="pendiente_entrega">Pendiente Entrega</SelectItem>
-                  <SelectItem value="logistica_envio">Logística Envío</SelectItem>
-                  <SelectItem value="pendiente_repuestos">Pendiente por Repuestos</SelectItem>
-                  <SelectItem value="presupuesto">Presupuesto</SelectItem>
-                  <SelectItem value="porcentaje">Porcentaje/Canje</SelectItem>
-                  <SelectItem value="cambio_garantia">Cambio por Garantía</SelectItem>
-                  <SelectItem value="nota_credito">Nota de Crédito</SelectItem>
-                </SelectContent>
-              </Select>
+            {/* Estatus Final - Visual con botones */}
+            <div className="space-y-3">
+              <label className="text-sm font-medium flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 text-primary" />
+                Resolución del Diagnóstico *
+              </label>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setEstatusFinal('reparado')}
+                  className={`p-4 rounded-lg border-2 transition-all text-left ${
+                    estatusFinal === 'reparado'
+                      ? 'border-green-500 bg-green-500/10 shadow-md'
+                      : 'border-border hover:border-green-500/50 hover:bg-muted'
+                  }`}
+                >
+                  <div className="text-2xl mb-1">✓</div>
+                  <div className="font-semibold text-sm">Reparado</div>
+                  <div className="text-xs text-muted-foreground">Equipo funcional</div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setEstatusFinal('pendiente_entrega')}
+                  className={`p-4 rounded-lg border-2 transition-all text-left ${
+                    estatusFinal === 'pendiente_entrega'
+                      ? 'border-blue-500 bg-blue-500/10 shadow-md'
+                      : 'border-border hover:border-blue-500/50 hover:bg-muted'
+                  }`}
+                >
+                  <div className="text-2xl mb-1">📦</div>
+                  <div className="font-semibold text-sm">Pendiente Entrega</div>
+                  <div className="text-xs text-muted-foreground">Listo para cliente</div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setEstatusFinal('logistica_envio')}
+                  className={`p-4 rounded-lg border-2 transition-all text-left ${
+                    estatusFinal === 'logistica_envio'
+                      ? 'border-indigo-500 bg-indigo-500/10 shadow-md'
+                      : 'border-border hover:border-indigo-500/50 hover:bg-muted'
+                  }`}
+                >
+                  <div className="text-2xl mb-1">🚚</div>
+                  <div className="font-semibold text-sm">Logística Envío</div>
+                  <div className="text-xs text-muted-foreground">Enviar al cliente</div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setEstatusFinal('pendiente_repuestos')}
+                  className={`p-4 rounded-lg border-2 transition-all text-left ${
+                    estatusFinal === 'pendiente_repuestos'
+                      ? 'border-amber-500 bg-amber-500/10 shadow-md'
+                      : 'border-border hover:border-amber-500/50 hover:bg-muted'
+                  }`}
+                >
+                  <div className="text-2xl mb-1">⏳</div>
+                  <div className="font-semibold text-sm">Pendiente Repuestos</div>
+                  <div className="text-xs text-muted-foreground">Falta material</div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setEstatusFinal('presupuesto')}
+                  className={`p-4 rounded-lg border-2 transition-all text-left ${
+                    estatusFinal === 'presupuesto'
+                      ? 'border-purple-500 bg-purple-500/10 shadow-md'
+                      : 'border-border hover:border-purple-500/50 hover:bg-muted'
+                  }`}
+                >
+                  <div className="text-2xl mb-1">💰</div>
+                  <div className="font-semibold text-sm">Presupuesto</div>
+                  <div className="text-xs text-muted-foreground">Cotizar reparación</div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setEstatusFinal('porcentaje')}
+                  className={`p-4 rounded-lg border-2 transition-all text-left ${
+                    estatusFinal === 'porcentaje'
+                      ? 'border-orange-500 bg-orange-500/10 shadow-md'
+                      : 'border-border hover:border-orange-500/50 hover:bg-muted'
+                  }`}
+                >
+                  <div className="text-2xl mb-1">🔄</div>
+                  <div className="font-semibold text-sm">Porcentaje/Canje</div>
+                  <div className="text-xs text-muted-foreground">Requiere aprobación</div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setEstatusFinal('cambio_garantia')}
+                  className={`p-4 rounded-lg border-2 transition-all text-left ${
+                    estatusFinal === 'cambio_garantia'
+                      ? 'border-cyan-500 bg-cyan-500/10 shadow-md'
+                      : 'border-border hover:border-cyan-500/50 hover:bg-muted'
+                  }`}
+                >
+                  <div className="text-2xl mb-1">🛡️</div>
+                  <div className="font-semibold text-sm">Cambio Garantía</div>
+                  <div className="text-xs text-muted-foreground">Defecto de fábrica</div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setEstatusFinal('nota_credito')}
+                  className={`p-4 rounded-lg border-2 transition-all text-left ${
+                    estatusFinal === 'nota_credito'
+                      ? 'border-pink-500 bg-pink-500/10 shadow-md'
+                      : 'border-border hover:border-pink-500/50 hover:bg-muted'
+                  }`}
+                >
+                  <div className="text-2xl mb-1">📝</div>
+                  <div className="font-semibold text-sm">Nota de Crédito</div>
+                  <div className="text-xs text-muted-foreground">Devolución</div>
+                </button>
+              </div>
             </div>
 
             {/* Solicitar Cambio/Garantía/Canje */}

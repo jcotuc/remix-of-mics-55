@@ -134,15 +134,20 @@ export default function SeguimientoIncidente() {
         </Button>
       </div>
 
-      {/* Mostrar componente de diagnóstico si está en estado "En diagnostico" */}
+      {/* Mostrar componente de diagnóstico SOLO si está en estado "En diagnostico" */}
       {incidente.status === 'En diagnostico' && (
-        <DiagnosticoTecnico 
-          incidente={incidente} 
-          onDiagnosticoCompleto={fetchData}
-        />
+        <div className="mb-6">
+          <DiagnosticoTecnico 
+            incidente={incidente} 
+            onDiagnosticoCompleto={fetchData}
+            modoDigitador={true}
+          />
+        </div>
       )}
 
-      <div className="grid gap-6 md:grid-cols-2">
+      {/* Solo mostrar detalles si NO está en modo diagnóstico */}
+      {incidente.status !== 'En diagnostico' && (
+        <div className="grid gap-6 md:grid-cols-2">
         {/* Estado Actual */}
         <Card className="md:col-span-2">
           <CardHeader>
@@ -192,6 +197,7 @@ export default function SeguimientoIncidente() {
           </CardContent>
         </Card>
       </div>
+      )}
     </div>
   );
 }
