@@ -472,8 +472,8 @@ export function DiagnosticoTecnico({ incidente, onDiagnosticoCompleto, modoDigit
         </Card>
       )}
 
-      {/* Paso 1: Revisar Máquina - Simplified for digitador */}
-      {(paso === 1 || modoDigitador) && (
+      {/* Paso 1: Revisar Máquina */}
+      {paso === 1 && !modoDigitador && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -559,21 +559,12 @@ export function DiagnosticoTecnico({ incidente, onDiagnosticoCompleto, modoDigit
 
             <Separator />
 
-            {!modoDigitador ? (
-              <div className="flex justify-end gap-2">
-                <Button onClick={() => setPaso(2)} size="lg">
-                  Siguiente: Repuestos
-                  <ArrowRight className="h-4 w-4 ml-2" />
-                </Button>
-              </div>
-            ) : (
-              <div className="flex justify-end gap-2">
-                <Button onClick={() => setShowConfirmDialog(true)} size="lg">
-                  <CheckCircle className="h-4 w-4 mr-2" />
-                  Completar Digitalización
-                </Button>
-              </div>
-            )}
+            <div className="flex justify-end gap-2">
+              <Button onClick={() => setPaso(2)} size="lg">
+                Siguiente: Repuestos
+                <ArrowRight className="h-4 w-4 ml-2" />
+              </Button>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -695,8 +686,148 @@ export function DiagnosticoTecnico({ incidente, onDiagnosticoCompleto, modoDigit
         </div>
       )}
 
-      {/* Paso 3: Decisión Final - Also shown in digitador mode */}
-      {(paso === 3 || modoDigitador) && (
+      {/* Vista simplificada para digitador - todos los campos en una sola vista */}
+      {modoDigitador && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Digitalizar Diagnóstico Técnico
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Fallas Encontradas */}
+            <div className="space-y-3">
+              <label className="text-sm font-medium flex items-center justify-between">
+                Fallas Encontradas *
+                <Button size="sm" variant="outline" onClick={agregarFalla}>
+                  <Plus className="h-4 w-4 mr-1" />
+                  Agregar
+                </Button>
+              </label>
+              {fallas.map((falla, idx) => (
+                <div key={idx} className="flex gap-2">
+                  <Input
+                    placeholder={`Falla ${idx + 1}`}
+                    value={falla}
+                    onChange={(e) => actualizarFalla(idx, e.target.value)}
+                  />
+                  {fallas.length > 1 && (
+                    <Button size="icon" variant="ghost" onClick={() => eliminarFalla(idx)}>
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Causas */}
+            <div className="space-y-3">
+              <label className="text-sm font-medium flex items-center justify-between">
+                Causas *
+                <Button size="sm" variant="outline" onClick={agregarCausa}>
+                  <Plus className="h-4 w-4 mr-1" />
+                  Agregar
+                </Button>
+              </label>
+              {causas.map((causa, idx) => (
+                <div key={idx} className="flex gap-2">
+                  <Input
+                    placeholder={`Causa ${idx + 1}`}
+                    value={causa}
+                    onChange={(e) => actualizarCausa(idx, e.target.value)}
+                  />
+                  {causas.length > 1 && (
+                    <Button size="icon" variant="ghost" onClick={() => eliminarCausa(idx)}>
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Repuestos Cambiados - solo mostrar los que ya están */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Repuestos Cambiados</label>
+              {repuestosSeleccionados.length > 0 ? (
+                <div className="space-y-2">
+                  {repuestosSeleccionados.map((rep) => (
+                    <div key={rep.codigo} className="p-3 border rounded-lg bg-muted/30">
+                      <p className="font-medium text-sm">{rep.descripcion}</p>
+                      <p className="text-xs text-muted-foreground">Código: {rep.codigo} | Cantidad: {rep.cantidad}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">No se utilizaron repuestos</p>
+              )}
+            </div>
+
+            {/* Recomendaciones */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Recomendaciones</label>
+              <Textarea
+                placeholder="Recomendaciones para el cliente..."
+                value={recomendaciones}
+                onChange={(e) => setRecomendaciones(e.target.value)}
+                rows={3}
+              />
+            </div>
+
+            {/* Resolución */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Resolución</label>
+              <Textarea
+                placeholder="Resumen de la resolución del problema..."
+                value={resolucion}
+                onChange={(e) => setResolucion(e.target.value)}
+                rows={3}
+              />
+            </div>
+
+            {/* Accesorios */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Accesorios Revisados</label>
+              <Textarea
+                placeholder="Accesorios que se revisaron durante el diagnóstico..."
+                value={accesorios}
+                onChange={(e) => setAccesorios(e.target.value)}
+                rows={2}
+              />
+            </div>
+
+            {/* Estatus Final */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Estatus Final *</label>
+              <Select value={estatusFinal} onValueChange={setEstatusFinal}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona el estatus final..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="reparado">Reparado</SelectItem>
+                  <SelectItem value="pendiente_entrega">Pendiente Entrega</SelectItem>
+                  <SelectItem value="logistica_envio">Logística Envío</SelectItem>
+                  <SelectItem value="pendiente_repuestos">Pendiente por Repuestos</SelectItem>
+                  <SelectItem value="presupuesto">Presupuesto</SelectItem>
+                  <SelectItem value="porcentaje">Porcentaje/Canje</SelectItem>
+                  <SelectItem value="cambio_garantia">Cambio por Garantía</SelectItem>
+                  <SelectItem value="nota_credito">Nota de Crédito</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <Separator />
+
+            <Button onClick={() => setShowConfirmDialog(true)} className="w-full" size="lg">
+              <CheckCircle className="h-4 w-4 mr-2" />
+              Completar Digitalización
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Paso 3: Decisión Final - Solo para modo técnico */}
+      {!modoDigitador && paso === 3 && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
