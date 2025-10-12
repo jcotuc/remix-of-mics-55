@@ -559,12 +559,21 @@ export function DiagnosticoTecnico({ incidente, onDiagnosticoCompleto, modoDigit
 
             <Separator />
 
-            <div className="flex justify-end gap-2">
-              <Button onClick={() => setPaso(2)} size="lg">
-                Siguiente: Repuestos
-                <ArrowRight className="h-4 w-4 ml-2" />
-              </Button>
-            </div>
+            {!modoDigitador ? (
+              <div className="flex justify-end gap-2">
+                <Button onClick={() => setPaso(2)} size="lg">
+                  Siguiente: Repuestos
+                  <ArrowRight className="h-4 w-4 ml-2" />
+                </Button>
+              </div>
+            ) : (
+              <div className="flex justify-end gap-2">
+                <Button onClick={() => setShowConfirmDialog(true)} size="lg">
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  Completar Digitalización
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
