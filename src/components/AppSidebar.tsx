@@ -1,4 +1,4 @@
-import { Users, Package, Wrench, FileText, Truck, LogOut, Home, ShoppingCart, DollarSign } from "lucide-react";
+import { Users, Package, Wrench, FileText, Truck, LogOut, Home, ShoppingCart, DollarSign, ClipboardList } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -37,6 +37,7 @@ const menuAreas = {
   ],
   taller: [
     { title: "Asignaciones", url: "/taller/asignaciones", icon: Wrench },
+    { title: "Mis Asignaciones", url: "/taller/mis-asignaciones", icon: ClipboardList },
     { title: "Presupuestos", url: "/taller/presupuestos", icon: DollarSign },
   ],
   bodega: [
