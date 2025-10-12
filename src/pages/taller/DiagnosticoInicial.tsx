@@ -529,26 +529,25 @@ export default function DiagnosticoInicial() {
               
               <ResizablePanelGroup direction="horizontal" className="h-[600px] rounded-lg border">
                 {/* Panel izquierdo: Repuestos disponibles */}
-                <ResizablePanel defaultSize={60} className="p-4">
-                  <div className="space-y-4 h-full flex flex-col">
-                    <div className="flex items-center justify-between">
-                      <h4 className="font-medium">Repuestos Disponibles</h4>
-                      <Badge variant="outline">
-                        {filteredRepuestos.length} disponibles
-                      </Badge>
-                    </div>
-                    
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        placeholder="Buscar por código, clave o descripción..."
-                        value={searchRepuesto}
-                        onChange={(e) => setSearchRepuesto(e.target.value)}
-                        className="pl-10"
-                      />
-                    </div>
+                <ResizablePanel defaultSize={60} className="p-4 flex flex-col">
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="font-medium">Repuestos Disponibles</h4>
+                    <Badge variant="outline">
+                      {filteredRepuestos.length} disponibles
+                    </Badge>
+                  </div>
+                  
+                  <div className="relative mb-4">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Buscar por código, clave o descripción..."
+                      value={searchRepuesto}
+                      onChange={(e) => setSearchRepuesto(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
 
-                    <div className="flex-1 overflow-auto space-y-2">
+                  <div className="flex-1 overflow-y-auto space-y-2 pr-2">
                       {filteredRepuestos.map((repuesto) => (
                         <div 
                           key={repuesto.id} 
@@ -581,24 +580,22 @@ export default function DiagnosticoInicial() {
                           <p>No se encontraron repuestos</p>
                         </div>
                       )}
-                    </div>
                   </div>
                 </ResizablePanel>
 
                 <ResizableHandle />
 
                 {/* Panel derecho: Repuestos seleccionados */}
-                <ResizablePanel defaultSize={40} className="p-4">
-                  <div className="h-full flex flex-col">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-2">
-                        <ShoppingCart className="w-4 h-4" />
-                        <h4 className="font-medium">Repuestos Solicitados</h4>
-                        <Badge>{repuestosSolicitados.length}</Badge>
-                      </div>
+                <ResizablePanel defaultSize={40} className="p-4 flex flex-col">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <ShoppingCart className="w-4 h-4" />
+                      <h4 className="font-medium">Repuestos Solicitados</h4>
+                      <Badge>{repuestosSolicitados.length}</Badge>
                     </div>
+                  </div>
 
-                    <div className="flex-1 overflow-auto">
+                  <div className="flex-1 overflow-y-auto pr-2">
                       {repuestosSolicitados.length > 0 ? (
                         <div className="space-y-3">
                           {repuestosSolicitados.map((item) => (
@@ -649,7 +646,6 @@ export default function DiagnosticoInicial() {
                           <p className="text-xs">Selecciona repuestos de la lista</p>
                         </div>
                       )}
-                    </div>
                   </div>
                 </ResizablePanel>
               </ResizablePanelGroup>
