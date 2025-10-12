@@ -85,25 +85,35 @@ export function AppSidebar() {
 
   return (
     <Sidebar className={isCollapsed ? "w-16" : "w-64"} collapsible="icon">
-      <SidebarContent>
-        <div className="p-4">
-          <h2 className={`font-bold text-lg text-sidebar-foreground ${isCollapsed ? "hidden" : "block"}`}>
-            Centro de Servicio
-          </h2>
-          {isCollapsed && (
-            <div className="w-8 h-8 bg-primary rounded flex items-center justify-center">
-              <Wrench className="h-4 w-4 text-primary-foreground" />
+      <SidebarContent className="bg-card border-r-2 border-border">
+        {/* Logo y branding con colores corporativos */}
+        <div className="p-4 border-b border-border bg-gradient-to-r from-secondary to-secondary/90">
+          {!isCollapsed ? (
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center shadow-lg">
+                  <Wrench className="h-5 w-5 text-primary-foreground" />
+                </div>
+                <h2 className="font-bold text-base text-secondary-foreground">
+                  Centro de Servicio
+                </h2>
+              </div>
+              {userRole && (
+                <div className="ml-11">
+                  <span className="text-xs font-medium text-secondary-foreground/80 uppercase tracking-wider px-2 py-1 bg-secondary-foreground/10 rounded">
+                    {userRole === 'mostrador' && 'Mostrador'}
+                    {userRole === 'logistica' && 'Logística'}
+                    {userRole === 'taller' && 'Taller'}
+                    {userRole === 'bodega' && 'Bodega'}
+                    {userRole === 'digitador' && 'Digitador'}
+                    {userRole === 'admin' && 'Administrador'}
+                  </span>
+                </div>
+              )}
             </div>
-          )}
-          {!isCollapsed && userRole && (
-            <div className="mt-2">
-              <span className="text-xs text-muted-foreground uppercase tracking-wide">
-                {userRole === 'mostrador' && 'Mostrador'}
-                {userRole === 'logistica' && 'Logística'}
-                {userRole === 'taller' && 'Taller'}
-                {userRole === 'bodega' && 'Bodega'}
-                {userRole === 'admin' && 'Administrador'}
-              </span>
+          ) : (
+            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center mx-auto shadow-lg">
+              <Wrench className="h-4 w-4 text-primary-foreground" />
             </div>
           )}
         </div>
@@ -116,10 +126,10 @@ export function AppSidebar() {
         {renderMenuSection("Digitador", menuAreas.digitador)}
         {renderMenuSection("Bodega", menuAreas.bodega)}
 
-        <div className="mt-auto p-4 border-t">
+        <div className="mt-auto p-4 border-t border-border bg-muted/50">
           <Button
             variant="ghost"
-            className="w-full justify-start gap-2"
+            className="w-full justify-start gap-2 hover:bg-destructive/10 hover:text-destructive"
             onClick={signOut}
           >
             <LogOut className="h-4 w-4" />
