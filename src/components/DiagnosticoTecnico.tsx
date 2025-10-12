@@ -714,171 +714,261 @@ export function DiagnosticoTecnico({ incidente, onDiagnosticoCompleto, modoDigit
         </div>
       )}
 
-      {/* Vista simplificada para digitador - todos los campos en una sola vista */}
+      {/* Vista moderna para digitador - todos los campos en una sola vista */}
       {modoDigitador && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              Digitalizar Diagnóstico Técnico
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Fallas Encontradas */}
-            <div className="space-y-3">
-              <label className="text-sm font-medium flex items-center justify-between">
-                Fallas Encontradas *
-                <Button size="sm" variant="outline" onClick={agregarFalla}>
-                  <Plus className="h-4 w-4 mr-1" />
-                  Agregar
-                </Button>
-              </label>
-              {fallas.map((falla, idx) => (
-                <div key={idx} className="flex gap-2">
-                  <Input
-                    placeholder={`Falla ${idx + 1}`}
-                    value={falla}
-                    onChange={(e) => actualizarFalla(idx, e.target.value)}
-                  />
-                  {fallas.length > 1 && (
-                    <Button size="icon" variant="ghost" onClick={() => eliminarFalla(idx)}>
-                      <Trash2 className="h-4 w-4 text-destructive" />
+        <div className="space-y-6">
+          {/* Tarjeta Principal con mejor diseño */}
+          <Card className="border-none shadow-lg bg-gradient-to-br from-background to-muted/20">
+            <CardHeader className="space-y-1 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-xl bg-primary/10">
+                  <FileText className="h-6 w-6 text-primary" />
+                </div>
+                <div>
+                  <CardTitle className="text-2xl">Digitalizar Diagnóstico</CardTitle>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Complete los campos del diagnóstico técnico
+                  </p>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Sección: Fallas y Causas */}
+              <div className="grid gap-6 md:grid-cols-2">
+                {/* Fallas Encontradas */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-semibold flex items-center gap-2">
+                      <div className="h-2 w-2 rounded-full bg-destructive animate-pulse" />
+                      Fallas Encontradas *
+                    </label>
+                    <Button size="sm" variant="outline" onClick={agregarFalla} className="h-8">
+                      <Plus className="h-3 w-3 mr-1" />
+                      Agregar
                     </Button>
-                  )}
+                  </div>
+                  <div className="space-y-2">
+                    {fallas.map((falla, idx) => (
+                      <div key={idx} className="flex gap-2 animate-fade-in">
+                        <Input
+                          placeholder={`Describa la falla ${idx + 1}...`}
+                          value={falla}
+                          onChange={(e) => actualizarFalla(idx, e.target.value)}
+                          className="bg-background"
+                        />
+                        {fallas.length > 1 && (
+                          <Button size="icon" variant="ghost" onClick={() => eliminarFalla(idx)} className="shrink-0">
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              ))}
-            </div>
 
-            {/* Causas */}
-            <div className="space-y-3">
-              <label className="text-sm font-medium flex items-center justify-between">
-                Causas *
-                <Button size="sm" variant="outline" onClick={agregarCausa}>
-                  <Plus className="h-4 w-4 mr-1" />
-                  Agregar
-                </Button>
-              </label>
-              {causas.map((causa, idx) => (
-                <div key={idx} className="flex gap-2">
-                  <Input
-                    placeholder={`Causa ${idx + 1}`}
-                    value={causa}
-                    onChange={(e) => actualizarCausa(idx, e.target.value)}
-                  />
-                  {causas.length > 1 && (
-                    <Button size="icon" variant="ghost" onClick={() => eliminarCausa(idx)}>
-                      <Trash2 className="h-4 w-4 text-destructive" />
+                {/* Causas */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-semibold flex items-center gap-2">
+                      <div className="h-2 w-2 rounded-full bg-warning animate-pulse" />
+                      Causas *
+                    </label>
+                    <Button size="sm" variant="outline" onClick={agregarCausa} className="h-8">
+                      <Plus className="h-3 w-3 mr-1" />
+                      Agregar
                     </Button>
-                  )}
+                  </div>
+                  <div className="space-y-2">
+                    {causas.map((causa, idx) => (
+                      <div key={idx} className="flex gap-2 animate-fade-in">
+                        <Input
+                          placeholder={`Describa la causa ${idx + 1}...`}
+                          value={causa}
+                          onChange={(e) => actualizarCausa(idx, e.target.value)}
+                          className="bg-background"
+                        />
+                        {causas.length > 1 && (
+                          <Button size="icon" variant="ghost" onClick={() => eliminarCausa(idx)} className="shrink-0">
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              ))}
-            </div>
+              </div>
 
-            {/* Fotos del Diagnóstico */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium flex items-center gap-2">
-                <Camera className="h-4 w-4" />
-                Fotos del Diagnóstico Técnico
-              </label>
-              {fotosUrls && fotosUrls.length > 0 ? (
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                  {fotosUrls.map((url, idx) => (
-                    <div key={idx} className="relative aspect-square rounded-lg overflow-hidden border-2 border-border hover:border-primary transition-colors">
-                      <img 
-                        src={url} 
-                        alt={`Foto diagnóstico ${idx + 1}`}
-                        className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                        onClick={() => window.open(url, '_blank')}
-                      />
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="border-2 border-dashed rounded-lg p-8 text-center">
-                  <Camera className="h-10 w-10 mx-auto mb-2 text-muted-foreground opacity-30" />
-                  <p className="text-sm text-muted-foreground">No hay fotos del diagnóstico</p>
-                </div>
-              )}
-            </div>
+              <Separator className="my-6" />
 
-            {/* Repuestos Cambiados - solo mostrar los que ya están */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Repuestos Cambiados</label>
-              {repuestosSeleccionados.length > 0 ? (
+              {/* Sección: Fotos y Repuestos en grid */}
+              <div className="grid gap-6 lg:grid-cols-2">
+                {/* Fotos del Diagnóstico */}
+                <Card className="bg-muted/30 border-dashed">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Camera className="h-4 w-4 text-primary" />
+                      Fotos del Diagnóstico
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {fotosUrls && fotosUrls.length > 0 ? (
+                      <div className="grid grid-cols-2 gap-2">
+                        {fotosUrls.map((url, idx) => (
+                          <div 
+                            key={idx} 
+                            className="relative aspect-square rounded-lg overflow-hidden border-2 border-border hover:border-primary transition-all cursor-pointer group"
+                            onClick={() => window.open(url, '_blank')}
+                          >
+                            <img 
+                              src={url} 
+                              alt={`Foto ${idx + 1}`}
+                              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                            />
+                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                              <Camera className="h-6 w-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="py-8 text-center">
+                        <Camera className="h-10 w-10 mx-auto mb-2 text-muted-foreground/30" />
+                        <p className="text-sm text-muted-foreground">Sin fotos</p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Repuestos Utilizados */}
+                <Card className="bg-muted/30 border-dashed">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Package className="h-4 w-4 text-primary" />
+                      Repuestos Utilizados
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {repuestosSeleccionados.length > 0 ? (
+                      <div className="space-y-2 max-h-[280px] overflow-y-auto pr-1">
+                        {repuestosSeleccionados.map((rep, idx) => (
+                          <div key={rep.codigo} className="p-3 rounded-lg bg-background border animate-fade-in">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-sm truncate">{rep.descripcion}</p>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <Badge variant="outline" className="text-xs">
+                                    {rep.codigo}
+                                  </Badge>
+                                  <Badge className="text-xs bg-primary/10 text-primary">
+                                    Cant: {rep.cantidad}
+                                  </Badge>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="py-8 text-center">
+                        <Package className="h-10 w-10 mx-auto mb-2 text-muted-foreground/30" />
+                        <p className="text-sm text-muted-foreground">Sin repuestos</p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+
+              <Separator className="my-6" />
+
+              {/* Sección: Observaciones y Resolución */}
+              <div className="space-y-4">
+                <div className="grid gap-4 md:grid-cols-2">
+                  {/* Recomendaciones */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-semibold flex items-center gap-2">
+                      <Info className="h-4 w-4 text-primary" />
+                      Recomendaciones
+                    </label>
+                    <Textarea
+                      placeholder="Ingrese las recomendaciones para el cliente..."
+                      value={recomendaciones}
+                      onChange={(e) => setRecomendaciones(e.target.value)}
+                      rows={4}
+                      className="resize-none bg-background"
+                    />
+                  </div>
+
+                  {/* Resolución */}
+                  <div className="space-y-2">
+                    <label className="text-sm font-semibold flex items-center gap-2">
+                      <CheckCircle className="h-4 w-4 text-primary" />
+                      Resolución
+                    </label>
+                    <Textarea
+                      placeholder="Describa cómo se resolvió el problema..."
+                      value={resolucion}
+                      onChange={(e) => setResolucion(e.target.value)}
+                      rows={4}
+                      className="resize-none bg-background"
+                    />
+                  </div>
+                </div>
+
+                {/* Accesorios */}
                 <div className="space-y-2">
-                  {repuestosSeleccionados.map((rep) => (
-                    <div key={rep.codigo} className="p-3 border rounded-lg bg-muted/30">
-                      <p className="font-medium text-sm">{rep.descripcion}</p>
-                      <p className="text-xs text-muted-foreground">Código: {rep.codigo} | Cantidad: {rep.cantidad}</p>
-                    </div>
-                  ))}
+                  <label className="text-sm font-semibold flex items-center gap-2">
+                    <Wrench className="h-4 w-4 text-primary" />
+                    Accesorios Revisados
+                  </label>
+                  <Textarea
+                    placeholder="Liste los accesorios que se revisaron durante el diagnóstico..."
+                    value={accesorios}
+                    onChange={(e) => setAccesorios(e.target.value)}
+                    rows={2}
+                    className="resize-none bg-background"
+                  />
                 </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">No se utilizaron repuestos</p>
-              )}
-            </div>
+              </div>
 
-            {/* Recomendaciones */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Recomendaciones</label>
-              <Textarea
-                placeholder="Recomendaciones para el cliente..."
-                value={recomendaciones}
-                onChange={(e) => setRecomendaciones(e.target.value)}
-                rows={3}
-              />
-            </div>
+              <Separator className="my-6" />
 
-            {/* Resolución */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Resolución</label>
-              <Textarea
-                placeholder="Resumen de la resolución del problema..."
-                value={resolucion}
-                onChange={(e) => setResolucion(e.target.value)}
-                rows={3}
-              />
-            </div>
+              {/* Estatus Final - Destacado */}
+              <div className="space-y-3">
+                <label className="text-sm font-semibold flex items-center gap-2">
+                  <AlertTriangle className="h-4 w-4 text-primary" />
+                  Estatus Final del Diagnóstico *
+                </label>
+                <Select value={estatusFinal} onValueChange={setEstatusFinal}>
+                  <SelectTrigger className="h-12 bg-background text-base">
+                    <SelectValue placeholder="Seleccione el estado final del diagnóstico..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="reparado">✓ Reparado</SelectItem>
+                    <SelectItem value="pendiente_entrega">📦 Pendiente Entrega</SelectItem>
+                    <SelectItem value="logistica_envio">🚚 Logística Envío</SelectItem>
+                    <SelectItem value="pendiente_repuestos">⏳ Pendiente por Repuestos</SelectItem>
+                    <SelectItem value="presupuesto">💰 Presupuesto</SelectItem>
+                    <SelectItem value="porcentaje">🔄 Porcentaje/Canje</SelectItem>
+                    <SelectItem value="cambio_garantia">🛡️ Cambio por Garantía</SelectItem>
+                    <SelectItem value="nota_credito">📝 Nota de Crédito</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-            {/* Accesorios */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Accesorios Revisados</label>
-              <Textarea
-                placeholder="Accesorios que se revisaron durante el diagnóstico..."
-                value={accesorios}
-                onChange={(e) => setAccesorios(e.target.value)}
-                rows={2}
-              />
-            </div>
-
-            {/* Estatus Final */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Estatus Final *</label>
-              <Select value={estatusFinal} onValueChange={setEstatusFinal}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecciona el estatus final..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="reparado">Reparado</SelectItem>
-                  <SelectItem value="pendiente_entrega">Pendiente Entrega</SelectItem>
-                  <SelectItem value="logistica_envio">Logística Envío</SelectItem>
-                  <SelectItem value="pendiente_repuestos">Pendiente por Repuestos</SelectItem>
-                  <SelectItem value="presupuesto">Presupuesto</SelectItem>
-                  <SelectItem value="porcentaje">Porcentaje/Canje</SelectItem>
-                  <SelectItem value="cambio_garantia">Cambio por Garantía</SelectItem>
-                  <SelectItem value="nota_credito">Nota de Crédito</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <Separator />
-
-            <Button onClick={() => setShowConfirmDialog(true)} className="w-full" size="lg">
-              <CheckCircle className="h-4 w-4 mr-2" />
-              Completar Digitalización
-            </Button>
-          </CardContent>
-        </Card>
+              {/* Botón de Acción */}
+              <div className="pt-4">
+                <Button 
+                  onClick={() => setShowConfirmDialog(true)} 
+                  className="w-full h-12 text-base shadow-lg hover:shadow-xl transition-all" 
+                  size="lg"
+                >
+                  <CheckCircle className="h-5 w-5 mr-2" />
+                  Completar Digitalización
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       )}
 
       {/* Paso 3: Decisión Final - Solo para modo técnico */}

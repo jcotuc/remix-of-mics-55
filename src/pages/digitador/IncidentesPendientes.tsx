@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { FileText, Search, Edit, Calendar, User } from "lucide-react";
+import { FileText, Search, Edit, Calendar, User, BarChart3 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { StatusBadge } from "@/components/StatusBadge";
 
@@ -122,6 +122,10 @@ export default function IncidentesPendientes() {
             Completa los diagnósticos ingresados por los técnicos
           </p>
         </div>
+        <Button onClick={() => navigate('/digitador/dashboard')} variant="outline" size="lg">
+          <BarChart3 className="h-4 w-4 mr-2" />
+          Ver Dashboard
+        </Button>
       </div>
 
       <Card>

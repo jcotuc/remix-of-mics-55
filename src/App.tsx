@@ -23,6 +23,7 @@ import Inventario from "./pages/bodega/Inventario";
 import Solicitudes from "./pages/bodega/Solicitudes";
 import IncidentesPendientes from "./pages/digitador/IncidentesPendientes";
 import DiagnosticarIncidente from "./pages/digitador/DiagnosticarIncidente";
+import DigitadorDashboard from "./pages/digitador/Dashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -52,6 +53,7 @@ const App = () => (
               <Route path="/taller/presupuestos" element={<Presupuestos />} />
               <Route path="/bodega/inventario" element={<Inventario />} />
               <Route path="/bodega/solicitudes" element={<Solicitudes />} />
+              <Route path="/digitador/dashboard" element={<DigitadorDashboard />} />
               <Route path="/digitador/pendientes" element={<IncidentesPendientes />} />
               <Route path="/digitador/diagnosticar/:id" element={<DiagnosticarIncidente />} />
               
