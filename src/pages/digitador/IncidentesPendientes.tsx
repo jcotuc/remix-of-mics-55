@@ -23,6 +23,10 @@ type IncidentePendiente = {
   producto_descripcion?: string;
   cliente_nombre?: string;
   tecnico_nombre?: string;
+  diagnostico?: {
+    digitador_asignado: string | null;
+    fecha_inicio_digitacion: string | null;
+  };
 };
 
 export default function IncidentesPendientes() {
@@ -37,6 +41,20 @@ export default function IncidentesPendientes() {
 
   const fetchIncidentesPendientes = async () => {
     try {
+      // Get current user to filter out incidents assigned to others
+      const { data: { user } } = await supabase.auth.getUser();
+      let currentDigitador = '';
+      
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('nombre, apellido')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        
+        currentDigitador = profile ? `${profile.nombre} ${profile.apellido}` : user.email || '';
+      }
+
       // Buscar incidentes que están "En diagnostico" o con diagnóstico en estado borrador
       const { data: incData, error: incError } = await supabase
         .from('incidentes')
@@ -46,15 +64,16 @@ export default function IncidentesPendientes() {
 
       if (incError) throw incError;
 
-      // Obtener información adicional de productos, clientes y técnicos
+      // Obtener información adicional de productos, clientes, técnicos y diagnósticos
       const incidentesConInfo = await Promise.all(
         (incData || []).map(async (inc) => {
-          const [productoRes, clienteRes, tecnicoRes] = await Promise.all([
+          const [productoRes, clienteRes, tecnicoRes, diagnosticoRes] = await Promise.all([
             supabase.from('productos').select('descripcion').eq('codigo', inc.codigo_producto).maybeSingle(),
             supabase.from('clientes').select('nombre').eq('codigo', inc.codigo_cliente).maybeSingle(),
             inc.codigo_tecnico 
               ? supabase.from('tecnicos').select('nombre, apellido').eq('codigo', inc.codigo_tecnico).maybeSingle()
-              : Promise.resolve({ data: null })
+              : Promise.resolve({ data: null }),
+            supabase.from('diagnosticos').select('digitador_asignado, fecha_inicio_digitacion').eq('incidente_id', inc.id).maybeSingle()
           ]);
 
           return {
@@ -63,12 +82,19 @@ export default function IncidentesPendientes() {
             cliente_nombre: clienteRes.data?.nombre,
             tecnico_nombre: tecnicoRes.data 
               ? `${tecnicoRes.data.nombre} ${tecnicoRes.data.apellido}`
-              : 'Sin asignar'
+              : 'Sin asignar',
+            diagnostico: diagnosticoRes.data
           };
         })
       );
 
-      setIncidentes(incidentesConInfo);
+      // Filter to show only unassigned or assigned to current digitador
+      const filtered = incidentesConInfo.filter(inc => 
+        !inc.diagnostico?.digitador_asignado || 
+        inc.diagnostico?.digitador_asignado === currentDigitador
+      );
+
+      setIncidentes(filtered);
     } catch (error) {
       console.error('Error:', error);
     } finally {
@@ -133,6 +159,7 @@ export default function IncidentesPendientes() {
                   <TableHead>Técnico</TableHead>
                   <TableHead>Centro Servicio</TableHead>
                   <TableHead>Fecha Ingreso</TableHead>
+                  <TableHead>Estado Digitación</TableHead>
                   <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
@@ -173,6 +200,18 @@ export default function IncidentesPendientes() {
                           {new Date(inc.fecha_ingreso).toLocaleDateString()}
                         </span>
                       </div>
+                    </TableCell>
+                    <TableCell>
+                      {inc.diagnostico?.digitador_asignado ? (
+                        <div className="flex items-center gap-2">
+                          <div className="h-2 w-2 rounded-full bg-yellow-500 animate-pulse" />
+                          <span className="text-sm text-muted-foreground">
+                            En proceso por ti
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">Pendiente</span>
+                      )}
                     </TableCell>
                     <TableCell className="text-right">
                       <Button

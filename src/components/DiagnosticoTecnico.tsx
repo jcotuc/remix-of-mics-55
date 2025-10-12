@@ -236,6 +236,13 @@ export function DiagnosticoTecnico({ incidente, onDiagnosticoCompleto, modoDigit
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('No user');
 
+      // Check if diagnostico already exists
+      const { data: existingDiag } = await supabase
+        .from('diagnosticos')
+        .select('id')
+        .eq('incidente_id', incidente.id)
+        .maybeSingle();
+
       // Guardar diagnóstico
       const diagnosticoData = {
         incidente_id: incidente.id,
@@ -250,12 +257,26 @@ export function DiagnosticoTecnico({ incidente, onDiagnosticoCompleto, modoDigit
         accesorios: accesorios,
         tiempo_estimado: tiempoEstimado,
         costo_estimado: costoEstimado ? parseFloat(costoEstimado) : null,
-        estado: 'completado'
+        estado: 'completado',
+        // Clear digitador assignment if technician updates (not digitador mode)
+        ...(modoDigitador ? {} : { digitador_asignado: null, fecha_inicio_digitacion: null })
       };
 
-      const { error: diagError } = await supabase
-        .from('diagnosticos')
-        .insert(diagnosticoData);
+      let diagError;
+      if (existingDiag) {
+        // Update existing
+        const { error } = await supabase
+          .from('diagnosticos')
+          .update(diagnosticoData)
+          .eq('id', existingDiag.id);
+        diagError = error;
+      } else {
+        // Insert new
+        const { error } = await supabase
+          .from('diagnosticos')
+          .insert(diagnosticoData);
+        diagError = error;
+      }
 
       if (diagError) throw diagError;
 

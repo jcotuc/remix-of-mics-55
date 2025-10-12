@@ -110,9 +110,11 @@ export type Database = {
           causas: string[]
           costo_estimado: number | null
           created_at: string | null
+          digitador_asignado: string | null
           digitador_codigo: string | null
           estado: string | null
           fallas: string[]
+          fecha_inicio_digitacion: string | null
           fotos_urls: string[] | null
           id: string
           incidente_id: string
@@ -128,9 +130,11 @@ export type Database = {
           causas: string[]
           costo_estimado?: number | null
           created_at?: string | null
+          digitador_asignado?: string | null
           digitador_codigo?: string | null
           estado?: string | null
           fallas: string[]
+          fecha_inicio_digitacion?: string | null
           fotos_urls?: string[] | null
           id?: string
           incidente_id: string
@@ -146,9 +150,11 @@ export type Database = {
           causas?: string[]
           costo_estimado?: number | null
           created_at?: string | null
+          digitador_asignado?: string | null
           digitador_codigo?: string | null
           estado?: string | null
           fallas?: string[]
+          fecha_inicio_digitacion?: string | null
           fotos_urls?: string[] | null
           id?: string
           incidente_id?: string
