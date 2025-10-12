@@ -726,136 +726,234 @@ export default function DiagnosticoInicial() {
           )}
 
           {paso === 2 && (
-            <div className="space-y-4">
+            <div className="space-y-6">
               <div>
                 <Label className="text-lg font-semibold">Solicitud de Repuestos</Label>
                 <p className="text-sm text-muted-foreground">
                   Selecciona los repuestos necesarios para la reparación
                 </p>
               </div>
-              
-              <ResizablePanelGroup direction="horizontal" className="h-[600px] rounded-lg border">
-                {/* Panel izquierdo: Repuestos disponibles */}
-                <ResizablePanel defaultSize={60} className="p-4 flex flex-col">
-                  <div className="flex items-center justify-between mb-4">
-                    <h4 className="font-medium">Repuestos Disponibles</h4>
-                    <Badge variant="outline">
-                      {filteredRepuestos.length} disponibles
-                    </Badge>
-                  </div>
-                  
-                  <div className="relative mb-4">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Buscar por código, clave o descripción..."
-                      value={searchRepuesto}
-                      onChange={(e) => setSearchRepuesto(e.target.value)}
-                      className="pl-10"
-                    />
-                  </div>
 
-                  <div className="flex-1 overflow-y-auto space-y-2 pr-2">
-                      {filteredRepuestos.map((repuesto) => (
-                        <div 
-                          key={repuesto.id} 
-                          className="flex items-center gap-3 p-3 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
-                          onClick={() => agregarRepuesto(repuesto)}
-                        >
-                          <div className="w-10 h-10 bg-muted rounded flex items-center justify-center flex-shrink-0">
-                            <Package className="w-5 h-5" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="font-medium text-sm">{repuesto.descripcion}</div>
-                            <div className="text-xs text-muted-foreground">
-                              Código: {repuesto.codigo} | Clave: {repuesto.clave}
+              {/* Sección de repuestos despachados - Mostrar solo si hay repuestos entregados */}
+              {solicitudRepuestosId && estadoSolicitud === 'entregado' && (
+                <Card className="border-green-500/50 bg-green-50/50">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <CheckCircle2 className="h-5 w-5 text-green-600" />
+                      Repuestos Despachados
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {repuestosSolicitados.map((item, idx) => (
+                        <div key={idx} className="flex items-center justify-between p-3 bg-white rounded-lg border border-green-200">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-green-100 rounded flex items-center justify-center">
+                              <Package className="w-5 h-5 text-green-600" />
                             </div>
-                            {repuesto.stock_actual !== null && (
-                              <div className="text-xs text-muted-foreground">
-                                Stock: {repuesto.stock_actual}
-                              </div>
-                            )}
+                            <div>
+                              <p className="font-medium text-sm">{item.descripcion}</p>
+                              <p className="text-xs text-muted-foreground">Código: {item.codigo}</p>
+                            </div>
                           </div>
-                          <Button size="sm" variant="outline">
-                            <Plus className="w-4 h-4" />
-                          </Button>
+                          <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300">
+                            Cantidad: {item.cantidad}
+                          </Badge>
                         </div>
                       ))}
-                      
-                      {filteredRepuestos.length === 0 && (
-                        <div className="flex flex-col items-center justify-center h-full text-muted-foreground py-12">
-                          <Search className="w-12 h-12 mb-2 opacity-50" />
-                          <p>No se encontraron repuestos</p>
-                        </div>
-                      )}
-                  </div>
-                </ResizablePanel>
-
-                <ResizableHandle />
-
-                {/* Panel derecho: Repuestos seleccionados */}
-                <ResizablePanel defaultSize={40} className="p-4 flex flex-col">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2">
-                      <ShoppingCart className="w-4 h-4" />
-                      <h4 className="font-medium">Repuestos Solicitados</h4>
-                      <Badge>{repuestosSolicitados.length}</Badge>
                     </div>
-                  </div>
+                  </CardContent>
+                </Card>
+              )}
 
-                  <div className="flex-1 overflow-y-auto pr-2">
-                      {repuestosSolicitados.length > 0 ? (
-                        <div className="space-y-3">
-                          {repuestosSolicitados.map((item) => (
-                            <div key={item.codigo} className="border rounded-lg p-3">
-                              <div className="flex items-start gap-2">
-                                <div className="w-8 h-8 bg-muted rounded flex items-center justify-center flex-shrink-0">
-                                  <Package className="w-4 h-4" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <div className="font-medium text-sm">{item.descripcion}</div>
-                                  <div className="text-xs text-muted-foreground">{item.codigo}</div>
-                                  <div className="flex items-center gap-2 mt-2">
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      className="h-7 w-7 p-0"
-                                      onClick={() => actualizarCantidad(item.codigo, item.cantidad - 1)}
-                                    >
-                                      <Minus className="w-3 h-3" />
-                                    </Button>
-                                    <span className="text-sm font-medium w-8 text-center">{item.cantidad}</span>
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      className="h-7 w-7 p-0"
-                                      onClick={() => actualizarCantidad(item.codigo, item.cantidad + 1)}
-                                    >
-                                      <Plus className="w-3 h-3" />
-                                    </Button>
-                                  </div>
-                                </div>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-7 w-7 p-0"
-                                  onClick={() => eliminarRepuesto(item.codigo)}
-                                >
-                                  <X className="w-4 h-4" />
-                                </Button>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
+              {/* Sección de estado de solicitud en proceso */}
+              {solicitudRepuestosId && (estadoSolicitud === 'pendiente' || estadoSolicitud === 'en_proceso') && (
+                <Card className={`${estadoSolicitud === 'pendiente' ? 'border-yellow-500/50 bg-yellow-50/50' : 'border-blue-500/50 bg-blue-50/50'}`}>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      {estadoSolicitud === 'pendiente' ? (
+                        <>
+                          <Clock className="h-5 w-5 text-yellow-600" />
+                          Solicitud Pendiente
+                        </>
                       ) : (
-                        <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
-                          <ShoppingCart className="w-12 h-12 mb-2 opacity-50" />
-                          <p className="text-sm">No hay repuestos seleccionados</p>
-                          <p className="text-xs">Selecciona repuestos de la lista</p>
-                        </div>
+                        <>
+                          <Loader2 className="h-5 w-5 text-blue-600 animate-spin" />
+                          En Proceso de Despacho
+                        </>
                       )}
-                  </div>
-                </ResizablePanel>
-              </ResizablePanelGroup>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <p className="text-sm text-muted-foreground">
+                      {estadoSolicitud === 'pendiente' 
+                        ? 'Tu solicitud está pendiente de ser procesada por bodega.'
+                        : 'Bodega está preparando los repuestos solicitados.'}
+                    </p>
+                    
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium">Repuestos solicitados:</p>
+                      {repuestosSolicitados.map((item, idx) => (
+                        <div key={idx} className="flex items-center justify-between p-3 bg-white rounded-lg border">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-muted rounded flex items-center justify-center">
+                              <Package className="w-5 h-5" />
+                            </div>
+                            <div>
+                              <p className="font-medium text-sm">{item.descripcion}</p>
+                              <p className="text-xs text-muted-foreground">Código: {item.codigo}</p>
+                            </div>
+                          </div>
+                          <Badge variant="outline">
+                            Cantidad: {item.cantidad}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={verificarEstadoSolicitud}
+                      className="w-full"
+                    >
+                      Actualizar Estado
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Panel de selección de repuestos - Solo mostrar si no hay solicitud o está pendiente */}
+              {(!solicitudRepuestosId || estadoSolicitud === 'pendiente') && (
+                <ResizablePanelGroup direction="horizontal" className="h-[600px] rounded-lg border">
+                  {/* Panel izquierdo: Repuestos disponibles */}
+                  <ResizablePanel defaultSize={60} className="p-4 flex flex-col">
+                    <div className="flex items-center justify-between mb-4">
+                      <h4 className="font-medium">Repuestos Disponibles</h4>
+                      <Badge variant="outline">
+                        {filteredRepuestos.length} disponibles
+                      </Badge>
+                    </div>
+                    
+                    <div className="relative mb-4">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Buscar por código, clave o descripción..."
+                        value={searchRepuesto}
+                        onChange={(e) => setSearchRepuesto(e.target.value)}
+                        className="pl-10"
+                        disabled={!!solicitudRepuestosId}
+                      />
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto space-y-2 pr-2">
+                        {filteredRepuestos.map((repuesto) => (
+                          <div 
+                            key={repuesto.id} 
+                            className={`flex items-center gap-3 p-3 border rounded-lg transition-colors ${
+                              solicitudRepuestosId ? 'opacity-50 cursor-not-allowed' : 'hover:bg-muted/50 cursor-pointer'
+                            }`}
+                            onClick={() => !solicitudRepuestosId && agregarRepuesto(repuesto)}
+                          >
+                            <div className="w-10 h-10 bg-muted rounded flex items-center justify-center flex-shrink-0">
+                              <Package className="w-5 h-5" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium text-sm">{repuesto.descripcion}</div>
+                              <div className="text-xs text-muted-foreground">
+                                Código: {repuesto.codigo} | Clave: {repuesto.clave}
+                              </div>
+                              {repuesto.stock_actual !== null && (
+                                <div className="text-xs text-muted-foreground">
+                                  Stock: {repuesto.stock_actual}
+                                </div>
+                              )}
+                            </div>
+                            <Button size="sm" variant="outline" disabled={!!solicitudRepuestosId}>
+                              <Plus className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        ))}
+                        
+                        {filteredRepuestos.length === 0 && (
+                          <div className="flex flex-col items-center justify-center h-full text-muted-foreground py-12">
+                            <Search className="w-12 h-12 mb-2 opacity-50" />
+                            <p>No se encontraron repuestos</p>
+                          </div>
+                        )}
+                    </div>
+                  </ResizablePanel>
+
+                  <ResizableHandle />
+
+                  {/* Panel derecho: Repuestos a solicitar */}
+                  <ResizablePanel defaultSize={40} className="p-4 flex flex-col">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2">
+                        <ShoppingCart className="w-4 h-4" />
+                        <h4 className="font-medium">Repuestos a Solicitar</h4>
+                        <Badge>{repuestosSolicitados.length}</Badge>
+                      </div>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto pr-2">
+                        {repuestosSolicitados.length > 0 ? (
+                          <div className="space-y-3">
+                            {repuestosSolicitados.map((item) => (
+                              <div key={item.codigo} className="border rounded-lg p-3">
+                                <div className="flex items-start gap-2">
+                                  <div className="w-8 h-8 bg-muted rounded flex items-center justify-center flex-shrink-0">
+                                    <Package className="w-4 h-4" />
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="font-medium text-sm">{item.descripcion}</div>
+                                    <div className="text-xs text-muted-foreground">{item.codigo}</div>
+                                    <div className="flex items-center gap-2 mt-2">
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="h-7 w-7 p-0"
+                                        onClick={() => actualizarCantidad(item.codigo, item.cantidad - 1)}
+                                        disabled={!!solicitudRepuestosId}
+                                      >
+                                        <Minus className="w-3 h-3" />
+                                      </Button>
+                                      <span className="text-sm font-medium w-8 text-center">{item.cantidad}</span>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        className="h-7 w-7 p-0"
+                                        onClick={() => actualizarCantidad(item.codigo, item.cantidad + 1)}
+                                        disabled={!!solicitudRepuestosId}
+                                      >
+                                        <Plus className="w-3 h-3" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-7 w-7 p-0"
+                                    onClick={() => eliminarRepuesto(item.codigo)}
+                                    disabled={!!solicitudRepuestosId}
+                                  >
+                                    <X className="w-4 h-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                          ) : (
+                            <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+                              <ShoppingCart className="w-12 h-12 mb-2 opacity-50" />
+                              <p className="text-sm">No hay repuestos seleccionados</p>
+                              <p className="text-xs">Selecciona repuestos de la lista</p>
+                            </div>
+                          )}
+                    </div>
+                  </ResizablePanel>
+                </ResizablePanelGroup>
+              )}
             </div>
           )}
 
