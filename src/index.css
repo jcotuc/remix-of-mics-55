@@ -2,106 +2,113 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
+/* Modern SaaS + Minimal Design System
+   Corporate Colors: Orange (#FF7A00) & Dark Blue (#1E3A5F)
+   All colors MUST be HSL
 */
 
 @layer base {
   :root {
-    --background: 240 10% 98%;
-    --foreground: 225 15% 15%;
-
-    --card: 0 0% 100%;
-    --card-foreground: 225 15% 15%;
-
-    --popover: 0 0% 100%;
-    --popover-foreground: 225 15% 15%;
-
-    --primary: 220 90% 45%;
+    /* Brand Colors - Corporate Identity */
+    --primary: 25 100% 50%;           /* Vibrant Orange #FF7A00 */
     --primary-foreground: 0 0% 100%;
-
-    --secondary: 220 15% 90%;
-    --secondary-foreground: 225 15% 25%;
-
-    --muted: 220 15% 94%;
-    --muted-foreground: 225 10% 50%;
-
-    --accent: 35 85% 55%;
-    --accent-foreground: 0 0% 100%;
-
-    --destructive: 0 85% 60%;
+    
+    --secondary: 215 55% 25%;         /* Dark Blue #1E3A5F */
+    --secondary-foreground: 0 0% 100%;
+    
+    /* Neutral Palette - Clean & Modern */
+    --background: 0 0% 100%;
+    --foreground: 215 20% 15%;
+    
+    --card: 0 0% 100%;
+    --card-foreground: 215 20% 15%;
+    
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 20% 15%;
+    
+    /* UI Elements - Soft & Elegant */
+    --muted: 215 15% 96%;
+    --muted-foreground: 215 10% 45%;
+    
+    --accent: 215 15% 95%;
+    --accent-foreground: 215 55% 25%;
+    
+    --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-
-    --border: 220 15% 88%;
-    --input: 220 15% 95%;
-    --ring: 220 90% 45%;
-
+    
+    --border: 215 15% 90%;
+    --input: 215 15% 92%;
+    --ring: 25 100% 50%;
+    
+    --radius: 0.75rem;
+    
+    /* Status Colors */
     --success: 142 76% 36%;
     --success-foreground: 0 0% 100%;
-
-    --warning: 35 85% 55%;
+    
+    --warning: 35 100% 50%;
     --warning-foreground: 0 0% 100%;
-
-    --info: 200 90% 45%;
+    
+    --info: 200 95% 45%;
     --info-foreground: 0 0% 100%;
-
-    --radius: 0.5rem;
-
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 225 15% 15%;
-    --sidebar-primary: 220 90% 45%;
+    
+    /* Sidebar - Clean & Modern */
+    --sidebar-background: 0 0% 99%;
+    --sidebar-foreground: 215 20% 15%;
+    --sidebar-primary: 25 100% 50%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 15% 90%;
-    --sidebar-accent-foreground: 225 15% 15%;
-    --sidebar-border: 220 15% 88%;
-    --sidebar-ring: 220 90% 45%;
+    --sidebar-accent: 215 15% 95%;
+    --sidebar-accent-foreground: 215 20% 15%;
+    --sidebar-border: 215 15% 92%;
+    --sidebar-ring: 25 100% 50%;
   }
 
   .dark {
-    --background: 225 25% 8%;
-    --foreground: 220 15% 95%;
-
-    --card: 225 25% 10%;
-    --card-foreground: 220 15% 95%;
-
-    --popover: 225 25% 10%;
-    --popover-foreground: 220 15% 95%;
-
-    --primary: 220 90% 55%;
-    --primary-foreground: 225 25% 8%;
-
-    --secondary: 225 20% 15%;
-    --secondary-foreground: 220 15% 85%;
-
-    --muted: 225 20% 15%;
-    --muted-foreground: 220 10% 65%;
-
-    --accent: 35 85% 55%;
-    --accent-foreground: 225 25% 8%;
-
-    --destructive: 0 85% 60%;
-    --destructive-foreground: 220 15% 95%;
-
-    --border: 225 20% 18%;
-    --input: 225 20% 15%;
-    --ring: 220 90% 55%;
-
+    --background: 215 30% 8%;
+    --foreground: 0 0% 95%;
+    
+    --card: 215 25% 12%;
+    --card-foreground: 0 0% 95%;
+    
+    --popover: 215 25% 12%;
+    --popover-foreground: 0 0% 95%;
+    
+    --primary: 25 100% 55%;
+    --primary-foreground: 0 0% 100%;
+    
+    --secondary: 215 60% 35%;
+    --secondary-foreground: 0 0% 100%;
+    
+    --muted: 215 25% 18%;
+    --muted-foreground: 215 10% 65%;
+    
+    --accent: 215 25% 20%;
+    --accent-foreground: 0 0% 95%;
+    
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    
+    --border: 215 25% 20%;
+    --input: 215 25% 20%;
+    --ring: 25 100% 55%;
+    
     --success: 142 76% 45%;
-    --success-foreground: 225 25% 8%;
-
-    --warning: 35 85% 55%;
-    --warning-foreground: 225 25% 8%;
-
-    --info: 200 90% 55%;
-    --info-foreground: 225 25% 8%;
-    --sidebar-background: 225 25% 10%;
-    --sidebar-foreground: 220 15% 95%;
-    --sidebar-primary: 220 90% 55%;
-    --sidebar-primary-foreground: 225 25% 8%;
-    --sidebar-accent: 225 20% 15%;
-    --sidebar-accent-foreground: 220 15% 95%;
-    --sidebar-border: 225 20% 18%;
-    --sidebar-ring: 220 90% 55%;
+    --success-foreground: 215 30% 8%;
+    
+    --warning: 35 100% 55%;
+    --warning-foreground: 215 30% 8%;
+    
+    --info: 200 95% 55%;
+    --info-foreground: 215 30% 8%;
+    
+    --sidebar-background: 215 30% 10%;
+    --sidebar-foreground: 0 0% 95%;
+    --sidebar-primary: 25 100% 55%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 215 25% 18%;
+    --sidebar-accent-foreground: 0 0% 95%;
+    --sidebar-border: 215 25% 20%;
+    --sidebar-ring: 25 100% 55%;
   }
 }
 
@@ -111,6 +118,32 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+  
+  /* Smooth transitions for interactive elements */
+  button, a, input, select, textarea {
+    @apply transition-colors duration-200;
+  }
+}
+
+@layer utilities {
+  /* Modern gradient utilities */
+  .gradient-primary {
+    background: linear-gradient(135deg, hsl(25 100% 50%) 0%, hsl(35 100% 55%) 100%);
+  }
+  
+  .gradient-secondary {
+    background: linear-gradient(135deg, hsl(215 55% 25%) 0%, hsl(220 60% 35%) 100%);
+  }
+  
+  /* Glass effect */
+  .glass {
+    @apply bg-white/80 backdrop-blur-sm border border-border;
+  }
+  
+  /* Hover lift effect */
+  .hover-lift {
+    @apply transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg;
   }
 }
