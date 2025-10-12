@@ -244,129 +244,187 @@ export default function DiagnosticoInicial() {
   }
 
   return (
-    <div className="container mx-auto p-6 max-w-5xl">
-      <div className="flex items-center gap-4 mb-6">
-        <Button variant="ghost" onClick={() => navigate('/taller/mis-asignaciones')}>
+    <div className="container mx-auto p-6 max-w-6xl animate-fade-in">
+      {/* Modern Header */}
+      <div className="mb-8">
+        <Button 
+          variant="ghost" 
+          onClick={() => navigate('/taller/mis-asignaciones')}
+          className="mb-4 hover:bg-secondary/10"
+        >
           <ArrowLeft className="w-4 h-4 mr-2" />
-          Volver
+          Volver a Mis Asignaciones
         </Button>
-        <div>
-          <h1 className="text-3xl font-bold">Diagnóstico Inicial</h1>
-          <p className="text-muted-foreground">Incidente: {incidente.codigo}</p>
+        
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-4xl font-bold text-foreground mb-2">
+              Diagnóstico Técnico
+            </h1>
+            <div className="flex items-center gap-3">
+              <span className="text-muted-foreground">Incidente:</span>
+              <span className="px-3 py-1 bg-secondary text-secondary-foreground rounded-lg font-semibold">
+                {incidente.codigo}
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-12 h-12 bg-gradient-to-br from-primary to-primary/80 rounded-xl flex items-center justify-center shadow-lg">
+              <Camera className="w-6 h-6 text-primary-foreground" />
+            </div>
+          </div>
         </div>
       </div>
 
       <div className="space-y-6">
-        {/* Fallas Encontradas */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Fallas Encontradas *</CardTitle>
+        {/* Fallas Encontradas - Modern Design */}
+        <Card className="border-l-4 border-l-primary hover-lift">
+          <CardHeader className="bg-gradient-to-r from-primary/5 to-transparent">
+            <CardTitle className="flex items-center gap-2 text-2xl">
+              <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
+                <span className="text-primary font-bold">1</span>
+              </div>
+              Fallas Encontradas
+              <span className="text-destructive text-sm">*</span>
+            </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <CardContent className="pt-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
               {FALLAS_COMUNES.map((falla) => (
-                <div key={falla} className="flex items-center space-x-2">
+                <label
+                  key={falla}
+                  className={`flex items-center space-x-3 p-3 rounded-lg border-2 cursor-pointer transition-all duration-200 ${
+                    fallasSeleccionadas.includes(falla)
+                      ? 'border-primary bg-primary/5 shadow-sm'
+                      : 'border-border hover:border-primary/50 hover:bg-muted/50'
+                  }`}
+                >
                   <Checkbox
                     id={`falla-${falla}`}
                     checked={fallasSeleccionadas.includes(falla)}
                     onCheckedChange={() => handleFallaToggle(falla)}
+                    className="data-[state=checked]:bg-primary"
                   />
-                  <Label
-                    htmlFor={`falla-${falla}`}
-                    className="text-sm font-normal cursor-pointer"
-                  >
-                    {falla}
-                  </Label>
-                </div>
+                  <span className="text-sm font-medium">{falla}</span>
+                </label>
               ))}
             </div>
-            <div className="mt-4">
-              <Label htmlFor="otra-falla">Otra falla (especificar)</Label>
+            <div className="pt-4 border-t">
+              <Label htmlFor="otra-falla" className="text-base font-semibold mb-2 block">
+                ¿Otra falla no listada?
+              </Label>
               <Textarea
                 id="otra-falla"
-                placeholder="Describe otra falla no listada..."
+                placeholder="Describe detalladamente la falla encontrada..."
                 value={otraFalla}
                 onChange={(e) => setOtraFalla(e.target.value)}
-                className="mt-2"
+                className="min-h-[100px] resize-none"
               />
             </div>
           </CardContent>
         </Card>
 
-        {/* Causas */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Causas Identificadas *</CardTitle>
+        {/* Causas - Modern Design */}
+        <Card className="border-l-4 border-l-secondary hover-lift">
+          <CardHeader className="bg-gradient-to-r from-secondary/5 to-transparent">
+            <CardTitle className="flex items-center gap-2 text-2xl">
+              <div className="w-8 h-8 bg-secondary/10 rounded-lg flex items-center justify-center">
+                <span className="text-secondary font-bold">2</span>
+              </div>
+              Causas Identificadas
+              <span className="text-destructive text-sm">*</span>
+            </CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <CardContent className="pt-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
               {CAUSAS_COMUNES.map((causa) => (
-                <div key={causa} className="flex items-center space-x-2">
+                <label
+                  key={causa}
+                  className={`flex items-center space-x-3 p-3 rounded-lg border-2 cursor-pointer transition-all duration-200 ${
+                    causasSeleccionadas.includes(causa)
+                      ? 'border-secondary bg-secondary/5 shadow-sm'
+                      : 'border-border hover:border-secondary/50 hover:bg-muted/50'
+                  }`}
+                >
                   <Checkbox
                     id={`causa-${causa}`}
                     checked={causasSeleccionadas.includes(causa)}
                     onCheckedChange={() => handleCausaToggle(causa)}
+                    className="data-[state=checked]:bg-secondary"
                   />
-                  <Label
-                    htmlFor={`causa-${causa}`}
-                    className="text-sm font-normal cursor-pointer"
-                  >
-                    {causa}
-                  </Label>
-                </div>
+                  <span className="text-sm font-medium">{causa}</span>
+                </label>
               ))}
             </div>
-            <div className="mt-4">
-              <Label htmlFor="otra-causa">Otra causa (especificar)</Label>
+            <div className="pt-4 border-t">
+              <Label htmlFor="otra-causa" className="text-base font-semibold mb-2 block">
+                ¿Otra causa no listada?
+              </Label>
               <Textarea
                 id="otra-causa"
-                placeholder="Describe otra causa no listada..."
+                placeholder="Describe detalladamente la causa identificada..."
                 value={otraCausa}
                 onChange={(e) => setOtraCausa(e.target.value)}
-                className="mt-2"
+                className="min-h-[100px] resize-none"
               />
             </div>
           </CardContent>
         </Card>
 
-        {/* Fotos */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Camera className="w-5 h-5" />
-              Fotos del Diagnóstico
+        {/* Fotos - Modern Design */}
+        <Card className="border-l-4 border-l-primary/50 hover-lift">
+          <CardHeader className="bg-gradient-to-r from-primary/5 to-transparent">
+            <CardTitle className="flex items-center gap-2 text-2xl">
+              <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
+                <Camera className="w-4 h-4 text-primary" />
+              </div>
+              Evidencia Fotográfica
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-6">
             <div className="space-y-4">
-              <div>
-                <Label htmlFor="fotos-diagnostico">Subir fotos</Label>
-                <input
-                  id="fotos-diagnostico"
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  onChange={handleFileUpload}
-                  disabled={uploading}
-                  className="mt-2 block w-full text-sm text-muted-foreground
-                    file:mr-4 file:py-2 file:px-4
-                    file:rounded-md file:border-0
-                    file:text-sm file:font-semibold
-                    file:bg-primary file:text-primary-foreground
-                    hover:file:bg-primary/90
-                    cursor-pointer"
-                />
+              <div className="flex items-center justify-center w-full">
+                <label 
+                  htmlFor="fotos-diagnostico" 
+                  className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-xl cursor-pointer bg-muted/30 hover:bg-muted/50 border-muted-foreground/25 hover:border-primary/50 transition-all duration-200"
+                >
+                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                    <Camera className="w-10 h-10 mb-3 text-muted-foreground" />
+                    <p className="mb-2 text-sm font-semibold text-muted-foreground">
+                      <span className="text-primary">Click para subir</span> o arrastra las fotos
+                    </p>
+                    <p className="text-xs text-muted-foreground">JPG, PNG o WEBP</p>
+                  </div>
+                  <input
+                    id="fotos-diagnostico"
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handleFileUpload}
+                    disabled={uploading}
+                    className="hidden"
+                  />
+                </label>
               </div>
 
+              {uploading && (
+                <div className="text-center py-4">
+                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                  <p className="text-sm text-muted-foreground mt-2">Subiendo fotos...</p>
+                </div>
+              )}
+
               {fotosUrls.length > 0 && (
-                <div className="grid grid-cols-3 gap-4 mt-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
                   {fotosUrls.map((url, index) => (
-                    <img
-                      key={index}
-                      src={url}
-                      alt={`Foto ${index + 1}`}
-                      className="w-full h-32 object-cover rounded-lg border"
-                    />
+                    <div key={index} className="relative group">
+                      <img
+                        src={url}
+                        alt={`Evidencia ${index + 1}`}
+                        className="w-full h-32 object-cover rounded-xl border-2 border-border shadow-md group-hover:shadow-xl transition-shadow duration-200"
+                      />
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 rounded-xl transition-colors duration-200"></div>
+                    </div>
                   ))}
                 </div>
               )}
@@ -374,23 +432,44 @@ export default function DiagnosticoInicial() {
           </CardContent>
         </Card>
 
-        {/* Actions */}
-        <div className="flex gap-3 justify-end">
-          <Button
-            variant="outline"
-            onClick={guardarBorrador}
-            disabled={saving}
-          >
-            Guardar Borrador
-          </Button>
-          <Button
-            onClick={finalizarDiagnostico}
-            disabled={saving}
-            className="gap-2"
-          >
-            <CheckCircle2 className="w-4 h-4" />
-            Finalizar y Enviar a Digitación
-          </Button>
+        {/* Actions - Modern Sticky Bottom */}
+        <div className="sticky bottom-6 z-10">
+          <Card className="border-2 shadow-xl bg-card/95 backdrop-blur-sm">
+            <CardContent className="p-4">
+              <div className="flex gap-3 justify-end items-center">
+                <div className="mr-auto text-sm text-muted-foreground">
+                  {fallasSeleccionadas.length > 0 && causasSeleccionadas.length > 0 ? (
+                    <span className="flex items-center gap-2 text-success">
+                      <CheckCircle2 className="w-4 h-4" />
+                      Listo para enviar
+                    </span>
+                  ) : (
+                    <span>
+                      Selecciona al menos 1 falla y 1 causa
+                    </span>
+                  )}
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={guardarBorrador}
+                  disabled={saving}
+                  size="lg"
+                >
+                  Guardar Borrador
+                </Button>
+                <Button
+                  variant="default"
+                  onClick={finalizarDiagnostico}
+                  disabled={saving || (fallasSeleccionadas.length === 0 && !otraFalla.trim()) || (causasSeleccionadas.length === 0 && !otraCausa.trim())}
+                  className="gap-2"
+                  size="lg"
+                >
+                  <CheckCircle2 className="w-5 h-5" />
+                  Finalizar y Enviar a Digitación
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>

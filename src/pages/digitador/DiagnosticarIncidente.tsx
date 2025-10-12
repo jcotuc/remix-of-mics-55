@@ -149,19 +149,36 @@ export default function DiagnosticarIncidente() {
   }
 
   return (
-    <div className="container mx-auto p-6 max-w-6xl">
-      <div className="flex items-center justify-between mb-6">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" onClick={() => navigate('/digitador/pendientes')}>
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Volver
-          </Button>
+    <div className="container mx-auto p-6 max-w-6xl animate-fade-in">
+      <div className="mb-8">
+        <Button 
+          variant="ghost" 
+          onClick={() => navigate('/digitador/pendientes')}
+          className="mb-4 hover:bg-secondary/10"
+        >
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Volver a Pendientes
+        </Button>
+        
+        <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-2xl font-bold">Digitalizar Diagnóstico</h1>
-            <p className="text-muted-foreground">Código: {incidente.codigo}</p>
+            <h1 className="text-4xl font-bold text-foreground mb-2">
+              Digitalizar Diagnóstico
+            </h1>
+            <div className="flex items-center gap-3">
+              <span className="text-muted-foreground">Código:</span>
+              <span className="px-3 py-1 bg-secondary text-secondary-foreground rounded-lg font-semibold">
+                {incidente.codigo}
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <StatusBadge status={incidente.status} />
+            <div className="w-12 h-12 bg-gradient-to-br from-primary to-primary/80 rounded-xl flex items-center justify-center shadow-lg">
+              <Save className="w-6 h-6 text-primary-foreground" />
+            </div>
           </div>
         </div>
-        <StatusBadge status={incidente.status} />
       </div>
 
       <DiagnosticoTecnico
