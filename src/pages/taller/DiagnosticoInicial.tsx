@@ -276,7 +276,7 @@ export default function DiagnosticoInicial() {
     }
   }, [tipoResolucion]);
 
-  const handleContinuarAPaso2 = () => {
+  const handleContinuarAPaso2 = async () => {
     if (fallas.length === 0) {
       toast.error("Debes seleccionar al menos una falla");
       return;
@@ -296,6 +296,9 @@ export default function DiagnosticoInicial() {
       toast.error("Debes seleccionar un tipo de resolución");
       return;
     }
+
+    // Guardar borrador antes de continuar
+    await guardarBorradorSilencioso();
 
     // Si necesita repuestos, ir al paso 2, si no, ir directo al paso 3
     if (necesitaRepuestos) {
@@ -374,6 +377,10 @@ export default function DiagnosticoInicial() {
 
       setSolicitudRepuestosId(data.id);
       setEstadoSolicitud('pendiente');
+      
+      // Guardar borrador después de enviar solicitud
+      await guardarBorradorSilencioso();
+      
       toast.success("Solicitud de repuestos enviada a bodega");
     } catch (error) {
       console.error('Error:', error);

@@ -45,7 +45,13 @@ export default function MisAsignaciones() {
       setLoading(true);
       const { data, error } = await supabase
         .from('incidentes')
-        .select('*')
+        .select(`
+          *,
+          diagnosticos!inner(
+            id,
+            estado
+          )
+        `)
         .eq('status', 'En diagnostico')
         .order('fecha_ingreso', { ascending: true });
 
@@ -213,6 +219,7 @@ export default function MisAsignaciones() {
             <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
               {incidentes.map((inc) => {
                 const dias = getDiasDesdeIngreso(inc.fecha_ingreso);
+                const tieneBorrador = (inc as any).diagnosticos?.some((d: any) => d.estado === 'borrador');
                 return (
                   <div
                     key={inc.id}
@@ -253,6 +260,11 @@ export default function MisAsignaciones() {
                             Garantía
                           </Badge>
                         )}
+                        {tieneBorrador && (
+                          <Badge variant="secondary" className="text-xs bg-yellow-50 text-yellow-700">
+                            En Progreso
+                          </Badge>
+                        )}
                       </div>
 
                       {/* Botón */}
@@ -264,7 +276,7 @@ export default function MisAsignaciones() {
                           navigate(`/taller/diagnostico/${inc.id}`);
                         }}
                       >
-                        Ingresar Diagnóstico
+                        {tieneBorrador ? 'Continuar Diagnóstico' : 'Iniciar Diagnóstico'}
                       </Button>
                     </div>
                   </div>
