@@ -527,7 +527,7 @@ export default function DiagnosticoInicial() {
                 </p>
               </div>
               
-              <ResizablePanelGroup direction="horizontal" className="min-h-[500px] rounded-lg border">
+              <ResizablePanelGroup direction="horizontal" className="h-[600px] rounded-lg border">
                 {/* Panel izquierdo: Repuestos disponibles */}
                 <ResizablePanel defaultSize={60} className="p-4">
                   <div className="space-y-4 h-full flex flex-col">
