@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { StatusBadge } from "@/components/StatusBadge";
-import { DiagnosticoTecnico } from "@/components/DiagnosticoTecnico";
+
 
 export default function SeguimientoIncidente() {
   const { id } = useParams();
@@ -134,20 +134,7 @@ export default function SeguimientoIncidente() {
         </Button>
       </div>
 
-      {/* Mostrar componente de diagnóstico SOLO si está en estado "En diagnostico" */}
-      {incidente.status === 'En diagnostico' && (
-        <div className="mb-6">
-          <DiagnosticoTecnico 
-            incidente={incidente} 
-            onDiagnosticoCompleto={fetchData}
-            modoDigitador={true}
-          />
-        </div>
-      )}
-
-      {/* Solo mostrar detalles si NO está en modo diagnóstico */}
-      {incidente.status !== 'En diagnostico' && (
-        <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid gap-6 md:grid-cols-2">
         {/* Estado Actual */}
         <Card className="md:col-span-2">
           <CardHeader>
@@ -197,7 +184,6 @@ export default function SeguimientoIncidente() {
           </CardContent>
         </Card>
       </div>
-      )}
     </div>
   );
 }
