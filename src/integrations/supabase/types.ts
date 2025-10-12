@@ -754,6 +754,8 @@ export type Database = {
         | "Nota de credito"
         | "Bodega pedido"
         | "Rechazado"
+        | "Pendiente entrega"
+        | "Logistica envio"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -905,6 +907,8 @@ export const Constants = {
         "Nota de credito",
         "Bodega pedido",
         "Rechazado",
+        "Pendiente entrega",
+        "Logistica envio",
       ],
     },
   },

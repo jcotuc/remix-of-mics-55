@@ -28,6 +28,10 @@ export function StatusBadge({ status }: StatusBadgeProps) {
         return "default";
       case "Cambio por garantia":
         return "default";
+      case "Pendiente entrega":
+        return "default";
+      case "Logistica envio":
+        return "outline";
       default:
         return "secondary";
     }
@@ -55,6 +59,10 @@ export function StatusBadge({ status }: StatusBadgeProps) {
         return "bg-purple-500 text-white";
       case "Cambio por garantia":
         return "bg-green-600 text-white";
+      case "Pendiente entrega":
+        return "bg-blue-600 text-white";
+      case "Logistica envio":
+        return "bg-indigo-500 text-white";
       default:
         return "bg-muted text-muted-foreground";
     }

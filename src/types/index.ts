@@ -42,7 +42,9 @@ export type StatusIncidente =
   | "Cambio por garantia"
   | "Nota de credito"
   | "Bodega pedido"
-  | "Rechazado";
+  | "Rechazado"
+  | "Pendiente entrega"
+  | "Logistica envio";
 
 export type CategoriaProducto = 
   | "Electricas"
