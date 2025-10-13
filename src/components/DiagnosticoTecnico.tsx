@@ -176,13 +176,25 @@ export function DiagnosticoTecnico({ incidente, onDiagnosticoCompleto }: Diagnos
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('No user');
+      if (!user) {
+        toast.error('No se pudo identificar el usuario. Por favor inicia sesión nuevamente.');
+        return;
+      }
+
+      // Obtener perfil del usuario
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('nombre, apellido')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      const tecnicoNombre = profile ? `${profile.nombre} ${profile.apellido}` : user.email || 'Técnico';
 
       const { error } = await supabase
         .from('solicitudes_repuestos')
         .insert({
           incidente_id: incidente.id,
-          tecnico_solicitante: user.email || 'técnico',
+          tecnico_solicitante: tecnicoNombre,
           repuestos: repuestosSeleccionados,
           notas: notas,
           estado: 'pendiente'
@@ -193,7 +205,7 @@ export function DiagnosticoTecnico({ incidente, onDiagnosticoCompleto }: Diagnos
       toast.success("Solicitud de repuestos enviada a bodega");
       setPaso(3);
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error al solicitar repuestos:', error);
       toast.error("Error al solicitar repuestos");
     }
   };
