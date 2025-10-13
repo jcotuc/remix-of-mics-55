@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Search, Filter, Eye, Image as ImageIcon, Share2, Download, ExternalLink } from "lucide-react";
+import { Search, Filter, Eye, Image as ImageIcon, Share2, Download, ExternalLink, Printer } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
@@ -223,6 +223,260 @@ export default function BusquedaIncidentes() {
     }
   };
 
+  const handleImprimirDiagnostico = () => {
+    if (!selectedIncidente || !detalleData.diagnostico) return;
+
+    const resolucionData = parseResolucion(detalleData.diagnostico.resolucion);
+    
+    const contenidoImpresion = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="UTF-8">
+          <title>Diagnóstico ${selectedIncidente.codigo}</title>
+          <style>
+            body {
+              font-family: Arial, sans-serif;
+              margin: 20px;
+              color: #333;
+            }
+            .header {
+              text-align: center;
+              margin-bottom: 30px;
+              border-bottom: 2px solid #000;
+              padding-bottom: 10px;
+            }
+            .section {
+              margin-bottom: 20px;
+            }
+            .section-title {
+              font-size: 16px;
+              font-weight: bold;
+              margin-bottom: 10px;
+              color: #000;
+              border-bottom: 1px solid #ccc;
+              padding-bottom: 5px;
+            }
+            .info-row {
+              display: flex;
+              margin-bottom: 8px;
+            }
+            .info-label {
+              font-weight: bold;
+              width: 150px;
+            }
+            .info-value {
+              flex: 1;
+            }
+            .badge {
+              display: inline-block;
+              padding: 4px 8px;
+              margin: 2px;
+              background: #f0f0f0;
+              border: 1px solid #ccc;
+              border-radius: 4px;
+              font-size: 12px;
+            }
+            .badge-destructive {
+              background: #fee;
+              border-color: #fcc;
+            }
+            .badge-secondary {
+              background: #e0e0e0;
+            }
+            .repuesto-item {
+              padding: 10px;
+              margin: 5px 0;
+              background: #f9f9f9;
+              border: 1px solid #ddd;
+              border-radius: 4px;
+            }
+            @media print {
+              body { margin: 0; }
+              .no-print { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>DIAGNÓSTICO TÉCNICO</h1>
+            <h2>Incidente: ${selectedIncidente.codigo}</h2>
+            <p>Fecha: ${format(new Date(), "dd/MM/yyyy HH:mm", { locale: es })}</p>
+          </div>
+
+          <div class="section">
+            <div class="section-title">Información General</div>
+            <div class="info-row">
+              <div class="info-label">Estado:</div>
+              <div class="info-value">${selectedIncidente.status}</div>
+            </div>
+            <div class="info-row">
+              <div class="info-label">Fecha Ingreso:</div>
+              <div class="info-value">${format(new Date(selectedIncidente.fecha_ingreso), "dd/MM/yyyy HH:mm", { locale: es })}</div>
+            </div>
+            <div class="info-row">
+              <div class="info-label">Técnico:</div>
+              <div class="info-value">${selectedIncidente.codigo_tecnico || "Sin asignar"}</div>
+            </div>
+            <div class="info-row">
+              <div class="info-label">Familia Producto:</div>
+              <div class="info-value">${selectedIncidente.familia_producto || "-"}</div>
+            </div>
+            ${selectedIncidente.tipologia ? `
+            <div class="info-row">
+              <div class="info-label">Tipología:</div>
+              <div class="info-value">${selectedIncidente.tipologia}</div>
+            </div>
+            ` : ''}
+          </div>
+
+          ${detalleData.cliente ? `
+          <div class="section">
+            <div class="section-title">Cliente</div>
+            <div class="info-row">
+              <div class="info-label">Nombre:</div>
+              <div class="info-value">${detalleData.cliente.nombre}</div>
+            </div>
+            <div class="info-row">
+              <div class="info-label">Código:</div>
+              <div class="info-value">${detalleData.cliente.codigo}</div>
+            </div>
+            <div class="info-row">
+              <div class="info-label">Celular:</div>
+              <div class="info-value">${detalleData.cliente.celular}</div>
+            </div>
+          </div>
+          ` : ''}
+
+          ${detalleData.producto ? `
+          <div class="section">
+            <div class="section-title">Producto</div>
+            <div class="info-row">
+              <div class="info-label">Descripción:</div>
+              <div class="info-value">${detalleData.producto.descripcion}</div>
+            </div>
+            <div class="info-row">
+              <div class="info-label">Código:</div>
+              <div class="info-value">${detalleData.producto.codigo}</div>
+            </div>
+          </div>
+          ` : ''}
+
+          <div class="section">
+            <div class="section-title">Problema Reportado</div>
+            <p>${selectedIncidente.descripcion_problema}</p>
+          </div>
+
+          <div class="section">
+            <div class="section-title">Diagnóstico Técnico</div>
+            <div class="info-row">
+              <div class="info-label">Estado:</div>
+              <div class="info-value">${detalleData.diagnostico.estado}</div>
+            </div>
+            
+            <div class="info-row">
+              <div class="info-label">Fallas Detectadas:</div>
+              <div class="info-value">
+                ${detalleData.diagnostico.fallas.map(f => `<span class="badge badge-destructive">${f}</span>`).join(' ')}
+              </div>
+            </div>
+            
+            <div class="info-row">
+              <div class="info-label">Causas:</div>
+              <div class="info-value">
+                ${detalleData.diagnostico.causas.map(c => `<span class="badge badge-secondary">${c}</span>`).join(' ')}
+              </div>
+            </div>
+
+            ${detalleData.diagnostico.recomendaciones ? `
+            <div class="info-row">
+              <div class="info-label">Recomendaciones:</div>
+              <div class="info-value">${detalleData.diagnostico.recomendaciones}</div>
+            </div>
+            ` : ''}
+
+            ${detalleData.diagnostico.tiempo_estimado ? `
+            <div class="info-row">
+              <div class="info-label">Tiempo Estimado:</div>
+              <div class="info-value">${detalleData.diagnostico.tiempo_estimado}</div>
+            </div>
+            ` : ''}
+
+            ${detalleData.diagnostico.accesorios ? `
+            <div class="info-row">
+              <div class="info-label">Accesorios:</div>
+              <div class="info-value">${detalleData.diagnostico.accesorios}</div>
+            </div>
+            ` : ''}
+          </div>
+
+          ${resolucionData ? `
+          <div class="section">
+            <div class="section-title">Resolución</div>
+            ${resolucionData.tipoResolucion ? `
+            <div class="info-row">
+              <div class="info-label">Tipo de Resolución:</div>
+              <div class="info-value">${resolucionData.tipoResolucion}</div>
+            </div>
+            ` : ''}
+            ${resolucionData.tipoTrabajo ? `
+            <div class="info-row">
+              <div class="info-label">Tipo de Trabajo:</div>
+              <div class="info-value">${resolucionData.tipoTrabajo}</div>
+            </div>
+            ` : ''}
+            ${resolucionData.aplicaGarantia !== undefined ? `
+            <div class="info-row">
+              <div class="info-label">Garantía:</div>
+              <div class="info-value">${resolucionData.aplicaGarantia ? "Aplica Garantía" : "No Aplica Garantía"}</div>
+            </div>
+            ` : ''}
+          </div>
+          ` : ''}
+
+          ${detalleData.diagnostico.repuestos_utilizados && Array.isArray(detalleData.diagnostico.repuestos_utilizados) && detalleData.diagnostico.repuestos_utilizados.length > 0 ? `
+          <div class="section">
+            <div class="section-title">Repuestos Utilizados</div>
+            ${detalleData.diagnostico.repuestos_utilizados.map((r: any) => `
+              <div class="repuesto-item">
+                <strong>${r.codigo || r.descripcion}</strong>
+                ${r.descripcion && r.codigo ? `<br><small>${r.descripcion}</small>` : ''}
+                <br>Cantidad: ${r.cantidad || 1}
+              </div>
+            `).join('')}
+          </div>
+          ` : ''}
+
+          ${selectedIncidente.confirmacion_cliente ? `
+          <div class="section">
+            <div class="section-title">Observaciones del Cliente</div>
+            <p>${typeof selectedIncidente.confirmacion_cliente === 'object' ? 
+              (selectedIncidente.confirmacion_cliente.observaciones || '') : 
+              selectedIncidente.confirmacion_cliente}</p>
+          </div>
+          ` : ''}
+
+          <div class="section no-print" style="margin-top: 30px; text-align: center;">
+            <button onclick="window.print()" style="padding: 10px 20px; font-size: 16px; cursor: pointer;">
+              Imprimir
+            </button>
+            <button onclick="window.close()" style="padding: 10px 20px; font-size: 16px; cursor: pointer; margin-left: 10px;">
+              Cerrar
+            </button>
+          </div>
+        </body>
+      </html>
+    `;
+
+    const ventanaImpresion = window.open('', '_blank');
+    if (ventanaImpresion) {
+      ventanaImpresion.document.write(contenidoImpresion);
+      ventanaImpresion.document.close();
+    } else {
+      toast.error("No se pudo abrir la ventana de impresión");
+    }
+  };
+
   return (
     <div className="container mx-auto p-6 space-y-6">
       <Card>
@@ -421,6 +675,15 @@ export default function BusquedaIncidentes() {
               <TabsContent value="diagnostico" className="space-y-4 mt-4">
                 {detalleData.diagnostico ? (
                   <>
+                    <div className="flex justify-end mb-4">
+                      <Button
+                        variant="outline"
+                        onClick={handleImprimirDiagnostico}
+                      >
+                        <Printer className="h-4 w-4 mr-2" />
+                        Imprimir Diagnóstico
+                      </Button>
+                    </div>
                     {/* Diagnóstico Principal */}
                     <Card>
                       <CardHeader>
