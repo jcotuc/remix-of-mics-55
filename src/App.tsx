@@ -18,6 +18,7 @@ import IncidentesMostrador from "./pages/mostrador/Incidentes";
 import Embarques from "./pages/logistica/Embarques";
 import Asignaciones from "./pages/taller/Asignaciones";
 import MisAsignaciones from "./pages/taller/MisAsignaciones";
+import BusquedaIncidentes from "./pages/taller/BusquedaIncidentes";
 import Presupuestos from "./pages/taller/Presupuestos";
 import DiagnosticoInicial from "./pages/taller/DiagnosticoInicial";
 import Inventario from "./pages/bodega/Inventario";
@@ -52,6 +53,7 @@ const App = () => (
               <Route path="/logistica/embarques" element={<Embarques />} />
               <Route path="/taller/asignaciones" element={<Asignaciones />} />
               <Route path="/taller/mis-asignaciones" element={<MisAsignaciones />} />
+              <Route path="/taller/busqueda-incidentes" element={<BusquedaIncidentes />} />
               <Route path="/taller/presupuestos" element={<Presupuestos />} />
               <Route path="/taller/diagnostico/:id" element={<DiagnosticoInicial />} />
               <Route path="/bodega/inventario" element={<Inventario />} />
