@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
-import { ShoppingCart, Clock, CheckCircle, Package, User, Eye } from "lucide-react";
+import { ShoppingCart, Clock, CheckCircle, Package, User, Eye, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
@@ -148,6 +149,9 @@ export default function Solicitudes() {
   const pendientes = solicitudes.filter(s => s.estado === "pendiente").length;
   const misSolicitudes = solicitudes.filter(s => s.asignado_a === currentUserId && s.estado !== "entregado").length;
   const despachados = solicitudes.filter(s => s.estado === "entregado").length;
+  
+  const solicitudesActivas = solicitudes.filter(s => s.estado !== "entregado");
+  const solicitudesDespachadas = solicitudes.filter(s => s.estado === "entregado");
 
   return (
     <div className="container mx-auto py-8 space-y-6">
@@ -201,9 +205,9 @@ export default function Solicitudes() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Lista de Solicitudes</CardTitle>
+          <CardTitle>Solicitudes Activas</CardTitle>
           <CardDescription>
-            {solicitudes.length} solicitudes registradas
+            {solicitudesActivas.length} solicitudes pendientes o en proceso
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -223,14 +227,14 @@ export default function Solicitudes() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {solicitudes.length === 0 ? (
+                {solicitudesActivas.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                      No hay solicitudes de repuestos
+                      No hay solicitudes activas
                     </TableCell>
                   </TableRow>
                 ) : (
-                  solicitudes.map((solicitud) => (
+                  solicitudesActivas.map((solicitud) => (
                     <TableRow key={solicitud.id} className="hover:bg-muted/50">
                       <TableCell>
                         <Button
@@ -270,7 +274,7 @@ export default function Solicitudes() {
                               Asignarme
                             </Button>
                           )}
-                          {(solicitud.estado === "en_proceso" || solicitud.estado === "entregado") && (
+                          {solicitud.estado === "en_proceso" && (
                             <Button
                               size="sm"
                               variant="outline"
@@ -290,6 +294,99 @@ export default function Solicitudes() {
           )}
         </CardContent>
       </Card>
+
+      <Collapsible>
+        <Card>
+          <CardHeader>
+            <CollapsibleTrigger asChild>
+              <div className="flex items-center justify-between cursor-pointer">
+                <div>
+                  <CardTitle>Historial de Solicitudes Despachadas</CardTitle>
+                  <CardDescription>
+                    {solicitudesDespachadas.length} solicitudes completadas
+                  </CardDescription>
+                </div>
+                <ChevronDown className="h-5 w-5 text-muted-foreground transition-transform duration-200" />
+              </div>
+            </CollapsibleTrigger>
+          </CardHeader>
+          <CollapsibleContent>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Incidente</TableHead>
+                    <TableHead>Técnico</TableHead>
+                    <TableHead>Repuestos</TableHead>
+                    <TableHead>Asignado a</TableHead>
+                    <TableHead>Fecha Solicitud</TableHead>
+                    <TableHead>Fecha Entrega</TableHead>
+                    <TableHead>Estado</TableHead>
+                    <TableHead className="text-right">Acciones</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {solicitudesDespachadas.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                        No hay solicitudes despachadas
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    solicitudesDespachadas.map((solicitud) => (
+                      <TableRow key={solicitud.id} className="hover:bg-muted/50">
+                        <TableCell>
+                          <Button
+                            variant="link"
+                            className="p-0 h-auto font-medium"
+                            onClick={() => navigate(`/mostrador/seguimiento/${solicitud.incidente_id}`)}
+                          >
+                            {solicitud.incidente_codigo}
+                          </Button>
+                        </TableCell>
+                        <TableCell>{solicitud.tecnico_solicitante}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline">
+                            {solicitud.repuestos?.length || 0} items
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {solicitud.nombre_asignado ? (
+                            <div className="flex items-center gap-2">
+                              <User className="h-4 w-4 text-muted-foreground" />
+                              <span className="text-sm">{solicitud.nombre_asignado}</span>
+                            </div>
+                          ) : (
+                            <span className="text-sm text-muted-foreground">Sin asignar</span>
+                          )}
+                        </TableCell>
+                        <TableCell>{new Date(solicitud.created_at).toLocaleDateString('es-GT')}</TableCell>
+                        <TableCell>
+                          {solicitud.fecha_entrega 
+                            ? new Date(solicitud.fecha_entrega).toLocaleDateString('es-GT')
+                            : '-'
+                          }
+                        </TableCell>
+                        <TableCell>{getEstadoBadge(solicitud.estado)}</TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleVerDetalle(solicitud.id)}
+                          >
+                            <Eye className="h-4 w-4 mr-1" />
+                            Ver Detalle
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
     </div>
   );
 }
