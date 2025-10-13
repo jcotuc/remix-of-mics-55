@@ -114,32 +114,36 @@ export default function DetalleSolicitud() {
         }
       }
 
-      // Fetch detalles with repuesto info
-      const { data: detallesConInfo, error: detallesInfoError } = await supabase
+      // Fetch detalles
+      const { data: detallesData, error: detallesInfoError } = await supabase
         .from('repuestos_solicitud_detalle')
-        .select(`
-          *,
-          repuestos!inner (
-            descripcion,
-            ubicacion_bodega,
-            stock_actual
-          )
-        `)
+        .select('*')
         .eq('solicitud_id', id);
 
       if (detallesInfoError) throw detallesInfoError;
 
-      const detallesMapeados = (detallesConInfo || []).map((det: any) => ({
-        id: det.id,
-        codigo_repuesto: det.codigo_repuesto,
-        cantidad_solicitada: det.cantidad_solicitada,
-        cantidad_encontrada: det.cantidad_encontrada,
-        estado: det.estado,
-        notas: det.notas,
-        descripcion: det.repuestos?.descripcion,
-        ubicacion_bodega: det.repuestos?.ubicacion_bodega,
-        stock_actual: det.repuestos?.stock_actual
-      }));
+      // Para cada detalle, buscar la info del repuesto
+      const detallesMapeados = await Promise.all(
+        (detallesData || []).map(async (det: any) => {
+          const { data: repuestoInfo } = await supabase
+            .from('repuestos')
+            .select('descripcion, ubicacion_bodega, stock_actual')
+            .eq('codigo', det.codigo_repuesto)
+            .maybeSingle();
+
+          return {
+            id: det.id,
+            codigo_repuesto: det.codigo_repuesto,
+            cantidad_solicitada: det.cantidad_solicitada,
+            cantidad_encontrada: det.cantidad_encontrada,
+            estado: det.estado,
+            notas: det.notas,
+            descripcion: repuestoInfo?.descripcion || det.codigo_repuesto,
+            ubicacion_bodega: repuestoInfo?.ubicacion_bodega || 'No especificada',
+            stock_actual: repuestoInfo?.stock_actual || 0
+          };
+        })
+      );
 
       setDetalles(detallesMapeados);
 
