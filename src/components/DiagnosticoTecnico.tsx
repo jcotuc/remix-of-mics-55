@@ -32,10 +32,9 @@ type IncidenteDB = Database['public']['Tables']['incidentes']['Row'];
 interface DiagnosticoTecnicoProps {
   incidente: IncidenteDB;
   onDiagnosticoCompleto: () => void;
-  modoDigitador?: boolean;
 }
 
-export function DiagnosticoTecnico({ incidente, onDiagnosticoCompleto, modoDigitador = false }: DiagnosticoTecnicoProps) {
+export function DiagnosticoTecnico({ incidente, onDiagnosticoCompleto }: DiagnosticoTecnicoProps) {
   const [paso, setPaso] = useState(1);
   const [productoInfo, setProductoInfo] = useState<any>(null);
   const [clienteInfo, setClienteInfo] = useState<any>(null);
@@ -71,9 +70,6 @@ export function DiagnosticoTecnico({ incidente, onDiagnosticoCompleto, modoDigit
   useEffect(() => {
     fetchRepuestos();
     fetchInfoAdicional();
-    if (modoDigitador) {
-      cargarDiagnosticoExistente();
-    }
   }, []);
 
   // Auto-guardado cada 30 segundos
@@ -111,30 +107,6 @@ export function DiagnosticoTecnico({ incidente, onDiagnosticoCompleto, modoDigit
     }
   };
 
-  const cargarDiagnosticoExistente = async () => {
-    try {
-      const { data: diagnostico } = await supabase
-        .from('diagnosticos')
-        .select('*')
-        .eq('incidente_id', incidente.id)
-        .maybeSingle();
-
-      if (diagnostico) {
-        // Cargar datos del diagnóstico existente
-        if (diagnostico.fallas && Array.isArray(diagnostico.fallas)) setFallas(diagnostico.fallas as string[]);
-        if (diagnostico.causas && Array.isArray(diagnostico.causas)) setCausas(diagnostico.causas as string[]);
-        if (diagnostico.accesorios) setAccesorios(diagnostico.accesorios);
-        if (diagnostico.fotos_urls && Array.isArray(diagnostico.fotos_urls)) setFotosUrls(diagnostico.fotos_urls as string[]);
-        if (diagnostico.repuestos_utilizados && Array.isArray(diagnostico.repuestos_utilizados)) {
-          setRepuestosSeleccionados(diagnostico.repuestos_utilizados as {codigo: string, cantidad: number, descripcion: string}[]);
-        }
-        if (diagnostico.recomendaciones) setRecomendaciones(diagnostico.recomendaciones);
-        if (diagnostico.resolucion) setResolucion(diagnostico.resolucion);
-      }
-    } catch (error) {
-      console.error('Error cargando diagnóstico:', error);
-    }
-  };
 
   const fetchRepuestos = async () => {
     try {
@@ -240,7 +212,7 @@ export function DiagnosticoTecnico({ incidente, onDiagnosticoCompleto, modoDigit
       const diagnosticoData = {
         incidente_id: incidente.id,
         tecnico_codigo: incidente.codigo_tecnico || user.email || 'técnico',
-        digitador_codigo: modoDigitador ? user.email : null,
+        digitador_codigo: null,
         fallas: fallas.filter(f => f.trim() !== ""),
         causas: causas.filter(c => c.trim() !== ""),
         repuestos_utilizados: repuestosSeleccionados,
@@ -333,7 +305,7 @@ export function DiagnosticoTecnico({ incidente, onDiagnosticoCompleto, modoDigit
       const diagnosticoData = {
         incidente_id: incidente.id,
         tecnico_codigo: incidente.codigo_tecnico || user.email || 'técnico',
-        digitador_codigo: modoDigitador ? user.email : null,
+        digitador_codigo: null,
         fallas: fallas.filter(f => f.trim() !== ""),
         causas: causas.filter(c => c.trim() !== ""),
         repuestos_utilizados: repuestosSeleccionados,
@@ -344,8 +316,8 @@ export function DiagnosticoTecnico({ incidente, onDiagnosticoCompleto, modoDigit
         tiempo_estimado: tiempoEstimado,
         costo_estimado: costoEstimado ? parseFloat(costoEstimado) : null,
         estado: 'completado',
-        // Clear digitador assignment if technician updates (not digitador mode)
-        ...(modoDigitador ? {} : { digitador_asignado: null, fecha_inicio_digitacion: null })
+        digitador_asignado: null,
+        fecha_inicio_digitacion: null
       };
 
       let diagError;
@@ -405,7 +377,7 @@ export function DiagnosticoTecnico({ incidente, onDiagnosticoCompleto, modoDigit
 
       if (incError) throw incError;
 
-      toast.success(modoDigitador ? "Diagnóstico digitalizado exitosamente" : "Diagnóstico guardado exitosamente");
+      toast.success("Diagnóstico guardado exitosamente");
       setShowConfirmDialog(false);
       onDiagnosticoCompleto();
     } catch (error) {
@@ -522,15 +494,14 @@ export function DiagnosticoTecnico({ incidente, onDiagnosticoCompleto, modoDigit
         </CardContent>
       </Card>
 
-      {/* Progress Steps - Only show for tecnico mode */}
-      {!modoDigitador && (
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div className="flex flex-col items-center flex-1">
-                <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold ${
-                  paso >= 1 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
-                }`}>
+      {/* Progress Steps */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex items-center justify-between">
+            <div className="flex flex-col items-center flex-1">
+              <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold ${
+                paso >= 1 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+              }`}>
                   1
                 </div>
                 <p className="text-xs mt-2 text-center">Revisar<br/>Máquina</p>
@@ -556,10 +527,9 @@ export function DiagnosticoTecnico({ incidente, onDiagnosticoCompleto, modoDigit
             </div>
           </CardContent>
         </Card>
-      )}
 
       {/* Paso 1: Revisar Máquina */}
-      {paso === 1 && !modoDigitador && (
+      {paso === 1 && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -655,8 +625,8 @@ export function DiagnosticoTecnico({ incidente, onDiagnosticoCompleto, modoDigit
         </Card>
       )}
 
-      {/* Paso 2: Solicitar Repuestos - Only for tecnico mode */}
-      {!modoDigitador && paso === 2 && (
+      {/* Paso 2: Solicitar Repuestos */}
+      {paso === 2 && (
         <div className="grid gap-6 lg:grid-cols-2">
           <Card>
             <CardHeader>
@@ -772,371 +742,8 @@ export function DiagnosticoTecnico({ incidente, onDiagnosticoCompleto, modoDigit
         </div>
       )}
 
-      {/* Vista moderna para digitador - todos los campos en una sola vista */}
-      {modoDigitador && (
-        <div className="space-y-6">
-          {/* Tarjeta Principal con mejor diseño */}
-          <Card className="border-none shadow-lg bg-gradient-to-br from-background to-muted/20">
-            <CardHeader className="space-y-1 pb-4">
-              <div className="flex items-center gap-3">
-                <div className="p-3 rounded-xl bg-primary/10">
-                  <FileText className="h-6 w-6 text-primary" />
-                </div>
-                <div>
-                  <CardTitle className="text-2xl">Digitalizar Diagnóstico</CardTitle>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Complete los campos del diagnóstico técnico
-                  </p>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Sección: Fallas y Causas */}
-              <div className="grid gap-6 md:grid-cols-2">
-                {/* Fallas Encontradas */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <label className="text-sm font-semibold flex items-center gap-2">
-                      <div className="h-2 w-2 rounded-full bg-destructive animate-pulse" />
-                      Fallas Encontradas *
-                    </label>
-                    <Button size="sm" variant="outline" onClick={agregarFalla} className="h-8">
-                      <Plus className="h-3 w-3 mr-1" />
-                      Agregar
-                    </Button>
-                  </div>
-                  <div className="space-y-2">
-                    {fallas.map((falla, idx) => (
-                      <div key={idx} className="flex gap-2 animate-fade-in">
-                        <Input
-                          placeholder={`Describa la falla ${idx + 1}...`}
-                          value={falla}
-                          onChange={(e) => actualizarFalla(idx, e.target.value)}
-                          className="bg-background"
-                        />
-                        {fallas.length > 1 && (
-                          <Button size="icon" variant="ghost" onClick={() => eliminarFalla(idx)} className="shrink-0">
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Causas */}
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <label className="text-sm font-semibold flex items-center gap-2">
-                      <div className="h-2 w-2 rounded-full bg-warning animate-pulse" />
-                      Causas *
-                    </label>
-                    <Button size="sm" variant="outline" onClick={agregarCausa} className="h-8">
-                      <Plus className="h-3 w-3 mr-1" />
-                      Agregar
-                    </Button>
-                  </div>
-                  <div className="space-y-2">
-                    {causas.map((causa, idx) => (
-                      <div key={idx} className="flex gap-2 animate-fade-in">
-                        <Input
-                          placeholder={`Describa la causa ${idx + 1}...`}
-                          value={causa}
-                          onChange={(e) => actualizarCausa(idx, e.target.value)}
-                          className="bg-background"
-                        />
-                        {causas.length > 1 && (
-                          <Button size="icon" variant="ghost" onClick={() => eliminarCausa(idx)} className="shrink-0">
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              <Separator className="my-6" />
-
-              {/* Sección: Fotos y Repuestos en grid */}
-              <div className="grid gap-6 lg:grid-cols-2">
-                {/* Fotos del Diagnóstico */}
-                <Card className="bg-muted/30 border-dashed">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base flex items-center gap-2">
-                      <Camera className="h-4 w-4 text-primary" />
-                      Fotos del Diagnóstico
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {fotosUrls && fotosUrls.length > 0 ? (
-                      <div className="grid grid-cols-2 gap-2">
-                        {fotosUrls.map((url, idx) => (
-                          <div 
-                            key={idx} 
-                            className="relative aspect-square rounded-lg overflow-hidden border-2 border-border hover:border-primary transition-all cursor-pointer group"
-                            onClick={() => window.open(url, '_blank')}
-                          >
-                            <img 
-                              src={url} 
-                              alt={`Foto ${idx + 1}`}
-                              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                            />
-                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-                              <Camera className="h-6 w-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="py-8 text-center">
-                        <Camera className="h-10 w-10 mx-auto mb-2 text-muted-foreground/30" />
-                        <p className="text-sm text-muted-foreground">Sin fotos</p>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-
-                {/* Repuestos Utilizados */}
-                <Card className="bg-muted/30 border-dashed">
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base flex items-center gap-2">
-                      <Package className="h-4 w-4 text-primary" />
-                      Repuestos Utilizados
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {repuestosSeleccionados.length > 0 ? (
-                      <div className="space-y-2 max-h-[280px] overflow-y-auto pr-1">
-                        {repuestosSeleccionados.map((rep, idx) => (
-                          <div key={rep.codigo} className="p-3 rounded-lg bg-background border animate-fade-in">
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="flex-1 min-w-0">
-                                <p className="font-medium text-sm truncate">{rep.descripcion}</p>
-                                <div className="flex items-center gap-2 mt-1">
-                                  <Badge variant="outline" className="text-xs">
-                                    {rep.codigo}
-                                  </Badge>
-                                  <Badge className="text-xs bg-primary/10 text-primary">
-                                    Cant: {rep.cantidad}
-                                  </Badge>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="py-8 text-center">
-                        <Package className="h-10 w-10 mx-auto mb-2 text-muted-foreground/30" />
-                        <p className="text-sm text-muted-foreground">Sin repuestos</p>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
-
-              <Separator className="my-6" />
-
-              {/* Sección: Observaciones y Resolución */}
-              <div className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-2">
-                  {/* Recomendaciones */}
-                  <div className="space-y-2">
-                    <label className="text-sm font-semibold flex items-center gap-2">
-                      <Info className="h-4 w-4 text-primary" />
-                      Recomendaciones
-                    </label>
-                    <Textarea
-                      placeholder="Ingrese las recomendaciones para el cliente..."
-                      value={recomendaciones}
-                      onChange={(e) => setRecomendaciones(e.target.value)}
-                      rows={4}
-                      className="resize-none bg-background"
-                    />
-                  </div>
-
-                  {/* Resolución */}
-                  <div className="space-y-2">
-                    <label className="text-sm font-semibold flex items-center gap-2">
-                      <CheckCircle className="h-4 w-4 text-primary" />
-                      Resolución
-                    </label>
-                    <Textarea
-                      placeholder="Describa cómo se resolvió el problema..."
-                      value={resolucion}
-                      onChange={(e) => setResolucion(e.target.value)}
-                      rows={4}
-                      className="resize-none bg-background"
-                    />
-                  </div>
-                </div>
-
-                {/* Accesorios */}
-                <div className="space-y-2">
-                  <label className="text-sm font-semibold flex items-center gap-2">
-                    <Wrench className="h-4 w-4 text-primary" />
-                    Accesorios Revisados
-                  </label>
-                  <Textarea
-                    placeholder="Liste los accesorios que se revisaron durante el diagnóstico..."
-                    value={accesorios}
-                    onChange={(e) => setAccesorios(e.target.value)}
-                    rows={2}
-                    className="resize-none bg-background"
-                  />
-                </div>
-              </div>
-
-              <Separator className="my-6" />
-
-              {/* Estatus Final - Visual con botones */}
-              <div className="space-y-3">
-                <label className="text-sm font-semibold flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4 text-primary" />
-                  Resolución del Diagnóstico *
-                </label>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setEstatusFinal('reparado')}
-                    className={`p-4 rounded-lg border-2 transition-all text-left ${
-                      estatusFinal === 'reparado'
-                        ? 'border-green-500 bg-green-500/10 shadow-md'
-                        : 'border-border hover:border-green-500/50 hover:bg-muted'
-                    }`}
-                  >
-                    <div className="text-2xl mb-1">✓</div>
-                    <div className="font-semibold text-sm">Reparado</div>
-                    <div className="text-xs text-muted-foreground">Equipo funcional</div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setEstatusFinal('pendiente_entrega')}
-                    className={`p-4 rounded-lg border-2 transition-all text-left ${
-                      estatusFinal === 'pendiente_entrega'
-                        ? 'border-blue-500 bg-blue-500/10 shadow-md'
-                        : 'border-border hover:border-blue-500/50 hover:bg-muted'
-                    }`}
-                  >
-                    <div className="text-2xl mb-1">📦</div>
-                    <div className="font-semibold text-sm">Pendiente Entrega</div>
-                    <div className="text-xs text-muted-foreground">Listo para cliente</div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setEstatusFinal('logistica_envio')}
-                    className={`p-4 rounded-lg border-2 transition-all text-left ${
-                      estatusFinal === 'logistica_envio'
-                        ? 'border-indigo-500 bg-indigo-500/10 shadow-md'
-                        : 'border-border hover:border-indigo-500/50 hover:bg-muted'
-                    }`}
-                  >
-                    <div className="text-2xl mb-1">🚚</div>
-                    <div className="font-semibold text-sm">Logística Envío</div>
-                    <div className="text-xs text-muted-foreground">Enviar al cliente</div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setEstatusFinal('pendiente_repuestos')}
-                    className={`p-4 rounded-lg border-2 transition-all text-left ${
-                      estatusFinal === 'pendiente_repuestos'
-                        ? 'border-amber-500 bg-amber-500/10 shadow-md'
-                        : 'border-border hover:border-amber-500/50 hover:bg-muted'
-                    }`}
-                  >
-                    <div className="text-2xl mb-1">⏳</div>
-                    <div className="font-semibold text-sm">Pendiente Repuestos</div>
-                    <div className="text-xs text-muted-foreground">Falta material</div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setEstatusFinal('presupuesto')}
-                    className={`p-4 rounded-lg border-2 transition-all text-left ${
-                      estatusFinal === 'presupuesto'
-                        ? 'border-purple-500 bg-purple-500/10 shadow-md'
-                        : 'border-border hover:border-purple-500/50 hover:bg-muted'
-                    }`}
-                  >
-                    <div className="text-2xl mb-1">💰</div>
-                    <div className="font-semibold text-sm">Presupuesto</div>
-                    <div className="text-xs text-muted-foreground">Cotizar reparación</div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setEstatusFinal('porcentaje')}
-                    className={`p-4 rounded-lg border-2 transition-all text-left ${
-                      estatusFinal === 'porcentaje'
-                        ? 'border-orange-500 bg-orange-500/10 shadow-md'
-                        : 'border-border hover:border-orange-500/50 hover:bg-muted'
-                    }`}
-                  >
-                    <div className="text-2xl mb-1">🔄</div>
-                    <div className="font-semibold text-sm">Porcentaje/Canje</div>
-                    <div className="text-xs text-muted-foreground">Requiere aprobación</div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setEstatusFinal('cambio_garantia')}
-                    className={`p-4 rounded-lg border-2 transition-all text-left ${
-                      estatusFinal === 'cambio_garantia'
-                        ? 'border-cyan-500 bg-cyan-500/10 shadow-md'
-                        : 'border-border hover:border-cyan-500/50 hover:bg-muted'
-                    }`}
-                  >
-                    <div className="text-2xl mb-1">🛡️</div>
-                    <div className="font-semibold text-sm">Cambio Garantía</div>
-                    <div className="text-xs text-muted-foreground">Defecto de fábrica</div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setEstatusFinal('nota_credito')}
-                    className={`p-4 rounded-lg border-2 transition-all text-left ${
-                      estatusFinal === 'nota_credito'
-                        ? 'border-pink-500 bg-pink-500/10 shadow-md'
-                        : 'border-border hover:border-pink-500/50 hover:bg-muted'
-                    }`}
-                  >
-                    <div className="text-2xl mb-1">📝</div>
-                    <div className="font-semibold text-sm">Nota de Crédito</div>
-                    <div className="text-xs text-muted-foreground">Devolución</div>
-                  </button>
-                </div>
-              </div>
-
-              {/* Botón de Acción con indicador de guardado */}
-              <div className="pt-4 space-y-2">
-                {lastSaved && (
-                  <div className="text-center">
-                    <p className="text-xs text-muted-foreground">
-                      Último guardado: {lastSaved.toLocaleTimeString()}
-                    </p>
-                  </div>
-                )}
-                <Button 
-                  onClick={() => setShowConfirmDialog(true)} 
-                  className="w-full h-12 text-base shadow-lg hover:shadow-xl transition-all" 
-                  size="lg"
-                  disabled={!estatusFinal}
-                >
-                  <CheckCircle className="h-5 w-5 mr-2" />
-                  Completar Digitalización
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* Paso 3: Decisión Final - Solo para modo técnico */}
-      {!modoDigitador && paso === 3 && (
+      {/* Paso 3: Decisión Final */}
+      {paso === 3 && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -1335,14 +942,12 @@ export function DiagnosticoTecnico({ incidente, onDiagnosticoCompleto, modoDigit
             <Separator />
 
             <div className="flex gap-2">
-              {!modoDigitador && (
-                <Button variant="outline" onClick={() => setPaso(2)}>
-                  Volver
-                </Button>
-              )}
+              <Button variant="outline" onClick={() => setPaso(2)}>
+                Volver
+              </Button>
               <Button onClick={() => setShowConfirmDialog(true)} className="flex-1">
                 <CheckCircle className="h-4 w-4 mr-2" />
-                {modoDigitador ? 'Completar Digitalización' : 'Guardar Diagnóstico'}
+                Guardar Diagnóstico
               </Button>
             </div>
           </CardContent>
