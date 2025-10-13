@@ -70,28 +70,39 @@ export default function Solicitudes() {
           *,
           incidentes (
             codigo
-          ),
-          profiles!solicitudes_repuestos_asignado_a_fkey (
-            nombre,
-            apellido
           )
         `)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
 
-      const solicitudesMapeadas = (data || []).map((sol: any) => ({
-        id: sol.id,
-        incidente_id: sol.incidente_id,
-        incidente_codigo: sol.incidentes?.codigo || 'N/A',
-        tecnico_solicitante: sol.tecnico_solicitante,
-        repuestos: sol.repuestos || [],
-        estado: sol.estado,
-        created_at: sol.created_at,
-        fecha_entrega: sol.fecha_entrega,
-        asignado_a: sol.asignado_a,
-        fecha_asignacion: sol.fecha_asignacion,
-        nombre_asignado: sol.profiles ? `${sol.profiles.nombre} ${sol.profiles.apellido}` : null
+      const solicitudesMapeadas = await Promise.all((data || []).map(async (sol: any) => {
+        let nombre_asignado = null;
+        if (sol.asignado_a) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('nombre, apellido')
+            .eq('user_id', sol.asignado_a)
+            .maybeSingle();
+          
+          if (profile) {
+            nombre_asignado = `${profile.nombre} ${profile.apellido}`;
+          }
+        }
+
+        return {
+          id: sol.id,
+          incidente_id: sol.incidente_id,
+          incidente_codigo: sol.incidentes?.codigo || 'N/A',
+          tecnico_solicitante: sol.tecnico_solicitante,
+          repuestos: sol.repuestos || [],
+          estado: sol.estado,
+          created_at: sol.created_at,
+          fecha_entrega: sol.fecha_entrega,
+          asignado_a: sol.asignado_a,
+          fecha_asignacion: sol.fecha_asignacion,
+          nombre_asignado
+        };
       }));
 
       setSolicitudes(solicitudesMapeadas);
