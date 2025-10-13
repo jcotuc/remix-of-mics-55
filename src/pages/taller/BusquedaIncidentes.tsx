@@ -228,6 +228,11 @@ export default function BusquedaIncidentes() {
 
     const resolucionData = parseResolucion(detalleData.diagnostico.resolucion);
     
+    // Generar enlace multimedia
+    const multimediaLinks = detalleData.mediaFiles.length > 0 
+      ? detalleData.mediaFiles.map((file, idx) => `${idx + 1}. ${file.url}`).join('\n')
+      : 'No hay multimedia disponible';
+    
     const contenidoImpresion = `
       <!DOCTYPE html>
       <html>
@@ -237,62 +242,99 @@ export default function BusquedaIncidentes() {
           <style>
             body {
               font-family: Arial, sans-serif;
-              margin: 20px;
+              margin: 40px;
+              padding: 20px;
               color: #333;
+              max-width: 800px;
+              margin-left: auto;
+              margin-right: auto;
             }
             .header {
               text-align: center;
+              margin-bottom: 40px;
+              border-bottom: 3px solid #000;
+              padding-bottom: 20px;
+            }
+            .header h1 {
+              margin: 0;
+              font-size: 28px;
+            }
+            .header h2 {
+              margin: 10px 0;
+              font-size: 20px;
+              color: #666;
+            }
+            .info-header {
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 10px;
               margin-bottom: 30px;
-              border-bottom: 2px solid #000;
-              padding-bottom: 10px;
+              padding: 15px;
+              background: #f5f5f5;
+              border-radius: 8px;
             }
-            .section {
-              margin-bottom: 20px;
-            }
-            .section-title {
-              font-size: 16px;
-              font-weight: bold;
-              margin-bottom: 10px;
-              color: #000;
-              border-bottom: 1px solid #ccc;
-              padding-bottom: 5px;
-            }
-            .info-row {
-              display: flex;
+            .info-header-item {
               margin-bottom: 8px;
             }
-            .info-label {
+            .info-header-label {
               font-weight: bold;
-              width: 150px;
-            }
-            .info-value {
-              flex: 1;
-            }
-            .badge {
-              display: inline-block;
-              padding: 4px 8px;
-              margin: 2px;
-              background: #f0f0f0;
-              border: 1px solid #ccc;
-              border-radius: 4px;
               font-size: 12px;
+              color: #666;
+              text-transform: uppercase;
             }
-            .badge-destructive {
-              background: #fee;
-              border-color: #fcc;
+            .info-header-value {
+              font-size: 14px;
+              margin-top: 2px;
             }
-            .badge-secondary {
-              background: #e0e0e0;
+            .section {
+              margin-bottom: 25px;
+              page-break-inside: avoid;
             }
-            .repuesto-item {
-              padding: 10px;
-              margin: 5px 0;
-              background: #f9f9f9;
-              border: 1px solid #ddd;
-              border-radius: 4px;
+            .section-title {
+              font-size: 18px;
+              font-weight: bold;
+              margin-bottom: 12px;
+              color: #000;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+            }
+            .section-content {
+              padding-left: 15px;
+              line-height: 1.8;
+              font-size: 14px;
+            }
+            .section-content p {
+              margin: 8px 0;
+              white-space: pre-wrap;
+            }
+            .item-list {
+              margin: 8px 0;
+            }
+            .item {
+              padding: 6px 0;
+              border-bottom: 1px dotted #ddd;
+            }
+            .item:last-child {
+              border-bottom: none;
+            }
+            .multimedia-link {
+              word-break: break-all;
+              color: #0066cc;
+              font-size: 11px;
+              line-height: 1.6;
+              display: block;
+              margin: 4px 0;
+            }
+            .footer {
+              margin-top: 50px;
+              padding-top: 20px;
+              border-top: 2px solid #ccc;
+              text-align: center;
+              font-size: 12px;
+              color: #666;
             }
             @media print {
-              body { margin: 0; }
+              body { margin: 0; padding: 20px; }
               .no-print { display: none; }
             }
           </style>
@@ -300,167 +342,135 @@ export default function BusquedaIncidentes() {
         <body>
           <div class="header">
             <h1>DIAGNÓSTICO TÉCNICO</h1>
-            <h2>Incidente: ${selectedIncidente.codigo}</h2>
-            <p>Fecha: ${format(new Date(), "dd/MM/yyyy HH:mm", { locale: es })}</p>
+            <h2>${selectedIncidente.codigo}</h2>
+            <p style="margin: 5px 0; color: #666;">${format(new Date(), "dd 'de' MMMM 'de' yyyy, HH:mm", { locale: es })}</p>
+          </div>
+
+          <div class="info-header">
+            <div class="info-header-item">
+              <div class="info-header-label">Cliente</div>
+              <div class="info-header-value">${detalleData.cliente?.nombre || 'N/A'}</div>
+            </div>
+            <div class="info-header-item">
+              <div class="info-header-label">Código Cliente</div>
+              <div class="info-header-value">${detalleData.cliente?.codigo || 'N/A'}</div>
+            </div>
+            <div class="info-header-item">
+              <div class="info-header-label">Producto</div>
+              <div class="info-header-value">${detalleData.producto?.descripcion || 'N/A'}</div>
+            </div>
+            <div class="info-header-item">
+              <div class="info-header-label">Código Producto</div>
+              <div class="info-header-value">${detalleData.producto?.codigo || 'N/A'}</div>
+            </div>
           </div>
 
           <div class="section">
-            <div class="section-title">Información General</div>
-            <div class="info-row">
-              <div class="info-label">Estado:</div>
-              <div class="info-value">${selectedIncidente.status}</div>
+            <div class="section-title">Fallas:</div>
+            <div class="section-content">
+              <div class="item-list">
+                ${detalleData.diagnostico.fallas.map((f, idx) => `<div class="item">${idx + 1}. ${f}</div>`).join('')}
+              </div>
             </div>
-            <div class="info-row">
-              <div class="info-label">Fecha Ingreso:</div>
-              <div class="info-value">${format(new Date(selectedIncidente.fecha_ingreso), "dd/MM/yyyy HH:mm", { locale: es })}</div>
-            </div>
-            <div class="info-row">
-              <div class="info-label">Técnico:</div>
-              <div class="info-value">${selectedIncidente.codigo_tecnico || "Sin asignar"}</div>
-            </div>
-            <div class="info-row">
-              <div class="info-label">Familia Producto:</div>
-              <div class="info-value">${selectedIncidente.familia_producto || "-"}</div>
-            </div>
-            ${selectedIncidente.tipologia ? `
-            <div class="info-row">
-              <div class="info-label">Tipología:</div>
-              <div class="info-value">${selectedIncidente.tipologia}</div>
-            </div>
-            ` : ''}
           </div>
 
-          ${detalleData.cliente ? `
           <div class="section">
-            <div class="section-title">Cliente</div>
-            <div class="info-row">
-              <div class="info-label">Nombre:</div>
-              <div class="info-value">${detalleData.cliente.nombre}</div>
+            <div class="section-title">Causas:</div>
+            <div class="section-content">
+              <div class="item-list">
+                ${detalleData.diagnostico.causas.map((c, idx) => `<div class="item">${idx + 1}. ${c}</div>`).join('')}
+              </div>
             </div>
-            <div class="info-row">
-              <div class="info-label">Código:</div>
-              <div class="info-value">${detalleData.cliente.codigo}</div>
-            </div>
-            <div class="info-row">
-              <div class="info-label">Celular:</div>
-              <div class="info-value">${detalleData.cliente.celular}</div>
+          </div>
+
+          ${detalleData.diagnostico.accesorios ? `
+          <div class="section">
+            <div class="section-title">Accesorios:</div>
+            <div class="section-content">
+              <p>${detalleData.diagnostico.accesorios}</p>
             </div>
           </div>
           ` : ''}
 
-          ${detalleData.producto ? `
+          ${detalleData.diagnostico.recomendaciones ? `
           <div class="section">
-            <div class="section-title">Producto</div>
-            <div class="info-row">
-              <div class="info-label">Descripción:</div>
-              <div class="info-value">${detalleData.producto.descripcion}</div>
+            <div class="section-title">Recomendación:</div>
+            <div class="section-content">
+              <p>${detalleData.diagnostico.recomendaciones}</p>
             </div>
-            <div class="info-row">
-              <div class="info-label">Código:</div>
-              <div class="info-value">${detalleData.producto.codigo}</div>
-            </div>
-          </div>
-          ` : ''}
-
-          <div class="section">
-            <div class="section-title">Problema Reportado</div>
-            <p>${selectedIncidente.descripcion_problema}</p>
-          </div>
-
-          <div class="section">
-            <div class="section-title">Diagnóstico Técnico</div>
-            <div class="info-row">
-              <div class="info-label">Estado:</div>
-              <div class="info-value">${detalleData.diagnostico.estado}</div>
-            </div>
-            
-            <div class="info-row">
-              <div class="info-label">Fallas Detectadas:</div>
-              <div class="info-value">
-                ${detalleData.diagnostico.fallas.map(f => `<span class="badge badge-destructive">${f}</span>`).join(' ')}
-              </div>
-            </div>
-            
-            <div class="info-row">
-              <div class="info-label">Causas:</div>
-              <div class="info-value">
-                ${detalleData.diagnostico.causas.map(c => `<span class="badge badge-secondary">${c}</span>`).join(' ')}
-              </div>
-            </div>
-
-            ${detalleData.diagnostico.recomendaciones ? `
-            <div class="info-row">
-              <div class="info-label">Recomendaciones:</div>
-              <div class="info-value">${detalleData.diagnostico.recomendaciones}</div>
-            </div>
-            ` : ''}
-
-            ${detalleData.diagnostico.tiempo_estimado ? `
-            <div class="info-row">
-              <div class="info-label">Tiempo Estimado:</div>
-              <div class="info-value">${detalleData.diagnostico.tiempo_estimado}</div>
-            </div>
-            ` : ''}
-
-            ${detalleData.diagnostico.accesorios ? `
-            <div class="info-row">
-              <div class="info-label">Accesorios:</div>
-              <div class="info-value">${detalleData.diagnostico.accesorios}</div>
-            </div>
-            ` : ''}
-          </div>
-
-          ${resolucionData ? `
-          <div class="section">
-            <div class="section-title">Resolución</div>
-            ${resolucionData.tipoResolucion ? `
-            <div class="info-row">
-              <div class="info-label">Tipo de Resolución:</div>
-              <div class="info-value">${resolucionData.tipoResolucion}</div>
-            </div>
-            ` : ''}
-            ${resolucionData.tipoTrabajo ? `
-            <div class="info-row">
-              <div class="info-label">Tipo de Trabajo:</div>
-              <div class="info-value">${resolucionData.tipoTrabajo}</div>
-            </div>
-            ` : ''}
-            ${resolucionData.aplicaGarantia !== undefined ? `
-            <div class="info-row">
-              <div class="info-label">Garantía:</div>
-              <div class="info-value">${resolucionData.aplicaGarantia ? "Aplica Garantía" : "No Aplica Garantía"}</div>
-            </div>
-            ` : ''}
-          </div>
-          ` : ''}
-
-          ${detalleData.diagnostico.repuestos_utilizados && Array.isArray(detalleData.diagnostico.repuestos_utilizados) && detalleData.diagnostico.repuestos_utilizados.length > 0 ? `
-          <div class="section">
-            <div class="section-title">Repuestos Utilizados</div>
-            ${detalleData.diagnostico.repuestos_utilizados.map((r: any) => `
-              <div class="repuesto-item">
-                <strong>${r.codigo || r.descripcion}</strong>
-                ${r.descripcion && r.codigo ? `<br><small>${r.descripcion}</small>` : ''}
-                <br>Cantidad: ${r.cantidad || 1}
-              </div>
-            `).join('')}
           </div>
           ` : ''}
 
           ${selectedIncidente.confirmacion_cliente ? `
           <div class="section">
-            <div class="section-title">Observaciones del Cliente</div>
-            <p>${typeof selectedIncidente.confirmacion_cliente === 'object' ? 
-              (selectedIncidente.confirmacion_cliente.observaciones || '') : 
-              selectedIncidente.confirmacion_cliente}</p>
+            <div class="section-title">Observaciones:</div>
+            <div class="section-content">
+              <p>${typeof selectedIncidente.confirmacion_cliente === 'object' ? 
+                (selectedIncidente.confirmacion_cliente.observaciones || 'Sin observaciones') : 
+                selectedIncidente.confirmacion_cliente}</p>
+            </div>
           </div>
           ` : ''}
 
-          <div class="section no-print" style="margin-top: 30px; text-align: center;">
-            <button onclick="window.print()" style="padding: 10px 20px; font-size: 16px; cursor: pointer;">
+          ${resolucionData ? `
+          <div class="section">
+            <div class="section-title">Costo:</div>
+            <div class="section-content">
+              <p><strong>Tipo de Resolución:</strong> ${resolucionData.tipoResolucion || 'No especificado'}</p>
+              ${resolucionData.tipoTrabajo ? `<p><strong>Tipo de Trabajo:</strong> ${resolucionData.tipoTrabajo}</p>` : ''}
+              ${resolucionData.aplicaGarantia !== undefined ? `<p><strong>Garantía:</strong> ${resolucionData.aplicaGarantia ? "Aplica" : "No Aplica"}</p>` : ''}
+            </div>
+          </div>
+          ` : ''}
+
+          ${resolucionData ? `
+          <div class="section">
+            <div class="section-title">Resolución:</div>
+            <div class="section-content">
+              <p><strong>Tipo:</strong> ${resolucionData.tipoResolucion || 'No especificado'}</p>
+              ${resolucionData.tipoTrabajo ? `<p><strong>Trabajo Realizado:</strong> ${resolucionData.tipoTrabajo}</p>` : ''}
+            </div>
+          </div>
+          ` : ''}
+
+          ${detalleData.diagnostico.repuestos_utilizados && Array.isArray(detalleData.diagnostico.repuestos_utilizados) && detalleData.diagnostico.repuestos_utilizados.length > 0 ? `
+          <div class="section">
+            <div class="section-title">Repuestos Utilizados:</div>
+            <div class="section-content">
+              <div class="item-list">
+                ${detalleData.diagnostico.repuestos_utilizados.map((r: any, idx: number) => `
+                  <div class="item">
+                    ${idx + 1}. ${r.descripcion || r.codigo} - Cantidad: ${r.cantidad || 1}
+                    ${r.codigo ? `<br><small style="color: #666;">Código: ${r.codigo}</small>` : ''}
+                  </div>
+                `).join('')}
+              </div>
+            </div>
+          </div>
+          ` : ''}
+
+          <div class="section">
+            <div class="section-title">Link de Multimedia (Fotos y Videos):</div>
+            <div class="section-content">
+              ${detalleData.mediaFiles.length > 0 ? 
+                detalleData.mediaFiles.map((file, idx) => 
+                  `<div class="multimedia-link">${idx + 1}. ${file.nombre}: ${file.url}</div>`
+                ).join('') : 
+                '<p>No hay multimedia disponible</p>'
+              }
+            </div>
+          </div>
+
+          <div class="footer">
+            <p>Este documento ha sido generado automáticamente</p>
+            <p>${format(new Date(), "dd/MM/yyyy HH:mm", { locale: es })}</p>
+          </div>
+
+          <div class="no-print" style="margin-top: 30px; text-align: center; padding: 20px;">
+            <button onclick="window.print()" style="padding: 12px 24px; font-size: 16px; cursor: pointer; background: #000; color: #fff; border: none; border-radius: 6px; margin-right: 10px;">
               Imprimir
             </button>
-            <button onclick="window.close()" style="padding: 10px 20px; font-size: 16px; cursor: pointer; margin-left: 10px;">
+            <button onclick="window.close()" style="padding: 12px 24px; font-size: 16px; cursor: pointer; background: #666; color: #fff; border: none; border-radius: 6px;">
               Cerrar
             </button>
           </div>
