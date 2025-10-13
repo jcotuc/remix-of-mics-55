@@ -13,6 +13,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { FALLAS_POR_FAMILIA, CAUSAS_POR_FAMILIA, FALLAS_GENERICAS, CAUSAS_GENERICAS } from "@/data/diagnosticoOptions";
 import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 export default function DiagnosticoInicial() {
   const { id } = useParams();
@@ -44,6 +46,10 @@ export default function DiagnosticoInicial() {
   
   // Control de pasos
   const [paso, setPaso] = useState(1);
+  
+  // Dialog para tipo de trabajo
+  const [showTipoTrabajoDialog, setShowTipoTrabajoDialog] = useState(false);
+  const [tipoTrabajo, setTipoTrabajo] = useState<"mantenimiento" | "reparacion" | null>(null);
 
   // Obtener fallas y causas según la familia del producto
   const fallasDisponibles = incidente?.familia_producto && FALLAS_POR_FAMILIA[incidente.familia_producto]
@@ -439,6 +445,11 @@ export default function DiagnosticoInicial() {
   };
 
   const handleFinalizarDiagnostico = async () => {
+    if (!tipoTrabajo) {
+      toast.error("Debes seleccionar el tipo de trabajo");
+      return;
+    }
+
     setSaving(true);
     try {
       // Subir fotos si hay
@@ -472,6 +483,7 @@ export default function DiagnosticoInicial() {
         resolucion: JSON.stringify({
           aplicaGarantia,
           tipoResolucion,
+          tipoTrabajo,
         }),
         estado: 'finalizado',
       };
@@ -523,6 +535,7 @@ export default function DiagnosticoInicial() {
       if (incidenteError) throw incidenteError;
 
       toast.success("Diagnóstico finalizado exitosamente");
+      setShowTipoTrabajoDialog(false);
       navigate("/taller/mis-asignaciones");
     } catch (error) {
       console.error("Error:", error);
@@ -530,6 +543,10 @@ export default function DiagnosticoInicial() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleClickFinalizarDiagnostico = () => {
+    setShowTipoTrabajoDialog(true);
   };
 
   if (loading) {
@@ -1061,17 +1078,64 @@ export default function DiagnosticoInicial() {
                 }
                 setPaso(3);
               } else {
-                handleFinalizarDiagnostico();
+                handleClickFinalizarDiagnostico();
               }
             }}
             disabled={saving}
           >
             {paso === 3 
-              ? (saving ? "Guardando..." : "Finalizar Diagnóstico") 
+              ? "Finalizar Diagnóstico"
               : "Continuar"}
           </Button>
         </CardFooter>
       </Card>
+
+      {/* Dialog para seleccionar tipo de trabajo */}
+      <Dialog open={showTipoTrabajoDialog} onOpenChange={setShowTipoTrabajoDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Tipo de Trabajo Realizado</DialogTitle>
+            <DialogDescription>
+              Selecciona si el trabajo realizado fue mantenimiento o reparación
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="py-4">
+            <RadioGroup value={tipoTrabajo || ""} onValueChange={(value) => setTipoTrabajo(value as "mantenimiento" | "reparacion")}>
+              <div className="flex items-center space-x-2 p-4 border rounded-lg hover:bg-muted/50 cursor-pointer">
+                <RadioGroupItem value="mantenimiento" id="mantenimiento" />
+                <Label htmlFor="mantenimiento" className="flex-1 cursor-pointer">
+                  <div className="font-semibold">Mantenimiento</div>
+                  <div className="text-sm text-muted-foreground">
+                    Trabajo preventivo o de limpieza
+                  </div>
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2 p-4 border rounded-lg hover:bg-muted/50 cursor-pointer">
+                <RadioGroupItem value="reparacion" id="reparacion" />
+                <Label htmlFor="reparacion" className="flex-1 cursor-pointer">
+                  <div className="font-semibold">Reparación</div>
+                  <div className="text-sm text-muted-foreground">
+                    Trabajo correctivo por falla o daño
+                  </div>
+                </Label>
+              </div>
+            </RadioGroup>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowTipoTrabajoDialog(false)}>
+              Cancelar
+            </Button>
+            <Button 
+              onClick={handleFinalizarDiagnostico}
+              disabled={!tipoTrabajo || saving}
+            >
+              {saving ? "Guardando..." : "Confirmar y Finalizar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
