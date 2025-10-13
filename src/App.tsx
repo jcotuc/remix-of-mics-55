@@ -22,6 +22,7 @@ import Presupuestos from "./pages/taller/Presupuestos";
 import DiagnosticoInicial from "./pages/taller/DiagnosticoInicial";
 import Inventario from "./pages/bodega/Inventario";
 import Solicitudes from "./pages/bodega/Solicitudes";
+import DetalleSolicitud from "./pages/bodega/DetalleSolicitud";
 import IncidentesPendientes from "./pages/digitador/IncidentesPendientes";
 import DiagnosticarIncidente from "./pages/digitador/DiagnosticarIncidente";
 import DigitadorDashboard from "./pages/digitador/Dashboard";
@@ -55,6 +56,7 @@ const App = () => (
               <Route path="/taller/diagnostico/:id" element={<DiagnosticoInicial />} />
               <Route path="/bodega/inventario" element={<Inventario />} />
               <Route path="/bodega/solicitudes" element={<Solicitudes />} />
+              <Route path="/bodega/solicitudes/:id" element={<DetalleSolicitud />} />
               <Route path="/digitador/dashboard" element={<DigitadorDashboard />} />
               <Route path="/digitador/pendientes" element={<IncidentesPendientes />} />
               <Route path="/digitador/diagnosticar/:id" element={<DiagnosticarIncidente />} />

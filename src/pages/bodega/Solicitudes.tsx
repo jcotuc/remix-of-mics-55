@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ShoppingCart, Clock, CheckCircle, XCircle, Package, ChevronDown, ChevronUp } from "lucide-react";
+import { ShoppingCart, Clock, CheckCircle, Package, User, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -7,7 +7,6 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 type Repuesto = {
   codigo: string;
@@ -24,17 +23,42 @@ type Solicitud = {
   estado: string;
   created_at: string;
   fecha_entrega?: string;
+  asignado_a?: string;
+  fecha_asignacion?: string;
+  nombre_asignado?: string;
 };
 
 export default function Solicitudes() {
   const navigate = useNavigate();
   const [solicitudes, setSolicitudes] = useState<Solicitud[]>([]);
   const [loading, setLoading] = useState(true);
-  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [currentUserName, setCurrentUserName] = useState<string>("");
 
   useEffect(() => {
+    fetchCurrentUser();
     fetchSolicitudes();
   }, []);
+
+  const fetchCurrentUser = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setCurrentUserId(user.id);
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('nombre, apellido')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        
+        if (profile) {
+          setCurrentUserName(`${profile.nombre} ${profile.apellido}`);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching user:', error);
+    }
+  };
 
   const fetchSolicitudes = async () => {
     try {
@@ -45,6 +69,10 @@ export default function Solicitudes() {
           *,
           incidentes (
             codigo
+          ),
+          profiles!solicitudes_repuestos_asignado_a_fkey (
+            nombre,
+            apellido
           )
         `)
         .order('created_at', { ascending: false });
@@ -59,7 +87,10 @@ export default function Solicitudes() {
         repuestos: sol.repuestos || [],
         estado: sol.estado,
         created_at: sol.created_at,
-        fecha_entrega: sol.fecha_entrega
+        fecha_entrega: sol.fecha_entrega,
+        asignado_a: sol.asignado_a,
+        fecha_asignacion: sol.fecha_asignacion,
+        nombre_asignado: sol.profiles ? `${sol.profiles.nombre} ${sol.profiles.apellido}` : null
       }));
 
       setSolicitudes(solicitudesMapeadas);
@@ -71,68 +102,34 @@ export default function Solicitudes() {
     }
   };
 
-  const handleMarcarEnProceso = async (id: string) => {
-    try {
-      const { error } = await supabase
-        .from('solicitudes_repuestos')
-        .update({ estado: 'en_proceso' })
-        .eq('id', id);
-
-      if (error) throw error;
-
-      setSolicitudes(prev => prev.map(s =>
-        s.id === id ? { ...s, estado: 'en_proceso' } : s
-      ));
-      toast.success('Solicitud marcada en proceso');
-      await fetchSolicitudes();
-    } catch (error) {
-      console.error('Error:', error);
-      toast.error('Error al actualizar solicitud');
+  const handleAsignarme = async (id: string) => {
+    if (!currentUserId) {
+      toast.error('No se pudo identificar el usuario');
+      return;
     }
-  };
 
-  const handleDespachar = async (id: string) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('nombre, apellido')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      const entregadoPor = profile ? `${profile.nombre} ${profile.apellido}` : user.email || 'Bodega';
-
       const { error } = await supabase
         .from('solicitudes_repuestos')
         .update({ 
-          estado: 'entregado',
-          fecha_entrega: new Date().toISOString(),
-          entregado_por: entregadoPor
+          asignado_a: currentUserId,
+          fecha_asignacion: new Date().toISOString(),
+          estado: 'en_proceso'
         })
         .eq('id', id);
 
       if (error) throw error;
 
-      toast.success('Repuestos despachados exitosamente');
+      toast.success('Solicitud asignada exitosamente');
       await fetchSolicitudes();
     } catch (error) {
       console.error('Error:', error);
-      toast.error('Error al despachar repuestos');
+      toast.error('Error al asignar solicitud');
     }
   };
 
-  const toggleRow = (id: string) => {
-    setExpandedRows(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(id)) {
-        newSet.delete(id);
-      } else {
-        newSet.add(id);
-      }
-      return newSet;
-    });
+  const handleVerDetalle = (id: string) => {
+    navigate(`/bodega/solicitudes/${id}`);
   };
 
   const getEstadoBadge = (estado: string) => {
@@ -149,7 +146,7 @@ export default function Solicitudes() {
   };
 
   const pendientes = solicitudes.filter(s => s.estado === "pendiente").length;
-  const enProceso = solicitudes.filter(s => s.estado === "en_proceso").length;
+  const misSolicitudes = solicitudes.filter(s => s.asignado_a === currentUserId && s.estado !== "entregado").length;
   const despachados = solicitudes.filter(s => s.estado === "entregado").length;
 
   return (
@@ -180,12 +177,12 @@ export default function Solicitudes() {
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Package className="h-4 w-4 text-blue-500" />
-              En Proceso
+              <User className="h-4 w-4 text-blue-500" />
+              Mis Solicitudes
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{enProceso}</div>
+            <div className="text-2xl font-bold">{misSolicitudes}</div>
           </CardContent>
         </Card>
 
@@ -216,11 +213,11 @@ export default function Solicitudes() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-12"></TableHead>
                   <TableHead>Incidente</TableHead>
                   <TableHead>Técnico</TableHead>
                   <TableHead>Repuestos</TableHead>
-                  <TableHead>Fecha Solicitud</TableHead>
+                  <TableHead>Asignado a</TableHead>
+                  <TableHead>Fecha</TableHead>
                   <TableHead>Estado</TableHead>
                   <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
@@ -234,98 +231,58 @@ export default function Solicitudes() {
                   </TableRow>
                 ) : (
                   solicitudes.map((solicitud) => (
-                    <>
-                      <TableRow key={solicitud.id} className="cursor-pointer hover:bg-muted/50">
-                        <TableCell>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => toggleRow(solicitud.id)}
-                            className="h-8 w-8 p-0"
-                          >
-                            {expandedRows.has(solicitud.id) ? (
-                              <ChevronUp className="h-4 w-4" />
-                            ) : (
-                              <ChevronDown className="h-4 w-4" />
-                            )}
-                          </Button>
-                        </TableCell>
-                        <TableCell>
-                          <Button
-                            variant="link"
-                            className="p-0 h-auto font-medium"
-                            onClick={() => navigate(`/mostrador/seguimiento/${solicitud.incidente_id}`)}
-                          >
-                            {solicitud.incidente_codigo}
-                          </Button>
-                        </TableCell>
-                        <TableCell>{solicitud.tecnico_solicitante}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline">
-                            {solicitud.repuestos?.length || 0} items
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{new Date(solicitud.created_at).toLocaleDateString('es-GT')}</TableCell>
-                        <TableCell>{getEstadoBadge(solicitud.estado)}</TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            {solicitud.estado === "pendiente" && (
-                              <Button
-                                size="sm"
-                                onClick={() => handleMarcarEnProceso(solicitud.id)}
-                              >
-                                Marcar En Proceso
-                              </Button>
-                            )}
-                            {solicitud.estado === "en_proceso" && (
-                              <Button
-                                size="sm"
-                                className="bg-green-500 hover:bg-green-600"
-                                onClick={() => handleDespachar(solicitud.id)}
-                              >
-                                Despachar
-                              </Button>
-                            )}
-                            {solicitud.estado === "entregado" && solicitud.fecha_entrega && (
-                              <span className="text-xs text-muted-foreground">
-                                {new Date(solicitud.fecha_entrega).toLocaleDateString('es-GT')}
-                              </span>
-                            )}
+                    <TableRow key={solicitud.id} className="hover:bg-muted/50">
+                      <TableCell>
+                        <Button
+                          variant="link"
+                          className="p-0 h-auto font-medium"
+                          onClick={() => navigate(`/mostrador/seguimiento/${solicitud.incidente_id}`)}
+                        >
+                          {solicitud.incidente_codigo}
+                        </Button>
+                      </TableCell>
+                      <TableCell>{solicitud.tecnico_solicitante}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline">
+                          {solicitud.repuestos?.length || 0} items
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {solicitud.nombre_asignado ? (
+                          <div className="flex items-center gap-2">
+                            <User className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-sm">{solicitud.nombre_asignado}</span>
                           </div>
-                        </TableCell>
-                      </TableRow>
-                      {expandedRows.has(solicitud.id) && (
-                        <TableRow>
-                          <TableCell colSpan={7} className="bg-muted/30">
-                            <div className="p-4 space-y-2">
-                              <h4 className="font-semibold text-sm mb-3">Detalle de Repuestos Solicitados:</h4>
-                              {solicitud.repuestos && solicitud.repuestos.length > 0 ? (
-                                <div className="grid gap-2">
-                                  {solicitud.repuestos.map((rep: Repuesto, idx: number) => (
-                                    <div key={idx} className="flex items-center justify-between p-3 bg-card rounded-lg border">
-                                      <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 bg-primary/10 rounded flex items-center justify-center">
-                                          <Package className="h-5 w-5 text-primary" />
-                                        </div>
-                                        <div>
-                                          <p className="font-medium text-sm">{rep.descripcion}</p>
-                                          <p className="text-xs text-muted-foreground">Código: {rep.codigo}</p>
-                                        </div>
-                                      </div>
-                                      <Badge variant="secondary">
-                                        Cantidad: {rep.cantidad}
-                                      </Badge>
-                                    </div>
-                                  ))}
-                                </div>
-                              ) : (
-                                <p className="text-sm text-muted-foreground">No hay repuestos en esta solicitud</p>
-                              )}
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">Sin asignar</span>
+                        )}
+                      </TableCell>
+                      <TableCell>{new Date(solicitud.created_at).toLocaleDateString('es-GT')}</TableCell>
+                      <TableCell>{getEstadoBadge(solicitud.estado)}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          {solicitud.estado === "pendiente" && !solicitud.asignado_a && (
+                            <Button
+                              size="sm"
+                              onClick={() => handleAsignarme(solicitud.id)}
+                            >
+                              <User className="h-4 w-4 mr-1" />
+                              Asignarme
+                            </Button>
+                          )}
+                          {(solicitud.estado === "en_proceso" || solicitud.estado === "entregado") && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleVerDetalle(solicitud.id)}
+                            >
+                              <Eye className="h-4 w-4 mr-1" />
+                              Ver Detalle
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
                   ))
                 )}
               </TableBody>

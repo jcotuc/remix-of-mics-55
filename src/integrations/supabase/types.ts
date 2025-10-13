@@ -564,6 +564,56 @@ export type Database = {
           },
         ]
       }
+      repuestos_solicitud_detalle: {
+        Row: {
+          cantidad_encontrada: number | null
+          cantidad_solicitada: number
+          codigo_repuesto: string
+          created_at: string | null
+          estado: string | null
+          fecha_verificacion: string | null
+          id: string
+          notas: string | null
+          solicitud_id: string
+          updated_at: string | null
+          verificado_por: string | null
+        }
+        Insert: {
+          cantidad_encontrada?: number | null
+          cantidad_solicitada: number
+          codigo_repuesto: string
+          created_at?: string | null
+          estado?: string | null
+          fecha_verificacion?: string | null
+          id?: string
+          notas?: string | null
+          solicitud_id: string
+          updated_at?: string | null
+          verificado_por?: string | null
+        }
+        Update: {
+          cantidad_encontrada?: number | null
+          cantidad_solicitada?: number
+          codigo_repuesto?: string
+          created_at?: string | null
+          estado?: string | null
+          fecha_verificacion?: string | null
+          id?: string
+          notas?: string | null
+          solicitud_id?: string
+          updated_at?: string | null
+          verificado_por?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "repuestos_solicitud_detalle_solicitud_id_fkey"
+            columns: ["solicitud_id"]
+            isOneToOne: false
+            referencedRelation: "solicitudes_repuestos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       solicitudes_cambio: {
         Row: {
           aprobado_por: string | null
@@ -619,9 +669,11 @@ export type Database = {
       }
       solicitudes_repuestos: {
         Row: {
+          asignado_a: string | null
           created_at: string | null
           entregado_por: string | null
           estado: string | null
+          fecha_asignacion: string | null
           fecha_entrega: string | null
           id: string
           incidente_id: string
@@ -631,9 +683,11 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          asignado_a?: string | null
           created_at?: string | null
           entregado_por?: string | null
           estado?: string | null
+          fecha_asignacion?: string | null
           fecha_entrega?: string | null
           id?: string
           incidente_id: string
@@ -643,9 +697,11 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          asignado_a?: string | null
           created_at?: string | null
           entregado_por?: string | null
           estado?: string | null
+          fecha_asignacion?: string | null
           fecha_entrega?: string | null
           id?: string
           incidente_id?: string
