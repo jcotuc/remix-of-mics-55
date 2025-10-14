@@ -1,9 +1,10 @@
-import { useState, useRef } from "react";
-import { Search, PackageCheck, User, Calendar, FileSignature } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { Search, PackageCheck, User, Calendar, FileSignature, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -19,11 +20,69 @@ export default function EntregaMaquinas() {
   const [searchTerm, setSearchTerm] = useState("");
   const [searching, setSearching] = useState(false);
   const [delivering, setDelivering] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [incidentesReparados, setIncidentesReparados] = useState<IncidenteDB[]>([]);
+  const [clientesMap, setClientesMap] = useState<Map<string, ClienteDB>>(new Map());
   const [incidente, setIncidente] = useState<IncidenteDB | null>(null);
   const [cliente, setCliente] = useState<ClienteDB | null>(null);
   const [nombreRecibe, setNombreRecibe] = useState("");
   const [dpiRecibe, setDpiRecibe] = useState("");
   const signatureRef = useRef<SignatureCanvasRef>(null);
+
+  useEffect(() => {
+    fetchIncidentesReparados();
+  }, []);
+
+  const fetchIncidentesReparados = async () => {
+    setLoading(true);
+    try {
+      // Buscar todos los incidentes en estado "Reparado"
+      const { data: incidentesData, error: incidentesError } = await supabase
+        .from('incidentes')
+        .select('*')
+        .eq('status', 'Reparado')
+        .order('fecha_ingreso', { ascending: false });
+
+      if (incidentesError) throw incidentesError;
+
+      setIncidentesReparados(incidentesData || []);
+
+      // Obtener todos los clientes únicos
+      const codigosClientes = [...new Set(incidentesData?.map(i => i.codigo_cliente) || [])];
+      
+      if (codigosClientes.length > 0) {
+        const { data: clientesData, error: clientesError } = await supabase
+          .from('clientes')
+          .select('*')
+          .in('codigo', codigosClientes);
+
+        if (clientesError) throw clientesError;
+
+        const newClientesMap = new Map<string, ClienteDB>();
+        clientesData?.forEach(cliente => {
+          newClientesMap.set(cliente.codigo, cliente);
+        });
+        setClientesMap(newClientesMap);
+      }
+    } catch (error) {
+      console.error('Error al cargar incidentes:', error);
+      toast.error("Error al cargar las máquinas listas para entrega");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSelectIncidente = async (incidenteData: IncidenteDB) => {
+    const clienteData = clientesMap.get(incidenteData.codigo_cliente);
+    if (clienteData) {
+      setIncidente(incidenteData);
+      setCliente(clienteData);
+      // Scroll hacia el formulario
+      setTimeout(() => {
+        document.getElementById('formulario-entrega')?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+    }
+  };
 
   const handleSearch = async () => {
     if (!searchTerm.trim()) {
@@ -33,7 +92,6 @@ export default function EntregaMaquinas() {
 
     setSearching(true);
     try {
-      // Buscar incidente por código
       const { data: incidenteData, error: incidenteError } = await supabase
         .from('incidentes')
         .select('*')
@@ -47,7 +105,6 @@ export default function EntregaMaquinas() {
         return;
       }
 
-      // Verificar que esté en estado "Pendiente de entrega"
       if (incidenteData.status !== 'Reparado') {
         toast.error("Este incidente no está en estado 'Reparado' y listo para entrega");
         setIncidente(null);
@@ -55,7 +112,6 @@ export default function EntregaMaquinas() {
         return;
       }
 
-      // Buscar información del cliente
       const { data: clienteData, error: clienteError } = await supabase
         .from('clientes')
         .select('*')
@@ -67,6 +123,11 @@ export default function EntregaMaquinas() {
       setIncidente(incidenteData);
       setCliente(clienteData);
       toast.success("Incidente encontrado");
+      
+      // Scroll hacia el formulario
+      setTimeout(() => {
+        document.getElementById('formulario-entrega')?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
     } catch (error) {
       console.error('Error al buscar incidente:', error);
       toast.error("Error al buscar el incidente");
@@ -102,7 +163,6 @@ export default function EntregaMaquinas() {
     try {
       const firmaBase64 = signatureRef.current?.toDataURL();
 
-      // Actualizar el incidente con la información de entrega
       const { error: updateError } = await supabase
         .from('incidentes')
         .update({
@@ -120,13 +180,14 @@ export default function EntregaMaquinas() {
 
       toast.success("Entrega registrada exitosamente");
       
-      // Limpiar formulario
+      // Limpiar formulario y recargar lista
       setIncidente(null);
       setCliente(null);
       setSearchTerm("");
       setNombreRecibe("");
       setDpiRecibe("");
       signatureRef.current?.clear();
+      fetchIncidentesReparados();
     } catch (error) {
       console.error('Error al registrar entrega:', error);
       toast.error("Error al registrar la entrega");
@@ -144,15 +205,15 @@ export default function EntregaMaquinas() {
         </p>
       </div>
 
-      {/* Búsqueda de Incidente */}
+      {/* Búsqueda Rápida */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Search className="h-5 w-5" />
-            Buscar Incidente
+            Búsqueda Rápida
           </CardTitle>
           <CardDescription>
-            Ingrese el código del incidente para buscar máquinas listas para entrega
+            Ingrese el código del incidente para búsqueda directa
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -173,49 +234,127 @@ export default function EntregaMaquinas() {
         </CardContent>
       </Card>
 
+      {/* Lista de Máquinas Listas para Entrega */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <PackageCheck className="h-5 w-5" />
+            Máquinas Listas para Entrega
+          </CardTitle>
+          <CardDescription>
+            {incidentesReparados.length} máquinas reparadas esperando entrega
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="text-center py-8">
+              <p className="text-muted-foreground">Cargando máquinas...</p>
+            </div>
+          ) : incidentesReparados.length === 0 ? (
+            <div className="text-center py-8">
+              <PackageCheck className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-muted-foreground">No hay máquinas listas para entrega en este momento</p>
+              <p className="text-sm text-muted-foreground mt-2">
+                Las máquinas aparecerán aquí cuando tengan estado "Reparado"
+              </p>
+            </div>
+          ) : (
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Código</TableHead>
+                    <TableHead>Cliente</TableHead>
+                    <TableHead>Producto</TableHead>
+                    <TableHead>Fecha Ingreso</TableHead>
+                    <TableHead>Estado</TableHead>
+                    <TableHead className="text-right">Acción</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {incidentesReparados.map((inc) => (
+                    <TableRow key={inc.id}>
+                      <TableCell className="font-medium">{inc.codigo}</TableCell>
+                      <TableCell>
+                        {clientesMap.get(inc.codigo_cliente)?.nombre || "Desconocido"}
+                      </TableCell>
+                      <TableCell>{inc.codigo_producto}</TableCell>
+                      <TableCell>
+                        {new Date(inc.fecha_ingreso).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell>
+                        <StatusBadge status={inc.status as StatusIncidente} />
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          size="sm"
+                          onClick={() => handleSelectIncidente(inc)}
+                          disabled={incidente?.id === inc.id}
+                        >
+                          {incidente?.id === inc.id ? (
+                            <>
+                              <CheckCircle className="h-4 w-4 mr-2" />
+                              Seleccionado
+                            </>
+                          ) : (
+                            "Entregar"
+                          )}
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Información del Incidente y Cliente */}
       {incidente && cliente && (
         <>
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <PackageCheck className="h-5 w-5" />
-                Información del Incidente
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-muted-foreground">Código Incidente</Label>
-                  <p className="text-lg font-semibold">{incidente.codigo}</p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground">Estado</Label>
-                  <div className="mt-1">
-                    <StatusBadge status={incidente.status as StatusIncidente} />
+          <div id="formulario-entrega" className="scroll-mt-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <PackageCheck className="h-5 w-5" />
+                  Información del Incidente
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-muted-foreground">Código Incidente</Label>
+                    <p className="text-lg font-semibold">{incidente.codigo}</p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">Estado</Label>
+                    <div className="mt-1">
+                      <StatusBadge status={incidente.status as StatusIncidente} />
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">Código Producto</Label>
+                    <p className="text-lg font-medium">{incidente.codigo_producto}</p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground">Fecha Ingreso</Label>
+                    <div className="flex items-center gap-2">
+                      <Calendar className="h-4 w-4 text-muted-foreground" />
+                      <p>{new Date(incidente.fecha_ingreso).toLocaleDateString()}</p>
+                    </div>
                   </div>
                 </div>
-                <div>
-                  <Label className="text-muted-foreground">Código Producto</Label>
-                  <p className="text-lg font-medium">{incidente.codigo_producto}</p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground">Fecha Ingreso</Label>
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-muted-foreground" />
-                    <p>{new Date(incidente.fecha_ingreso).toLocaleDateString()}</p>
-                  </div>
-                </div>
-              </div>
 
-              <Separator />
+                <Separator />
 
-              <div>
-                <Label className="text-muted-foreground">Descripción del Problema</Label>
-                <p className="mt-1">{incidente.descripcion_problema}</p>
-              </div>
-            </CardContent>
-          </Card>
+                <div>
+                  <Label className="text-muted-foreground">Descripción del Problema</Label>
+                  <p className="mt-1">{incidente.descripcion_problema}</p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
           <Card>
             <CardHeader>
