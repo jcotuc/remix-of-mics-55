@@ -148,9 +148,9 @@ export default function IncidentesMostrador() {
             <div className="flex items-center space-x-2">
               <CheckCircle className="h-5 w-5 text-success" />
               <div>
-                <p className="text-sm text-muted-foreground">Completados</p>
+                <p className="text-sm text-muted-foreground">Pendiente Entrega</p>
                 <p className="text-2xl font-bold">
-                  {incidentesList.filter(i => i.status === "Reparado").length}
+                  {incidentesList.filter(i => i.status === "Reparado" && !i.quiere_envio).length}
                 </p>
               </div>
             </div>
