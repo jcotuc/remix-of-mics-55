@@ -14,6 +14,48 @@ export type Database = {
   }
   public: {
     Tables: {
+      centros_servicio: {
+        Row: {
+          activo: boolean | null
+          codigo: string
+          created_at: string
+          direccion: string | null
+          email: string | null
+          es_central: boolean | null
+          id: string
+          nombre: string
+          responsable: string | null
+          telefono: string | null
+          updated_at: string
+        }
+        Insert: {
+          activo?: boolean | null
+          codigo: string
+          created_at?: string
+          direccion?: string | null
+          email?: string | null
+          es_central?: boolean | null
+          id?: string
+          nombre: string
+          responsable?: string | null
+          telefono?: string | null
+          updated_at?: string
+        }
+        Update: {
+          activo?: boolean | null
+          codigo?: string
+          created_at?: string
+          direccion?: string | null
+          email?: string | null
+          es_central?: boolean | null
+          id?: string
+          nombre?: string
+          responsable?: string | null
+          telefono?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       clientes: {
         Row: {
           celular: string
@@ -235,6 +277,94 @@ export type Database = {
         }
         Relationships: []
       }
+      importaciones: {
+        Row: {
+          centro_destino_id: string | null
+          created_at: string
+          created_by: string | null
+          estado: string | null
+          fecha_llegada: string
+          id: string
+          notas: string | null
+          numero_embarque: string
+          origen: string
+          updated_at: string
+        }
+        Insert: {
+          centro_destino_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          estado?: string | null
+          fecha_llegada: string
+          id?: string
+          notas?: string | null
+          numero_embarque: string
+          origen: string
+          updated_at?: string
+        }
+        Update: {
+          centro_destino_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          estado?: string | null
+          fecha_llegada?: string
+          id?: string
+          notas?: string | null
+          numero_embarque?: string
+          origen?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "importaciones_centro_destino_id_fkey"
+            columns: ["centro_destino_id"]
+            isOneToOne: false
+            referencedRelation: "centros_servicio"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      importaciones_detalle: {
+        Row: {
+          cantidad: number
+          created_at: string
+          descripcion: string
+          id: string
+          importacion_id: string
+          procesado: boolean | null
+          sku: string
+          ubicacion_asignada: string | null
+        }
+        Insert: {
+          cantidad: number
+          created_at?: string
+          descripcion: string
+          id?: string
+          importacion_id: string
+          procesado?: boolean | null
+          sku: string
+          ubicacion_asignada?: string | null
+        }
+        Update: {
+          cantidad?: number
+          created_at?: string
+          descripcion?: string
+          id?: string
+          importacion_id?: string
+          procesado?: boolean | null
+          sku?: string
+          ubicacion_asignada?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "importaciones_detalle_importacion_id_fkey"
+            columns: ["importacion_id"]
+            isOneToOne: false
+            referencedRelation: "importaciones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       incidentes: {
         Row: {
           accesorios: string | null
@@ -357,6 +487,100 @@ export type Database = {
           },
         ]
       }
+      inventario_ciclico: {
+        Row: {
+          centro_servicio_id: string
+          created_at: string
+          estado: string | null
+          fecha_completado: string | null
+          fecha_inicio: string
+          id: string
+          notas: string | null
+          numero_conteo: string
+          realizado_por: string | null
+          ubicacion: string
+        }
+        Insert: {
+          centro_servicio_id: string
+          created_at?: string
+          estado?: string | null
+          fecha_completado?: string | null
+          fecha_inicio?: string
+          id?: string
+          notas?: string | null
+          numero_conteo: string
+          realizado_por?: string | null
+          ubicacion: string
+        }
+        Update: {
+          centro_servicio_id?: string
+          created_at?: string
+          estado?: string | null
+          fecha_completado?: string | null
+          fecha_inicio?: string
+          id?: string
+          notas?: string | null
+          numero_conteo?: string
+          realizado_por?: string | null
+          ubicacion?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventario_ciclico_centro_servicio_id_fkey"
+            columns: ["centro_servicio_id"]
+            isOneToOne: false
+            referencedRelation: "centros_servicio"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      inventario_ciclico_detalle: {
+        Row: {
+          ajustado: boolean | null
+          cantidad_fisica: number | null
+          cantidad_sistema: number
+          codigo_repuesto: string
+          created_at: string
+          descripcion: string | null
+          diferencia: number | null
+          id: string
+          inventario_id: string
+          notas: string | null
+        }
+        Insert: {
+          ajustado?: boolean | null
+          cantidad_fisica?: number | null
+          cantidad_sistema: number
+          codigo_repuesto: string
+          created_at?: string
+          descripcion?: string | null
+          diferencia?: number | null
+          id?: string
+          inventario_id: string
+          notas?: string | null
+        }
+        Update: {
+          ajustado?: boolean | null
+          cantidad_fisica?: number | null
+          cantidad_sistema?: number
+          codigo_repuesto?: string
+          created_at?: string
+          descripcion?: string | null
+          diferencia?: number | null
+          id?: string
+          inventario_id?: string
+          notas?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventario_ciclico_detalle_inventario_id_fkey"
+            columns: ["inventario_id"]
+            isOneToOne: false
+            referencedRelation: "inventario_ciclico"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       media_files: {
         Row: {
           created_at: string
@@ -394,6 +618,59 @@ export type Database = {
             columns: ["incidente_id"]
             isOneToOne: false
             referencedRelation: "incidentes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      movimientos_inventario: {
+        Row: {
+          cantidad: number
+          centro_servicio_id: string | null
+          codigo_repuesto: string
+          created_at: string
+          created_by: string | null
+          id: string
+          motivo: string | null
+          referencia: string | null
+          stock_anterior: number | null
+          stock_nuevo: number | null
+          tipo_movimiento: Database["public"]["Enums"]["tipo_movimiento_inventario"]
+          ubicacion: string | null
+        }
+        Insert: {
+          cantidad: number
+          centro_servicio_id?: string | null
+          codigo_repuesto: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          motivo?: string | null
+          referencia?: string | null
+          stock_anterior?: number | null
+          stock_nuevo?: number | null
+          tipo_movimiento: Database["public"]["Enums"]["tipo_movimiento_inventario"]
+          ubicacion?: string | null
+        }
+        Update: {
+          cantidad?: number
+          centro_servicio_id?: string | null
+          codigo_repuesto?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          motivo?: string | null
+          referencia?: string | null
+          stock_anterior?: number | null
+          stock_nuevo?: number | null
+          tipo_movimiento?: Database["public"]["Enums"]["tipo_movimiento_inventario"]
+          ubicacion?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "movimientos_inventario_centro_servicio_id_fkey"
+            columns: ["centro_servicio_id"]
+            isOneToOne: false
+            referencedRelation: "centros_servicio"
             referencedColumns: ["id"]
           },
         ]
@@ -508,6 +785,56 @@ export type Database = {
         }
         Relationships: []
       }
+      reclamos_faltantes: {
+        Row: {
+          cantidad_faltante: number
+          codigo_repuesto: string
+          descripcion: string | null
+          estado: string | null
+          fecha_reclamo: string
+          fecha_resolucion: string | null
+          id: string
+          notas_resolucion: string | null
+          reclamado_por: string | null
+          resuelto_por: string | null
+          transito_id: string
+        }
+        Insert: {
+          cantidad_faltante: number
+          codigo_repuesto: string
+          descripcion?: string | null
+          estado?: string | null
+          fecha_reclamo?: string
+          fecha_resolucion?: string | null
+          id?: string
+          notas_resolucion?: string | null
+          reclamado_por?: string | null
+          resuelto_por?: string | null
+          transito_id: string
+        }
+        Update: {
+          cantidad_faltante?: number
+          codigo_repuesto?: string
+          descripcion?: string | null
+          estado?: string | null
+          fecha_reclamo?: string
+          fecha_resolucion?: string | null
+          id?: string
+          notas_resolucion?: string | null
+          reclamado_por?: string | null
+          resuelto_por?: string | null
+          transito_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reclamos_faltantes_transito_id_fkey"
+            columns: ["transito_id"]
+            isOneToOne: false
+            referencedRelation: "transitos_bodega"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       repuestos: {
         Row: {
           clave: string
@@ -563,6 +890,39 @@ export type Database = {
             referencedColumns: ["codigo"]
           },
         ]
+      }
+      repuestos_clasificacion_abc: {
+        Row: {
+          clasificacion: Database["public"]["Enums"]["clasificacion_abc"]
+          codigo_repuesto: string
+          frecuencia_uso: number | null
+          id: string
+          stock_maximo_sugerido: number | null
+          stock_minimo_sugerido: number | null
+          ultima_actualizacion: string
+          valor_rotacion: number | null
+        }
+        Insert: {
+          clasificacion: Database["public"]["Enums"]["clasificacion_abc"]
+          codigo_repuesto: string
+          frecuencia_uso?: number | null
+          id?: string
+          stock_maximo_sugerido?: number | null
+          stock_minimo_sugerido?: number | null
+          ultima_actualizacion?: string
+          valor_rotacion?: number | null
+        }
+        Update: {
+          clasificacion?: Database["public"]["Enums"]["clasificacion_abc"]
+          codigo_repuesto?: string
+          frecuencia_uso?: number | null
+          id?: string
+          stock_maximo_sugerido?: number | null
+          stock_minimo_sugerido?: number | null
+          ultima_actualizacion?: string
+          valor_rotacion?: number | null
+        }
+        Relationships: []
       }
       repuestos_solicitud_detalle: {
         Row: {
@@ -720,6 +1080,47 @@ export type Database = {
           },
         ]
       }
+      stock_departamental: {
+        Row: {
+          cantidad_actual: number
+          centro_servicio_id: string
+          codigo_repuesto: string
+          id: string
+          stock_maximo: number | null
+          stock_minimo: number | null
+          ubicacion: string | null
+          ultima_actualizacion: string
+        }
+        Insert: {
+          cantidad_actual?: number
+          centro_servicio_id: string
+          codigo_repuesto: string
+          id?: string
+          stock_maximo?: number | null
+          stock_minimo?: number | null
+          ubicacion?: string | null
+          ultima_actualizacion?: string
+        }
+        Update: {
+          cantidad_actual?: number
+          centro_servicio_id?: string
+          codigo_repuesto?: string
+          id?: string
+          stock_maximo?: number | null
+          stock_minimo?: number | null
+          ubicacion?: string | null
+          ultima_actualizacion?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_departamental_centro_servicio_id_fkey"
+            columns: ["centro_servicio_id"]
+            isOneToOne: false
+            referencedRelation: "centros_servicio"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tecnicos: {
         Row: {
           apellido: string
@@ -749,6 +1150,145 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      transitos_bodega: {
+        Row: {
+          centro_destino_id: string
+          centro_origen_id: string
+          created_at: string
+          enviado_por: string | null
+          estado: string | null
+          fecha_envio: string
+          fecha_recepcion: string | null
+          id: string
+          notas: string | null
+          numero_transito: string
+          recibido_por: string | null
+        }
+        Insert: {
+          centro_destino_id: string
+          centro_origen_id: string
+          created_at?: string
+          enviado_por?: string | null
+          estado?: string | null
+          fecha_envio?: string
+          fecha_recepcion?: string | null
+          id?: string
+          notas?: string | null
+          numero_transito: string
+          recibido_por?: string | null
+        }
+        Update: {
+          centro_destino_id?: string
+          centro_origen_id?: string
+          created_at?: string
+          enviado_por?: string | null
+          estado?: string | null
+          fecha_envio?: string
+          fecha_recepcion?: string | null
+          id?: string
+          notas?: string | null
+          numero_transito?: string
+          recibido_por?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transitos_bodega_centro_destino_id_fkey"
+            columns: ["centro_destino_id"]
+            isOneToOne: false
+            referencedRelation: "centros_servicio"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transitos_bodega_centro_origen_id_fkey"
+            columns: ["centro_origen_id"]
+            isOneToOne: false
+            referencedRelation: "centros_servicio"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      transitos_detalle: {
+        Row: {
+          cantidad_enviada: number
+          cantidad_recibida: number | null
+          codigo_repuesto: string
+          created_at: string
+          descripcion: string
+          id: string
+          transito_id: string
+          ubicacion_destino: string | null
+          verificado: boolean | null
+        }
+        Insert: {
+          cantidad_enviada: number
+          cantidad_recibida?: number | null
+          codigo_repuesto: string
+          created_at?: string
+          descripcion: string
+          id?: string
+          transito_id: string
+          ubicacion_destino?: string | null
+          verificado?: boolean | null
+        }
+        Update: {
+          cantidad_enviada?: number
+          cantidad_recibida?: number | null
+          codigo_repuesto?: string
+          created_at?: string
+          descripcion?: string
+          id?: string
+          transito_id?: string
+          ubicacion_destino?: string | null
+          verificado?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transitos_detalle_transito_id_fkey"
+            columns: ["transito_id"]
+            isOneToOne: false
+            referencedRelation: "transitos_bodega"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ubicaciones_historicas: {
+        Row: {
+          cantidad_asignada: number | null
+          centro_servicio_id: string | null
+          codigo_repuesto: string
+          fecha_asignacion: string
+          id: string
+          ubicacion: string
+          usuario_asigno: string | null
+        }
+        Insert: {
+          cantidad_asignada?: number | null
+          centro_servicio_id?: string | null
+          codigo_repuesto: string
+          fecha_asignacion?: string
+          id?: string
+          ubicacion: string
+          usuario_asigno?: string | null
+        }
+        Update: {
+          cantidad_asignada?: number | null
+          centro_servicio_id?: string | null
+          codigo_repuesto?: string
+          fecha_asignacion?: string
+          id?: string
+          ubicacion?: string
+          usuario_asigno?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ubicaciones_historicas_centro_servicio_id_fkey"
+            columns: ["centro_servicio_id"]
+            isOneToOne: false
+            referencedRelation: "centros_servicio"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
@@ -802,6 +1342,7 @@ export type Database = {
         | "digitador"
         | "jefe_taller"
         | "tecnico"
+      clasificacion_abc: "A" | "B" | "C"
       media_tipo: "foto" | "video"
       status_incidente:
         | "Ingresado"
@@ -818,6 +1359,12 @@ export type Database = {
         | "Rechazado"
         | "Pendiente entrega"
         | "Logistica envio"
+      tipo_movimiento_inventario:
+        | "entrada"
+        | "salida"
+        | "transferencia"
+        | "ajuste"
+        | "devolucion"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -955,6 +1502,7 @@ export const Constants = {
         "jefe_taller",
         "tecnico",
       ],
+      clasificacion_abc: ["A", "B", "C"],
       media_tipo: ["foto", "video"],
       status_incidente: [
         "Ingresado",
@@ -971,6 +1519,13 @@ export const Constants = {
         "Rechazado",
         "Pendiente entrega",
         "Logistica envio",
+      ],
+      tipo_movimiento_inventario: [
+        "entrada",
+        "salida",
+        "transferencia",
+        "ajuste",
+        "devolucion",
       ],
     },
   },

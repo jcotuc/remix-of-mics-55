@@ -42,7 +42,10 @@ const menuAreas = {
     { title: "Presupuestos", url: "/taller/presupuestos", icon: DollarSign },
   ],
   bodega: [
-    { title: "Inventario", url: "/bodega/inventario", icon: Package },
+    { title: "Importación", url: "/bodega/importacion", icon: Package },
+    { title: "Despachos Dpto", url: "/bodega/despachos", icon: Truck },
+    { title: "Stock Dpto (ABC)", url: "/bodega/stock-departamento", icon: BarChart3 },
+    { title: "Inventario", url: "/bodega/inventario", icon: ClipboardCheck },
     { title: "Solicitudes", url: "/bodega/solicitudes", icon: ShoppingCart },
   ],
   digitador: [
