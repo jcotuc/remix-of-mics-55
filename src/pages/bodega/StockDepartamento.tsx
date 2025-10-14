@@ -159,51 +159,44 @@ export default function StockDepartamento() {
   const fetchStockPorCentro = async () => {
     try {
       setLoadingReabasto(true);
-      const { data: centros } = await supabase
-        .from('centros_servicio')
-        .select('*')
-        .eq('activo', true);
+      
+      // Obtener todos los stocks con joins en una sola consulta
+      const { data: stockData, error } = await supabase
+        .from('stock_departamental')
+        .select(`
+          *,
+          centros_servicio!inner(nombre, activo),
+          repuestos!inner(descripcion),
+          repuestos_clasificacion_abc(clasificacion)
+        `)
+        .eq('centros_servicio.activo', true);
 
+      if (error) throw error;
+
+      // Agrupar por centro
       const stockPorCentroData: Record<string, StockDepartamental[]> = {};
 
-      for (const centro of centros || []) {
-        const { data } = await supabase
-          .from('stock_departamental')
-          .select('*')
-          .eq('centro_servicio_id', centro.id);
+      (stockData || []).forEach((item: any) => {
+        const requiereReabasto = item.cantidad_actual < item.stock_minimo;
+        
+        if (requiereReabasto) {
+          const centroNombre = item.centros_servicio?.nombre || 'N/A';
+          
+          if (!stockPorCentroData[centroNombre]) {
+            stockPorCentroData[centroNombre] = [];
+          }
 
-        const stockEnriquecido = await Promise.all(
-          (data || []).map(async (item) => {
-            const { data: repuesto } = await supabase
-              .from('repuestos')
-              .select('descripcion')
-              .eq('codigo', item.codigo_repuesto)
-              .single();
-
-            const { data: abc } = await supabase
-              .from('repuestos_clasificacion_abc')
-              .select('clasificacion')
-              .eq('codigo_repuesto', item.codigo_repuesto)
-              .single();
-
-            return {
-              centro_servicio: centro.nombre,
-              codigo_repuesto: item.codigo_repuesto,
-              descripcion: repuesto?.descripcion || 'Sin descripción',
-              cantidad_actual: item.cantidad_actual,
-              stock_minimo: item.stock_minimo,
-              requiere_reabasto: item.cantidad_actual < item.stock_minimo,
-              clasificacion: (abc?.clasificacion as 'A' | 'B' | 'C') || 'C'
-            };
-          })
-        );
-
-        // Solo guardar centros que tienen repuestos que requieren reabasto
-        const repuestosReabasto = stockEnriquecido.filter(s => s.requiere_reabasto);
-        if (repuestosReabasto.length > 0) {
-          stockPorCentroData[centro.nombre] = repuestosReabasto;
+          stockPorCentroData[centroNombre].push({
+            centro_servicio: centroNombre,
+            codigo_repuesto: item.codigo_repuesto,
+            descripcion: item.repuestos?.descripcion || 'Sin descripción',
+            cantidad_actual: item.cantidad_actual,
+            stock_minimo: item.stock_minimo,
+            requiere_reabasto: true,
+            clasificacion: (item.repuestos_clasificacion_abc?.clasificacion as 'A' | 'B' | 'C') || 'C'
+          });
         }
-      }
+      });
 
       setStockPorCentro(stockPorCentroData);
     } catch (error) {
