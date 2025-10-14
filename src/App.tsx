@@ -37,6 +37,13 @@ import DespachosDepartamentales from "./pages/bodega/DespachosDepartamentales";
 import StockDepartamento from "./pages/bodega/StockDepartamento";
 import Solicitudes from "./pages/bodega/Solicitudes";
 import DetalleSolicitud from "./pages/bodega/DetalleSolicitud";
+import ConsultaCardex from "./pages/bodega/ConsultaCardex";
+import GestionUbicaciones from "./pages/bodega/GestionUbicaciones";
+import DocumentosPendientes from "./pages/bodega/DocumentosPendientes";
+import DocumentosUbicacion from "./pages/bodega/DocumentosUbicacion";
+import IngresosInventario from "./pages/bodega/IngresosInventario";
+import SalidasInventario from "./pages/bodega/SalidasInventario";
+import Despieces from "./pages/bodega/Despieces";
 import IncidentesSAC from "./pages/sac/IncidentesSAC";
 import DetalleIncidenteSAC from "./pages/sac/DetalleIncidenteSAC";
 import ConsultaExistencias from "./pages/sac/ConsultaExistencias";
@@ -80,6 +87,13 @@ const App = () => (
               
               <Route path="/taller/diagnostico/:id" element={<DiagnosticoInicial />} />
               <Route path="/bodega/inventario" element={<InventarioNuevo />} />
+              <Route path="/bodega/consulta-cardex" element={<ConsultaCardex />} />
+              <Route path="/bodega/ubicaciones" element={<GestionUbicaciones />} />
+              <Route path="/bodega/documentos-pendientes" element={<DocumentosPendientes />} />
+              <Route path="/bodega/documentos-ubicacion" element={<DocumentosUbicacion />} />
+              <Route path="/bodega/ingresos-inventario" element={<IngresosInventario />} />
+              <Route path="/bodega/salidas-inventario" element={<SalidasInventario />} />
+              <Route path="/bodega/despieces" element={<Despieces />} />
               <Route path="/bodega/importacion" element={<Importacion />} />
               <Route path="/bodega/despachos" element={<DespachosDepartamentales />} />
               <Route path="/bodega/stock-departamento" element={<StockDepartamento />} />
