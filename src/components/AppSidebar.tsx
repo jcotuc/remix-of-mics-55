@@ -48,9 +48,6 @@ const menuAreas = {
     { title: "Inventario", url: "/bodega/inventario", icon: ClipboardCheck },
     { title: "Solicitudes", url: "/bodega/solicitudes", icon: ShoppingCart },
   ],
-  digitador: [
-    { title: "Pendientes", url: "/digitador/pendientes", icon: FileText },
-  ],
   sac: [
     { title: "Incidentes", url: "/sac/incidentes", icon: FileText },
     { title: "Consulta Existencias", url: "/sac/consulta-existencias", icon: Package },
@@ -113,7 +110,6 @@ export function AppSidebar() {
                     {userRole === 'logistica' && 'Logística'}
                     {userRole === 'taller' && 'Taller'}
                     {userRole === 'bodega' && 'Bodega'}
-                    {userRole === 'digitador' && 'Digitador'}
                     {userRole === 'sac' && 'SAC'}
                     {userRole === 'admin' && 'Administrador'}
                   </span>
@@ -132,7 +128,6 @@ export function AppSidebar() {
         {renderMenuSection("Mostrador", menuAreas.mostrador)}
         {renderMenuSection("Logística", menuAreas.logistica)}
         {renderMenuSection("Taller", menuAreas.taller)}
-        {renderMenuSection("Digitador", menuAreas.digitador)}
         {renderMenuSection("Bodega", menuAreas.bodega)}
         {renderMenuSection("SAC", menuAreas.sac)}
 
