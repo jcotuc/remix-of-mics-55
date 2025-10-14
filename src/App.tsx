@@ -21,6 +21,11 @@ import HerramientasManuales from "./pages/logistica/HerramientasManuales";
 import Guias from "./pages/logistica/Guias";
 import IngresoMaquinas from "./pages/logistica/IngresoMaquinas";
 import SalidaMaquinas from "./pages/logistica/SalidaMaquinas";
+import FaltanteAccesorios from "./pages/logistica/FaltanteAccesorios";
+import MaquinasNuevasRT from "./pages/logistica/MaquinasNuevasRT";
+import DanosTransporte from "./pages/logistica/DanosTransporte";
+import ConsultaPreciosLogistica from "./pages/logistica/ConsultaPreciosLogistica";
+import ConsultaUbicaciones from "./pages/logistica/ConsultaUbicaciones";
 import Asignaciones from "./pages/taller/Asignaciones";
 import MisAsignaciones from "./pages/taller/MisAsignaciones";
 import BusquedaIncidentes from "./pages/taller/BusquedaIncidentes";
@@ -64,6 +69,11 @@ const App = () => (
               <Route path="/logistica/guias" element={<Guias />} />
               <Route path="/logistica/ingreso-maquinas" element={<IngresoMaquinas />} />
               <Route path="/logistica/salida-maquinas" element={<SalidaMaquinas />} />
+              <Route path="/logistica/faltante-accesorios" element={<FaltanteAccesorios />} />
+              <Route path="/logistica/maquinas-nuevas-rt" element={<MaquinasNuevasRT />} />
+              <Route path="/logistica/danos-transporte" element={<DanosTransporte />} />
+              <Route path="/logistica/consulta-precios" element={<ConsultaPreciosLogistica />} />
+              <Route path="/logistica/consulta-ubicaciones" element={<ConsultaUbicaciones />} />
               <Route path="/taller/asignaciones" element={<Asignaciones />} />
               <Route path="/taller/mis-asignaciones" element={<MisAsignaciones />} />
               <Route path="/taller/busqueda-incidentes" element={<BusquedaIncidentes />} />

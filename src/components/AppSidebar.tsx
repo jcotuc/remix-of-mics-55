@@ -1,4 +1,4 @@
-import { Users, Package, Wrench, FileText, Truck, LogOut, Home, ShoppingCart, DollarSign, ClipboardList, BarChart3, ClipboardCheck, FileSpreadsheet, LogIn, LogOut as LogOutIcon, Send, PackageCheck } from "lucide-react";
+import { Users, Package, Wrench, FileText, Truck, LogOut, Home, ShoppingCart, DollarSign, ClipboardList, BarChart3, ClipboardCheck, FileSpreadsheet, LogIn, LogOut as LogOutIcon, Send, PackageCheck, AlertTriangle, AlertCircle, MapPin } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -39,6 +39,11 @@ const menuAreas = {
     { title: "Guías", url: "/logistica/guias", icon: FileSpreadsheet },
     { title: "Ingreso de Máquinas", url: "/logistica/ingreso-maquinas", icon: LogIn },
     { title: "Salida de Máquinas", url: "/logistica/salida-maquinas", icon: Send },
+    { title: "Faltante de Accesorios", url: "/logistica/faltante-accesorios", icon: AlertTriangle },
+    { title: "Máquinas Nuevas RT", url: "/logistica/maquinas-nuevas-rt", icon: PackageCheck },
+    { title: "Daños por Transporte", url: "/logistica/danos-transporte", icon: AlertCircle },
+    { title: "Consulta de Precios", url: "/logistica/consulta-precios", icon: DollarSign },
+    { title: "Consulta de Ubicaciones", url: "/logistica/consulta-ubicaciones", icon: MapPin },
   ],
   taller: [
     { title: "Asignaciones", url: "/taller/asignaciones", icon: Wrench },
