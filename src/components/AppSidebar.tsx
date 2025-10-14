@@ -1,4 +1,4 @@
-import { Users, Package, Wrench, FileText, Truck, LogOut, Home, ShoppingCart, DollarSign, ClipboardList, BarChart3, ClipboardCheck, FileSpreadsheet, LogIn, LogOut as LogOutIcon, Send } from "lucide-react";
+import { Users, Package, Wrench, FileText, Truck, LogOut, Home, ShoppingCart, DollarSign, ClipboardList, BarChart3, ClipboardCheck, FileSpreadsheet, LogIn, LogOut as LogOutIcon, Send, PackageCheck } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -31,6 +31,7 @@ const menuAreas = {
     { title: "Repuestos", url: "/mostrador/repuestos", icon: Wrench },
     { title: "Consulta Precios", url: "/mostrador/consulta-precios", icon: DollarSign },
     { title: "Incidentes", url: "/mostrador/incidentes", icon: FileText },
+    { title: "Entrega de Máquinas", url: "/mostrador/entrega-maquinas", icon: PackageCheck },
   ],
   logistica: [
     { title: "Embarques", url: "/logistica/embarques", icon: Truck },
