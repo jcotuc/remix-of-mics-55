@@ -12,6 +12,7 @@ import { MostradorDashboard } from "@/components/dashboard/MostradorDashboard";
 import { TallerDashboard } from "@/components/dashboard/TallerDashboard";
 import { LogisticaDashboard } from "@/components/dashboard/LogisticaDashboard";
 import { BodegaDashboard } from "@/components/dashboard/BodegaDashboard";
+import { SACDashboard } from "@/components/dashboard/SACDashboard";
 import type { Database } from "@/integrations/supabase/types";
 
 type IncidenteDB = Database['public']['Tables']['incidentes']['Row'];
@@ -152,11 +153,12 @@ const Index = () => {
 
       {/* Dashboards por área */}
       <Tabs defaultValue={getDefaultTab()} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="mostrador">Mostrador</TabsTrigger>
           <TabsTrigger value="taller">Taller</TabsTrigger>
           <TabsTrigger value="logistica">Logística</TabsTrigger>
           <TabsTrigger value="bodega">Bodega</TabsTrigger>
+          <TabsTrigger value="sac">SAC</TabsTrigger>
         </TabsList>
 
         <TabsContent value="mostrador" className="space-y-4">
@@ -197,6 +199,10 @@ const Index = () => {
 
         <TabsContent value="bodega" className="space-y-4">
           <BodegaDashboard />
+        </TabsContent>
+
+        <TabsContent value="sac" className="space-y-4">
+          <SACDashboard />
         </TabsContent>
       </Tabs>
     </div>
