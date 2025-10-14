@@ -522,7 +522,8 @@ export default function DiagnosticoInicial() {
   };
 
   const handleFinalizarDiagnostico = async () => {
-    if (!tipoTrabajo) {
+    // Solo validar tipo de trabajo si es una reparación real
+    if (tipoResolucion === "Reparar en Garantía" && !tipoTrabajo) {
       toast.error("Debes seleccionar el tipo de trabajo");
       return;
     }
@@ -636,7 +637,13 @@ export default function DiagnosticoInicial() {
   };
 
   const handleClickFinalizarDiagnostico = () => {
-    setShowTipoTrabajoDialog(true);
+    // Solo mostrar diálogo si es "Reparar en Garantía"
+    if (tipoResolucion === "Reparar en Garantía") {
+      setShowTipoTrabajoDialog(true);
+    } else {
+      // Para otros tipos, finalizar directamente sin preguntar
+      handleFinalizarDiagnostico();
+    }
   };
 
   if (loading) {
