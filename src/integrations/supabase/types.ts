@@ -14,6 +14,41 @@ export type Database = {
   }
   public: {
     Tables: {
+      asignaciones_sac: {
+        Row: {
+          activo: boolean | null
+          created_at: string
+          fecha_asignacion: string
+          id: string
+          incidente_id: string
+          user_id: string
+        }
+        Insert: {
+          activo?: boolean | null
+          created_at?: string
+          fecha_asignacion?: string
+          id?: string
+          incidente_id: string
+          user_id: string
+        }
+        Update: {
+          activo?: boolean | null
+          created_at?: string
+          fecha_asignacion?: string
+          id?: string
+          incidente_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "asignaciones_sac_incidente_id_fkey"
+            columns: ["incidente_id"]
+            isOneToOne: false
+            referencedRelation: "incidentes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       centros_servicio: {
         Row: {
           activo: boolean | null
@@ -712,6 +747,56 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "notificaciones_incidente_id_fkey"
+            columns: ["incidente_id"]
+            isOneToOne: false
+            referencedRelation: "incidentes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notificaciones_cliente: {
+        Row: {
+          canal: string
+          created_at: string
+          enviado_por: string | null
+          fecha_envio: string
+          fecha_respuesta: string | null
+          id: string
+          incidente_id: string
+          mensaje: string | null
+          notas: string | null
+          numero_notificacion: number
+          respondido: boolean | null
+        }
+        Insert: {
+          canal: string
+          created_at?: string
+          enviado_por?: string | null
+          fecha_envio?: string
+          fecha_respuesta?: string | null
+          id?: string
+          incidente_id: string
+          mensaje?: string | null
+          notas?: string | null
+          numero_notificacion: number
+          respondido?: boolean | null
+        }
+        Update: {
+          canal?: string
+          created_at?: string
+          enviado_por?: string | null
+          fecha_envio?: string
+          fecha_respuesta?: string | null
+          id?: string
+          incidente_id?: string
+          mensaje?: string | null
+          notas?: string | null
+          numero_notificacion?: number
+          respondido?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notificaciones_cliente_incidente_id_fkey"
             columns: ["incidente_id"]
             isOneToOne: false
             referencedRelation: "incidentes"

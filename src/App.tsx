@@ -27,6 +27,9 @@ import DespachosDepartamentales from "./pages/bodega/DespachosDepartamentales";
 import StockDepartamento from "./pages/bodega/StockDepartamento";
 import Solicitudes from "./pages/bodega/Solicitudes";
 import DetalleSolicitud from "./pages/bodega/DetalleSolicitud";
+import IncidentesSAC from "./pages/sac/IncidentesSAC";
+import DetalleIncidenteSAC from "./pages/sac/DetalleIncidenteSAC";
+import ConsultaExistencias from "./pages/sac/ConsultaExistencias";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -62,6 +65,9 @@ const App = () => (
               <Route path="/bodega/stock-departamento" element={<StockDepartamento />} />
               <Route path="/bodega/solicitudes" element={<Solicitudes />} />
               <Route path="/bodega/solicitudes/:id" element={<DetalleSolicitud />} />
+              <Route path="/sac/incidentes" element={<IncidentesSAC />} />
+              <Route path="/sac/incidentes/:id" element={<DetalleIncidenteSAC />} />
+              <Route path="/sac/consulta-existencias" element={<ConsultaExistencias />} />
               
               <Route path="*" element={<NotFound />} />
             </Routes>

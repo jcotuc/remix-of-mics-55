@@ -50,6 +50,10 @@ const menuAreas = {
   ],
   digitador: [
     { title: "Pendientes", url: "/digitador/pendientes", icon: FileText },
+  ],
+  sac: [
+    { title: "Incidentes", url: "/sac/incidentes", icon: FileText },
+    { title: "Consulta Existencias", url: "/sac/consulta-existencias", icon: Package },
   ]
 };
 
@@ -110,6 +114,7 @@ export function AppSidebar() {
                     {userRole === 'taller' && 'Taller'}
                     {userRole === 'bodega' && 'Bodega'}
                     {userRole === 'digitador' && 'Digitador'}
+                    {userRole === 'sac' && 'SAC'}
                     {userRole === 'admin' && 'Administrador'}
                   </span>
                 </div>
@@ -129,6 +134,7 @@ export function AppSidebar() {
         {renderMenuSection("Taller", menuAreas.taller)}
         {renderMenuSection("Digitador", menuAreas.digitador)}
         {renderMenuSection("Bodega", menuAreas.bodega)}
+        {renderMenuSection("SAC", menuAreas.sac)}
 
         <div className="mt-auto p-4 border-t border-border bg-muted/50">
           <Button
