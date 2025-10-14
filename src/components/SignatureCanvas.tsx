@@ -43,14 +43,14 @@ export const SignatureCanvasComponent = forwardRef<SignatureCanvasRef, Signature
               Limpiar
             </Button>
           </div>
-          <div className="border-2 border-dashed border-border rounded-lg bg-background">
+          <div className="border-2 border-dashed border-border rounded-lg bg-white">
             <SignatureCanvas
               ref={sigCanvas}
               canvasProps={{
                 className: "w-full h-48 cursor-crosshair",
               }}
-              backgroundColor="hsl(var(--background))"
-              penColor="hsl(var(--foreground))"
+              backgroundColor="white"
+              penColor="black"
               onEnd={onEnd}
             />
           </div>
