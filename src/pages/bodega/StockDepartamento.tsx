@@ -43,6 +43,7 @@ export default function StockDepartamento() {
   const [stockPorCentro, setStockPorCentro] = useState<Record<string, StockDepartamental[]>>({});
   const [centrosServicio, setCentrosServicio] = useState<any[]>([]);
   const [centroSeleccionado, setCentroSeleccionado] = useState<string>('');
+  const [centroReabastoSeleccionado, setCentroReabastoSeleccionado] = useState<string>('all');
   const [clasificacionFiltro, setClasificacionFiltro] = useState<'all' | 'A' | 'B' | 'C'>('all');
   const [loading, setLoading] = useState(true);
   const [loadingReabasto, setLoadingReabasto] = useState(false);
@@ -539,13 +540,28 @@ export default function StockDepartamento() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle>Repuestos que Requieren Reabasto por Centro</CardTitle>
-                  <CardDescription>Vista consolidada de necesidades de inventario</CardDescription>
+                  <CardTitle>Repuestos que Requieren Reabasto</CardTitle>
+                  <CardDescription>Vista de necesidades de inventario por centro</CardDescription>
                 </div>
-                <Button onClick={fetchStockPorCentro} disabled={loadingReabasto}>
-                  <RefreshCw className={`h-4 w-4 mr-2 ${loadingReabasto ? 'animate-spin' : ''}`} />
-                  Actualizar
-                </Button>
+                <div className="flex gap-2">
+                  <Select value={centroReabastoSeleccionado} onValueChange={setCentroReabastoSeleccionado}>
+                    <SelectTrigger className="w-[250px]">
+                      <SelectValue placeholder="Seleccione un centro" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos los Centros</SelectItem>
+                      {Object.keys(stockPorCentro).map((centro) => (
+                        <SelectItem key={centro} value={centro}>
+                          {centro}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button onClick={fetchStockPorCentro} disabled={loadingReabasto}>
+                    <RefreshCw className={`h-4 w-4 mr-2 ${loadingReabasto ? 'animate-spin' : ''}`} />
+                    Actualizar
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
@@ -557,56 +573,58 @@ export default function StockDepartamento() {
                 </div>
               ) : (
                 <div className="space-y-6">
-                  {Object.entries(stockPorCentro).map(([centro, repuestos]) => (
-                    <Card key={centro}>
-                      <CardHeader className="pb-3">
-                        <div className="flex items-center justify-between">
-                          <CardTitle className="text-lg">{centro}</CardTitle>
-                          <Badge variant="destructive" className="text-base px-3 py-1">
-                            {repuestos.length} repuestos
-                          </Badge>
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>Código</TableHead>
-                              <TableHead>Descripción</TableHead>
-                              <TableHead>Clase</TableHead>
-                              <TableHead>Stock Actual</TableHead>
-                              <TableHead>Stock Mínimo</TableHead>
-                              <TableHead>Faltante</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {repuestos.map((rep, idx) => (
-                              <TableRow key={idx}>
-                                <TableCell className="font-medium">{rep.codigo_repuesto}</TableCell>
-                                <TableCell>{rep.descripcion}</TableCell>
-                                <TableCell>
-                                  <Badge style={{ backgroundColor: COLORS[rep.clasificacion] }}>
-                                    {rep.clasificacion}
-                                  </Badge>
-                                </TableCell>
-                                <TableCell>
-                                  <span className="text-orange-500 font-bold">
-                                    {rep.cantidad_actual}
-                                  </span>
-                                </TableCell>
-                                <TableCell>{rep.stock_minimo}</TableCell>
-                                <TableCell>
-                                  <Badge variant="outline" className="font-bold">
-                                    {rep.stock_minimo - rep.cantidad_actual}
-                                  </Badge>
-                                </TableCell>
+                  {Object.entries(stockPorCentro)
+                    .filter(([centro]) => centroReabastoSeleccionado === 'all' || centro === centroReabastoSeleccionado)
+                    .map(([centro, repuestos]) => (
+                      <Card key={centro}>
+                        <CardHeader className="pb-3">
+                          <div className="flex items-center justify-between">
+                            <CardTitle className="text-lg">{centro}</CardTitle>
+                            <Badge variant="destructive" className="text-base px-3 py-1">
+                              {repuestos.length} repuestos
+                            </Badge>
+                          </div>
+                        </CardHeader>
+                        <CardContent>
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Código</TableHead>
+                                <TableHead>Descripción</TableHead>
+                                <TableHead>Clase</TableHead>
+                                <TableHead>Stock Actual</TableHead>
+                                <TableHead>Stock Mínimo</TableHead>
+                                <TableHead>Faltante</TableHead>
                               </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </CardContent>
-                    </Card>
-                  ))}
+                            </TableHeader>
+                            <TableBody>
+                              {repuestos.map((rep, idx) => (
+                                <TableRow key={idx}>
+                                  <TableCell className="font-medium">{rep.codigo_repuesto}</TableCell>
+                                  <TableCell>{rep.descripcion}</TableCell>
+                                  <TableCell>
+                                    <Badge style={{ backgroundColor: COLORS[rep.clasificacion] }}>
+                                      {rep.clasificacion}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell>
+                                    <span className="text-orange-500 font-bold">
+                                      {rep.cantidad_actual}
+                                    </span>
+                                  </TableCell>
+                                  <TableCell>{rep.stock_minimo}</TableCell>
+                                  <TableCell>
+                                    <Badge variant="outline" className="font-bold">
+                                      {rep.stock_minimo - rep.cantidad_actual}
+                                    </Badge>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </CardContent>
+                      </Card>
+                    ))}
                 </div>
               )}
             </CardContent>
