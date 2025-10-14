@@ -20,6 +20,7 @@ export default function DiagnosticoInicial() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [incidente, setIncidente] = useState<any>(null);
+  const [productoInfo, setProductoInfo] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   
@@ -268,6 +269,17 @@ export default function DiagnosticoInicial() {
 
       if (error) throw error;
       setIncidente(data);
+      
+      // Obtener información del producto
+      if (data?.codigo_producto) {
+        const { data: producto } = await supabase
+          .from('productos')
+          .select('*')
+          .eq('codigo', data.codigo_producto)
+          .maybeSingle();
+        
+        if (producto) setProductoInfo(producto);
+      }
     } catch (error) {
       console.error('Error:', error);
       toast.error("Error al cargar el incidente");
@@ -586,36 +598,87 @@ export default function DiagnosticoInicial() {
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label className="text-sm text-muted-foreground">Cliente</Label>
-              <p className="text-base font-medium">{incidente.codigo_cliente}</p>
-            </div>
-            <div>
-              <Label className="text-sm text-muted-foreground">Producto</Label>
-              <p className="text-base font-medium">{incidente.codigo_producto}</p>
-            </div>
-            {incidente.sku_maquina && (
-              <div>
-                <Label className="text-sm text-muted-foreground">SKU de la Máquina</Label>
-                <p className="text-base font-medium">{incidente.sku_maquina}</p>
+          <div className="grid grid-cols-1 lg:grid-cols-[200px_1fr] gap-6">
+            {/* Foto de la máquina */}
+            {productoInfo?.url_foto && (
+              <div className="flex justify-center lg:justify-start">
+                <div className="w-48 h-48 rounded-lg overflow-hidden border-2 border-border bg-muted flex items-center justify-center">
+                  <img 
+                    src={productoInfo.url_foto} 
+                    alt={productoInfo.descripcion}
+                    className="w-full h-full object-contain"
+                    onError={(e) => {
+                      e.currentTarget.src = '/placeholder.svg';
+                    }}
+                  />
+                </div>
               </div>
             )}
-            {incidente.familia_producto && (
+            
+            {/* Información del incidente */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {productoInfo && (
+                <div className="md:col-span-2">
+                  <Label className="text-sm text-muted-foreground">Descripción de la Máquina</Label>
+                  <p className="text-lg font-semibold">{productoInfo.descripcion}</p>
+                </div>
+              )}
+              
               <div>
-                <Label className="text-sm text-muted-foreground">Familia del Producto</Label>
-                <p className="text-base font-medium">{incidente.familia_producto}</p>
+                <Label className="text-sm text-muted-foreground">Cliente</Label>
+                <p className="text-base font-medium">{incidente.codigo_cliente}</p>
               </div>
-            )}
-            {incidente.accesorios && (
+              
+              <div>
+                <Label className="text-sm text-muted-foreground">Código Producto</Label>
+                <p className="text-base font-medium">{incidente.codigo_producto}</p>
+              </div>
+              
+              {productoInfo && (
+                <div>
+                  <Label className="text-sm text-muted-foreground">Estado del Producto</Label>
+                  {productoInfo.descontinuado ? (
+                    <Badge variant="destructive">Descontinuado</Badge>
+                  ) : (
+                    <Badge className="bg-green-500 text-white">Vigente</Badge>
+                  )}
+                </div>
+              )}
+              
+              {incidente.sku_maquina && (
+                <div>
+                  <Label className="text-sm text-muted-foreground">SKU de la Máquina</Label>
+                  <p className="text-base font-medium">{incidente.sku_maquina}</p>
+                </div>
+              )}
+              
+              {incidente.familia_producto && (
+                <div>
+                  <Label className="text-sm text-muted-foreground">Familia del Producto</Label>
+                  <p className="text-base font-medium">{incidente.familia_producto}</p>
+                </div>
+              )}
+              
+              <div>
+                <Label className="text-sm text-muted-foreground">Garantía</Label>
+                {incidente.cobertura_garantia ? (
+                  <Badge className="bg-green-500 text-white">Con Garantía</Badge>
+                ) : (
+                  <Badge variant="outline">Sin Garantía</Badge>
+                )}
+              </div>
+              
+              {incidente.accesorios && (
+                <div className="md:col-span-2">
+                  <Label className="text-sm text-muted-foreground">Accesorios Incluidos</Label>
+                  <p className="text-base">{incidente.accesorios}</p>
+                </div>
+              )}
+              
               <div className="md:col-span-2">
-                <Label className="text-sm text-muted-foreground">Accesorios Incluidos</Label>
-                <p className="text-base">{incidente.accesorios}</p>
+                <Label className="text-sm text-muted-foreground">Descripción del Problema (Cliente)</Label>
+                <p className="text-base bg-muted p-3 rounded-md mt-1">{incidente.descripcion_problema}</p>
               </div>
-            )}
-            <div className="md:col-span-2">
-              <Label className="text-sm text-muted-foreground">Descripción del Problema (Cliente)</Label>
-              <p className="text-base bg-muted p-3 rounded-md mt-1">{incidente.descripcion_problema}</p>
             </div>
           </div>
         </CardContent>
