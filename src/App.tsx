@@ -16,6 +16,10 @@ import ConsultaPrecios from "./pages/mostrador/ConsultaPrecios";
 import SeguimientoIncidente from "./pages/mostrador/SeguimientoIncidente";
 import IncidentesMostrador from "./pages/mostrador/Incidentes";
 import Embarques from "./pages/logistica/Embarques";
+import HerramientasManuales from "./pages/logistica/HerramientasManuales";
+import Guias from "./pages/logistica/Guias";
+import IngresoMaquinas from "./pages/logistica/IngresoMaquinas";
+import SalidaMaquinas from "./pages/logistica/SalidaMaquinas";
 import Asignaciones from "./pages/taller/Asignaciones";
 import MisAsignaciones from "./pages/taller/MisAsignaciones";
 import BusquedaIncidentes from "./pages/taller/BusquedaIncidentes";
@@ -54,6 +58,10 @@ const App = () => (
               <Route path="/mostrador/productos" element={<Productos />} />
               <Route path="/mostrador/clientes/:codigo" element={<DetalleCliente />} />
               <Route path="/logistica/embarques" element={<Embarques />} />
+              <Route path="/logistica/herramientas-manuales" element={<HerramientasManuales />} />
+              <Route path="/logistica/guias" element={<Guias />} />
+              <Route path="/logistica/ingreso-maquinas" element={<IngresoMaquinas />} />
+              <Route path="/logistica/salida-maquinas" element={<SalidaMaquinas />} />
               <Route path="/taller/asignaciones" element={<Asignaciones />} />
               <Route path="/taller/mis-asignaciones" element={<MisAsignaciones />} />
               <Route path="/taller/busqueda-incidentes" element={<BusquedaIncidentes />} />
