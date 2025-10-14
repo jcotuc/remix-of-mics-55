@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Search, PackageCheck, User, Calendar, FileSignature, CheckCircle } from "lucide-react";
+import { Search, PackageCheck, User, Calendar, FileSignature, CheckCircle, FileCheck, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,6 +15,7 @@ import type { StatusIncidente } from "@/types";
 
 type IncidenteDB = Database['public']['Tables']['incidentes']['Row'];
 type ClienteDB = Database['public']['Tables']['clientes']['Row'];
+type DiagnosticoDB = Database['public']['Tables']['diagnosticos']['Row'];
 
 export default function EntregaMaquinas() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -25,6 +26,7 @@ export default function EntregaMaquinas() {
   const [clientesMap, setClientesMap] = useState<Map<string, ClienteDB>>(new Map());
   const [incidente, setIncidente] = useState<IncidenteDB | null>(null);
   const [cliente, setCliente] = useState<ClienteDB | null>(null);
+  const [diagnostico, setDiagnostico] = useState<DiagnosticoDB | null>(null);
   const [nombreRecibe, setNombreRecibe] = useState("");
   const [dpiRecibe, setDpiRecibe] = useState("");
   const signatureRef = useRef<SignatureCanvasRef>(null);
@@ -77,6 +79,15 @@ export default function EntregaMaquinas() {
     if (clienteData) {
       setIncidente(incidenteData);
       setCliente(clienteData);
+      
+      // Cargar diagnóstico
+      const { data: diagData } = await supabase
+        .from('diagnosticos')
+        .select('*')
+        .eq('incidente_id', incidenteData.id)
+        .maybeSingle();
+      setDiagnostico(diagData);
+      
       // Scroll hacia el formulario
       setTimeout(() => {
         document.getElementById('formulario-entrega')?.scrollIntoView({ behavior: 'smooth' });
@@ -122,6 +133,15 @@ export default function EntregaMaquinas() {
 
       setIncidente(incidenteData);
       setCliente(clienteData);
+      
+      // Cargar diagnóstico
+      const { data: diagData } = await supabase
+        .from('diagnosticos')
+        .select('*')
+        .eq('incidente_id', incidenteData.id)
+        .maybeSingle();
+      setDiagnostico(diagData);
+      
       toast.success("Incidente encontrado");
       
       // Scroll hacia el formulario
@@ -187,6 +207,7 @@ export default function EntregaMaquinas() {
       setNombreRecibe("");
       setDpiRecibe("");
       signatureRef.current?.clear();
+      setDiagnostico(null);
       fetchIncidentesReparados();
     } catch (error) {
       console.error('Error al registrar entrega:', error);
@@ -194,6 +215,102 @@ export default function EntregaMaquinas() {
     } finally {
       setDelivering(false);
     }
+  };
+
+  const handlePrintDiagnostico = () => {
+    if (!diagnostico || !incidente || !cliente) return;
+
+    const printWindow = window.open('', '', 'width=800,height=600');
+    if (!printWindow) return;
+
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Diagnóstico - ${incidente.codigo}</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 20px; }
+            h1 { color: #333; border-bottom: 2px solid #333; padding-bottom: 10px; }
+            h2 { color: #666; margin-top: 20px; }
+            .section { margin-bottom: 20px; }
+            .label { font-weight: bold; color: #666; }
+            .value { margin-left: 10px; }
+            ul { margin: 5px 0; padding-left: 20px; }
+            @media print {
+              button { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <h1>Diagnóstico Técnico</h1>
+          
+          <div class="section">
+            <h2>Información del Incidente</h2>
+            <p><span class="label">Código:</span><span class="value">${incidente.codigo}</span></p>
+            <p><span class="label">Fecha Ingreso:</span><span class="value">${new Date(incidente.fecha_ingreso).toLocaleDateString()}</span></p>
+            <p><span class="label">Estado:</span><span class="value">${incidente.status}</span></p>
+          </div>
+
+          <div class="section">
+            <h2>Cliente</h2>
+            <p><span class="label">Nombre:</span><span class="value">${cliente.nombre}</span></p>
+            <p><span class="label">NIT:</span><span class="value">${cliente.nit}</span></p>
+            <p><span class="label">Teléfono:</span><span class="value">${cliente.celular}</span></p>
+          </div>
+
+          <div class="section">
+            <h2>Producto</h2>
+            <p><span class="label">Código:</span><span class="value">${incidente.codigo_producto}</span></p>
+            <p><span class="label">Descripción:</span><span class="value">${incidente.descripcion_problema}</span></p>
+          </div>
+
+          <div class="section">
+            <h2>Diagnóstico</h2>
+            <p><span class="label">Técnico:</span><span class="value">${diagnostico.tecnico_codigo}</span></p>
+            <p><span class="label">Estado:</span><span class="value">${diagnostico.estado}</span></p>
+            
+            ${diagnostico.fallas && diagnostico.fallas.length > 0 ? `
+              <p class="label">Fallas Detectadas:</p>
+              <ul>
+                ${diagnostico.fallas.map((f: string) => `<li>${f}</li>`).join('')}
+              </ul>
+            ` : ''}
+            
+            ${diagnostico.causas && diagnostico.causas.length > 0 ? `
+              <p class="label">Causas:</p>
+              <ul>
+                ${diagnostico.causas.map((c: string) => `<li>${c}</li>`).join('')}
+              </ul>
+            ` : ''}
+            
+            ${diagnostico.resolucion ? `
+              <p class="label">Resolución:</p>
+              <p>${diagnostico.resolucion}</p>
+            ` : ''}
+            
+            ${diagnostico.recomendaciones ? `
+              <p class="label">Recomendaciones:</p>
+              <p>${diagnostico.recomendaciones}</p>
+            ` : ''}
+            
+            ${diagnostico.costo_estimado ? `
+              <p><span class="label">Costo Estimado:</span><span class="value">Q ${Number(diagnostico.costo_estimado).toFixed(2)}</span></p>
+            ` : ''}
+            
+            ${diagnostico.tiempo_estimado ? `
+              <p><span class="label">Tiempo Estimado:</span><span class="value">${diagnostico.tiempo_estimado}</span></p>
+            ` : ''}
+          </div>
+
+          <button onclick="window.print()" style="margin-top: 20px; padding: 10px 20px; background: #333; color: white; border: none; cursor: pointer;">
+            Imprimir
+          </button>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(html);
+    printWindow.document.close();
   };
 
   return (
@@ -384,6 +501,93 @@ export default function EntregaMaquinas() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Diagnóstico */}
+          {diagnostico && (
+            <Card className="border-2 border-primary/20">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <FileCheck className="h-5 w-5" />
+                    Diagnóstico Técnico
+                  </CardTitle>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handlePrintDiagnostico}
+                  >
+                    <Printer className="h-4 w-4 mr-2" />
+                    Imprimir Diagnóstico
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {diagnostico.fallas && diagnostico.fallas.length > 0 && (
+                    <div>
+                      <p className="text-sm text-muted-foreground mb-2 font-medium">Fallas Detectadas</p>
+                      <ul className="list-disc list-inside space-y-1 bg-muted p-3 rounded-md">
+                        {diagnostico.fallas.map((falla, idx) => (
+                          <li key={idx} className="text-sm">{falla}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {diagnostico.causas && diagnostico.causas.length > 0 && (
+                    <div>
+                      <p className="text-sm text-muted-foreground mb-2 font-medium">Causas Identificadas</p>
+                      <ul className="list-disc list-inside space-y-1 bg-muted p-3 rounded-md">
+                        {diagnostico.causas.map((causa, idx) => (
+                          <li key={idx} className="text-sm">{causa}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+
+                {diagnostico.resolucion && (
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-2 font-medium">Resolución</p>
+                    <p className="text-sm bg-muted p-3 rounded-md">{diagnostico.resolucion}</p>
+                  </div>
+                )}
+
+                {diagnostico.recomendaciones && (
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-2 font-medium">Recomendaciones</p>
+                    <p className="text-sm bg-muted p-3 rounded-md">{diagnostico.recomendaciones}</p>
+                  </div>
+                )}
+
+                <Separator />
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {diagnostico.costo_estimado && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Costo Estimado</p>
+                      <p className="text-xl font-bold text-primary">
+                        Q {Number(diagnostico.costo_estimado).toFixed(2)}
+                      </p>
+                    </div>
+                  )}
+
+                  {diagnostico.tiempo_estimado && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Tiempo Estimado</p>
+                      <p className="font-medium">{diagnostico.tiempo_estimado}</p>
+                    </div>
+                  )}
+
+                  <div>
+                    <p className="text-sm text-muted-foreground">Técnico</p>
+                    <p className="font-medium">{diagnostico.tecnico_codigo}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
 
           {/* Formulario de Entrega */}
           <Card className="border-2 border-primary/20">
