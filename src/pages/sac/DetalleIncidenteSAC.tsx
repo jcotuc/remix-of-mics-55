@@ -113,30 +113,38 @@ export default function DetalleIncidenteSAC() {
       setProducto(productoData);
 
       // Fetch diagnosis
-      const { data: diagnosticoData } = await supabase
+      const { data: diagnosticoData, error: diagnosticoError } = await supabase
         .from("diagnosticos")
         .select("*")
         .eq("incidente_id", id)
         .order("created_at", { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
+
+      if (diagnosticoError) {
+        console.error("Error fetching diagnostico:", diagnosticoError);
+      }
 
       setDiagnostico(diagnosticoData);
 
       // Fetch solicitud de repuestos
-      const { data: solicitudData } = await supabase
+      const { data: solicitudData, error: solicitudError } = await supabase
         .from("solicitudes_repuestos")
         .select("*")
         .eq("incidente_id", id)
         .order("created_at", { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
+
+      if (solicitudError) {
+        console.error("Error fetching solicitud repuestos:", solicitudError);
+      }
 
       setSolicitudRepuestos(solicitudData);
 
       // Fetch detalle de repuestos si existe solicitud
       if (solicitudData) {
-        const { data: detalleData } = await supabase
+        const { data: detalleData, error: detalleError } = await supabase
           .from("repuestos_solicitud_detalle")
           .select(`
             *,
@@ -148,6 +156,10 @@ export default function DetalleIncidenteSAC() {
             )
           `)
           .eq("solicitud_id", solicitudData.id);
+
+        if (detalleError) {
+          console.error("Error fetching detalle repuestos:", detalleError);
+        }
 
         setRepuestosDetalle(detalleData || []);
       }
