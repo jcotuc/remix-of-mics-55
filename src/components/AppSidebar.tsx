@@ -39,7 +39,6 @@ const menuAreas = {
     { title: "Asignaciones", url: "/taller/asignaciones", icon: Wrench },
     { title: "Mis Asignaciones", url: "/taller/mis-asignaciones", icon: ClipboardList },
     { title: "Búsqueda Incidentes", url: "/taller/busqueda-incidentes", icon: FileText },
-    { title: "Presupuestos", url: "/taller/presupuestos", icon: DollarSign },
   ],
   bodega: [
     { title: "Importación", url: "/bodega/importacion", icon: Package },
