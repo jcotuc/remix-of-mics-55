@@ -414,40 +414,82 @@ export function DiagnosticoTecnico({ incidente, onDiagnosticoCompleto }: Diagnos
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <p className="text-xs text-muted-foreground mb-1">Código del Producto</p>
-              <p className="font-semibold">{incidente.codigo_producto}</p>
+          <div className="grid grid-cols-1 lg:grid-cols-[200px_1fr] gap-6">
+            {/* Foto de la máquina */}
+            {productoInfo?.url_foto && (
+              <div className="flex justify-center lg:justify-start">
+                <div className="w-48 h-48 rounded-lg overflow-hidden border-2 border-border bg-muted flex items-center justify-center">
+                  <img 
+                    src={productoInfo.url_foto} 
+                    alt={productoInfo.descripcion}
+                    className="w-full h-full object-contain"
+                    onError={(e) => {
+                      e.currentTarget.src = '/placeholder.svg';
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+            
+            {/* Información del producto */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="md:col-span-2">
+                <p className="text-xs text-muted-foreground mb-1">Descripción de la Máquina</p>
+                <p className="font-semibold text-base">{productoInfo?.descripcion || incidente.codigo_producto}</p>
+              </div>
+              
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Código del Producto</p>
+                <p className="font-semibold">{incidente.codigo_producto}</p>
+              </div>
+              
+              {productoInfo && (
+                <>
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Estado</p>
+                    {productoInfo.descontinuado ? (
+                      <Badge variant="destructive">Descontinuado</Badge>
+                    ) : (
+                      <Badge className="bg-green-500 text-white">Vigente</Badge>
+                    )}
+                  </div>
+                  
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Familia</p>
+                    <p className="font-semibold">{productoInfo.familia_producto || 'N/A'}</p>
+                  </div>
+                  
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Clave</p>
+                    <p className="font-semibold">{productoInfo.clave}</p>
+                  </div>
+                </>
+              )}
+              
+              {incidente.sku_maquina && (
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">SKU</p>
+                  <p className="font-semibold">{incidente.sku_maquina}</p>
+                </div>
+              )}
+              
+              {clienteInfo && (
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Cliente</p>
+                  <p className="font-semibold">{clienteInfo.nombre}</p>
+                  <p className="text-xs text-muted-foreground">{clienteInfo.codigo}</p>
+                </div>
+              )}
+              
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Garantía</p>
+                {incidente.cobertura_garantia ? (
+                  <Badge className="bg-green-500 text-white">Con Garantía</Badge>
+                ) : (
+                  <Badge variant="outline">Sin Garantía</Badge>
+                )}
+              </div>
             </div>
-            {productoInfo && (
-              <>
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">Descripción</p>
-                  <p className="font-semibold">{productoInfo.descripcion}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">Familia</p>
-                  <p className="font-semibold">{productoInfo.familia_producto || 'N/A'}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">Clave</p>
-                  <p className="font-semibold">{productoInfo.clave}</p>
-                </div>
-              </>
-            )}
-            {incidente.sku_maquina && (
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">SKU</p>
-                <p className="font-semibold">{incidente.sku_maquina}</p>
-              </div>
-            )}
-            {clienteInfo && (
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Cliente</p>
-                <p className="font-semibold">{clienteInfo.nombre}</p>
-                <p className="text-xs text-muted-foreground">{clienteInfo.codigo}</p>
-              </div>
-            )}
           </div>
         </CardContent>
       </Card>
@@ -486,14 +528,6 @@ export function DiagnosticoTecnico({ incidente, onDiagnosticoCompleto }: Diagnos
                 <p className="text-sm">{incidente.persona_deja_maquina}</p>
               </div>
             )}
-            <div>
-              <p className="text-xs text-muted-foreground mb-1">Garantía</p>
-              {incidente.cobertura_garantia ? (
-                <Badge className="bg-green-500 text-white">Con Garantía</Badge>
-              ) : (
-                <Badge variant="outline">Sin Garantía</Badge>
-              )}
-            </div>
             {incidente.producto_descontinuado && (
               <div className="md:col-span-2">
                 <Badge variant="destructive" className="text-sm">
