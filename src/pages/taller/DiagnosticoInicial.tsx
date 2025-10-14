@@ -616,66 +616,61 @@ export default function DiagnosticoInicial() {
             )}
             
             {/* Información del incidente */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-4">
               {productoInfo && (
-                <div className="md:col-span-2">
-                  <Label className="text-sm text-muted-foreground">Descripción de la Máquina</Label>
-                  <p className="text-lg font-semibold">{productoInfo.descripcion}</p>
-                </div>
-              )}
-              
-              <div>
-                <Label className="text-sm text-muted-foreground">Cliente</Label>
-                <p className="text-base font-medium">{incidente.codigo_cliente}</p>
-              </div>
-              
-              <div>
-                <Label className="text-sm text-muted-foreground">Código Producto</Label>
-                <p className="text-base font-medium">{incidente.codigo_producto}</p>
-              </div>
-              
-              {productoInfo && (
-                <div>
-                  <Label className="text-sm text-muted-foreground">Estado del Producto</Label>
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1">
+                    <Label className="text-sm text-muted-foreground">Descripción de la Máquina</Label>
+                    <p className="text-lg font-semibold mt-1">{productoInfo.descripcion}</p>
+                  </div>
                   {productoInfo.descontinuado ? (
-                    <Badge variant="destructive">Descontinuado</Badge>
+                    <Badge variant="destructive" className="text-sm">
+                      <AlertCircle className="w-4 h-4 mr-1" />
+                      Descontinuado
+                    </Badge>
                   ) : (
-                    <Badge className="bg-green-500 text-white">Vigente</Badge>
+                    <Badge className="bg-green-500 text-white text-sm">
+                      <CheckCircle2 className="w-4 h-4 mr-1" />
+                      Vigente
+                    </Badge>
                   )}
                 </div>
               )}
               
-              {incidente.sku_maquina && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-sm text-muted-foreground">SKU de la Máquina</Label>
-                  <p className="text-base font-medium">{incidente.sku_maquina}</p>
+                  <Label className="text-sm text-muted-foreground">Cliente</Label>
+                  <p className="text-base font-medium">{incidente.codigo_cliente}</p>
                 </div>
-              )}
-              
-              {incidente.familia_producto && (
+                
                 <div>
-                  <Label className="text-sm text-muted-foreground">Familia del Producto</Label>
-                  <p className="text-base font-medium">{incidente.familia_producto}</p>
+                  <Label className="text-sm text-muted-foreground">Código Producto</Label>
+                  <p className="text-base font-medium">{incidente.codigo_producto}</p>
                 </div>
-              )}
-              
-              <div>
-                <Label className="text-sm text-muted-foreground">Garantía</Label>
-                {incidente.cobertura_garantia ? (
-                  <Badge className="bg-green-500 text-white">Con Garantía</Badge>
-                ) : (
-                  <Badge variant="outline">Sin Garantía</Badge>
+                
+                {incidente.familia_producto && (
+                  <div>
+                    <Label className="text-sm text-muted-foreground">Familia del Producto</Label>
+                    <p className="text-base font-medium">{incidente.familia_producto}</p>
+                  </div>
+                )}
+                
+                {productoInfo?.clave && (
+                  <div>
+                    <Label className="text-sm text-muted-foreground">Clave</Label>
+                    <p className="text-base font-medium">{productoInfo.clave}</p>
+                  </div>
                 )}
               </div>
               
               {incidente.accesorios && (
-                <div className="md:col-span-2">
+                <div>
                   <Label className="text-sm text-muted-foreground">Accesorios Incluidos</Label>
                   <p className="text-base">{incidente.accesorios}</p>
                 </div>
               )}
               
-              <div className="md:col-span-2">
+              <div>
                 <Label className="text-sm text-muted-foreground">Descripción del Problema (Cliente)</Label>
                 <p className="text-base bg-muted p-3 rounded-md mt-1">{incidente.descripcion_problema}</p>
               </div>
