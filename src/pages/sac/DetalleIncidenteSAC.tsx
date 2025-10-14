@@ -345,53 +345,6 @@ export default function DetalleIncidenteSAC() {
                     <p className="mt-2">{diagnostico.recomendaciones}</p>
                   </div>
                 )}
-                {(diagnostico.repuestos_utilizados || repuestosDetalle.length > 0) && (
-                  <div>
-                    <Label className="text-muted-foreground">Repuestos Utilizados</Label>
-                    <div className="mt-2 space-y-2">
-                      {/* Repuestos del diagnóstico si existen */}
-                      {diagnostico.repuestos_utilizados?.map((repuesto: any, idx: number) => (
-                        <div key={`diag-${idx}`} className="flex items-center gap-2 p-3 bg-muted rounded-lg border">
-                          <Package className="h-4 w-4 text-primary" />
-                          <div className="flex-1">
-                            <p className="font-medium">{repuesto.descripcion}</p>
-                            {repuesto.codigo && (
-                              <p className="text-xs text-muted-foreground">Código: {repuesto.codigo}</p>
-                            )}
-                          </div>
-                          <Badge variant="secondary">Cant: {repuesto.cantidad}</Badge>
-                        </div>
-                      ))}
-                      
-                      {/* Repuestos de la solicitud si existen */}
-                      {repuestosDetalle.map((detalle: any, idx: number) => (
-                        <div key={`sol-${idx}`} className="flex items-center gap-2 p-3 bg-muted rounded-lg border">
-                          <Package className="h-4 w-4 text-primary" />
-                          <div className="flex-1">
-                            <p className="font-medium">{detalle.repuestos?.descripcion || detalle.codigo_repuesto}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {detalle.repuestos?.codigo && `Código: ${detalle.repuestos.codigo}`}
-                              {detalle.repuestos?.clave && ` | Clave: ${detalle.repuestos.clave}`}
-                            </p>
-                            {detalle.estado && (
-                              <Badge variant="outline" className="text-xs mt-1">
-                                {detalle.estado}
-                              </Badge>
-                            )}
-                          </div>
-                          <div className="text-right">
-                            <Badge variant="secondary">Solicitado: {detalle.cantidad_solicitada}</Badge>
-                            {detalle.cantidad_encontrada > 0 && (
-                              <Badge variant="default" className="ml-1">
-                                Entregado: {detalle.cantidad_encontrada}
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
                 {diagnostico.costo_estimado && (
                   <div>
                     <Label className="text-muted-foreground">Costo Estimado</Label>
@@ -400,6 +353,61 @@ export default function DetalleIncidenteSAC() {
                     </p>
                   </div>
                 )}
+              </CardContent>
+            </Card>
+          )}
+
+          {(diagnostico?.repuestos_utilizados || repuestosDetalle.length > 0) && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Package className="h-5 w-5" />
+                  Repuestos Utilizados
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {/* Repuestos del diagnóstico si existen */}
+                  {diagnostico?.repuestos_utilizados?.map((repuesto: any, idx: number) => (
+                    <div key={`diag-${idx}`} className="flex items-center gap-2 p-3 bg-muted rounded-lg border">
+                      <Package className="h-4 w-4 text-primary" />
+                      <div className="flex-1">
+                        <p className="font-medium">{repuesto.descripcion}</p>
+                        {repuesto.codigo && (
+                          <p className="text-xs text-muted-foreground">Código: {repuesto.codigo}</p>
+                        )}
+                      </div>
+                      <Badge variant="secondary">Cant: {repuesto.cantidad}</Badge>
+                    </div>
+                  ))}
+                  
+                  {/* Repuestos de la solicitud si existen */}
+                  {repuestosDetalle.map((detalle: any, idx: number) => (
+                    <div key={`sol-${idx}`} className="flex items-center gap-2 p-3 bg-muted rounded-lg border">
+                      <Package className="h-4 w-4 text-primary" />
+                      <div className="flex-1">
+                        <p className="font-medium">{detalle.repuestos?.descripcion || detalle.codigo_repuesto}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {detalle.repuestos?.codigo && `Código: ${detalle.repuestos.codigo}`}
+                          {detalle.repuestos?.clave && ` | Clave: ${detalle.repuestos.clave}`}
+                        </p>
+                        {detalle.estado && (
+                          <Badge variant="outline" className="text-xs mt-1">
+                            {detalle.estado}
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="text-right">
+                        <Badge variant="secondary">Solicitado: {detalle.cantidad_solicitada}</Badge>
+                        {detalle.cantidad_encontrada > 0 && (
+                          <Badge variant="default" className="ml-1">
+                            Entregado: {detalle.cantidad_encontrada}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </CardContent>
             </Card>
           )}
