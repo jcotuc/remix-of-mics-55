@@ -45,6 +45,12 @@ export default function DiagnosticoInicial() {
   const [fotos, setFotos] = useState<File[]>([]);
   const [observaciones, setObservaciones] = useState("");
   
+  // Paso de Canje (entre paso 1 y 2)
+  const [productosAlternativos, setProductosAlternativos] = useState<any[]>([]);
+  const [productoSeleccionado, setProductoSeleccionado] = useState<any>(null);
+  const [porcentajeDescuento, setPorcentajeDescuento] = useState<10 | 40 | null>(null);
+  const [searchProducto, setSearchProducto] = useState("");
+  
   // Control de pasos
   const [paso, setPaso] = useState(1);
   
@@ -158,6 +164,11 @@ export default function DiagnosticoInicial() {
       const metadata = {
         aplicaGarantia,
         tipoResolucion,
+        productoAlternativo: productoSeleccionado ? {
+          codigo: productoSeleccionado.codigo,
+          descripcion: productoSeleccionado.descripcion,
+        } : null,
+        porcentajeDescuento,
       };
 
       const borradorData = {
@@ -312,6 +323,29 @@ export default function DiagnosticoInicial() {
     }
   }, [tipoResolucion]);
 
+  // Buscar productos alternativos cuando se selecciona Canje
+  useEffect(() => {
+    if (tipoResolucion === "Canje") {
+      fetchProductosAlternativos();
+    }
+  }, [tipoResolucion]);
+
+  const fetchProductosAlternativos = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('productos')
+        .select('*')
+        .eq('descontinuado', false)
+        .order('descripcion');
+
+      if (error) throw error;
+      setProductosAlternativos(data || []);
+    } catch (error) {
+      console.error('Error fetching productos:', error);
+      toast.error("Error al cargar productos alternativos");
+    }
+  };
+
   const handleContinuarAPaso2 = async () => {
     if (fallas.length === 0) {
       toast.error("Debes seleccionar al menos una falla");
@@ -336,12 +370,34 @@ export default function DiagnosticoInicial() {
     // Guardar borrador antes de continuar
     await guardarBorradorSilencioso();
 
+    // Si es Canje, ir al paso 1.5 (cotización de canje)
+    if (tipoResolucion === "Canje") {
+      setPaso(1.5);
+    }
     // Si necesita repuestos, ir al paso 2, si no, ir directo al paso 3
-    if (necesitaRepuestos) {
+    else if (necesitaRepuestos) {
       setPaso(2);
     } else {
       setPaso(3);
     }
+  };
+
+  const handleContinuarDesdeCanje = async () => {
+    if (!productoSeleccionado) {
+      toast.error("Debes seleccionar un producto alternativo");
+      return;
+    }
+
+    if (!porcentajeDescuento) {
+      toast.error("Debes seleccionar un porcentaje de descuento");
+      return;
+    }
+
+    // Guardar la información del canje
+    await guardarBorradorSilencioso();
+
+    // Pasar al siguiente paso (fotos y observaciones)
+    setPaso(3);
   };
 
   const filteredRepuestos = repuestosDisponibles.filter(repuesto =>
@@ -496,6 +552,11 @@ export default function DiagnosticoInicial() {
           aplicaGarantia,
           tipoResolucion,
           tipoTrabajo,
+          productoAlternativo: productoSeleccionado ? {
+            codigo: productoSeleccionado.codigo,
+            descripcion: productoSeleccionado.descripcion,
+          } : null,
+          porcentajeDescuento,
         }),
         estado: 'finalizado',
       };
@@ -536,12 +597,20 @@ export default function DiagnosticoInicial() {
         nuevoStatus = "Cambio por garantia";
       }
 
+      const updateData: any = {
+        status: nuevoStatus,
+        cobertura_garantia: aplicaGarantia,
+      };
+
+      // Si es canje, guardar el producto alternativo y porcentaje
+      if (tipoResolucion === "Canje" && productoSeleccionado) {
+        updateData.producto_sugerido_alternativo = productoSeleccionado.codigo;
+        updateData.porcentaje_descuento = porcentajeDescuento;
+      }
+
       const { error: incidenteError } = await supabase
         .from("incidentes")
-        .update({
-          status: nuevoStatus,
-          cobertura_garantia: aplicaGarantia,
-        })
+        .update(updateData)
         .eq("id", id);
 
       if (incidenteError) throw incidenteError;
@@ -683,6 +752,7 @@ export default function DiagnosticoInicial() {
         <CardHeader>
           <CardTitle>
             {paso === 1 && "Paso 1: Diagnóstico - Fallas y Causas"}
+            {paso === 1.5 && "Paso 1.5: Cotización de Canje"}
             {paso === 2 && "Paso 2: Solicitud de Repuestos"}
             {paso === 3 && "Paso 3: Fotos y Observaciones"}
           </CardTitle>
@@ -848,6 +918,137 @@ export default function DiagnosticoInicial() {
                 </div>
               )}
             </>
+          )}
+
+          {paso === 1.5 && (
+            <div className="space-y-6">
+              <div>
+                <Label className="text-lg font-semibold">Cotización de Canje</Label>
+                <p className="text-sm text-muted-foreground">
+                  Selecciona el producto alternativo y el descuento aplicable
+                </p>
+              </div>
+
+              {/* Selección de Porcentaje de Descuento */}
+              <div className="space-y-3">
+                <Label className="text-base font-medium">Porcentaje de Descuento</Label>
+                <div className="flex gap-4">
+                  <Button
+                    type="button"
+                    variant={porcentajeDescuento === 10 ? "default" : "outline"}
+                    onClick={() => setPorcentajeDescuento(10)}
+                    className="flex-1"
+                  >
+                    10% de Descuento
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={porcentajeDescuento === 40 ? "default" : "outline"}
+                    onClick={() => setPorcentajeDescuento(40)}
+                    className="flex-1"
+                  >
+                    40% de Descuento
+                  </Button>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Buscador de Productos */}
+              <div className="space-y-3">
+                <Label className="text-base font-medium">Buscar Producto Alternativo</Label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                  <Input
+                    placeholder="Buscar por código, clave o descripción..."
+                    value={searchProducto}
+                    onChange={(e) => setSearchProducto(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+
+              {/* Lista de Productos */}
+              <div className="border rounded-lg max-h-[400px] overflow-y-auto">
+                {productosAlternativos
+                  .filter(p =>
+                    p.descripcion.toLowerCase().includes(searchProducto.toLowerCase()) ||
+                    p.codigo.toLowerCase().includes(searchProducto.toLowerCase()) ||
+                    p.clave.toLowerCase().includes(searchProducto.toLowerCase())
+                  )
+                  .map((producto) => (
+                    <div
+                      key={producto.id}
+                      className={`p-4 border-b last:border-b-0 cursor-pointer transition-colors ${
+                        productoSeleccionado?.id === producto.id
+                          ? "bg-primary/10 border-l-4 border-l-primary"
+                          : "hover:bg-muted/50"
+                      }`}
+                      onClick={() => setProductoSeleccionado(producto)}
+                    >
+                      <div className="flex items-start gap-4">
+                        {producto.url_foto && (
+                          <div className="w-16 h-16 rounded border bg-muted flex-shrink-0">
+                            <img
+                              src={producto.url_foto}
+                              alt={producto.descripcion}
+                              className="w-full h-full object-contain"
+                              onError={(e) => {
+                                e.currentTarget.src = '/placeholder.svg';
+                              }}
+                            />
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold">{producto.descripcion}</p>
+                          <div className="flex gap-3 mt-1 text-sm text-muted-foreground">
+                            <span>Código: {producto.codigo}</span>
+                            <span>Clave: {producto.clave}</span>
+                          </div>
+                          {producto.familia_producto && (
+                            <Badge variant="outline" className="mt-2 text-xs">
+                              {producto.familia_producto}
+                            </Badge>
+                          )}
+                        </div>
+                        {productoSeleccionado?.id === producto.id && (
+                          <CheckCircle2 className="w-6 h-6 text-primary flex-shrink-0" />
+                        )}
+                      </div>
+                    </div>
+                  ))}
+              </div>
+
+              {/* Resumen de la Cotización */}
+              {productoSeleccionado && porcentajeDescuento && (
+                <Card className="bg-primary/5 border-primary">
+                  <CardHeader>
+                    <CardTitle className="text-base">Resumen de Cotización</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div>
+                        <p className="text-muted-foreground">Producto Seleccionado:</p>
+                        <p className="font-semibold">{productoSeleccionado.descripcion}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">SKU:</p>
+                        <p className="font-semibold">{productoSeleccionado.codigo}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Descuento Aplicado:</p>
+                        <p className="font-semibold text-primary">{porcentajeDescuento}%</p>
+                      </div>
+                    </div>
+                    <div className="pt-3 border-t">
+                      <p className="text-xs text-muted-foreground">
+                        El cliente recibirá un descuento del {porcentajeDescuento}% sobre el precio regular del producto seleccionado.
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
           )}
 
           {paso === 2 && (
@@ -1114,10 +1315,21 @@ export default function DiagnosticoInicial() {
           <Button
             variant="outline"
             onClick={() => {
-              if (paso > 1) {
-                setPaso(paso - 1);
-              } else {
+              if (paso === 1) {
                 navigate("/taller/mis-asignaciones");
+              } else if (paso === 1.5) {
+                setPaso(1);
+              } else if (paso === 2) {
+                setPaso(1);
+              } else if (paso === 3) {
+                // Si viene de canje, regresar al paso de canje
+                if (tipoResolucion === "Canje") {
+                  setPaso(1.5);
+                } else if (necesitaRepuestos) {
+                  setPaso(2);
+                } else {
+                  setPaso(1);
+                }
               }
             }}
           >
@@ -1127,6 +1339,8 @@ export default function DiagnosticoInicial() {
             onClick={() => {
               if (paso === 1) {
                 handleContinuarAPaso2();
+              } else if (paso === 1.5) {
+                handleContinuarDesdeCanje();
               } else if (paso === 2) {
                 // En paso 2, solo verificar si hay al menos una solicitud entregada
                 const hayRepuestosDespachados = solicitudesAnteriores.some(s => s.estado === 'entregado');
