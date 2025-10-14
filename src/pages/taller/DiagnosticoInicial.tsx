@@ -340,6 +340,15 @@ export default function DiagnosticoInicial() {
 
       if (error) throw error;
       setProductosAlternativos(data || []);
+      
+      // Si el producto actual es vigente, pre-seleccionarlo como alternativo
+      if (productoInfo && !productoInfo.descontinuado && incidente?.codigo_producto) {
+        const productoActual = data?.find(p => p.codigo === incidente.codigo_producto);
+        if (productoActual) {
+          setProductoSeleccionado(productoActual);
+          toast.info("Producto vigente pre-seleccionado como alternativa");
+        }
+      }
     } catch (error) {
       console.error('Error fetching productos:', error);
       toast.error("Error al cargar productos alternativos");
@@ -1000,16 +1009,29 @@ export default function DiagnosticoInicial() {
                           </div>
                         )}
                         <div className="flex-1 min-w-0">
-                          <p className="font-semibold">{producto.descripcion}</p>
+                          <div className="flex items-start justify-between gap-2 mb-1">
+                            <p className="font-semibold">{producto.descripcion}</p>
+                            {producto.codigo === incidente?.codigo_producto && (
+                              <Badge className="bg-blue-500 text-white text-xs shrink-0">
+                                Modelo Actual
+                              </Badge>
+                            )}
+                          </div>
                           <div className="flex gap-3 mt-1 text-sm text-muted-foreground">
                             <span>Código: {producto.codigo}</span>
                             <span>Clave: {producto.clave}</span>
                           </div>
-                          {producto.familia_producto && (
-                            <Badge variant="outline" className="mt-2 text-xs">
-                              {producto.familia_producto}
+                          <div className="flex gap-2 mt-2 flex-wrap">
+                            {producto.familia_producto && (
+                              <Badge variant="outline" className="text-xs">
+                                {producto.familia_producto}
+                              </Badge>
+                            )}
+                            <Badge className="bg-green-500 text-white text-xs">
+                              <Package className="w-3 h-3 mr-1" />
+                              Disponible para despacho
                             </Badge>
-                          )}
+                          </div>
                         </div>
                         {productoSeleccionado?.id === producto.id && (
                           <CheckCircle2 className="w-6 h-6 text-primary flex-shrink-0" />
