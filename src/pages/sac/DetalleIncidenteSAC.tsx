@@ -146,22 +146,34 @@ export default function DetalleIncidenteSAC() {
       if (solicitudData) {
         const { data: detalleData, error: detalleError } = await supabase
           .from("repuestos_solicitud_detalle")
-          .select(`
-            *,
-            repuestos:codigo_repuesto (
-              codigo,
-              clave,
-              descripcion,
-              url_foto
-            )
-          `)
+          .select("*")
           .eq("solicitud_id", solicitudData.id);
 
         if (detalleError) {
           console.error("Error fetching detalle repuestos:", detalleError);
         }
 
-        setRepuestosDetalle(detalleData || []);
+        // Si hay detalles, obtener información de los repuestos
+        if (detalleData && detalleData.length > 0) {
+          const codigosRepuestos = detalleData.map((d: any) => d.codigo_repuesto);
+          
+          const { data: repuestosData, error: repuestosError } = await supabase
+            .from("repuestos")
+            .select("codigo, clave, descripcion, url_foto")
+            .in("codigo", codigosRepuestos);
+
+          if (repuestosError) {
+            console.error("Error fetching repuestos info:", repuestosError);
+          }
+
+          // Combinar los datos
+          const detalleConRepuestos = detalleData.map((detalle: any) => ({
+            ...detalle,
+            repuestos: repuestosData?.find((r: any) => r.codigo === detalle.codigo_repuesto)
+          }));
+
+          setRepuestosDetalle(detalleConRepuestos);
+        }
       }
 
       // Fetch notifications
