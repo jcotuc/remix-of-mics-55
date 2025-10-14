@@ -160,27 +160,53 @@ export default function StockDepartamento() {
     try {
       setLoadingReabasto(true);
       
-      // Obtener todos los stocks con joins en una sola consulta
+      // Obtener todos los centros activos
+      const { data: centros } = await supabase
+        .from('centros_servicio')
+        .select('id, nombre')
+        .eq('activo', true);
+
+      if (!centros) {
+        setLoadingReabasto(false);
+        return;
+      }
+
+      // Obtener todo el stock
       const { data: stockData, error } = await supabase
         .from('stock_departamental')
-        .select(`
-          *,
-          centros_servicio!inner(nombre, activo),
-          repuestos!inner(descripcion),
-          repuestos_clasificacion_abc(clasificacion)
-        `)
-        .eq('centros_servicio.activo', true);
+        .select('*')
+        .in('centro_servicio_id', centros.map(c => c.id));
 
       if (error) throw error;
+
+      // Obtener todos los códigos de repuestos únicos
+      const codigosRepuestos = [...new Set(stockData?.map(s => s.codigo_repuesto) || [])];
+
+      // Obtener descripciones de repuestos
+      const { data: repuestos } = await supabase
+        .from('repuestos')
+        .select('codigo, descripcion')
+        .in('codigo', codigosRepuestos);
+
+      // Obtener clasificaciones ABC
+      const { data: clasificaciones } = await supabase
+        .from('repuestos_clasificacion_abc')
+        .select('codigo_repuesto, clasificacion')
+        .in('codigo_repuesto', codigosRepuestos);
+
+      // Crear mapas para búsqueda rápida
+      const repuestosMap = new Map(repuestos?.map(r => [r.codigo, r.descripcion]) || []);
+      const clasificacionesMap = new Map(clasificaciones?.map(c => [c.codigo_repuesto, c.clasificacion]) || []);
+      const centrosMap = new Map(centros.map(c => [c.id, c.nombre]));
 
       // Agrupar por centro
       const stockPorCentroData: Record<string, StockDepartamental[]> = {};
 
-      (stockData || []).forEach((item: any) => {
+      (stockData || []).forEach((item) => {
         const requiereReabasto = item.cantidad_actual < item.stock_minimo;
         
         if (requiereReabasto) {
-          const centroNombre = item.centros_servicio?.nombre || 'N/A';
+          const centroNombre = centrosMap.get(item.centro_servicio_id) || 'N/A';
           
           if (!stockPorCentroData[centroNombre]) {
             stockPorCentroData[centroNombre] = [];
@@ -189,11 +215,11 @@ export default function StockDepartamento() {
           stockPorCentroData[centroNombre].push({
             centro_servicio: centroNombre,
             codigo_repuesto: item.codigo_repuesto,
-            descripcion: item.repuestos?.descripcion || 'Sin descripción',
+            descripcion: repuestosMap.get(item.codigo_repuesto) || 'Sin descripción',
             cantidad_actual: item.cantidad_actual,
             stock_minimo: item.stock_minimo,
             requiere_reabasto: true,
-            clasificacion: (item.repuestos_clasificacion_abc?.clasificacion as 'A' | 'B' | 'C') || 'C'
+            clasificacion: (clasificacionesMap.get(item.codigo_repuesto) as 'A' | 'B' | 'C') || 'C'
           });
         }
       });
