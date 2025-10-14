@@ -362,7 +362,7 @@ export default function NuevoIncidente() {
       toast({ title: "Error", description: "Seleccione una opción de entrega", variant: "destructive" });
       return false;
     }
-    if (opcionEnvio !== 'recoger' && !direccionSeleccionada && !nuevaDireccion.trim()) {
+    if (opcionEnvio === 'directo' && !direccionSeleccionada && !nuevaDireccion.trim()) {
       toast({ title: "Error", description: "Seleccione o agregue una dirección de envío", variant: "destructive" });
       return false;
     }
@@ -1044,7 +1044,9 @@ export default function NuevoIncidente() {
               {opcionEnvio !== 'recoger' && opcionEnvio && (
                 <div className="pl-6 space-y-4 border-l-2 border-primary/20">
                   <div>
-                    <Label htmlFor="direccion-envio">Dirección de Envío *</Label>
+                    <Label htmlFor="direccion-envio">
+                      Dirección de Envío {opcionEnvio === 'directo' && '*'}
+                    </Label>
                     {direccionesEnvio.length > 0 ? (
                       <Select value={direccionSeleccionada} onValueChange={setDireccionSeleccionada}>
                         <SelectTrigger>
