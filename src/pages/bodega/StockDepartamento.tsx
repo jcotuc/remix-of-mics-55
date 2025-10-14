@@ -40,13 +40,16 @@ const COLORS = {
 export default function StockDepartamento() {
   const [repuestosABC, setRepuestosABC] = useState<RepuestoABC[]>([]);
   const [stockDepartamental, setStockDepartamental] = useState<StockDepartamental[]>([]);
+  const [stockPorCentro, setStockPorCentro] = useState<Record<string, StockDepartamental[]>>({});
   const [centrosServicio, setCentrosServicio] = useState<any[]>([]);
   const [centroSeleccionado, setCentroSeleccionado] = useState<string>('');
   const [clasificacionFiltro, setClasificacionFiltro] = useState<'all' | 'A' | 'B' | 'C'>('all');
   const [loading, setLoading] = useState(true);
+  const [loadingReabasto, setLoadingReabasto] = useState(false);
 
   useEffect(() => {
     fetchData();
+    fetchStockPorCentro();
   }, []);
 
   useEffect(() => {
@@ -150,6 +153,64 @@ export default function StockDepartamento() {
     } catch (error) {
       console.error('Error:', error);
       toast.error('Error al cargar stock departamental');
+    }
+  };
+
+  const fetchStockPorCentro = async () => {
+    try {
+      setLoadingReabasto(true);
+      const { data: centros } = await supabase
+        .from('centros_servicio')
+        .select('*')
+        .eq('activo', true);
+
+      const stockPorCentroData: Record<string, StockDepartamental[]> = {};
+
+      for (const centro of centros || []) {
+        const { data } = await supabase
+          .from('stock_departamental')
+          .select('*')
+          .eq('centro_servicio_id', centro.id);
+
+        const stockEnriquecido = await Promise.all(
+          (data || []).map(async (item) => {
+            const { data: repuesto } = await supabase
+              .from('repuestos')
+              .select('descripcion')
+              .eq('codigo', item.codigo_repuesto)
+              .single();
+
+            const { data: abc } = await supabase
+              .from('repuestos_clasificacion_abc')
+              .select('clasificacion')
+              .eq('codigo_repuesto', item.codigo_repuesto)
+              .single();
+
+            return {
+              centro_servicio: centro.nombre,
+              codigo_repuesto: item.codigo_repuesto,
+              descripcion: repuesto?.descripcion || 'Sin descripción',
+              cantidad_actual: item.cantidad_actual,
+              stock_minimo: item.stock_minimo,
+              requiere_reabasto: item.cantidad_actual < item.stock_minimo,
+              clasificacion: (abc?.clasificacion as 'A' | 'B' | 'C') || 'C'
+            };
+          })
+        );
+
+        // Solo guardar centros que tienen repuestos que requieren reabasto
+        const repuestosReabasto = stockEnriquecido.filter(s => s.requiere_reabasto);
+        if (repuestosReabasto.length > 0) {
+          stockPorCentroData[centro.nombre] = repuestosReabasto;
+        }
+      }
+
+      setStockPorCentro(stockPorCentroData);
+    } catch (error) {
+      console.error('Error:', error);
+      toast.error('Error al cargar reporte de reabasto');
+    } finally {
+      setLoadingReabasto(false);
     }
   };
 
@@ -327,6 +388,7 @@ export default function StockDepartamento() {
         <TabsList>
           <TabsTrigger value="visualizacion">Visualización</TabsTrigger>
           <TabsTrigger value="listado">Listado Completo</TabsTrigger>
+          <TabsTrigger value="reabasto">Reabasto por Centro</TabsTrigger>
           <TabsTrigger value="departamental">Stock Departamental</TabsTrigger>
         </TabsList>
 
@@ -448,6 +510,85 @@ export default function StockDepartamento() {
                     ))}
                   </TableBody>
                 </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="reabasto" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Repuestos que Requieren Reabasto por Centro</CardTitle>
+                  <CardDescription>Vista consolidada de necesidades de inventario</CardDescription>
+                </div>
+                <Button onClick={fetchStockPorCentro} disabled={loadingReabasto}>
+                  <RefreshCw className={`h-4 w-4 mr-2 ${loadingReabasto ? 'animate-spin' : ''}`} />
+                  Actualizar
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {loadingReabasto ? (
+                <div className="text-center py-8">Cargando reporte...</div>
+              ) : Object.keys(stockPorCentro).length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  No hay centros con repuestos que requieran reabasto
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {Object.entries(stockPorCentro).map(([centro, repuestos]) => (
+                    <Card key={centro}>
+                      <CardHeader className="pb-3">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-lg">{centro}</CardTitle>
+                          <Badge variant="destructive" className="text-base px-3 py-1">
+                            {repuestos.length} repuestos
+                          </Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent>
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Código</TableHead>
+                              <TableHead>Descripción</TableHead>
+                              <TableHead>Clase</TableHead>
+                              <TableHead>Stock Actual</TableHead>
+                              <TableHead>Stock Mínimo</TableHead>
+                              <TableHead>Faltante</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {repuestos.map((rep, idx) => (
+                              <TableRow key={idx}>
+                                <TableCell className="font-medium">{rep.codigo_repuesto}</TableCell>
+                                <TableCell>{rep.descripcion}</TableCell>
+                                <TableCell>
+                                  <Badge style={{ backgroundColor: COLORS[rep.clasificacion] }}>
+                                    {rep.clasificacion}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell>
+                                  <span className="text-orange-500 font-bold">
+                                    {rep.cantidad_actual}
+                                  </span>
+                                </TableCell>
+                                <TableCell>{rep.stock_minimo}</TableCell>
+                                <TableCell>
+                                  <Badge variant="outline" className="font-bold">
+                                    {rep.stock_minimo - rep.cantidad_actual}
+                                  </Badge>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
               )}
             </CardContent>
           </Card>
