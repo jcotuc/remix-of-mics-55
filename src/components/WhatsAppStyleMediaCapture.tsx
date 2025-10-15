@@ -129,20 +129,21 @@ export function WhatsAppStyleMediaCapture({
 
       {/* Vista previa de medios */}
       {media.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {media.map((item) => (
-            <Card key={item.id} className="relative overflow-hidden group">
-              <div className="aspect-square">
+            <Card key={item.id} className="relative overflow-hidden group border-2">
+              <div className="aspect-video bg-muted">
                 {item.tipo === 'video' ? (
                   <video 
                     src={item.preview} 
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-contain"
+                    controls
                   />
                 ) : (
                   <img 
                     src={item.preview} 
                     alt="Preview" 
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-contain"
                   />
                 )}
               </div>
@@ -150,19 +151,19 @@ export function WhatsAppStyleMediaCapture({
                 type="button"
                 size="sm"
                 variant="destructive"
-                className="absolute top-2 right-2 h-7 w-7 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                className="absolute top-2 right-2 h-8 w-8 p-0 opacity-90 group-hover:opacity-100 shadow-lg"
                 onClick={() => removeMedia(item.id)}
               >
                 <X className="h-4 w-4" />
               </Button>
               <div className="absolute bottom-2 left-2">
                 {item.tipo === 'video' ? (
-                  <div className="bg-black/70 text-white px-2 py-1 rounded text-xs flex items-center gap-1">
+                  <div className="bg-black/80 text-white px-3 py-1.5 rounded-md text-xs flex items-center gap-1.5 font-medium shadow-lg">
                     <Video className="h-3 w-3" />
                     Video
                   </div>
                 ) : (
-                  <div className="bg-black/70 text-white px-2 py-1 rounded text-xs flex items-center gap-1">
+                  <div className="bg-black/80 text-white px-3 py-1.5 rounded-md text-xs flex items-center gap-1.5 font-medium shadow-lg">
                     <Camera className="h-3 w-3" />
                     Foto
                   </div>
