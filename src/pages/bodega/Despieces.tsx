@@ -36,26 +36,37 @@ export default function Despieces() {
   const [loading, setLoading] = useState(true);
   
   // Formulario para nuevo despiece
-  const [nuevoSku, setNuevoSku] = useState('');
-  const [selectedProducto, setSelectedProducto] = useState('');
+  const [selectedMaquina, setSelectedMaquina] = useState('');
+  const [maquinasDisponibles, setMaquinasDisponibles] = useState<any[]>([]);
   const [productos, setProductos] = useState<any[]>([]);
 
   useEffect(() => {
-    fetchProductos();
+    fetchMaquinas();
     fetchDespieces();
   }, []);
 
-  const fetchProductos = async () => {
+  const fetchMaquinas = async () => {
+    // Cargar incidentes con sus productos
     const { data, error } = await supabase
-      .from('productos')
-      .select('codigo, descripcion')
-      .order('descripcion');
+      .from('incidentes')
+      .select(`
+        id,
+        codigo,
+        sku_maquina,
+        codigo_producto,
+        productos (
+          codigo,
+          descripcion
+        )
+      `)
+      .not('sku_maquina', 'is', null)
+      .order('fecha_ingreso', { ascending: false });
     
     if (error) {
-      toast.error('Error al cargar productos');
+      toast.error('Error al cargar máquinas');
       return;
     }
-    setProductos(data || []);
+    setMaquinasDisponibles(data || []);
   };
 
   const fetchDespieces = async () => {
@@ -84,28 +95,29 @@ export default function Despieces() {
   };
 
   const handleAgregarDespiece = async () => {
-    if (!nuevoSku || !selectedProducto) {
-      toast.error('Complete todos los campos');
+    if (!selectedMaquina) {
+      toast.error('Seleccione una máquina');
       return;
     }
 
-    // Obtener repuestos del producto seleccionado
+    const maquina = maquinasDisponibles.find(m => m.id === selectedMaquina);
+    if (!maquina) return;
+
+    // Obtener repuestos del producto de la máquina
     const { data: repuestos, error } = await supabase
       .from('repuestos')
       .select('codigo, descripcion')
-      .eq('codigo_producto', selectedProducto);
+      .eq('codigo_producto', maquina.codigo_producto);
 
     if (error) {
       toast.error('Error al cargar repuestos');
       return;
     }
-
-    const producto = productos.find(p => p.codigo === selectedProducto);
     
     const nuevoDespiece: Despiece = {
       id: Date.now().toString(),
-      sku: nuevoSku,
-      descripcion: producto?.descripcion || '',
+      sku: maquina.sku_maquina,
+      descripcion: maquina.productos?.descripcion || '',
       fechaIngreso: new Date().toISOString().split('T')[0],
       estado: 'disponible',
       repuestosDisponibles: (repuestos || []).map(r => ({
@@ -120,8 +132,7 @@ export default function Despieces() {
     toast.success('Máquina agregada para despiece');
     
     // Limpiar formulario
-    setNuevoSku('');
-    setSelectedProducto('');
+    setSelectedMaquina('');
     setAddDialogOpen(false);
   };
 
@@ -324,29 +335,21 @@ export default function Despieces() {
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label>SKU de la Máquina</Label>
-              <Input
-                placeholder="Ej: MAQ-12345"
-                value={nuevoSku}
-                onChange={(e) => setNuevoSku(e.target.value)}
-              />
-            </div>
-            <div>
-              <Label>Producto (Modelo)</Label>
-              <Select value={selectedProducto} onValueChange={setSelectedProducto}>
+              <Label>Seleccionar Máquina del Sistema</Label>
+              <Select value={selectedMaquina} onValueChange={setSelectedMaquina}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Seleccione el modelo de la máquina" />
+                  <SelectValue placeholder="Seleccione una máquina ingresada" />
                 </SelectTrigger>
                 <SelectContent>
-                  {productos.map((producto) => (
-                    <SelectItem key={producto.codigo} value={producto.codigo}>
-                      {producto.descripcion}
+                  {maquinasDisponibles.map((maquina) => (
+                    <SelectItem key={maquina.id} value={maquina.id}>
+                      SKU: {maquina.sku_maquina} - {maquina.productos?.descripcion} (Inc: {maquina.codigo})
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground mt-1">
-                Al seleccionar el modelo, se cargarán automáticamente todos los repuestos disponibles de esta máquina
+                Al seleccionar la máquina, se cargarán automáticamente todos los repuestos disponibles según su modelo
               </p>
             </div>
           </div>
