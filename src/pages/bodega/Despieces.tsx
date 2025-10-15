@@ -337,57 +337,76 @@ export default function Despieces() {
       </Card>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
+        <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col">
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle>
               Repuestos Disponibles - {selectedDespiece?.sku}
             </DialogTitle>
           </DialogHeader>
           {selectedDespiece && (
-            <div className="space-y-4">
-              <div className="p-4 bg-muted rounded-lg">
-                <p className="font-medium">{selectedDespiece.descripcion}</p>
-                <p className="text-sm text-muted-foreground">
-                  Fecha de ingreso: {selectedDespiece.fechaIngreso}
-                </p>
+            <>
+              <div className="p-4 bg-muted rounded-lg flex-shrink-0">
+                <div className="flex items-center gap-4">
+                  {selectedDespiece.fotoUrl && (
+                    <img 
+                      src={selectedDespiece.fotoUrl} 
+                      alt={selectedDespiece.descripcion}
+                      className="w-20 h-20 object-cover rounded"
+                      onError={(e) => {
+                        e.currentTarget.src = '/placeholder.svg';
+                      }}
+                    />
+                  )}
+                  <div className="flex-1">
+                    <p className="font-medium">{selectedDespiece.descripcion}</p>
+                    <p className="text-sm text-muted-foreground">
+                      Fecha de ingreso: {selectedDespiece.fechaIngreso}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Estado: {getEstadoBadge(selectedDespiece.estado)}
+                    </p>
+                  </div>
+                </div>
               </div>
 
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Código</TableHead>
-                    <TableHead>Descripción</TableHead>
-                    <TableHead className="text-right">Original</TableHead>
-                    <TableHead className="text-right">Disponible</TableHead>
-                    <TableHead>Acciones</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {selectedDespiece.repuestosDisponibles.map((repuesto) => (
-                    <TableRow key={repuesto.codigo}>
-                      <TableCell className="font-mono">{repuesto.codigo}</TableCell>
-                      <TableCell>{repuesto.descripcion}</TableCell>
-                      <TableCell className="text-right">{repuesto.cantidadOriginal}</TableCell>
-                      <TableCell className="text-right">
-                        <span className={repuesto.cantidadDisponible === 0 ? 'text-red-600' : 'text-green-600'}>
-                          {repuesto.cantidadDisponible}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          disabled={repuesto.cantidadDisponible === 0}
-                          onClick={() => handleUsarRepuesto(selectedDespiece.id, repuesto.codigo)}
-                        >
-                          Usar Repuesto
-                        </Button>
-                      </TableCell>
+              <div className="flex-1 overflow-auto">
+                <Table>
+                  <TableHeader className="sticky top-0 bg-background z-10">
+                    <TableRow>
+                      <TableHead>Código</TableHead>
+                      <TableHead>Descripción</TableHead>
+                      <TableHead className="text-right">Original</TableHead>
+                      <TableHead className="text-right">Disponible</TableHead>
+                      <TableHead className="text-right">Acciones</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                  </TableHeader>
+                  <TableBody>
+                    {selectedDespiece.repuestosDisponibles.map((repuesto) => (
+                      <TableRow key={repuesto.codigo}>
+                        <TableCell className="font-mono text-sm">{repuesto.codigo}</TableCell>
+                        <TableCell className="max-w-md">{repuesto.descripcion}</TableCell>
+                        <TableCell className="text-right">{repuesto.cantidadOriginal}</TableCell>
+                        <TableCell className="text-right">
+                          <span className={repuesto.cantidadDisponible === 0 ? 'text-red-600 font-semibold' : 'text-green-600 font-semibold'}>
+                            {repuesto.cantidadDisponible}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={repuesto.cantidadDisponible === 0}
+                            onClick={() => handleUsarRepuesto(selectedDespiece.id, repuesto.codigo)}
+                          >
+                            Usar
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
           )}
         </DialogContent>
       </Dialog>
