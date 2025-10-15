@@ -4,8 +4,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Wrench, Plus, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -27,28 +28,101 @@ interface RepuestoDespiece {
 }
 
 export default function Despieces() {
-  const [despieces, setDespieces] = useState<Despiece[]>([
-    {
-      id: '1',
-      sku: 'MAQ-001',
-      descripcion: 'Compresor Industrial 5HP',
-      fechaIngreso: '2024-01-10',
-      estado: 'disponible',
-      repuestosDisponibles: [
-        { codigo: 'REP-101', descripcion: 'Motor 5HP', cantidadOriginal: 1, cantidadDisponible: 1 },
-        { codigo: 'REP-102', descripcion: 'Válvula de presión', cantidadOriginal: 2, cantidadDisponible: 2 },
-        { codigo: 'REP-103', descripcion: 'Pistón', cantidadOriginal: 4, cantidadDisponible: 3 }
-      ]
-    }
-  ]);
-
+  const [despieces, setDespieces] = useState<Despiece[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [selectedDespiece, setSelectedDespiece] = useState<Despiece | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(true);
+  
+  // Formulario para nuevo despiece
+  const [nuevoSku, setNuevoSku] = useState('');
+  const [selectedProducto, setSelectedProducto] = useState('');
+  const [productos, setProductos] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetchProductos();
+    fetchDespieces();
+  }, []);
+
+  const fetchProductos = async () => {
+    const { data, error } = await supabase
+      .from('productos')
+      .select('codigo, descripcion')
+      .order('descripcion');
+    
+    if (error) {
+      toast.error('Error al cargar productos');
+      return;
+    }
+    setProductos(data || []);
+  };
+
+  const fetchDespieces = async () => {
+    setLoading(true);
+    // Por ahora usamos datos de ejemplo
+    // En el futuro se puede crear una tabla en Supabase
+    setDespieces([
+      {
+        id: '1',
+        sku: 'MAQ-001',
+        descripcion: 'Compresor Industrial 5HP',
+        fechaIngreso: '2024-01-10',
+        estado: 'disponible',
+        repuestosDisponibles: [
+          { codigo: 'REP-101', descripcion: 'Motor 5HP', cantidadOriginal: 1, cantidadDisponible: 1 },
+          { codigo: 'REP-102', descripcion: 'Válvula de presión', cantidadOriginal: 2, cantidadDisponible: 2 },
+        ]
+      }
+    ]);
+    setLoading(false);
+  };
 
   const handleVerDetalle = (despiece: Despiece) => {
     setSelectedDespiece(despiece);
     setDialogOpen(true);
+  };
+
+  const handleAgregarDespiece = async () => {
+    if (!nuevoSku || !selectedProducto) {
+      toast.error('Complete todos los campos');
+      return;
+    }
+
+    // Obtener repuestos del producto seleccionado
+    const { data: repuestos, error } = await supabase
+      .from('repuestos')
+      .select('codigo, descripcion')
+      .eq('codigo_producto', selectedProducto);
+
+    if (error) {
+      toast.error('Error al cargar repuestos');
+      return;
+    }
+
+    const producto = productos.find(p => p.codigo === selectedProducto);
+    
+    const nuevoDespiece: Despiece = {
+      id: Date.now().toString(),
+      sku: nuevoSku,
+      descripcion: producto?.descripcion || '',
+      fechaIngreso: new Date().toISOString().split('T')[0],
+      estado: 'disponible',
+      repuestosDisponibles: (repuestos || []).map(r => ({
+        codigo: r.codigo,
+        descripcion: r.descripcion,
+        cantidadOriginal: 1,
+        cantidadDisponible: 1
+      }))
+    };
+
+    setDespieces([...despieces, nuevoDespiece]);
+    toast.success('Máquina agregada para despiece');
+    
+    // Limpiar formulario
+    setNuevoSku('');
+    setSelectedProducto('');
+    setAddDialogOpen(false);
   };
 
   const handleUsarRepuesto = async (despieceId: string, codigoRepuesto: string) => {
@@ -73,6 +147,7 @@ export default function Despieces() {
     });
 
     setDespieces(updatedDespieces);
+    setSelectedDespiece(updatedDespieces.find(d => d.id === despieceId) || null);
     toast.success("Repuesto utilizado exitosamente");
   };
 
@@ -98,9 +173,9 @@ export default function Despieces() {
           <Wrench className="h-8 w-8" />
           <h1 className="text-3xl font-bold">Despieces de Máquinas</h1>
         </div>
-        <Button>
+        <Button onClick={() => setAddDialogOpen(true)}>
           <Plus className="h-4 w-4 mr-2" />
-          Nuevo Despiece
+          Agregar Máquina para Despiece
         </Button>
       </div>
 
@@ -239,6 +314,50 @@ export default function Despieces() {
               </Table>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Agregar Máquina para Despiece</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>SKU de la Máquina</Label>
+              <Input
+                placeholder="Ej: MAQ-12345"
+                value={nuevoSku}
+                onChange={(e) => setNuevoSku(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label>Producto (Modelo)</Label>
+              <Select value={selectedProducto} onValueChange={setSelectedProducto}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccione el modelo de la máquina" />
+                </SelectTrigger>
+                <SelectContent>
+                  {productos.map((producto) => (
+                    <SelectItem key={producto.codigo} value={producto.codigo}>
+                      {producto.descripcion}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                Al seleccionar el modelo, se cargarán automáticamente todos los repuestos disponibles de esta máquina
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleAgregarDespiece}>
+              Agregar Máquina
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
