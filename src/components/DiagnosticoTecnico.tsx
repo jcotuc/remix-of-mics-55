@@ -25,6 +25,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
+import { PhotoGalleryWithDescriptions, PhotoWithDescription } from "@/components/PhotoGalleryWithDescriptions";
 
 type RepuestoDB = Database['public']['Tables']['repuestos']['Row'];
 type IncidenteDB = Database['public']['Tables']['incidentes']['Row'];
@@ -47,7 +48,7 @@ export function DiagnosticoTecnico({ incidente, onDiagnosticoCompleto }: Diagnos
   const [fallas, setFallas] = useState<string[]>([""]);
   const [causas, setCausas] = useState<string[]>([""]);
   const [accesorios, setAccesorios] = useState("");
-  const [fotosUrls, setFotosUrls] = useState<string[]>([]);
+  const [fotos, setFotos] = useState<PhotoWithDescription[]>([]);
   
   // Paso 2: Repuestos
   const [repuestosSeleccionados, setRepuestosSeleccionados] = useState<{codigo: string, cantidad: number, descripcion: string}[]>([]);
@@ -81,7 +82,7 @@ export function DiagnosticoTecnico({ incidente, onDiagnosticoCompleto }: Diagnos
     }, 30000); // 30 segundos
 
     return () => clearInterval(interval);
-  }, [fallas, causas, accesorios, fotosUrls, repuestosSeleccionados, recomendaciones, resolucion]);
+  }, [fallas, causas, accesorios, fotos, repuestosSeleccionados, recomendaciones, resolucion]);
 
   const fetchInfoAdicional = async () => {
     try {
@@ -230,7 +231,7 @@ export function DiagnosticoTecnico({ incidente, onDiagnosticoCompleto }: Diagnos
         repuestos_utilizados: repuestosSeleccionados,
         recomendaciones: recomendaciones,
         resolucion: resolucion,
-        fotos_urls: fotosUrls,
+        fotos_urls: fotos.map(f => f.preview),
         accesorios: accesorios,
         tiempo_estimado: tiempoEstimado,
         costo_estimado: costoEstimado ? parseFloat(costoEstimado) : null,
@@ -263,6 +264,8 @@ export function DiagnosticoTecnico({ incidente, onDiagnosticoCompleto }: Diagnos
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('No user');
+
+      const fotosUrls = fotos.map(f => f.preview);
 
       const { error } = await supabase
         .from('solicitudes_cambio')
@@ -323,7 +326,7 @@ export function DiagnosticoTecnico({ incidente, onDiagnosticoCompleto }: Diagnos
         repuestos_utilizados: repuestosSeleccionados,
         recomendaciones: recomendaciones,
         resolucion: resolucion,
-        fotos_urls: fotosUrls,
+        fotos_urls: fotos.map(f => f.preview),
         accesorios: accesorios,
         tiempo_estimado: tiempoEstimado,
         costo_estimado: costoEstimado ? parseFloat(costoEstimado) : null,
@@ -642,6 +645,16 @@ export function DiagnosticoTecnico({ incidente, onDiagnosticoCompleto }: Diagnos
                 value={accesorios}
                 onChange={(e) => setAccesorios(e.target.value)}
                 rows={3}
+              />
+            </div>
+
+            {/* Fotos con Descripción (Gembadocs Style) */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Fotos del Diagnóstico</label>
+              <PhotoGalleryWithDescriptions 
+                photos={fotos}
+                onPhotosChange={setFotos}
+                maxPhotos={20}
               />
             </div>
 

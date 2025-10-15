@@ -12,6 +12,7 @@ import { SignatureCanvasComponent, SignatureCanvasRef } from "@/components/Signa
 import { StatusBadge } from "@/components/StatusBadge";
 import type { Database } from "@/integrations/supabase/types";
 import type { StatusIncidente } from "@/types";
+import { WhatsAppStyleMediaCapture, MediaFile } from "@/components/WhatsAppStyleMediaCapture";
 
 type IncidenteDB = Database['public']['Tables']['incidentes']['Row'];
 type ClienteDB = Database['public']['Tables']['clientes']['Row'];
@@ -29,6 +30,7 @@ export default function EntregaMaquinas() {
   const [diagnostico, setDiagnostico] = useState<DiagnosticoDB | null>(null);
   const [nombreRecibe, setNombreRecibe] = useState("");
   const [dpiRecibe, setDpiRecibe] = useState("");
+  const [mediaSalida, setMediaSalida] = useState<MediaFile[]>([]);
   const signatureRef = useRef<SignatureCanvasRef>(null);
 
   useEffect(() => {
@@ -206,6 +208,7 @@ export default function EntregaMaquinas() {
       setSearchTerm("");
       setNombreRecibe("");
       setDpiRecibe("");
+      setMediaSalida([]);
       signatureRef.current?.clear();
       setDiagnostico(null);
       fetchIncidentesReparados();
@@ -622,6 +625,15 @@ export default function EntregaMaquinas() {
                 </div>
               </div>
 
+              <div className="space-y-2">
+                <Label>Fotos y Videos de Salida</Label>
+                <WhatsAppStyleMediaCapture
+                  media={mediaSalida}
+                  onMediaChange={setMediaSalida}
+                  maxFiles={10}
+                />
+              </div>
+
               <SignatureCanvasComponent ref={signatureRef} />
 
               <div className="flex justify-end gap-4">
@@ -633,7 +645,9 @@ export default function EntregaMaquinas() {
                     setSearchTerm("");
                     setNombreRecibe("");
                     setDpiRecibe("");
+                    setMediaSalida([]);
                     signatureRef.current?.clear();
+                    setDiagnostico(null);
                   }}
                 >
                   Cancelar

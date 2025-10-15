@@ -9,10 +9,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { ArrowLeft, Search, CheckCircle2, User, Package, AlertCircle, Camera, Upload, X } from "lucide-react";
+import { ArrowLeft, Search, CheckCircle2, User, Package, AlertCircle } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Producto } from "@/types";
+import { WhatsAppStyleMediaCapture, MediaFile } from "@/components/WhatsAppStyleMediaCapture";
 
 const centrosServicio = [
   'Zona 5 (Principal)',
@@ -136,11 +137,8 @@ export default function NuevoIncidente() {
   const [tipologia, setTipologia] = useState("");
   const [guardando, setGuardando] = useState(false);
   
-  // Photos
-  const [fotos, setFotos] = useState<File[]>([]);
-  const [previews, setPreviews] = useState<string[]>([]);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const cameraInputRef = useRef<HTMLInputElement>(null);
+  // Media (fotos y videos)
+  const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([]);
   
   // Dialog for adding another machine
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
@@ -268,29 +266,6 @@ export default function NuevoIncidente() {
     setClientesEncontrados([]);
   };
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    if (files.length + fotos.length > 10) {
-      toast({ title: "Límite excedido", description: "Máximo 10 fotos por incidente", variant: "destructive" });
-      return;
-    }
-    
-    setFotos(prev => [...prev, ...files]);
-    
-    files.forEach(file => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPreviews(prev => [...prev, reader.result as string]);
-      };
-      reader.readAsDataURL(file);
-    });
-  };
-
-  const removePhoto = (index: number) => {
-    setFotos(prev => prev.filter((_, i) => i !== index));
-    setPreviews(prev => prev.filter((_, i) => i !== index));
-  };
-
   const resetForm = () => {
     // Reset incident data
     setSkuMaquina("");
@@ -307,8 +282,7 @@ export default function NuevoIncidente() {
     setEsReingreso(false);
     setLogObservaciones("");
     setTipologia("");
-    setFotos([]);
-    setPreviews([]);
+    setMediaFiles([]);
     
     // Go back to step 2 (keeping the same client)
     setPaso(2);
@@ -497,10 +471,11 @@ export default function NuevoIncidente() {
 
       if (incidenteError) throw incidenteError;
 
-      // Upload photos if any
-      if (fotos.length > 0) {
-        for (let i = 0; i < fotos.length; i++) {
-          const file = fotos[i];
+      // Upload media files if any
+      if (mediaFiles.length > 0) {
+        for (let i = 0; i < mediaFiles.length; i++) {
+          const mediaItem = mediaFiles[i];
+          const file = mediaItem.file;
           const fileExt = file.name.split('.').pop();
           const fileName = `${codigoIncidente}_${Date.now()}_${i}.${fileExt}`;
           const filePath = `${codigoIncidente}/${fileName}`;
@@ -1149,73 +1124,14 @@ export default function NuevoIncidente() {
               />
             </div>
 
-            {/* Sección de fotos */}
+            {/* Sección de fotos/videos estilo WhatsApp */}
             <div className="space-y-4 border-t pt-6">
-              <Label>Fotos del Equipo (Opcional - Máximo 10)</Label>
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => cameraInputRef.current?.click()}
-                  className="flex-1"
-                >
-                  <Camera className="w-4 h-4 mr-2" />
-                  Tomar Foto
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="flex-1"
-                >
-                  <Upload className="w-4 h-4 mr-2" />
-                  Subir Archivos
-                </Button>
-              </div>
-              
-              <input
-                ref={cameraInputRef}
-                type="file"
-                accept="image/*"
-                capture="environment"
-                multiple
-                onChange={handleFileSelect}
-                className="hidden"
+              <Label>Fotos y Videos del Ingreso</Label>
+              <WhatsAppStyleMediaCapture
+                media={mediaFiles}
+                onMediaChange={setMediaFiles}
+                maxFiles={10}
               />
-              
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                multiple
-                onChange={handleFileSelect}
-                className="hidden"
-              />
-              
-              {previews.length > 0 && (
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                  {previews.map((preview, index) => (
-                    <div key={index} className="relative group">
-                      <img
-                        src={preview}
-                        alt={`Preview ${index + 1}`}
-                        className="w-full h-32 object-cover rounded-lg border"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => removePhoto(index)}
-                        className="absolute top-1 right-1 bg-destructive text-destructive-foreground rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-              
-              <p className="text-sm text-muted-foreground">
-                {fotos.length} de 10 fotos seleccionadas
-              </p>
             </div>
 
             <div className="flex justify-between">
