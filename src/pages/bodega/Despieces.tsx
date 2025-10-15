@@ -18,6 +18,7 @@ interface Despiece {
   fechaIngreso: string;
   estado: 'disponible' | 'en_uso' | 'agotado';
   repuestosDisponibles: RepuestoDespiece[];
+  fotoUrl?: string;
 }
 
 interface RepuestoDespiece {
@@ -71,21 +72,42 @@ export default function Despieces() {
 
   const fetchDespieces = async () => {
     setLoading(true);
-    // Por ahora usamos datos de ejemplo
-    // En el futuro se puede crear una tabla en Supabase
-    setDespieces([
-      {
-        id: '1',
-        sku: 'MAQ-001',
-        descripcion: 'Compresor Industrial 5HP',
-        fechaIngreso: '2024-01-10',
-        estado: 'disponible',
-        repuestosDisponibles: [
-          { codigo: 'REP-101', descripcion: 'Motor 5HP', cantidadOriginal: 1, cantidadDisponible: 1 },
-          { codigo: 'REP-102', descripcion: 'Válvula de presión', cantidadOriginal: 2, cantidadDisponible: 2 },
-        ]
-      }
-    ]);
+    
+    // Primero obtener los despieces
+    const { data: despiecesData, error: despiecesError } = await supabase
+      .from('despieces')
+      .select('*')
+      .order('fecha_ingreso', { ascending: false });
+    
+    if (despiecesError) {
+      console.error('Error al cargar despieces:', despiecesError);
+      toast.error('Error al cargar despieces');
+      setLoading(false);
+      return;
+    }
+
+    // Obtener los códigos de productos únicos
+    const codigosProductos = [...new Set(despiecesData?.map(d => d.codigo_producto) || [])];
+    
+    // Cargar las fotos de los productos
+    const { data: productosData } = await supabase
+      .from('productos')
+      .select('codigo, url_foto')
+      .in('codigo', codigosProductos);
+
+    const productosMap = new Map(productosData?.map(p => [p.codigo, p.url_foto]) || []);
+
+    const despiecesFormateados = (despiecesData || []).map(d => ({
+      id: d.id,
+      sku: d.sku_maquina,
+      descripcion: d.descripcion,
+      fechaIngreso: new Date(d.fecha_ingreso).toLocaleDateString(),
+      estado: d.estado as 'disponible' | 'en_uso' | 'agotado',
+      repuestosDisponibles: (d.repuestos_disponibles as any) || [],
+      fotoUrl: productosMap.get(d.codigo_producto) || undefined
+    }));
+
+    setDespieces(despiecesFormateados as any);
     setLoading(false);
   };
 
@@ -104,62 +126,80 @@ export default function Despieces() {
     if (!maquina) return;
 
     // Obtener repuestos del producto de la máquina
-    const { data: repuestos, error } = await supabase
+    const { data: repuestos, error: repuestosError } = await supabase
       .from('repuestos')
       .select('codigo, descripcion')
       .eq('codigo_producto', maquina.codigo_producto);
 
-    if (error) {
+    if (repuestosError) {
       toast.error('Error al cargar repuestos');
       return;
     }
-    
-    const nuevoDespiece: Despiece = {
-      id: Date.now().toString(),
-      sku: maquina.sku_maquina,
-      descripcion: maquina.productos?.descripcion || '',
-      fechaIngreso: new Date().toISOString().split('T')[0],
-      estado: 'disponible',
-      repuestosDisponibles: (repuestos || []).map(r => ({
-        codigo: r.codigo,
-        descripcion: r.descripcion,
-        cantidadOriginal: 1,
-        cantidadDisponible: 1
-      }))
-    };
 
-    setDespieces([...despieces, nuevoDespiece]);
+    const repuestosDisponibles = (repuestos || []).map(r => ({
+      codigo: r.codigo,
+      descripcion: r.descripcion,
+      cantidadOriginal: 1,
+      cantidadDisponible: 1
+    }));
+    
+    // Insertar en base de datos
+    const { error } = await supabase
+      .from('despieces')
+      .insert({
+        sku_maquina: maquina.sku_maquina,
+        codigo_producto: maquina.codigo_producto,
+        descripcion: maquina.productos?.descripcion || '',
+        estado: 'disponible',
+        repuestos_disponibles: repuestosDisponibles
+      });
+
+    if (error) {
+      console.error('Error al agregar despiece:', error);
+      toast.error('Error al agregar máquina para despiece');
+      return;
+    }
+
     toast.success('Máquina agregada para despiece');
     
-    // Limpiar formulario
+    // Limpiar formulario y recargar
     setSelectedMaquina('');
     setAddDialogOpen(false);
+    fetchDespieces();
   };
 
   const handleUsarRepuesto = async (despieceId: string, codigoRepuesto: string) => {
-    const updatedDespieces = despieces.map(d => {
-      if (d.id === despieceId) {
-        const updatedRepuestos = d.repuestosDisponibles.map(r => {
-          if (r.codigo === codigoRepuesto && r.cantidadDisponible > 0) {
-            return { ...r, cantidadDisponible: r.cantidadDisponible - 1 };
-          }
-          return r;
-        });
+    const despiece = despieces.find(d => d.id === despieceId);
+    if (!despiece) return;
 
-        const todosAgotados = updatedRepuestos.every(r => r.cantidadDisponible === 0);
-        
-        return {
-          ...d,
-          repuestosDisponibles: updatedRepuestos,
-          estado: todosAgotados ? 'agotado' as const : 'en_uso' as const
-        };
+    const updatedRepuestos = despiece.repuestosDisponibles.map(r => {
+      if (r.codigo === codigoRepuesto && r.cantidadDisponible > 0) {
+        return { ...r, cantidadDisponible: r.cantidadDisponible - 1 };
       }
-      return d;
+      return r;
     });
 
-    setDespieces(updatedDespieces);
-    setSelectedDespiece(updatedDespieces.find(d => d.id === despieceId) || null);
+    const todosAgotados = updatedRepuestos.every(r => r.cantidadDisponible === 0);
+    const nuevoEstado = todosAgotados ? 'agotado' : 'en_uso';
+
+    // Actualizar en base de datos
+    const { error } = await supabase
+      .from('despieces')
+      .update({
+        repuestos_disponibles: updatedRepuestos as any,
+        estado: nuevoEstado
+      })
+      .eq('id', despieceId);
+
+    if (error) {
+      console.error('Error al actualizar despiece:', error);
+      toast.error('Error al usar repuesto');
+      return;
+    }
+
     toast.success("Repuesto utilizado exitosamente");
+    fetchDespieces();
+    setDialogOpen(false);
   };
 
   const getEstadoBadge = (estado: string) => {
@@ -242,6 +282,7 @@ export default function Despieces() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>Foto</TableHead>
                 <TableHead>SKU</TableHead>
                 <TableHead>Descripción</TableHead>
                 <TableHead>Fecha Ingreso</TableHead>
@@ -251,22 +292,52 @@ export default function Despieces() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredDespieces.map((despiece) => (
-                <TableRow key={despiece.id}>
-                  <TableCell className="font-mono">{despiece.sku}</TableCell>
-                  <TableCell>{despiece.descripcion}</TableCell>
-                  <TableCell>{despiece.fechaIngreso}</TableCell>
-                  <TableCell>
-                    {despiece.repuestosDisponibles.filter(r => r.cantidadDisponible > 0).length} / {despiece.repuestosDisponibles.length}
-                  </TableCell>
-                  <TableCell>{getEstadoBadge(despiece.estado)}</TableCell>
-                  <TableCell>
-                    <Button variant="ghost" size="sm" onClick={() => handleVerDetalle(despiece)}>
-                      Ver Detalle
-                    </Button>
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center">
+                    Cargando despieces...
                   </TableCell>
                 </TableRow>
-              ))}
+              ) : filteredDespieces.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center text-muted-foreground">
+                    No hay máquinas para despiece. Agregue una nueva.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredDespieces.map((despiece) => (
+                  <TableRow key={despiece.id}>
+                    <TableCell>
+                      {despiece.fotoUrl ? (
+                        <img 
+                          src={despiece.fotoUrl} 
+                          alt={despiece.descripcion}
+                          className="w-16 h-16 object-cover rounded"
+                          onError={(e) => {
+                            e.currentTarget.src = '/placeholder.svg';
+                          }}
+                        />
+                      ) : (
+                        <div className="w-16 h-16 bg-muted rounded flex items-center justify-center">
+                          <Wrench className="h-6 w-6 text-muted-foreground" />
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell className="font-mono">{despiece.sku}</TableCell>
+                    <TableCell>{despiece.descripcion}</TableCell>
+                    <TableCell>{despiece.fechaIngreso}</TableCell>
+                    <TableCell>
+                      {despiece.repuestosDisponibles.filter(r => r.cantidadDisponible > 0).length} / {despiece.repuestosDisponibles.length}
+                    </TableCell>
+                    <TableCell>{getEstadoBadge(despiece.estado)}</TableCell>
+                    <TableCell>
+                      <Button variant="ghost" size="sm" onClick={() => handleVerDetalle(despiece)}>
+                        Ver Detalle
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </CardContent>

@@ -181,6 +181,45 @@ export type Database = {
         }
         Relationships: []
       }
+      despieces: {
+        Row: {
+          codigo_producto: string
+          created_at: string
+          created_by: string | null
+          descripcion: string
+          estado: string
+          fecha_ingreso: string
+          id: string
+          repuestos_disponibles: Json
+          sku_maquina: string
+          updated_at: string
+        }
+        Insert: {
+          codigo_producto: string
+          created_at?: string
+          created_by?: string | null
+          descripcion: string
+          estado?: string
+          fecha_ingreso?: string
+          id?: string
+          repuestos_disponibles?: Json
+          sku_maquina: string
+          updated_at?: string
+        }
+        Update: {
+          codigo_producto?: string
+          created_at?: string
+          created_by?: string | null
+          descripcion?: string
+          estado?: string
+          fecha_ingreso?: string
+          id?: string
+          repuestos_disponibles?: Json
+          sku_maquina?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       diagnosticos: {
         Row: {
           accesorios: string | null
