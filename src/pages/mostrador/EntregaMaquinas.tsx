@@ -552,7 +552,50 @@ export default function EntregaMaquinas() {
                 {diagnostico.resolucion && (
                   <div>
                     <p className="text-sm text-muted-foreground mb-2 font-medium">Resolución</p>
-                    <p className="text-sm bg-muted p-3 rounded-md">{diagnostico.resolucion}</p>
+                    {(() => {
+                      try {
+                        const resolucionData = typeof diagnostico.resolucion === 'string' 
+                          ? JSON.parse(diagnostico.resolucion) 
+                          : diagnostico.resolucion;
+                        
+                        return (
+                          <div className="bg-muted p-4 rounded-md space-y-3">
+                            {resolucionData.aplicaGarantia !== undefined && (
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium">Garantía:</span>
+                                <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                                  resolucionData.aplicaGarantia 
+                                    ? 'bg-green-500/20 text-green-700 dark:text-green-400' 
+                                    : 'bg-red-500/20 text-red-700 dark:text-red-400'
+                                }`}>
+                                  {resolucionData.aplicaGarantia ? 'Aplica' : 'No Aplica'}
+                                </span>
+                              </div>
+                            )}
+                            
+                            {resolucionData.tipoResolucion && (
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium">Tipo:</span>
+                                <span className="px-3 py-1 rounded-full text-xs font-semibold bg-primary/20 text-primary">
+                                  {resolucionData.tipoResolucion}
+                                </span>
+                              </div>
+                            )}
+                            
+                            {resolucionData.tipoTrabajo && (
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium">Trabajo:</span>
+                                <span className="px-3 py-1 rounded-full text-xs font-semibold bg-blue-500/20 text-blue-700 dark:text-blue-400">
+                                  {resolucionData.tipoTrabajo.charAt(0).toUpperCase() + resolucionData.tipoTrabajo.slice(1)}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      } catch {
+                        return <p className="text-sm bg-muted p-3 rounded-md">{diagnostico.resolucion}</p>;
+                      }
+                    })()}
                   </div>
                 )}
 
