@@ -111,6 +111,13 @@ export default function Despieces() {
       return;
     }
 
+    // Obtener usuario autenticado
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      toast.error('Debe iniciar sesión para agregar despieces');
+      return;
+    }
+
     const producto = productosDisponibles.find(p => p.codigo === selectedProducto);
     if (!producto) return;
 
@@ -144,7 +151,8 @@ export default function Despieces() {
         codigo_producto: producto.codigo,
         descripcion: producto.descripcion,
         estado: 'disponible',
-        repuestos_disponibles: repuestosDisponibles
+        repuestos_disponibles: repuestosDisponibles,
+        created_by: user.id
       });
 
     if (error) {
