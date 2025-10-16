@@ -67,17 +67,37 @@ export default function Despieces() {
   };
 
   const fetchIncidentesActivos = async () => {
-    const { data, error } = await supabase
+    // Obtener incidentes que ya tienen diagnóstico
+    const { data: incidentesConDiagnostico, error: incidentesError } = await supabase
+      .from('diagnosticos')
+      .select('incidente_id')
+      .not('incidente_id', 'is', null);
+    
+    if (incidentesError) {
+      console.error('Error al cargar diagnósticos:', incidentesError);
+      return;
+    }
+
+    const incidenteIds = incidentesConDiagnostico?.map(d => d.incidente_id) || [];
+    
+    if (incidenteIds.length === 0) {
+      setIncidentesActivos([]);
+      return;
+    }
+
+    // Cargar información de los incidentes
+    const { data: incidentesData, error } = await supabase
       .from('incidentes')
-      .select('codigo, descripcion_problema, status')
-      .in('status', ['Ingresado', 'En diagnostico', 'Pendiente de diagnostico', 'Reparado'])
+      .select('id, codigo, descripcion_problema, status')
+      .in('id', incidenteIds)
       .order('created_at', { ascending: false });
     
     if (error) {
       console.error('Error al cargar incidentes:', error);
       return;
     }
-    setIncidentesActivos(data || []);
+    
+    setIncidentesActivos(incidentesData || []);
   };
 
   const fetchDespieces = async () => {
@@ -190,10 +210,35 @@ export default function Despieces() {
     fetchDespieces();
   };
 
-  const handleOpenUseDialog = (despiece: Despiece, repuesto: RepuestoDespiece) => {
+  const handleOpenUseDialog = async (despiece: Despiece, repuesto: RepuestoDespiece) => {
     setSelectedDespiece(despiece);
     setSelectedRepuesto(repuesto);
     setSelectedIncidente('');
+    
+    // Filtrar incidentes que tienen solicitud de este repuesto específico
+    const incidentesFiltrados = [];
+    
+    for (const incidente of incidentesActivos) {
+      const { data: solicitudes } = await supabase
+        .from('solicitudes_repuestos')
+        .select('id, repuestos')
+        .eq('incidente_id', incidente.id)
+        .single();
+      
+      if (solicitudes) {
+        // Verificar si el repuesto está en la solicitud
+        const repuestosSolicitados = solicitudes.repuestos as any[];
+        const tieneRepuesto = repuestosSolicitados.some(
+          (r: any) => r.codigo === repuesto.codigo
+        );
+        
+        if (tieneRepuesto) {
+          incidentesFiltrados.push(incidente);
+        }
+      }
+    }
+    
+    setIncidentesActivos(incidentesFiltrados);
     setUseDialogOpen(true);
   };
 
@@ -208,6 +253,35 @@ export default function Despieces() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       toast.error('Debe iniciar sesión');
+      return;
+    }
+
+    // Verificar que el incidente tiene diagnóstico
+    const incidenteSeleccionado = incidentesActivos.find(i => i.codigo === selectedIncidente);
+    if (!incidenteSeleccionado) {
+      toast.error('Incidente no válido');
+      return;
+    }
+
+    // Verificar que existe solicitud de repuestos para este incidente con este repuesto
+    const { data: solicitud } = await supabase
+      .from('solicitudes_repuestos')
+      .select('id, repuestos')
+      .eq('incidente_id', incidenteSeleccionado.id)
+      .single();
+
+    if (!solicitud) {
+      toast.error('Este incidente no tiene solicitud de repuestos');
+      return;
+    }
+
+    const repuestosSolicitados = solicitud.repuestos as any[];
+    const repuestoSolicitado = repuestosSolicitados.find(
+      (r: any) => r.codigo === selectedRepuesto.codigo
+    );
+
+    if (!repuestoSolicitado) {
+      toast.error('Este repuesto no está en la solicitud del incidente');
       return;
     }
 
@@ -256,6 +330,7 @@ export default function Despieces() {
 
     toast.success(`Repuesto asignado al incidente ${selectedIncidente}`);
     fetchDespieces();
+    fetchIncidentesActivos();
     setDialogOpen(false);
     setUseDialogOpen(false);
   };
@@ -533,13 +608,22 @@ export default function Despieces() {
                     <SelectValue placeholder="Seleccione el incidente" />
                   </SelectTrigger>
                   <SelectContent>
-                    {incidentesActivos.map((incidente) => (
-                      <SelectItem key={incidente.codigo} value={incidente.codigo}>
-                        {incidente.codigo} - {incidente.descripcion_problema.substring(0, 50)}...
-                      </SelectItem>
-                    ))}
+                    {incidentesActivos.length === 0 ? (
+                      <div className="p-2 text-sm text-muted-foreground">
+                        No hay incidentes con diagnóstico que tengan solicitud de este repuesto
+                      </div>
+                    ) : (
+                      incidentesActivos.map((incidente) => (
+                        <SelectItem key={incidente.codigo} value={incidente.codigo}>
+                          {incidente.codigo} - {incidente.descripcion_problema.substring(0, 50)}...
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Solo se muestran incidentes con diagnóstico y solicitud de este repuesto
+                </p>
               </div>
             </div>
           )}
