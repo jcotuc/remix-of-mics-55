@@ -32,17 +32,24 @@ export default function Despieces() {
   const [despieces, setDespieces] = useState<Despiece[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [useDialogOpen, setUseDialogOpen] = useState(false);
   const [selectedDespiece, setSelectedDespiece] = useState<Despiece | null>(null);
+  const [selectedRepuesto, setSelectedRepuesto] = useState<RepuestoDespiece | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   
   // Formulario para nuevo despiece
   const [selectedProducto, setSelectedProducto] = useState('');
   const [productosDisponibles, setProductosDisponibles] = useState<any[]>([]);
+  
+  // Para asignar a incidente
+  const [selectedIncidente, setSelectedIncidente] = useState('');
+  const [incidentesActivos, setIncidentesActivos] = useState<any[]>([]);
 
   useEffect(() => {
     fetchProductos();
     fetchDespieces();
+    fetchIncidentesActivos();
   }, []);
 
   const fetchProductos = async () => {
@@ -57,6 +64,20 @@ export default function Despieces() {
       return;
     }
     setProductosDisponibles(data || []);
+  };
+
+  const fetchIncidentesActivos = async () => {
+    const { data, error } = await supabase
+      .from('incidentes')
+      .select('codigo, descripcion_problema, status')
+      .in('status', ['Ingresado', 'En diagnostico', 'Pendiente de diagnostico', 'Reparado'])
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error('Error al cargar incidentes:', error);
+      return;
+    }
+    setIncidentesActivos(data || []);
   };
 
   const fetchDespieces = async () => {
@@ -169,12 +190,29 @@ export default function Despieces() {
     fetchDespieces();
   };
 
-  const handleUsarRepuesto = async (despieceId: string, codigoRepuesto: string) => {
-    const despiece = despieces.find(d => d.id === despieceId);
-    if (!despiece) return;
+  const handleOpenUseDialog = (despiece: Despiece, repuesto: RepuestoDespiece) => {
+    setSelectedDespiece(despiece);
+    setSelectedRepuesto(repuesto);
+    setSelectedIncidente('');
+    setUseDialogOpen(true);
+  };
 
-    const updatedRepuestos = despiece.repuestosDisponibles.map(r => {
-      if (r.codigo === codigoRepuesto && r.cantidadDisponible > 0) {
+  const handleUsarRepuesto = async () => {
+    if (!selectedDespiece || !selectedRepuesto) return;
+    
+    if (!selectedIncidente) {
+      toast.error('Debe seleccionar un incidente');
+      return;
+    }
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      toast.error('Debe iniciar sesión');
+      return;
+    }
+
+    const updatedRepuestos = selectedDespiece.repuestosDisponibles.map(r => {
+      if (r.codigo === selectedRepuesto.codigo && r.cantidadDisponible > 0) {
         return { ...r, cantidadDisponible: r.cantidadDisponible - 1 };
       }
       return r;
@@ -183,24 +221,43 @@ export default function Despieces() {
     const todosAgotados = updatedRepuestos.every(r => r.cantidadDisponible === 0);
     const nuevoEstado = todosAgotados ? 'agotado' : 'en_uso';
 
-    // Actualizar en base de datos
-    const { error } = await supabase
+    // Actualizar despiece
+    const { error: despieceError } = await supabase
       .from('despieces')
       .update({
         repuestos_disponibles: updatedRepuestos as any,
         estado: nuevoEstado
       })
-      .eq('id', despieceId);
+      .eq('id', selectedDespiece.id);
 
-    if (error) {
-      console.error('Error al actualizar despiece:', error);
+    if (despieceError) {
+      console.error('Error al actualizar despiece:', despieceError);
       toast.error('Error al usar repuesto');
       return;
     }
 
-    toast.success("Repuesto utilizado exitosamente");
+    // Registrar movimiento de inventario desde ubicación de despiece
+    const ubicacionDespiece = `DESPIECE-${selectedDespiece.sku}`;
+    const { error: movimientoError } = await supabase
+      .from('movimientos_inventario')
+      .insert({
+        codigo_repuesto: selectedRepuesto.codigo,
+        tipo_movimiento: 'salida',
+        cantidad: 1,
+        ubicacion: ubicacionDespiece,
+        referencia: selectedIncidente,
+        motivo: `Repuesto usado de despiece ${selectedDespiece.sku} para incidente ${selectedIncidente}`,
+        created_by: user.id
+      });
+
+    if (movimientoError) {
+      console.error('Error al registrar movimiento:', movimientoError);
+    }
+
+    toast.success(`Repuesto asignado al incidente ${selectedIncidente}`);
     fetchDespieces();
     setDialogOpen(false);
+    setUseDialogOpen(false);
   };
 
   const getEstadoBadge = (estado: string) => {
@@ -404,7 +461,7 @@ export default function Despieces() {
                             variant="outline"
                             size="sm"
                             disabled={repuesto.cantidadDisponible === 0}
-                            onClick={() => handleUsarRepuesto(selectedDespiece.id, repuesto.codigo)}
+                            onClick={() => handleOpenUseDialog(selectedDespiece, repuesto)}
                           >
                             Usar
                           </Button>
@@ -450,6 +507,48 @@ export default function Despieces() {
             </Button>
             <Button onClick={handleAgregarDespiece}>
               Agregar Máquina
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={useDialogOpen} onOpenChange={setUseDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Asignar Repuesto a Incidente</DialogTitle>
+          </DialogHeader>
+          {selectedRepuesto && selectedDespiece && (
+            <div className="space-y-4">
+              <div className="p-3 bg-muted rounded-lg">
+                <p className="text-sm font-medium">Repuesto: {selectedRepuesto.codigo}</p>
+                <p className="text-sm text-muted-foreground">{selectedRepuesto.descripcion}</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Desde: DESPIECE-{selectedDespiece.sku}
+                </p>
+              </div>
+              <div>
+                <Label>Seleccionar Incidente</Label>
+                <Select value={selectedIncidente} onValueChange={setSelectedIncidente}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccione el incidente" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {incidentesActivos.map((incidente) => (
+                      <SelectItem key={incidente.codigo} value={incidente.codigo}>
+                        {incidente.codigo} - {incidente.descripcion_problema.substring(0, 50)}...
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setUseDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleUsarRepuesto}>
+              Asignar Repuesto
             </Button>
           </DialogFooter>
         </DialogContent>
