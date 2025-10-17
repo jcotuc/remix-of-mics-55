@@ -45,6 +45,7 @@ export default function Despieces() {
   // Para asignar a incidente
   const [selectedIncidente, setSelectedIncidente] = useState('');
   const [incidentesActivos, setIncidentesActivos] = useState<any[]>([]);
+  const [incidentesFiltrados, setIncidentesFiltrados] = useState<any[]>([]);
 
   useEffect(() => {
     fetchProductos();
@@ -216,7 +217,7 @@ export default function Despieces() {
     setSelectedIncidente('');
     
     // Filtrar incidentes que tienen solicitud de este repuesto específico
-    const incidentesFiltrados = [];
+    const filtrados = [];
     
     for (const incidente of incidentesActivos) {
       const { data: solicitudes } = await supabase
@@ -233,12 +234,12 @@ export default function Despieces() {
         );
         
         if (tieneRepuesto) {
-          incidentesFiltrados.push(incidente);
+          filtrados.push(incidente);
         }
       }
     }
     
-    setIncidentesActivos(incidentesFiltrados);
+    setIncidentesFiltrados(filtrados);
     setUseDialogOpen(true);
   };
 
@@ -608,12 +609,12 @@ export default function Despieces() {
                     <SelectValue placeholder="Seleccione el incidente" />
                   </SelectTrigger>
                   <SelectContent>
-                    {incidentesActivos.length === 0 ? (
+                    {incidentesFiltrados.length === 0 ? (
                       <div className="p-2 text-sm text-muted-foreground">
                         No hay incidentes con diagnóstico que tengan solicitud de este repuesto
                       </div>
                     ) : (
-                      incidentesActivos.map((incidente) => (
+                      incidentesFiltrados.map((incidente) => (
                         <SelectItem key={incidente.codigo} value={incidente.codigo}>
                           {incidente.codigo} - {incidente.descripcion_problema.substring(0, 50)}...
                         </SelectItem>
