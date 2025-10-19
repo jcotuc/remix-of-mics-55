@@ -351,6 +351,84 @@ export type Database = {
         }
         Relationships: []
       }
+      guias_envio: {
+        Row: {
+          cantidad_piezas: number
+          ciudad_destino: string
+          created_at: string
+          created_by: string | null
+          destinatario: string
+          direccion_destinatario: string
+          direccion_remitente: string | null
+          estado: string
+          fecha_entrega: string | null
+          fecha_guia: string
+          fecha_ingreso: string
+          fecha_promesa_entrega: string | null
+          id: string
+          incidentes_codigos: string[] | null
+          numero_guia: string
+          operador_pod: string | null
+          peso: number | null
+          recibido_por: string | null
+          referencia_1: string | null
+          referencia_2: string | null
+          remitente: string
+          tarifa: number | null
+          updated_at: string
+        }
+        Insert: {
+          cantidad_piezas?: number
+          ciudad_destino: string
+          created_at?: string
+          created_by?: string | null
+          destinatario: string
+          direccion_destinatario: string
+          direccion_remitente?: string | null
+          estado?: string
+          fecha_entrega?: string | null
+          fecha_guia?: string
+          fecha_ingreso?: string
+          fecha_promesa_entrega?: string | null
+          id?: string
+          incidentes_codigos?: string[] | null
+          numero_guia: string
+          operador_pod?: string | null
+          peso?: number | null
+          recibido_por?: string | null
+          referencia_1?: string | null
+          referencia_2?: string | null
+          remitente?: string
+          tarifa?: number | null
+          updated_at?: string
+        }
+        Update: {
+          cantidad_piezas?: number
+          ciudad_destino?: string
+          created_at?: string
+          created_by?: string | null
+          destinatario?: string
+          direccion_destinatario?: string
+          direccion_remitente?: string | null
+          estado?: string
+          fecha_entrega?: string | null
+          fecha_guia?: string
+          fecha_ingreso?: string
+          fecha_promesa_entrega?: string | null
+          id?: string
+          incidentes_codigos?: string[] | null
+          numero_guia?: string
+          operador_pod?: string | null
+          peso?: number | null
+          recibido_por?: string | null
+          referencia_1?: string | null
+          referencia_2?: string | null
+          remitente?: string
+          tarifa?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       importaciones: {
         Row: {
           centro_destino_id: string | null
@@ -1445,6 +1523,10 @@ export type Database = {
         Returns: string
       }
       generar_codigo_incidente: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      generar_numero_guia: {
         Args: Record<PropertyKey, never>
         Returns: string
       }
