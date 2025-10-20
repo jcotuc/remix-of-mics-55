@@ -30,16 +30,11 @@ export default function ClientesLogistica() {
       const { data, error } = await supabase
         .from("clientes")
         .select("*")
+        .like('codigo', 'HPC%')
         .order("nombre");
 
       if (error) throw error;
-      
-      // Filtrar solo clientes del Excel (sin guion o formato diferente a HPC-XXXXXX / HPS-XXXXXX)
-      const clientesExcel = (data || []).filter(c => 
-        !/^HP[SC]-\d{6}$/.test(c.codigo)
-      );
-      
-      setClientes(clientesExcel);
+      setClientes(data || []);
     } catch (error) {
       console.error("Error fetching clientes:", error);
     } finally {

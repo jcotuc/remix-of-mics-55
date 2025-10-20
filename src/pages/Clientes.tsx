@@ -27,25 +27,29 @@ export default function Clientes() {
     try {
       setLoading(true);
       
-      // Obtener todos los clientes con código HPC
-      const { data: hpcClientes } = await supabase
+      // Obtener todos los clientes manuales (con guion HPC-XXXXXX o HPS-XXXXXX)
+      const { data: clientesManuales } = await supabase
         .from('clientes')
         .select('id, codigo')
-        .like('codigo', 'HPC-%');
+        .or('codigo.like.HPC-%,codigo.like.HPS-%');
 
-      if (hpcClientes && hpcClientes.length > 0) {
-        console.log(`Actualizando ${hpcClientes.length} clientes de HPC a HPS...`);
+      if (clientesManuales && clientesManuales.length > 0) {
+        const clientesConGuion = clientesManuales.filter(c => /^HP[SC]-\d{6}$/.test(c.codigo));
         
-        for (const cliente of hpcClientes) {
-          const newCodigo = cliente.codigo.replace('HPC-', 'HPS-');
+        console.log(`Actualizando ${clientesConGuion.length} clientes al formato HPS...`);
+        
+        for (const cliente of clientesConGuion) {
+          // Extraer el número y crear nuevo código sin guion
+          const numero = cliente.codigo.match(/\d{6}$/)[0];
+          const newCodigo = `HPS${numero}`;
           
-          // Primero actualizar incidentes que usan este código de cliente
+          // Actualizar incidentes que usan este código de cliente
           await supabase
             .from('incidentes')
             .update({ codigo_cliente: newCodigo })
             .eq('codigo_cliente', cliente.codigo);
           
-          // Luego actualizar el cliente
+          // Actualizar el cliente
           const { error } = await supabase
             .from('clientes')
             .update({ codigo: newCodigo })
@@ -59,7 +63,7 @@ export default function Clientes() {
         }
       }
 
-      // Luego cargar los clientes
+      // Cargar clientes
       await fetchClientes();
     } catch (error) {
       console.error('Error al actualizar códigos:', error);
@@ -71,21 +75,16 @@ export default function Clientes() {
     try {
       setLoading(true);
       
-      // Filtrar clientes manuales: HPS-XXXXXX o HPC-XXXXXX (con guion y 6 dígitos)
+      // Filtrar clientes manuales: formato HPSXXXXXX (sin guion)
       const { data, error } = await supabase
         .from('clientes')
         .select('*')
-        .or('codigo.like.HPS-%,codigo.like.HPC-%')
+        .like('codigo', 'HPS%')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
       
-      // Filtrar solo los que tienen el formato correcto (con guion y 6 dígitos)
-      const clientesManuales = (data || []).filter(c => 
-        /^HP[SC]-\d{6}$/.test(c.codigo)
-      );
-      
-      setClientesList(clientesManuales);
+      setClientesList(data || []);
     } catch (error) {
       console.error('Error al cargar clientes:', error);
       toast.error('Error al cargar los clientes');
