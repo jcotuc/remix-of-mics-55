@@ -20,8 +20,36 @@ export default function Clientes() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
   useEffect(() => {
-    fetchClientes();
+    updateCodesAndFetch();
   }, []);
+
+  const updateCodesAndFetch = async () => {
+    try {
+      setLoading(true);
+      
+      // Primero actualizar códigos HPC a HPS
+      const { data: hpcClientes } = await supabase
+        .from('clientes')
+        .select('id, codigo')
+        .like('codigo', 'HPC-%');
+
+      if (hpcClientes && hpcClientes.length > 0) {
+        for (const cliente of hpcClientes) {
+          const newCodigo = cliente.codigo.replace('HPC-', 'HPS-');
+          await supabase
+            .from('clientes')
+            .update({ codigo: newCodigo })
+            .eq('id', cliente.id);
+        }
+      }
+
+      // Luego cargar los clientes
+      await fetchClientes();
+    } catch (error) {
+      console.error('Error al actualizar códigos:', error);
+      setLoading(false);
+    }
+  };
 
   const fetchClientes = async () => {
     try {
