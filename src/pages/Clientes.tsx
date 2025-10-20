@@ -27,7 +27,7 @@ export default function Clientes() {
     try {
       setLoading(true);
       
-      // Obtener todos los clientes con código HPC
+      // Obtener todos los clientes con código HPC-XXXXXX (formato manual)
       const { data: hpcClientes } = await supabase
         .from('clientes')
         .select('id, codigo')
@@ -37,6 +37,7 @@ export default function Clientes() {
         console.log(`Actualizando ${hpcClientes.length} clientes de HPC a HPS...`);
         
         for (const cliente of hpcClientes) {
+          // Mantener el mismo formato: HPC-XXXXXX → HPS-XXXXXX
           const newCodigo = cliente.codigo.replace('HPC-', 'HPS-');
           
           // Primero actualizar incidentes que usan este código de cliente
@@ -57,12 +58,15 @@ export default function Clientes() {
             console.log(`✓ Actualizado: ${cliente.codigo} → ${newCodigo}`);
           }
         }
+        
+        toast.success(`${hpcClientes.length} clientes actualizados a HPS`);
       }
 
       // Luego cargar los clientes
       await fetchClientes();
     } catch (error) {
       console.error('Error al actualizar códigos:', error);
+      toast.error('Error al actualizar códigos de clientes');
       setLoading(false);
     }
   };
@@ -71,18 +75,18 @@ export default function Clientes() {
     try {
       setLoading(true);
       
-      // Filtrar clientes manuales: HPS-XXXXXX o HPC-XXXXXX (con guion y 6 dígitos)
+      // Filtrar clientes manuales: HPS-XXXXXX (con guion y 6 dígitos)
       const { data, error } = await supabase
         .from('clientes')
         .select('*')
-        .or('codigo.like.HPS-%,codigo.like.HPC-%')
+        .like('codigo', 'HPS-%')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
       
       // Filtrar solo los que tienen el formato correcto (con guion y 6 dígitos)
       const clientesManuales = (data || []).filter(c => 
-        /^HP[SC]-\d{6}$/.test(c.codigo)
+        /^HPS-\d{6}$/.test(c.codigo)
       );
       
       setClientesList(clientesManuales);
