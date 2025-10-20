@@ -27,7 +27,7 @@ export default function Clientes() {
     try {
       setLoading(true);
       
-      // Primero actualizar TODOS los códigos HPC a HPS
+      // Obtener todos los clientes con código HPC
       const { data: hpcClientes } = await supabase
         .from('clientes')
         .select('id, codigo')
@@ -36,22 +36,25 @@ export default function Clientes() {
       if (hpcClientes && hpcClientes.length > 0) {
         console.log(`Actualizando ${hpcClientes.length} clientes de HPC a HPS...`);
         
-        // Actualizar en lote
-        const updates = hpcClientes.map(cliente => ({
-          id: cliente.id,
-          codigo: cliente.codigo.replace('HPC-', 'HPS-')
-        }));
-
-        for (const update of updates) {
+        for (const cliente of hpcClientes) {
+          const newCodigo = cliente.codigo.replace('HPC-', 'HPS-');
+          
+          // Primero actualizar incidentes que usan este código de cliente
+          await supabase
+            .from('incidentes')
+            .update({ codigo_cliente: newCodigo })
+            .eq('codigo_cliente', cliente.codigo);
+          
+          // Luego actualizar el cliente
           const { error } = await supabase
             .from('clientes')
-            .update({ codigo: update.codigo })
-            .eq('id', update.id);
+            .update({ codigo: newCodigo })
+            .eq('id', cliente.id);
           
           if (error) {
-            console.error(`Error actualizando ${update.codigo}:`, error);
+            console.error(`Error actualizando ${newCodigo}:`, error);
           } else {
-            console.log(`✓ Actualizado: ${update.codigo}`);
+            console.log(`✓ Actualizado: ${cliente.codigo} → ${newCodigo}`);
           }
         }
       }
