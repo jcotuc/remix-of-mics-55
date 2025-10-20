@@ -29,6 +29,7 @@ export default function Clientes() {
       const { data, error } = await supabase
         .from('clientes')
         .select('*')
+        .like('codigo', 'HPS-%')
         .order('created_at', { ascending: false });
 
       if (error) throw error;

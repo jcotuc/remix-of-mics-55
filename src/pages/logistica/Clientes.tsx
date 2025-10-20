@@ -30,6 +30,7 @@ export default function ClientesLogistica() {
       const { data, error } = await supabase
         .from("clientes")
         .select("*")
+        .not('codigo', 'like', 'HPS-%')
         .order("nombre");
 
       if (error) throw error;
