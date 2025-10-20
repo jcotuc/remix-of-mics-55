@@ -34,10 +34,12 @@ export default function ClientesLogistica() {
 
       if (error) throw error;
       
-      // Filtrar solo clientes del Excel (sin guion o formato diferente a HPC-XXXXXX / HPS-XXXXXX)
+      // Filtrar solo clientes del Excel (formato HPCXXXXXX sin guion)
       const clientesExcel = (data || []).filter(c => 
-        !/^HP[SC]-\d{6}$/.test(c.codigo)
+        c.codigo.startsWith('HPC') && !c.codigo.includes('-')
       );
+      
+      console.log(`Total clientes en DB: ${data?.length}, Clientes Excel: ${clientesExcel.length}`);
       
       setClientes(clientesExcel);
     } catch (error) {
