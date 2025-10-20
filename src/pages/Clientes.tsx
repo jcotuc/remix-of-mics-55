@@ -27,19 +27,32 @@ export default function Clientes() {
     try {
       setLoading(true);
       
-      // Primero actualizar códigos HPC a HPS
+      // Primero actualizar TODOS los códigos HPC a HPS
       const { data: hpcClientes } = await supabase
         .from('clientes')
         .select('id, codigo')
         .like('codigo', 'HPC-%');
 
       if (hpcClientes && hpcClientes.length > 0) {
-        for (const cliente of hpcClientes) {
-          const newCodigo = cliente.codigo.replace('HPC-', 'HPS-');
-          await supabase
+        console.log(`Actualizando ${hpcClientes.length} clientes de HPC a HPS...`);
+        
+        // Actualizar en lote
+        const updates = hpcClientes.map(cliente => ({
+          id: cliente.id,
+          codigo: cliente.codigo.replace('HPC-', 'HPS-')
+        }));
+
+        for (const update of updates) {
+          const { error } = await supabase
             .from('clientes')
-            .update({ codigo: newCodigo })
-            .eq('id', cliente.id);
+            .update({ codigo: update.codigo })
+            .eq('id', update.id);
+          
+          if (error) {
+            console.error(`Error actualizando ${update.codigo}:`, error);
+          } else {
+            console.log(`✓ Actualizado: ${update.codigo}`);
+          }
         }
       }
 
