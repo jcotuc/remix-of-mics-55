@@ -108,7 +108,7 @@ export default function ImportarClientes() {
             nit: getValue(row['U_Nit']) || 'CF',
             telefono_principal: getValue(row['Phone1']),
             telefono_secundario: getValue(row['Phone2']),
-            celular: getValue(row['Phone1']), // Usar Phone1 como celular
+            celular: getValue(row['Phone1']) || 'Sin teléfono', // Usar Phone1 como celular o valor por defecto
             correo: getValue(row['E_Mail']),
             direccion: getValue(row['Address']),
             direccion_envio: getValue(row['MailAddres']),
