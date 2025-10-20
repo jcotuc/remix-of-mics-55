@@ -34,6 +34,7 @@ const menuAreas = {
     { title: "Entrega de Máquinas", url: "/mostrador/entrega-maquinas", icon: PackageCheck },
   ],
   logistica: [
+    { title: "Clientes", url: "/logistica/clientes", icon: Users },
     { title: "Embarques", url: "/logistica/embarques", icon: Truck },
     { title: "Herramientas Manuales", url: "/logistica/herramientas-manuales", icon: Wrench },
     { title: "Guías", url: "/logistica/guias", icon: FileSpreadsheet },
