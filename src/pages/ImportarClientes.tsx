@@ -75,10 +75,10 @@ export default function ImportarClientes() {
 
   const processExcelData = async (jsonData: any[]): Promise<number> => {
     let count = 0;
-    let skipped = 0;
-    const batchSize = 100;
+    let errors = 0;
+    const batchSize = 50; // Reducir tamaño del batch para mejor control
     
-    console.log(`Procesando ${jsonData.length} registros...`);
+    console.log(`📊 Procesando ${jsonData.length} registros en total...`);
     
     for (let i = 0; i < jsonData.length; i += batchSize) {
       const batch = jsonData.slice(i, i + batchSize);
@@ -95,24 +95,45 @@ export default function ImportarClientes() {
         .filter(c => c.codigo && c.nombre);
 
       if (clientesData.length > 0) {
-        const { data, error } = await supabase
-          .from('clientes')
-          .upsert(clientesData, {
-            onConflict: 'codigo',
-            ignoreDuplicates: false
-          });
-        
-        if (!error) {
-          count += clientesData.length;
-          console.log(`Batch ${i}-${i+batchSize}: ${clientesData.length} clientes procesados`);
-        } else {
-          console.error('Error en batch:', error);
-          skipped += clientesData.length;
+        try {
+          const { data, error } = await supabase
+            .from('clientes')
+            .upsert(clientesData, {
+              onConflict: 'codigo',
+              ignoreDuplicates: false
+            })
+            .select();
+          
+          if (!error) {
+            count += clientesData.length;
+            console.log(`✅ Batch ${Math.floor(i/batchSize) + 1}: ${clientesData.length} clientes | Total: ${count}/${jsonData.length}`);
+          } else {
+            errors++;
+            console.error(`❌ Error en batch ${Math.floor(i/batchSize) + 1}:`, error.message);
+            
+            // Intentar insertar uno por uno si falla el batch
+            for (const cliente of clientesData) {
+              try {
+                await supabase
+                  .from('clientes')
+                  .upsert(cliente, { onConflict: 'codigo' });
+                count++;
+              } catch (e) {
+                console.error(`Error individual en cliente ${cliente.codigo}`);
+              }
+            }
+          }
+        } catch (e) {
+          console.error(`Error general en batch:`, e);
+          errors++;
         }
       }
+      
+      // Pequeña pausa para no saturar
+      await new Promise(resolve => setTimeout(resolve, 100));
     }
     
-    console.log(`Total procesado: ${count}, Omitidos: ${skipped}`);
+    console.log(`✨ Importación completa: ${count} exitosos, ${errors} errores`);
     return count;
   };
 
