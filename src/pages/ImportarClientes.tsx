@@ -15,38 +15,32 @@ export default function ImportarClientes() {
 
 
   useEffect(() => {
-    // Auto-importar archivos al cargar la página
-    autoImportCSVs();
+    // Auto-importar archivos de SAP al cargar la página
+    autoImportSAPClients();
   }, []);
 
-  const autoImportCSVs = async () => {
+  const autoImportSAPClients = async () => {
     setAutoImporting(true);
     setLoading(true);
     
     try {
       let totalImported = 0;
       const files = [
-        '/temp/clientes_nuevos_parte_1.xlsx',
-        '/temp/clientes_nuevos_parte_2.xlsx'
+        '/temp/clientes_sap_parte_1.csv',
+        '/temp/clientes_sap_parte_2.csv'
       ];
 
       for (const filePath of files) {
         try {
-          console.log(`Importando archivo: ${filePath}`);
+          console.log(`Importando archivo SAP: ${filePath}`);
           const response = await fetch(filePath);
           if (!response.ok) {
             console.error(`No se pudo cargar ${filePath}`);
             continue;
           }
           
-          const arrayBuffer = await response.arrayBuffer();
-          const workbook = XLSX.read(arrayBuffer);
-          const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-          const jsonData = XLSX.utils.sheet_to_json(worksheet);
-          
-          console.log(`Archivo ${filePath} tiene ${jsonData.length} registros`);
-          
-          const count = await processExcelData(jsonData);
+          const text = await response.text();
+          const count = await processSAPCSV(text);
           totalImported += count;
           
           console.log(`Importados ${count} clientes de ${filePath}`);
@@ -57,20 +51,115 @@ export default function ImportarClientes() {
 
       setImported(totalImported);
       toast({
-        title: "Importación automática completada",
-        description: `Se importaron ${totalImported} clientes desde los archivos Excel.`,
+        title: "Importación SAP completada",
+        description: `Se importaron ${totalImported} clientes desde SAP.`,
       });
     } catch (error) {
-      console.error('Error en importación automática:', error);
+      console.error('Error en importación SAP:', error);
       toast({
-        title: "Error en importación automática",
-        description: "No se pudieron cargar los archivos automáticamente.",
+        title: "Error en importación SAP",
+        description: "No se pudieron cargar los archivos de SAP.",
         variant: "destructive",
       });
     } finally {
       setLoading(false);
       setAutoImporting(false);
     }
+  };
+
+  const processSAPCSV = async (csvText: string): Promise<number> => {
+    // Parsear CSV con delimitador ; (punto y coma)
+    const lines = csvText.split('\n');
+    if (lines.length < 2) return 0;
+    
+    // Remover BOM si existe
+    const firstLine = lines[0].replace(/^\uFEFF/, '');
+    const headers = firstLine.split(';').map(h => h.trim());
+    
+    console.log(`📊 Headers encontrados:`, headers);
+    console.log(`📊 Procesando ${lines.length - 1} registros de SAP...`);
+    
+    const batchSize = 50;
+    let count = 0;
+    let errors = 0;
+    
+    for (let i = 1; i < lines.length; i += batchSize) {
+      const batch = lines.slice(i, Math.min(i + batchSize, lines.length));
+      const clientesData = batch
+        .filter(line => line.trim())
+        .map(line => {
+          const values = line.split(';').map(v => v.trim());
+          const row: any = {};
+          headers.forEach((header, idx) => {
+            row[header] = values[idx] || '';
+          });
+          
+          // Convertir "NULL" string a null real
+          const getValue = (val: string) => {
+            if (!val || val === 'NULL' || val === 'null') return null;
+            return val;
+          };
+          
+          return {
+            codigo: row['CardCode'] || '',
+            codigo_sap: row['CardCode'] || '',
+            nombre: getValue(row['CardName']) || '',
+            nombre_facturacion: getValue(row['CardName']) || '',
+            nit: getValue(row['U_Nit']) || 'CF',
+            telefono_principal: getValue(row['Phone1']),
+            telefono_secundario: getValue(row['Phone2']),
+            celular: getValue(row['Phone1']), // Usar Phone1 como celular
+            correo: getValue(row['E_Mail']),
+            direccion: getValue(row['Address']),
+            direccion_envio: getValue(row['MailAddres']),
+            municipio: getValue(row['City']),
+            departamento: getValue(row['County']),
+            pais: row['Country'] === 'GT' ? 'Guatemala' : getValue(row['Country']),
+            origen: 'sap',
+          };
+        })
+        .filter(c => c.codigo && c.nombre);
+
+      if (clientesData.length > 0) {
+        try {
+          const { error } = await supabase
+            .from('clientes')
+            .upsert(clientesData, {
+              onConflict: 'codigo',
+              ignoreDuplicates: false
+            });
+          
+          if (!error) {
+            count += clientesData.length;
+            console.log(`✅ Batch ${Math.floor((i-1)/batchSize) + 1}: ${clientesData.length} clientes | Total: ${count}`);
+          } else {
+            errors++;
+            console.error(`❌ Error en batch:`, error.message);
+            
+            // Intentar insertar uno por uno si falla el batch
+            for (const cliente of clientesData) {
+              try {
+                await supabase
+                  .from('clientes')
+                  .upsert(cliente, { onConflict: 'codigo' });
+                count++;
+              } catch (e) {
+                console.error(`Error individual en cliente ${cliente.codigo}`);
+              }
+            }
+          }
+        } catch (e) {
+          console.error(`Error general en batch:`, e);
+          errors++;
+        }
+      }
+      
+      // Pequeña pausa para no saturar
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    
+    console.log(`✨ Importación SAP completa: ${count} exitosos, ${errors} errores`);
+    return count;
   };
 
   const processExcelData = async (jsonData: any[]): Promise<number> => {
