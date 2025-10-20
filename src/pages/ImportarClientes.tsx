@@ -26,19 +26,30 @@ export default function ImportarClientes() {
     try {
       let totalImported = 0;
       const files = [
-        '/temp/clientes_parte_1.xlsx',
-        '/temp/clientes_parte_2.xlsx'
+        '/temp/clientes_nuevos_parte_1.xlsx',
+        '/temp/clientes_nuevos_parte_2.xlsx'
       ];
 
       for (const filePath of files) {
         try {
+          console.log(`Importando archivo: ${filePath}`);
           const response = await fetch(filePath);
+          if (!response.ok) {
+            console.error(`No se pudo cargar ${filePath}`);
+            continue;
+          }
+          
           const arrayBuffer = await response.arrayBuffer();
           const workbook = XLSX.read(arrayBuffer);
           const worksheet = workbook.Sheets[workbook.SheetNames[0]];
           const jsonData = XLSX.utils.sheet_to_json(worksheet);
+          
+          console.log(`Archivo ${filePath} tiene ${jsonData.length} registros`);
+          
           const count = await processExcelData(jsonData);
           totalImported += count;
+          
+          console.log(`Importados ${count} clientes de ${filePath}`);
         } catch (error) {
           console.error(`Error procesando ${filePath}:`, error);
         }
@@ -47,13 +58,13 @@ export default function ImportarClientes() {
       setImported(totalImported);
       toast({
         title: "Importación automática completada",
-        description: `Se importaron ${totalImported} clientes desde los archivos CSV.`,
+        description: `Se importaron ${totalImported} clientes desde los archivos Excel.`,
       });
     } catch (error) {
       console.error('Error en importación automática:', error);
       toast({
         title: "Error en importación automática",
-        description: "No se pudieron cargar los archivos automáticamente. Puedes subir archivos manualmente.",
+        description: "No se pudieron cargar los archivos automáticamente.",
         variant: "destructive",
       });
     } finally {
