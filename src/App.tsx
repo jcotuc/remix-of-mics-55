@@ -21,6 +21,7 @@ import Embarques from "./pages/logistica/Embarques";
 import HerramientasManuales from "./pages/logistica/HerramientasManuales";
 import Guias from "./pages/logistica/Guias";
 import IngresoMaquinas from "./pages/logistica/IngresoMaquinas";
+import ClientesLogistica from "./pages/logistica/Clientes";
 import SalidaMaquinas from "./pages/logistica/SalidaMaquinas";
 import FaltanteAccesorios from "./pages/logistica/FaltanteAccesorios";
 import MaquinasNuevasRT from "./pages/logistica/MaquinasNuevasRT";
@@ -83,6 +84,7 @@ const App = () => (
               <Route path="/logistica/danos-transporte" element={<DanosTransporte />} />
               <Route path="/logistica/consulta-precios" element={<ConsultaPreciosLogistica />} />
               <Route path="/logistica/consulta-ubicaciones" element={<ConsultaUbicaciones />} />
+              <Route path="/logistica/clientes" element={<ClientesLogistica />} />
               <Route path="/taller/asignaciones" element={<Asignaciones />} />
               <Route path="/taller/mis-asignaciones" element={<MisAsignaciones />} />
               <Route path="/taller/busqueda-incidentes" element={<BusquedaIncidentes />} />

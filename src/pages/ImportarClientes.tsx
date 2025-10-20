@@ -26,15 +26,18 @@ export default function ImportarClientes() {
     try {
       let totalImported = 0;
       const files = [
-        '/temp/clientes_parte_1.csv',
-        '/temp/clientes_parte_2.csv'
+        '/temp/clientes_parte_1.xlsx',
+        '/temp/clientes_parte_2.xlsx'
       ];
 
       for (const filePath of files) {
         try {
           const response = await fetch(filePath);
-          const text = await response.text();
-          const count = await processCSVText(text);
+          const arrayBuffer = await response.arrayBuffer();
+          const workbook = XLSX.read(arrayBuffer);
+          const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+          const jsonData = XLSX.utils.sheet_to_json(worksheet);
+          const count = await processExcelData(jsonData);
           totalImported += count;
         } catch (error) {
           console.error(`Error procesando ${filePath}:`, error);
@@ -59,21 +62,7 @@ export default function ImportarClientes() {
     }
   };
 
-  const processCSVText = async (text: string): Promise<number> => {
-    const lines = text.split('\n');
-    const headers = lines[0].split(';');
-    
-    const jsonData = lines.slice(1)
-      .filter(line => line.trim())
-      .map(line => {
-        const values = line.split(';');
-        const obj: any = {};
-        headers.forEach((header, i) => {
-          obj[header.trim()] = values[i]?.trim() || '';
-        });
-        return obj;
-      });
-
+  const processExcelData = async (jsonData: any[]): Promise<number> => {
     let count = 0;
     const batchSize = 100;
     
