@@ -95,6 +95,7 @@ export type Database = {
         Row: {
           celular: string
           codigo: string
+          codigo_sap: string | null
           correo: string | null
           created_at: string
           departamento: string | null
@@ -105,6 +106,7 @@ export type Database = {
           nit: string
           nombre: string
           nombre_facturacion: string | null
+          origen: string | null
           pais: string | null
           telefono_principal: string | null
           telefono_secundario: string | null
@@ -113,6 +115,7 @@ export type Database = {
         Insert: {
           celular: string
           codigo: string
+          codigo_sap?: string | null
           correo?: string | null
           created_at?: string
           departamento?: string | null
@@ -123,6 +126,7 @@ export type Database = {
           nit: string
           nombre: string
           nombre_facturacion?: string | null
+          origen?: string | null
           pais?: string | null
           telefono_principal?: string | null
           telefono_secundario?: string | null
@@ -131,6 +135,7 @@ export type Database = {
         Update: {
           celular?: string
           codigo?: string
+          codigo_sap?: string | null
           correo?: string | null
           created_at?: string
           departamento?: string | null
@@ -141,6 +146,7 @@ export type Database = {
           nit?: string
           nombre?: string
           nombre_facturacion?: string | null
+          origen?: string | null
           pais?: string | null
           telefono_principal?: string | null
           telefono_secundario?: string | null
