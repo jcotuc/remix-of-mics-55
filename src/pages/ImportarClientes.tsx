@@ -64,7 +64,10 @@ export default function ImportarClientes() {
 
   const processExcelData = async (jsonData: any[]): Promise<number> => {
     let count = 0;
+    let skipped = 0;
     const batchSize = 100;
+    
+    console.log(`Procesando ${jsonData.length} registros...`);
     
     for (let i = 0; i < jsonData.length; i += batchSize) {
       const batch = jsonData.slice(i, i + batchSize);
@@ -81,18 +84,24 @@ export default function ImportarClientes() {
         .filter(c => c.codigo && c.nombre);
 
       if (clientesData.length > 0) {
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('clientes')
-          .insert(clientesData);
+          .upsert(clientesData, {
+            onConflict: 'codigo',
+            ignoreDuplicates: false
+          });
         
         if (!error) {
           count += clientesData.length;
+          console.log(`Batch ${i}-${i+batchSize}: ${clientesData.length} clientes procesados`);
         } else {
           console.error('Error en batch:', error);
+          skipped += clientesData.length;
         }
       }
     }
     
+    console.log(`Total procesado: ${count}, Omitidos: ${skipped}`);
     return count;
   };
 
