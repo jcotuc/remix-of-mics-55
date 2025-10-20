@@ -40,20 +40,14 @@ export default function Clientes() {
           // Mantener el mismo formato: HPC-XXXXXX → HPS-XXXXXX
           const newCodigo = cliente.codigo.replace('HPC-', 'HPS-');
           
-          // Primero actualizar incidentes que usan este código de cliente
-          await supabase
-            .from('incidentes')
-            .update({ codigo_cliente: newCodigo })
-            .eq('codigo_cliente', cliente.codigo);
-          
-          // Luego actualizar el cliente
+          // Ahora con ON UPDATE CASCADE el cliente se actualiza y los incidentes también
           const { error } = await supabase
             .from('clientes')
             .update({ codigo: newCodigo })
             .eq('id', cliente.id);
           
           if (error) {
-            console.error(`Error actualizando ${newCodigo}:`, error);
+            console.error(`Error actualizando ${cliente.codigo} → ${newCodigo}:`, error);
           } else {
             console.log(`✓ Actualizado: ${cliente.codigo} → ${newCodigo}`);
           }
