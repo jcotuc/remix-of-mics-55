@@ -8,6 +8,7 @@ import { Layout } from "./components/Layout";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Clientes from "./pages/Clientes";
+import ImportarClientes from "./pages/ImportarClientes";
 import Productos from "./pages/Productos";
 import Repuestos from "./pages/Repuestos";
 import NuevoIncidente from "./pages/NuevoIncidente";
@@ -63,6 +64,7 @@ const App = () => (
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/mostrador/clientes" element={<Clientes />} />
+              <Route path="/mostrador/importar-clientes" element={<ImportarClientes />} />
               <Route path="/mostrador/consulta-precios" element={<ConsultaPrecios />} />
               <Route path="/mostrador/seguimiento/:id" element={<SeguimientoIncidente />} />
               <Route path="/mostrador/incidentes" element={<IncidentesMostrador />} />
