@@ -1,16 +1,111 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import * as XLSX from 'xlsx';
-import { Upload, CheckCircle2 } from "lucide-react";
+import { Upload, CheckCircle2, Loader2 } from "lucide-react";
 
 export default function ImportarClientes() {
   const [loading, setLoading] = useState(false);
   const [imported, setImported] = useState(0);
+  const [autoImporting, setAutoImporting] = useState(false);
   const { toast } = useToast();
+
+
+  useEffect(() => {
+    // Auto-importar archivos al cargar la página
+    autoImportCSVs();
+  }, []);
+
+  const autoImportCSVs = async () => {
+    setAutoImporting(true);
+    setLoading(true);
+    
+    try {
+      let totalImported = 0;
+      const files = [
+        '/temp/clientes_parte_1.csv',
+        '/temp/clientes_parte_2.csv'
+      ];
+
+      for (const filePath of files) {
+        try {
+          const response = await fetch(filePath);
+          const text = await response.text();
+          const count = await processCSVText(text);
+          totalImported += count;
+        } catch (error) {
+          console.error(`Error procesando ${filePath}:`, error);
+        }
+      }
+
+      setImported(totalImported);
+      toast({
+        title: "Importación automática completada",
+        description: `Se importaron ${totalImported} clientes desde los archivos CSV.`,
+      });
+    } catch (error) {
+      console.error('Error en importación automática:', error);
+      toast({
+        title: "Error en importación automática",
+        description: "No se pudieron cargar los archivos automáticamente. Puedes subir archivos manualmente.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+      setAutoImporting(false);
+    }
+  };
+
+  const processCSVText = async (text: string): Promise<number> => {
+    const lines = text.split('\n');
+    const headers = lines[0].split(';');
+    
+    const jsonData = lines.slice(1)
+      .filter(line => line.trim())
+      .map(line => {
+        const values = line.split(';');
+        const obj: any = {};
+        headers.forEach((header, i) => {
+          obj[header.trim()] = values[i]?.trim() || '';
+        });
+        return obj;
+      });
+
+    let count = 0;
+    const batchSize = 100;
+    
+    for (let i = 0; i < jsonData.length; i += batchSize) {
+      const batch = jsonData.slice(i, i + batchSize);
+      const clientesData = batch
+        .map(row => ({
+          codigo: row['CardCode'] || '',
+          nombre: row['CardName'] || '',
+          nit: row['LicTradNum'] || 'CF',
+          celular: row['Cellular'] || row['Phone1'] || '',
+          direccion: row['Address'] || '',
+          correo: row['E_Mail'] || '',
+          telefono_principal: row['Phone1'] || '',
+        }))
+        .filter(c => c.codigo && c.nombre);
+
+      if (clientesData.length > 0) {
+        const { error } = await supabase
+          .from('clientes')
+          .insert(clientesData);
+        
+        if (!error) {
+          count += clientesData.length;
+        } else {
+          console.error('Error en batch:', error);
+        }
+      }
+    }
+    
+    return count;
+  };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -99,6 +194,13 @@ export default function ImportarClientes() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {autoImporting && (
+            <div className="flex items-center gap-2 text-blue-600 bg-blue-50 p-4 rounded-lg">
+              <Loader2 className="h-5 w-5 animate-spin" />
+              <span>Importando clientes automáticamente desde los archivos CSV...</span>
+            </div>
+          )}
+          
           <div className="flex items-center gap-4">
             <Input
               type="file"
