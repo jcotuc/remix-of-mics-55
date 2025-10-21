@@ -12,8 +12,8 @@ const ZIGO_CONFIG = {
   domain: 'dev-api-entregas.zigo.com.gt',
   port: '443',
   apiKey: 'ZG!eA#CHy2E!',
-  username: 'cosorio',
-  password: 'Zigo2025!'
+  username: Deno.env.get('ZIGO_USERNAME') || 'cosorio',
+  password: Deno.env.get('ZIGO_PASSWORD') || 'Zigo2025!'
 };
 
 serve(async (req) => {
