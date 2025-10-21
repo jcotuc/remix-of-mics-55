@@ -363,51 +363,35 @@ export default function Guias() {
     try {
       const numeroIngresado = consultaData.numero_guia.trim();
       
-      // 1. Autenticarse en Zigo
-      console.log('🔐 Autenticando en Zigo...');
-      const authResponse = await fetch('https://dev-api-entregas.zigo.com.gt:443/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          username: 'cosorio',
-          password: 'Zigo2025!'
-        })
-      });
-
-      if (!authResponse.ok) {
-        throw new Error('Error al autenticar con Zigo');
-      }
-
-      const authData = await authResponse.json();
-      const accessToken = authData.data.accessToken;
-      console.log('✓ Autenticación exitosa');
-      
-      // 2. Buscar la guía con el endpoint correcto
       console.log(`🔍 Buscando guía: ${numeroIngresado}`);
-      const zigoUrl = `https://dev-api-entregas.zigo.com.gt:443/guide/find-by-id/${numeroIngresado}`;
+      
+      // Usar el endpoint público de Zigo (no requiere autenticación)
+      const zigoUrl = `https://dev-api-entregas.zigo.com.gt:443/guide/${numeroIngresado}`;
       
       const response = await fetch(zigoUrl, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          'x-api-key': '66aba-0d22-4bc7-adf8-55e71b41c71b@2025-01-11',
-          'Authorization': `Bearer ${accessToken}`
+          'x-api-key': 'ZG!eA#CHy2E!'
         }
       });
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         console.error('❌ Error de Zigo:', errorData);
-        throw new Error(`Error ${response.status}: ${errorData.error?.message || 'No se encontró la guía'}`);
+        
+        if (errorData.error?.type === 'GUIDE.GuideNotFound') {
+          throw new Error('Guía no encontrada');
+        }
+        
+        throw new Error(`Error ${response.status}: ${errorData.error?.message || 'No se pudo consultar la guía'}`);
       }
       
       const result = await response.json();
       const guiaData = result.data;
       console.log('✓ Guía encontrada:', guiaData);
       
-      // 3. Llenar el formulario con los datos
+      // Llenar el formulario con los datos
       setConsultaData({
         numero_guia: guiaData.guideNumber || numeroIngresado,
         estado_guia: guiaData.guideStatusId || "",
@@ -425,7 +409,7 @@ export default function Guias() {
         direccion_destinatario: guiaData.recipientAddress || "",
         recibido_por: guiaData.podName || "",
         fecha_entrega: guiaData.podDate || "",
-        operador_pod: guiaData.podOperatorId || ""
+        operador_pod: guiaData.podOperator || ""
       });
       
       toast({
