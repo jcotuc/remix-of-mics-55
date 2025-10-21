@@ -401,7 +401,7 @@ export default function Guias() {
         
         try {
           console.log(`Probando formato: ${formato}`);
-          const zigoUrl = `https://dev-api-entregas.zigo.com.gt:443/guide/${formato}`;
+          const zigoUrl = `https://dev-api-entregas.zigo.com.gt:443/guide/find-by-id/${formato}`;
           
           const response = await fetch(zigoUrl, {
             method: 'GET',
