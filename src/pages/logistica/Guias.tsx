@@ -363,7 +363,8 @@ export default function Guias() {
     try {
       const numeroIngresado = consultaData.numero_guia.trim();
       
-      // Primero autenticarse en Zigo para obtener el token
+      // 1. Autenticarse en Zigo
+      console.log('🔐 Autenticando en Zigo...');
       const authResponse = await fetch('https://dev-api-entregas.zigo.com.gt:443/auth/login', {
         method: 'POST',
         headers: {
@@ -381,56 +382,32 @@ export default function Guias() {
 
       const authData = await authResponse.json();
       const accessToken = authData.data.accessToken;
+      console.log('✓ Autenticación exitosa');
       
-      // Intentar diferentes formatos de la guía
-      const formatosPosibles = [
-        numeroIngresado.toUpperCase(), // Mayúsculas tal cual
-        `${numeroIngresado.toUpperCase()}-001`, // Mayúsculas + sufijo -001
-        numeroIngresado.toLowerCase(), // Minúsculas
-        `${numeroIngresado.toLowerCase()}-001`, // Minúsculas + sufijo
-      ];
+      // 2. Buscar la guía con el endpoint correcto
+      console.log(`🔍 Buscando guía: ${numeroIngresado}`);
+      const zigoUrl = `https://dev-api-entregas.zigo.com.gt:443/guide/find-by-id/${numeroIngresado}`;
       
-      console.log('Formatos a probar:', formatosPosibles);
-      
-      let guiaEncontrada = false;
-      let guiaData = null;
-      
-      // Intentar cada formato con autenticación
-      for (const formato of formatosPosibles) {
-        if (guiaEncontrada) break;
-        
-        try {
-          console.log(`Probando formato: ${formato}`);
-          const zigoUrl = `https://dev-api-entregas.zigo.com.gt:443/guide/find-by-id/${formato}`;
-          
-          const response = await fetch(zigoUrl, {
-            method: 'GET',
-            headers: {
-              'Content-Type': 'application/json',
-              'x-api-key': '66aba-0d22-4bc7-adf8-55e71b41c71b@2025-01-11',
-              'Authorization': `Bearer ${accessToken}`
-            }
-          });
-          
-          if (response.ok) {
-            const result = await response.json();
-            guiaData = result.data;
-            guiaEncontrada = true;
-            console.log('✓ Guía encontrada con formato:', formato);
-            break;
-          } else {
-            console.log(`✗ Formato ${formato} no encontrado`);
-          }
-        } catch (error) {
-          console.log(`✗ Error con formato ${formato}:`, error);
+      const response = await fetch(zigoUrl, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': '66aba-0d22-4bc7-adf8-55e71b41c71b@2025-01-11',
+          'Authorization': `Bearer ${accessToken}`
         }
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('❌ Error de Zigo:', errorData);
+        throw new Error(`Error ${response.status}: ${errorData.error?.message || 'No se encontró la guía'}`);
       }
       
-      if (!guiaEncontrada) {
-        throw new Error('No se encontró con ningún formato');
-      }
+      const result = await response.json();
+      const guiaData = result.data;
+      console.log('✓ Guía encontrada:', guiaData);
       
-      // Llenar el formulario con los datos de Zigo
+      // 3. Llenar el formulario con los datos
       setConsultaData({
         numero_guia: guiaData.guideNumber || numeroIngresado,
         estado_guia: guiaData.guideStatusId || "",
@@ -448,63 +425,21 @@ export default function Guias() {
         direccion_destinatario: guiaData.recipientAddress || "",
         recibido_por: guiaData.podName || "",
         fecha_entrega: guiaData.podDate || "",
-        operador_pod: guiaData.podOperator || ""
+        operador_pod: guiaData.podOperatorId || ""
       });
       
       toast({
         title: "Éxito",
-        description: `Guía ${guiaData.guideNumber} encontrada en Zigo`
+        description: "Guía encontrada en Zigo"
       });
       
-    } catch (zigoError) {
-      console.error('Error buscando en Zigo:', zigoError);
-      
-      // Si falla Zigo, buscar en la base de datos local
-      try {
-        const { data, error } = await supabase
-          .from('guias_envio')
-          .select('*')
-          .ilike('numero_guia', `%${consultaData.numero_guia}%`)
-          .maybeSingle();
-          
-        if (error) throw error;
-        
-        if (data) {
-          setConsultaData({
-            numero_guia: data.numero_guia,
-            estado_guia: data.estado,
-            fecha_guia: data.fecha_guia ? format(new Date(data.fecha_guia), 'yyyy-MM-dd') : "",
-            remitente: data.remitente,
-            direccion_remitente: data.direccion_remitente || "",
-            referencia_1: data.referencia_1 || "",
-            referencia_2: data.referencia_2 || "",
-            piezas: data.cantidad_piezas?.toString() || "",
-            peso: data.peso?.toString() || "",
-            tarifa: data.tarifa?.toString() || "",
-            fecha_ingreso: data.fecha_ingreso ? format(new Date(data.fecha_ingreso), 'yyyy-MM-dd') : "",
-            fecha_promesa: data.fecha_promesa_entrega ? format(new Date(data.fecha_promesa_entrega), 'yyyy-MM-dd') : "",
-            destinatario: data.destinatario,
-            direccion_destinatario: data.direccion_destinatario,
-            recibido_por: data.recibido_por || "",
-            fecha_entrega: data.fecha_entrega ? format(new Date(data.fecha_entrega), 'yyyy-MM-dd') : "",
-            operador_pod: data.operador_pod || ""
-          });
-          
-          toast({
-            title: "Éxito",
-            description: "Guía encontrada en base de datos local"
-          });
-        } else {
-          throw new Error('No se encontró en base de datos local');
-        }
-      } catch (error) {
-        console.error('Error searching guia:', error);
-        toast({
-          title: "Error",
-          description: `No se encontró la guía "${consultaData.numero_guia}". Intente con el número completo como aparece en Zigo (ej: ZG25J00084660-001)`,
-          variant: "destructive"
-        });
-      }
+    } catch (error) {
+      console.error('❌ Error buscando guía:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "No se pudo encontrar la guía",
+        variant: "destructive"
+      });
     }
   };
 
