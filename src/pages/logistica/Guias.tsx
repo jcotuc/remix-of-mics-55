@@ -114,12 +114,35 @@ export default function Guias() {
     }
 
     try {
-      // Generar número de guía
+      // Generar número de guía local
       const { data: numeroGuia, error: numeroError } = await supabase
         .rpc('generar_numero_guia');
 
       if (numeroError) throw numeroError;
 
+      // Llamar al edge function para crear la guía en Zigo
+      const { data: zigoResponse, error: zigoError } = await supabase.functions.invoke('zigo-create-guide', {
+        body: {
+          guiaData: {
+            ...formData,
+            peso: formData.peso ? parseFloat(formData.peso) : null,
+            tarifa: formData.tarifa ? parseFloat(formData.tarifa) : null
+          }
+        }
+      });
+
+      if (zigoError) {
+        console.error('Error llamando edge function:', zigoError);
+        throw new Error('Error al conectar con Zigo: ' + zigoError.message);
+      }
+
+      if (!zigoResponse.success) {
+        throw new Error(zigoResponse.error || 'Error desconocido al crear guía en Zigo');
+      }
+
+      console.log('Respuesta de Zigo:', zigoResponse);
+
+      // Guardar la guía en la base de datos local
       const { error } = await supabase
         .from('guias_envio')
         .insert({
@@ -142,7 +165,7 @@ export default function Guias() {
 
       toast({
         title: "Éxito",
-        description: `Guía ${numeroGuia} creada correctamente`
+        description: `Guía ${numeroGuia} creada en Zigo y guardada localmente`
       });
 
       // Reset form
@@ -168,7 +191,7 @@ export default function Guias() {
       console.error('Error creating guia:', error);
       toast({
         title: "Error",
-        description: "No se pudo crear la guía",
+        description: error instanceof Error ? error.message : "No se pudo crear la guía",
         variant: "destructive"
       });
     }
