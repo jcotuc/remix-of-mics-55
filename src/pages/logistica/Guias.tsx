@@ -3,11 +3,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Plus, FileText, Printer } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Search, Plus, FileText, Printer, PackagePlus } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -38,10 +37,10 @@ type Guia = {
 
 export default function Guias() {
   const { toast } = useToast();
+  const [activeTab, setActiveTab] = useState("crear");
   const [searchTerm, setSearchTerm] = useState("");
   const [guias, setGuias] = useState<Guia[]>([]);
   const [loading, setLoading] = useState(true);
-  const [dialogOpen, setDialogOpen] = useState(false);
   const [incidentesDisponibles, setIncidentesDisponibles] = useState<any[]>([]);
   
   // Form state
@@ -57,7 +56,29 @@ export default function Guias() {
     fecha_promesa_entrega: "",
     incidentes_codigos: [] as string[],
     remitente: "ZIGO",
-    direccion_remitente: "42A Av 9-16 Zona 5, Ciudad de Guatemala"
+    direccion_remitente: "42A Av 9-16 Zona 5, Ciudad de Guatemala",
+    telefono_destinatario: ""
+  });
+  
+  // Consulta state
+  const [consultaData, setConsultaData] = useState({
+    numero_guia: "",
+    estado_guia: "",
+    fecha_guia: "",
+    remitente: "",
+    direccion_remitente: "",
+    referencia_1: "",
+    referencia_2: "",
+    piezas: "",
+    peso: "",
+    tarifa: "",
+    fecha_ingreso: "",
+    fecha_promesa: "",
+    destinatario: "",
+    direccion_destinatario: "",
+    recibido_por: "",
+    fecha_entrega: "",
+    operador_pod: ""
   });
 
   useEffect(() => {
@@ -181,17 +202,68 @@ export default function Guias() {
         fecha_promesa_entrega: "",
         incidentes_codigos: [],
         remitente: "ZIGO",
-        direccion_remitente: "42A Av 9-16 Zona 5, Ciudad de Guatemala"
+        direccion_remitente: "42A Av 9-16 Zona 5, Ciudad de Guatemala",
+        telefono_destinatario: ""
       });
       
-      setDialogOpen(false);
       fetchGuias();
       fetchIncidentesDisponibles();
+      setActiveTab("consultar");
     } catch (error) {
       console.error('Error creating guia:', error);
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "No se pudo crear la guía",
+        variant: "destructive"
+      });
+    }
+  };
+  
+  const handleSearch = async () => {
+    if (!consultaData.numero_guia) {
+      toast({
+        title: "Error",
+        description: "Ingrese un número de guía para buscar",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    try {
+      const { data, error } = await supabase
+        .from('guias_envio')
+        .select('*')
+        .eq('numero_guia', consultaData.numero_guia)
+        .single();
+        
+      if (error) throw error;
+      
+      if (data) {
+        setConsultaData({
+          numero_guia: data.numero_guia,
+          estado_guia: data.estado,
+          fecha_guia: data.fecha_guia ? format(new Date(data.fecha_guia), 'yyyy-MM-dd') : "",
+          remitente: data.remitente,
+          direccion_remitente: data.direccion_remitente || "",
+          referencia_1: data.referencia_1 || "",
+          referencia_2: data.referencia_2 || "",
+          piezas: data.cantidad_piezas?.toString() || "",
+          peso: data.peso?.toString() || "",
+          tarifa: data.tarifa?.toString() || "",
+          fecha_ingreso: data.fecha_ingreso ? format(new Date(data.fecha_ingreso), 'yyyy-MM-dd') : "",
+          fecha_promesa: data.fecha_promesa_entrega ? format(new Date(data.fecha_promesa_entrega), 'yyyy-MM-dd') : "",
+          destinatario: data.destinatario,
+          direccion_destinatario: data.direccion_destinatario,
+          recibido_por: data.recibido_por || "",
+          fecha_entrega: data.fecha_entrega ? format(new Date(data.fecha_entrega), 'yyyy-MM-dd') : "",
+          operador_pod: data.operador_pod || ""
+        });
+      }
+    } catch (error) {
+      console.error('Error searching guia:', error);
+      toast({
+        title: "Error",
+        description: "No se encontró la guía",
         variant: "destructive"
       });
     }
@@ -213,268 +285,462 @@ export default function Guias() {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Guías de Envío</h1>
-          <p className="text-muted-foreground mt-1">
-            Gestión de guías para transporte de máquinas
-          </p>
-        </div>
-        <Button onClick={() => setDialogOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Nueva Guía
-        </Button>
+      <div>
+        <h1 className="text-3xl font-bold text-foreground">Sistema Zigo - Guías de Envío</h1>
+        <p className="text-muted-foreground mt-1">
+          Gestión de guías para transporte de máquinas
+        </p>
       </div>
 
-      {/* Dialog para crear nueva guía */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Nueva Guía de Envío</DialogTitle>
-            <DialogDescription>
-              Complete la información para generar una nueva guía de envío
-            </DialogDescription>
-          </DialogHeader>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsTrigger value="crear" className="flex items-center gap-2">
+            <PackagePlus className="h-4 w-4" />
+            Crear Guía
+          </TabsTrigger>
+          <TabsTrigger value="consultar" className="flex items-center gap-2">
+            <Search className="h-4 w-4" />
+            Consultar Guías
+          </TabsTrigger>
+        </TabsList>
 
-          <div className="grid grid-cols-2 gap-4">
-            {/* Remitente */}
-            <div className="col-span-2">
-              <h3 className="font-semibold mb-2">Remitente</h3>
-            </div>
-            <div>
-              <Label htmlFor="remitente">Remitente</Label>
-              <Input
-                id="remitente"
-                value={formData.remitente}
-                onChange={(e) => setFormData({ ...formData, remitente: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label htmlFor="direccion_remitente">Dirección Remitente</Label>
-              <Input
-                id="direccion_remitente"
-                value={formData.direccion_remitente}
-                onChange={(e) => setFormData({ ...formData, direccion_remitente: e.target.value })}
-              />
-            </div>
-
-            {/* Destinatario */}
-            <div className="col-span-2 mt-4">
-              <h3 className="font-semibold mb-2">Destinatario</h3>
-            </div>
-            <div>
-              <Label htmlFor="destinatario">Destinatario *</Label>
-              <Input
-                id="destinatario"
-                value={formData.destinatario}
-                onChange={(e) => setFormData({ ...formData, destinatario: e.target.value })}
-                required
-              />
-            </div>
-            <div>
-              <Label htmlFor="ciudad_destino">Ciudad Destino *</Label>
-              <Input
-                id="ciudad_destino"
-                value={formData.ciudad_destino}
-                onChange={(e) => setFormData({ ...formData, ciudad_destino: e.target.value })}
-                required
-              />
-            </div>
-            <div className="col-span-2">
-              <Label htmlFor="direccion_destinatario">Dirección Destinatario *</Label>
-              <Textarea
-                id="direccion_destinatario"
-                value={formData.direccion_destinatario}
-                onChange={(e) => setFormData({ ...formData, direccion_destinatario: e.target.value })}
-                required
-              />
-            </div>
-
-            {/* Información del envío */}
-            <div className="col-span-2 mt-4">
-              <h3 className="font-semibold mb-2">Información del Envío</h3>
-            </div>
-            <div>
-              <Label htmlFor="cantidad_piezas">Pzs. (Piezas) *</Label>
-              <Input
-                id="cantidad_piezas"
-                type="number"
-                min="1"
-                value={formData.cantidad_piezas}
-                onChange={(e) => setFormData({ ...formData, cantidad_piezas: parseInt(e.target.value) || 1 })}
-              />
-            </div>
-            <div>
-              <Label htmlFor="peso">Peso (kg)</Label>
-              <Input
-                id="peso"
-                type="number"
-                step="0.01"
-                value={formData.peso}
-                onChange={(e) => setFormData({ ...formData, peso: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label htmlFor="tarifa">Tarifa</Label>
-              <Input
-                id="tarifa"
-                type="number"
-                step="0.01"
-                value={formData.tarifa}
-                onChange={(e) => setFormData({ ...formData, tarifa: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label htmlFor="fecha_promesa_entrega">Fecha Promesa Entrega</Label>
-              <Input
-                id="fecha_promesa_entrega"
-                type="date"
-                value={formData.fecha_promesa_entrega}
-                onChange={(e) => setFormData({ ...formData, fecha_promesa_entrega: e.target.value })}
-              />
-            </div>
-
-            {/* Referencias */}
-            <div className="col-span-2 mt-4">
-              <h3 className="font-semibold mb-2">Referencias</h3>
-            </div>
-            <div>
-              <Label htmlFor="referencia_1">Ref. 1</Label>
-              <Input
-                id="referencia_1"
-                value={formData.referencia_1}
-                onChange={(e) => setFormData({ ...formData, referencia_1: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label htmlFor="referencia_2">Ref. 2</Label>
-              <Input
-                id="referencia_2"
-                value={formData.referencia_2}
-                onChange={(e) => setFormData({ ...formData, referencia_2: e.target.value })}
-              />
-            </div>
-
-            {/* Incidentes */}
-            <div className="col-span-2 mt-4">
-              <Label>Incidentes a Enviar</Label>
-              <div className="border rounded-md p-4 max-h-48 overflow-y-auto space-y-2">
-                {incidentesDisponibles.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No hay incidentes listos para envío</p>
-                ) : (
-                  incidentesDisponibles.map((incidente) => (
-                    <div key={incidente.id} className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        id={incidente.codigo}
-                        checked={formData.incidentes_codigos.includes(incidente.codigo)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setFormData({
-                              ...formData,
-                              incidentes_codigos: [...formData.incidentes_codigos, incidente.codigo]
-                            });
-                          } else {
-                            setFormData({
-                              ...formData,
-                              incidentes_codigos: formData.incidentes_codigos.filter(c => c !== incidente.codigo)
-                            });
-                          }
-                        }}
+        {/* Tab: Crear Guía */}
+        <TabsContent value="crear" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Nueva Guía de Envío</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Columna Izquierda */}
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="col-span-2">
+                      <Label htmlFor="remitente">Remitente:</Label>
+                      <Input
+                        id="remitente"
+                        value={formData.remitente}
+                        onChange={(e) => setFormData({ ...formData, remitente: e.target.value })}
                       />
-                      <label htmlFor={incidente.codigo} className="text-sm cursor-pointer">
-                        {incidente.codigo} - {incidente.descripcion_problema.substring(0, 50)}...
-                      </label>
                     </div>
-                  ))
-                )}
+                    <div className="col-span-2">
+                      <Label htmlFor="direccion_remitente">Dir. Rem.:</Label>
+                      <Input
+                        id="direccion_remitente"
+                        value={formData.direccion_remitente}
+                        onChange={(e) => setFormData({ ...formData, direccion_remitente: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label htmlFor="referencia_1">Ref. 1:</Label>
+                      <Input
+                        id="referencia_1"
+                        value={formData.referencia_1}
+                        onChange={(e) => setFormData({ ...formData, referencia_1: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="referencia_2">Ref. 2:</Label>
+                      <Input
+                        id="referencia_2"
+                        value={formData.referencia_2}
+                        onChange={(e) => setFormData({ ...formData, referencia_2: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <Label htmlFor="cantidad_piezas">Pzs.:</Label>
+                      <Input
+                        id="cantidad_piezas"
+                        type="number"
+                        min="1"
+                        value={formData.cantidad_piezas}
+                        onChange={(e) => setFormData({ ...formData, cantidad_piezas: parseInt(e.target.value) || 1 })}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="peso">Peso:</Label>
+                      <Input
+                        id="peso"
+                        type="number"
+                        step="0.01"
+                        value={formData.peso}
+                        onChange={(e) => setFormData({ ...formData, peso: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="tarifa">Tarifa:</Label>
+                      <Input
+                        id="tarifa"
+                        type="number"
+                        step="0.01"
+                        value={formData.tarifa}
+                        onChange={(e) => setFormData({ ...formData, tarifa: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Columna Derecha */}
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label htmlFor="fecha_ingreso_display">Fec. Ingreso:</Label>
+                      <Input
+                        id="fecha_ingreso_display"
+                        type="date"
+                        value={format(new Date(), 'yyyy-MM-dd')}
+                        disabled
+                        className="bg-muted"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="fecha_promesa_entrega">Fec. PromesaE.:</Label>
+                      <Input
+                        id="fecha_promesa_entrega"
+                        type="date"
+                        value={formData.fecha_promesa_entrega}
+                        onChange={(e) => setFormData({ ...formData, fecha_promesa_entrega: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="destinatario">Destinatario: *</Label>
+                    <Input
+                      id="destinatario"
+                      value={formData.destinatario}
+                      onChange={(e) => setFormData({ ...formData, destinatario: e.target.value })}
+                      required
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="col-span-2">
+                      <Label htmlFor="direccion_destinatario">Dir. Dest.: *</Label>
+                      <Textarea
+                        id="direccion_destinatario"
+                        value={formData.direccion_destinatario}
+                        onChange={(e) => setFormData({ ...formData, direccion_destinatario: e.target.value })}
+                        required
+                        rows={2}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label htmlFor="ciudad_destino">Ciudad: *</Label>
+                      <Input
+                        id="ciudad_destino"
+                        value={formData.ciudad_destino}
+                        onChange={(e) => setFormData({ ...formData, ciudad_destino: e.target.value })}
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="telefono_destinatario">Teléfono:</Label>
+                      <Input
+                        id="telefono_destinatario"
+                        value={formData.telefono_destinatario}
+                        onChange={(e) => setFormData({ ...formData, telefono_destinatario: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Incidentes a Enviar - Full Width */}
+                <div className="col-span-1 md:col-span-2 space-y-2">
+                  <Label>Incidentes a Enviar:</Label>
+                  <div className="border rounded-md p-4 max-h-48 overflow-y-auto">
+                    {incidentesDisponibles.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">No hay incidentes listos para envío</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {incidentesDisponibles.map((incidente) => (
+                          <div key={incidente.id} className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              id={incidente.codigo}
+                              checked={formData.incidentes_codigos.includes(incidente.codigo)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setFormData({
+                                    ...formData,
+                                    incidentes_codigos: [...formData.incidentes_codigos, incidente.codigo]
+                                  });
+                                } else {
+                                  setFormData({
+                                    ...formData,
+                                    incidentes_codigos: formData.incidentes_codigos.filter(c => c !== incidente.codigo)
+                                  });
+                                }
+                              }}
+                              className="h-4 w-4"
+                            />
+                            <label htmlFor={incidente.codigo} className="text-sm cursor-pointer flex-1">
+                              {incidente.codigo} - {incidente.descripcion_problema.substring(0, 50)}...
+                            </label>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleCreate}>
-              Crear Guía
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+              <div className="flex justify-end gap-3 mt-6">
+                <Button variant="outline" onClick={() => {
+                  setFormData({
+                    destinatario: "",
+                    direccion_destinatario: "",
+                    ciudad_destino: "",
+                    cantidad_piezas: 1,
+                    peso: "",
+                    tarifa: "",
+                    referencia_1: "",
+                    referencia_2: "",
+                    fecha_promesa_entrega: "",
+                    incidentes_codigos: [],
+                    remitente: "ZIGO",
+                    direccion_remitente: "42A Av 9-16 Zona 5, Ciudad de Guatemala",
+                    telefono_destinatario: ""
+                  });
+                }}>
+                  Limpiar
+                </Button>
+                <Button onClick={handleCreate}>
+                  <PackagePlus className="h-4 w-4 mr-2" />
+                  Crear Guía
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Listado de Guías</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="mb-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar por número de guía o destino..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-          </div>
-
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>No. Guía</TableHead>
-                <TableHead>Destino</TableHead>
-                <TableHead>Transportista</TableHead>
-                <TableHead>Cantidad</TableHead>
-                <TableHead>Fecha Creación</TableHead>
-                <TableHead>Fecha Salida</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead>Acciones</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
-                <TableRow>
-                  <TableCell colSpan={8} className="text-center">
-                    Cargando guías...
-                  </TableCell>
-                </TableRow>
-              ) : filteredGuias.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={8} className="text-center">
-                    No se encontraron guías
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredGuias.map((guia) => (
-                  <TableRow key={guia.id}>
-                    <TableCell className="font-medium">{guia.numero_guia}</TableCell>
-                    <TableCell>{guia.ciudad_destino}</TableCell>
-                    <TableCell>{guia.destinatario}</TableCell>
-                    <TableCell>{guia.cantidad_piezas}</TableCell>
-                    <TableCell>{format(new Date(guia.fecha_guia), 'dd/MM/yyyy')}</TableCell>
-                    <TableCell>
-                      {guia.fecha_entrega ? format(new Date(guia.fecha_entrega), 'dd/MM/yyyy') : '-'}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={guia.estado === "entregado" ? "default" : "secondary"}>
-                        {guia.estado}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="space-x-2">
-                      <Button variant="outline" size="sm" onClick={() => handlePrint(guia)}>
-                        <Printer className="h-4 w-4 mr-1" />
-                        Imprimir
+        {/* Tab: Consultar Guías */}
+        <TabsContent value="consultar" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Consulta de Guías</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {/* Formulario de búsqueda */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                {/* Columna Izquierda */}
+                <div className="space-y-4">
+                  <div className="flex gap-2">
+                    <div className="flex-1">
+                      <Label htmlFor="search_guia">Guía:</Label>
+                      <Input
+                        id="search_guia"
+                        value={consultaData.numero_guia}
+                        onChange={(e) => setConsultaData({ ...consultaData, numero_guia: e.target.value })}
+                        placeholder="Número de guía"
+                      />
+                    </div>
+                    <div className="flex items-end">
+                      <Button onClick={handleSearch} size="icon">
+                        <Search className="h-4 w-4" />
                       </Button>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label>Estado Guía:</Label>
+                      <Input value={consultaData.estado_guia} disabled className="bg-muted" />
+                    </div>
+                    <div>
+                      <Label>Fecha Guía:</Label>
+                      <Input value={consultaData.fecha_guia} disabled className="bg-muted" />
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label>Remitente:</Label>
+                    <Input value={consultaData.remitente} disabled className="bg-muted" />
+                  </div>
+
+                  <div>
+                    <Label>Dir. Rem.:</Label>
+                    <Input value={consultaData.direccion_remitente} disabled className="bg-muted" />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label>Ref. 1:</Label>
+                      <Input value={consultaData.referencia_1} disabled className="bg-muted" />
+                    </div>
+                    <div>
+                      <Label>Ref. 2:</Label>
+                      <Input value={consultaData.referencia_2} disabled className="bg-muted" />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <Label>Pzs.:</Label>
+                      <Input value={consultaData.piezas} disabled className="bg-muted" />
+                    </div>
+                    <div>
+                      <Label>Peso:</Label>
+                      <Input value={consultaData.peso} disabled className="bg-muted" />
+                    </div>
+                    <div>
+                      <Label>Tarifa:</Label>
+                      <Input value={consultaData.tarifa} disabled className="bg-muted" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Columna Derecha */}
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label>Fec. Ingreso:</Label>
+                      <Input value={consultaData.fecha_ingreso} disabled className="bg-muted" />
+                    </div>
+                    <div>
+                      <Label>Fec. PromesaE.:</Label>
+                      <Input value={consultaData.fecha_promesa} disabled className="bg-muted" />
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label>Destinatario:</Label>
+                    <Input value={consultaData.destinatario} disabled className="bg-muted" />
+                  </div>
+
+                  <div>
+                    <Label>Dir. Dest.:</Label>
+                    <Textarea value={consultaData.direccion_destinatario} disabled className="bg-muted" rows={2} />
+                  </div>
+
+                  <div>
+                    <Label>Recibió:</Label>
+                    <Input value={consultaData.recibido_por} disabled className="bg-muted" />
+                  </div>
+
+                  <div>
+                    <Label>F. Entrega:</Label>
+                    <Input value={consultaData.fecha_entrega} disabled className="bg-muted" />
+                  </div>
+
+                  <div>
+                    <Label>Op.POD:</Label>
+                    <Input value={consultaData.operador_pod} disabled className="bg-muted" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Tabla de guías */}
+              <div className="border-t pt-4">
+                <div className="mb-4">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Buscar por número de guía, destino o destinatario..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
+
+                <div className="rounded-md border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>No. Guía</TableHead>
+                        <TableHead>Destino</TableHead>
+                        <TableHead>Destinatario</TableHead>
+                        <TableHead>Cantidad</TableHead>
+                        <TableHead>Fecha Creación</TableHead>
+                        <TableHead>Fecha Entrega</TableHead>
+                        <TableHead>Estado</TableHead>
+                        <TableHead>Acciones</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {loading ? (
+                        <TableRow>
+                          <TableCell colSpan={8} className="text-center">
+                            Cargando guías...
+                          </TableCell>
+                        </TableRow>
+                      ) : filteredGuias.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={8} className="text-center">
+                            No se encontraron guías
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        filteredGuias.map((guia) => (
+                          <TableRow key={guia.id}>
+                            <TableCell className="font-medium">{guia.numero_guia}</TableCell>
+                            <TableCell>{guia.ciudad_destino}</TableCell>
+                            <TableCell>{guia.destinatario}</TableCell>
+                            <TableCell>{guia.cantidad_piezas}</TableCell>
+                            <TableCell>{format(new Date(guia.fecha_guia), 'dd/MM/yyyy')}</TableCell>
+                            <TableCell>
+                              {guia.fecha_entrega ? format(new Date(guia.fecha_entrega), 'dd/MM/yyyy') : '-'}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={guia.estado === "entregado" ? "default" : "secondary"}>
+                                {guia.estado}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="space-x-2">
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={() => {
+                                  setConsultaData({
+                                    numero_guia: guia.numero_guia,
+                                    estado_guia: guia.estado,
+                                    fecha_guia: format(new Date(guia.fecha_guia), 'yyyy-MM-dd'),
+                                    remitente: guia.remitente,
+                                    direccion_remitente: guia.direccion_remitente || "",
+                                    referencia_1: guia.referencia_1 || "",
+                                    referencia_2: guia.referencia_2 || "",
+                                    piezas: guia.cantidad_piezas?.toString() || "",
+                                    peso: guia.peso?.toString() || "",
+                                    tarifa: guia.tarifa?.toString() || "",
+                                    fecha_ingreso: format(new Date(guia.fecha_ingreso), 'yyyy-MM-dd'),
+                                    fecha_promesa: guia.fecha_promesa_entrega ? format(new Date(guia.fecha_promesa_entrega), 'yyyy-MM-dd') : "",
+                                    destinatario: guia.destinatario,
+                                    direccion_destinatario: guia.direccion_destinatario,
+                                    recibido_por: guia.recibido_por || "",
+                                    fecha_entrega: guia.fecha_entrega ? format(new Date(guia.fecha_entrega), 'yyyy-MM-dd') : "",
+                                    operador_pod: guia.operador_pod || ""
+                                  });
+                                }}
+                              >
+                                <FileText className="h-4 w-4 mr-1" />
+                                Ver
+                              </Button>
+                              <Button variant="outline" size="sm" onClick={() => handlePrint(guia)}>
+                                <Printer className="h-4 w-4 mr-1" />
+                                Imprimir
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
