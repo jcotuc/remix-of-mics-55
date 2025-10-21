@@ -230,8 +230,18 @@ export default function Guias() {
     }
     
     try {
+      // Normalizar el número de guía: convertir a mayúsculas y agregar sufijo si no existe
+      let numeroGuiaNormalizado = consultaData.numero_guia.toUpperCase().trim();
+      
+      // Si no tiene el formato con sufijo (ZG25J00084660-001), intentar agregarlo
+      if (!numeroGuiaNormalizado.includes('-')) {
+        numeroGuiaNormalizado = `${numeroGuiaNormalizado}-001`;
+      }
+      
+      console.log('Buscando guía normalizada:', numeroGuiaNormalizado);
+      
       // Primero intentar buscar en la API de Zigo
-      const zigoUrl = `https://dev-api-entregas.zigo.com.gt:443/guide/${consultaData.numero_guia}`;
+      const zigoUrl = `https://dev-api-entregas.zigo.com.gt:443/guide/${numeroGuiaNormalizado}`;
       
       const response = await fetch(zigoUrl, {
         method: 'GET',
@@ -241,15 +251,19 @@ export default function Guias() {
       });
       
       if (!response.ok) {
-        throw new Error('No se encontró la guía en Zigo');
+        const errorData = await response.json();
+        console.error('Error de Zigo:', errorData);
+        throw new Error(`Zigo API error: ${errorData.error?.message || 'Guide not found'}`);
       }
       
       const result = await response.json();
       const guiaData = result.data;
       
+      console.log('Datos recibidos de Zigo:', guiaData);
+      
       // Llenar el formulario con los datos de Zigo
       setConsultaData({
-        numero_guia: guiaData.guideNumber || "",
+        numero_guia: guiaData.guideNumber || numeroGuiaNormalizado,
         estado_guia: guiaData.guideStatusId || "",
         fecha_guia: guiaData.guideDate || "",
         remitente: guiaData.senderName || "",
@@ -270,7 +284,7 @@ export default function Guias() {
       
       toast({
         title: "Éxito",
-        description: "Guía encontrada en Zigo"
+        description: `Guía ${numeroGuiaNormalizado} encontrada en Zigo`
       });
       
     } catch (zigoError) {
@@ -281,8 +295,8 @@ export default function Guias() {
         const { data, error } = await supabase
           .from('guias_envio')
           .select('*')
-          .eq('numero_guia', consultaData.numero_guia)
-          .single();
+          .eq('numero_guia', consultaData.numero_guia.toUpperCase())
+          .maybeSingle();
           
         if (error) throw error;
         
@@ -311,12 +325,14 @@ export default function Guias() {
             title: "Éxito",
             description: "Guía encontrada en base de datos local"
           });
+        } else {
+          throw new Error('No se encontró en base de datos local');
         }
       } catch (error) {
         console.error('Error searching guia:', error);
         toast({
           title: "Error",
-          description: "No se encontró la guía ni en Zigo ni en la base de datos local",
+          description: `No se encontró la guía "${consultaData.numero_guia.toUpperCase()}" ni en Zigo ni en la base de datos local. Intente con el formato completo (ej: ZG25J00084660-001)`,
           variant: "destructive"
         });
       }
