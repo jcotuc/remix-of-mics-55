@@ -230,42 +230,96 @@ export default function Guias() {
     }
     
     try {
-      const { data, error } = await supabase
-        .from('guias_envio')
-        .select('*')
-        .eq('numero_guia', consultaData.numero_guia)
-        .single();
-        
-      if (error) throw error;
+      // Primero intentar buscar en la API de Zigo
+      const zigoUrl = `https://dev-api-entregas.zigo.com.gt:443/guide/${consultaData.numero_guia}`;
       
-      if (data) {
-        setConsultaData({
-          numero_guia: data.numero_guia,
-          estado_guia: data.estado,
-          fecha_guia: data.fecha_guia ? format(new Date(data.fecha_guia), 'yyyy-MM-dd') : "",
-          remitente: data.remitente,
-          direccion_remitente: data.direccion_remitente || "",
-          referencia_1: data.referencia_1 || "",
-          referencia_2: data.referencia_2 || "",
-          piezas: data.cantidad_piezas?.toString() || "",
-          peso: data.peso?.toString() || "",
-          tarifa: data.tarifa?.toString() || "",
-          fecha_ingreso: data.fecha_ingreso ? format(new Date(data.fecha_ingreso), 'yyyy-MM-dd') : "",
-          fecha_promesa: data.fecha_promesa_entrega ? format(new Date(data.fecha_promesa_entrega), 'yyyy-MM-dd') : "",
-          destinatario: data.destinatario,
-          direccion_destinatario: data.direccion_destinatario,
-          recibido_por: data.recibido_por || "",
-          fecha_entrega: data.fecha_entrega ? format(new Date(data.fecha_entrega), 'yyyy-MM-dd') : "",
-          operador_pod: data.operador_pod || ""
+      const response = await fetch(zigoUrl, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('No se encontró la guía en Zigo');
+      }
+      
+      const result = await response.json();
+      const guiaData = result.data;
+      
+      // Llenar el formulario con los datos de Zigo
+      setConsultaData({
+        numero_guia: guiaData.guideNumber || "",
+        estado_guia: guiaData.guideStatusId || "",
+        fecha_guia: guiaData.guideDate || "",
+        remitente: guiaData.senderName || "",
+        direccion_remitente: guiaData.senderAddress || "",
+        referencia_1: guiaData.reference01 || "",
+        referencia_2: guiaData.reference02 || "",
+        piezas: guiaData.totalPieces?.toString() || "",
+        peso: guiaData.totalWeight?.toString() || "",
+        tarifa: guiaData.totalFee?.toString() || "",
+        fecha_ingreso: guiaData.entryDate || "",
+        fecha_promesa: guiaData.projectedDeliveryDate || "",
+        destinatario: guiaData.recipientName || "",
+        direccion_destinatario: guiaData.recipientAddress || "",
+        recibido_por: guiaData.podName || "",
+        fecha_entrega: guiaData.podDate || "",
+        operador_pod: guiaData.podOperator || ""
+      });
+      
+      toast({
+        title: "Éxito",
+        description: "Guía encontrada en Zigo"
+      });
+      
+    } catch (zigoError) {
+      console.error('Error buscando en Zigo:', zigoError);
+      
+      // Si falla Zigo, buscar en la base de datos local
+      try {
+        const { data, error } = await supabase
+          .from('guias_envio')
+          .select('*')
+          .eq('numero_guia', consultaData.numero_guia)
+          .single();
+          
+        if (error) throw error;
+        
+        if (data) {
+          setConsultaData({
+            numero_guia: data.numero_guia,
+            estado_guia: data.estado,
+            fecha_guia: data.fecha_guia ? format(new Date(data.fecha_guia), 'yyyy-MM-dd') : "",
+            remitente: data.remitente,
+            direccion_remitente: data.direccion_remitente || "",
+            referencia_1: data.referencia_1 || "",
+            referencia_2: data.referencia_2 || "",
+            piezas: data.cantidad_piezas?.toString() || "",
+            peso: data.peso?.toString() || "",
+            tarifa: data.tarifa?.toString() || "",
+            fecha_ingreso: data.fecha_ingreso ? format(new Date(data.fecha_ingreso), 'yyyy-MM-dd') : "",
+            fecha_promesa: data.fecha_promesa_entrega ? format(new Date(data.fecha_promesa_entrega), 'yyyy-MM-dd') : "",
+            destinatario: data.destinatario,
+            direccion_destinatario: data.direccion_destinatario,
+            recibido_por: data.recibido_por || "",
+            fecha_entrega: data.fecha_entrega ? format(new Date(data.fecha_entrega), 'yyyy-MM-dd') : "",
+            operador_pod: data.operador_pod || ""
+          });
+          
+          toast({
+            title: "Éxito",
+            description: "Guía encontrada en base de datos local"
+          });
+        }
+      } catch (error) {
+        console.error('Error searching guia:', error);
+        toast({
+          title: "Error",
+          description: "No se encontró la guía ni en Zigo ni en la base de datos local",
+          variant: "destructive"
         });
       }
-    } catch (error) {
-      console.error('Error searching guia:', error);
-      toast({
-        title: "Error",
-        description: "No se encontró la guía",
-        variant: "destructive"
-      });
     }
   };
 
