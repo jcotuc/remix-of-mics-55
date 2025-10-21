@@ -407,7 +407,7 @@ export default function Guias() {
             method: 'GET',
             headers: {
               'Content-Type': 'application/json',
-              'x-api-key': 'V1c7NjZhYmEtMGQyMi00YmM3LWFkZjgtNTVlNzFiNDFjNzFiQDIwMjUtMDEtMTE=',
+              'x-api-key': '66aba-0d22-4bc7-adf8-55e71b41c71b@2025-01-11',
               'Authorization': `Bearer ${accessToken}`
             }
           });
