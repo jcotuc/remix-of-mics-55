@@ -11,6 +11,19 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 type Guia = {
   id: string;
@@ -35,6 +48,18 @@ type Guia = {
   incidentes_codigos: string[] | null;
 };
 
+type Cliente = {
+  id: string;
+  codigo: string;
+  nombre: string;
+  direccion: string | null;
+  correo: string | null;
+  celular: string;
+  telefono_principal: string | null;
+  municipio: string | null;
+  departamento: string | null;
+};
+
 export default function Guias() {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("crear");
@@ -42,6 +67,9 @@ export default function Guias() {
   const [guias, setGuias] = useState<Guia[]>([]);
   const [loading, setLoading] = useState(true);
   const [incidentesDisponibles, setIncidentesDisponibles] = useState<any[]>([]);
+  const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [openClienteCombobox, setOpenClienteCombobox] = useState(false);
+  const [clienteSeleccionado, setClienteSeleccionado] = useState<Cliente | null>(null);
   
   // Form state
   const [formData, setFormData] = useState({
@@ -55,8 +83,8 @@ export default function Guias() {
     referencia_2: "",
     fecha_promesa_entrega: "",
     incidentes_codigos: [] as string[],
-    remitente: "ZIGO",
-    direccion_remitente: "42A Av 9-16 Zona 5, Ciudad de Guatemala",
+    remitente: "Centro de servicio GUA",
+    direccion_remitente: "27 Calle Bodega C 41-55 Zona 5 Guatemala Guatemala",
     telefono_destinatario: ""
   });
   
@@ -84,6 +112,8 @@ export default function Guias() {
   useEffect(() => {
     fetchGuias();
     fetchIncidentesDisponibles();
+    fetchClientes();
+    loadCentroServicioUsuario();
   }, []);
 
   const fetchGuias = async () => {
@@ -122,6 +152,65 @@ export default function Guias() {
     } catch (error) {
       console.error('Error fetching incidentes:', error);
     }
+  };
+
+  const fetchClientes = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('clientes')
+        .select('*')
+        .order('nombre', { ascending: true });
+
+      if (error) throw error;
+      setClientes(data || []);
+    } catch (error) {
+      console.error('Error fetching clientes:', error);
+    }
+  };
+
+  const loadCentroServicioUsuario = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Obtener el centro de servicio asociado al usuario
+      // Por ahora usamos el centro GUA por defecto
+      const { data: centro, error } = await supabase
+        .from('centros_servicio')
+        .select('*')
+        .eq('codigo', 'GUA')
+        .single();
+
+      if (error) throw error;
+
+      if (centro) {
+        setFormData(prev => ({
+          ...prev,
+          remitente: centro.nombre,
+          direccion_remitente: centro.direccion || "27 Calle Bodega C 41-55 Zona 5 Guatemala Guatemala"
+        }));
+      }
+    } catch (error) {
+      console.error('Error loading centro servicio:', error);
+    }
+  };
+
+  const handleClienteSelect = (cliente: Cliente) => {
+    setClienteSeleccionado(cliente);
+    setFormData(prev => ({
+      ...prev,
+      destinatario: cliente.nombre,
+      direccion_destinatario: cliente.direccion || "",
+      ciudad_destino: `${cliente.municipio || ""}, ${cliente.departamento || ""}`.trim(),
+      telefono_destinatario: cliente.celular || cliente.telefono_principal || "",
+      referencia_1: cliente.codigo
+    }));
+    setOpenClienteCombobox(false);
+    
+    toast({
+      title: "Cliente seleccionado",
+      description: `${cliente.nombre} - ${cliente.codigo}`
+    });
   };
 
   const handleCreate = async () => {
@@ -495,6 +584,49 @@ export default function Guias() {
                         onChange={(e) => setFormData({ ...formData, fecha_promesa_entrega: e.target.value })}
                       />
                     </div>
+                  </div>
+
+                  <div>
+                    <Label>Buscar Cliente: *</Label>
+                    <Popover open={openClienteCombobox} onOpenChange={setOpenClienteCombobox}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          role="combobox"
+                          aria-expanded={openClienteCombobox}
+                          className="w-full justify-between"
+                        >
+                          {clienteSeleccionado
+                            ? `${clienteSeleccionado.nombre} (${clienteSeleccionado.codigo})`
+                            : "Seleccione un cliente..."}
+                          <Search className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[400px] p-0">
+                        <Command>
+                          <CommandInput placeholder="Buscar cliente..." />
+                          <CommandList>
+                            <CommandEmpty>No se encontraron clientes.</CommandEmpty>
+                            <CommandGroup>
+                              {clientes.map((cliente) => (
+                                <CommandItem
+                                  key={cliente.id}
+                                  value={`${cliente.nombre} ${cliente.codigo}`}
+                                  onSelect={() => handleClienteSelect(cliente)}
+                                >
+                                  <div className="flex flex-col">
+                                    <span className="font-medium">{cliente.nombre}</span>
+                                    <span className="text-sm text-muted-foreground">
+                                      {cliente.codigo} - {cliente.celular}
+                                    </span>
+                                  </div>
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                   </div>
 
                   <div>
