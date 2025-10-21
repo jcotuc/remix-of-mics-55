@@ -370,8 +370,8 @@ export default function Guias() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          username: 'hpcgt',
-          password: 'sMn4bqe3'
+          username: 'cosorio',
+          password: 'Zigo2025!'
         })
       });
 
