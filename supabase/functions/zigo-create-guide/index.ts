@@ -6,12 +6,14 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Credenciales de Zigo (hardcoded para facilitar la configuración inicial)
+// Configuración de Zigo
 const ZIGO_CONFIG = {
-  username: 'cosorio',
-  password: 'Zigo2025!',
+  protocol: 'https',
+  domain: 'dev-api-entregas.zigo.com.gt',
+  port: '443',
   apiKey: 'ZG!eA#CHy2E!',
-  baseUrl: 'https://api-integration.zigogt.com/api/v1'
+  username: 'cosorio',
+  password: 'Zigo2025!'
 };
 
 serve(async (req) => {
@@ -23,14 +25,17 @@ serve(async (req) => {
   try {
     const { guiaData } = await req.json();
 
-    console.log('Creando guía en Zigo con datos:', guiaData);
+    console.log('=== Iniciando creación de guía en Zigo ===');
+    console.log('Datos recibidos:', JSON.stringify(guiaData, null, 2));
 
-    // Autenticar con Zigo
-    const authResponse = await fetch(`${ZIGO_CONFIG.baseUrl}/authenticate`, {
+    // Paso 1: Autenticación
+    const loginUrl = `${ZIGO_CONFIG.protocol}://${ZIGO_CONFIG.domain}:${ZIGO_CONFIG.port}/auth/login`;
+    console.log('1. Autenticando en:', loginUrl);
+
+    const authResponse = await fetch(loginUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'apiKey': ZIGO_CONFIG.apiKey
       },
       body: JSON.stringify({
         username: ZIGO_CONFIG.username,
@@ -40,59 +45,93 @@ serve(async (req) => {
 
     if (!authResponse.ok) {
       const errorText = await authResponse.text();
-      console.error('Error en autenticación Zigo:', errorText);
+      console.error('❌ Error en autenticación:', errorText);
       throw new Error(`Error de autenticación: ${authResponse.status} - ${errorText}`);
     }
 
     const authData = await authResponse.json();
-    const token = authData.token;
+    const accessToken = authData.data.accessToken;
+    console.log('✓ Autenticación exitosa');
 
-    console.log('Autenticación exitosa con Zigo');
+    // Paso 2: Crear la guía
+    const createGuideUrl = `${ZIGO_CONFIG.protocol}://${ZIGO_CONFIG.domain}:${ZIGO_CONFIG.port}/guide`;
+    console.log('2. Creando guía en:', createGuideUrl);
 
-    // Crear la guía
+    // Estructura según el ejemplo de Postman
     const guidePayload = {
-      sender: {
-        name: guiaData.remitente || "ZIGO",
-        address: guiaData.direccion_remitente || "42A Av 9-16 Zona 5, Ciudad de Guatemala",
-        phone: "2220-0000"
+      remitente: "HPC000959", // Código del remitente registrado en Zigo
+      dirRemitente: {
+        linea1: guiaData.direccion_remitente || "42A Av 9-16 Zona 5",
+        pais: "GT",
+        departamento: "01",
+        municipio: "01",
+        sector: "000",
+        nombre: guiaData.remitente || "ZIGO",
+        telefono: "+50222200000",
+        lat: 14.634915,
+        lng: -90.506882
       },
-      receiver: {
-        name: guiaData.destinatario,
-        address: guiaData.direccion_destinatario,
-        city: guiaData.ciudad_destino,
-        phone: guiaData.telefono_destinatario || ""
+      destinatario: guiaData.destinatario,
+      dirDestinatario: {
+        linea1: guiaData.direccion_destinatario,
+        pais: "GT",
+        departamento: "01", // Esto debería ser dinámico según la ciudad
+        municipio: "01",
+        sector: "001",
+        nombre: guiaData.destinatario,
+        telefono: guiaData.telefono_destinatario || "+50200000000",
+        lat: 14.559145, // Coordenadas por defecto
+        lng: -90.73339
       },
-      shipment: {
-        pieces: guiaData.cantidad_piezas,
-        weight: guiaData.peso || 0,
-        declaredValue: guiaData.tarifa || 0,
-        reference1: guiaData.referencia_1 || "",
-        reference2: guiaData.referencia_2 || "",
-        promisedDeliveryDate: guiaData.fecha_promesa_entrega || null,
-        incidentCodes: guiaData.incidentes_codigos || []
-      }
+      referencia01: guiaData.referencia_1 || "",
+      referencia02: guiaData.referencia_2 || "",
+      tipoServicio: "ST", // Servicio estándar
+      bultos: Array.from({ length: guiaData.cantidad_piezas }, () => ({
+        tipoEnvio: "02",
+        peso: guiaData.peso ? (guiaData.peso / guiaData.cantidad_piezas) : 0
+      })),
+      detalle: [
+        {
+          tipoEnvio: "02",
+          cantidad: guiaData.cantidad_piezas,
+          valor: guiaData.tarifa || 0
+        }
+      ],
+      cantidadBultos: guiaData.cantidad_piezas,
+      centroCosto: "CC-HPC",
+      retornaDocumentos: false,
+      sucursal: "Sucursal Principal",
+      valorReferencia: guiaData.tarifa || 0
     };
 
-    console.log('Enviando payload a Zigo:', JSON.stringify(guidePayload, null, 2));
+    console.log('Payload de guía:', JSON.stringify(guidePayload, null, 2));
 
-    const createGuideResponse = await fetch(`${ZIGO_CONFIG.baseUrl}/guides`, {
+    const createGuideResponse = await fetch(createGuideUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-        'apiKey': ZIGO_CONFIG.apiKey
+        'x-api-key': ZIGO_CONFIG.apiKey,
+        'Authorization': `Bearer ${accessToken}`
       },
       body: JSON.stringify(guidePayload)
     });
 
+    const responseText = await createGuideResponse.text();
+    console.log('Respuesta de Zigo:', createGuideResponse.status, responseText);
+
     if (!createGuideResponse.ok) {
-      const errorText = await createGuideResponse.text();
-      console.error('Error al crear guía en Zigo:', errorText);
-      throw new Error(`Error al crear guía: ${createGuideResponse.status} - ${errorText}`);
+      console.error('❌ Error al crear guía:', responseText);
+      throw new Error(`Error al crear guía: ${createGuideResponse.status} - ${responseText}`);
     }
 
-    const zigoGuide = await createGuideResponse.json();
-    console.log('Guía creada exitosamente en Zigo:', zigoGuide);
+    let zigoGuide;
+    try {
+      zigoGuide = JSON.parse(responseText);
+    } catch (e) {
+      zigoGuide = { response: responseText };
+    }
+
+    console.log('✓ Guía creada exitosamente');
 
     return new Response(
       JSON.stringify({
@@ -107,7 +146,7 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('Error en edge function zigo-create-guide:', error);
+    console.error('❌ Error en edge function:', error);
     return new Response(
       JSON.stringify({
         success: false,
