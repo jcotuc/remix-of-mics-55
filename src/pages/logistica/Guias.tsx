@@ -363,12 +363,31 @@ export default function Guias() {
     try {
       const numeroIngresado = consultaData.numero_guia.trim();
       
+      // Primero autenticarse en Zigo para obtener el token
+      const authResponse = await fetch('https://dev-api-entregas.zigo.com.gt:443/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username: 'hpcgt',
+          password: 'sMn4bqe3'
+        })
+      });
+
+      if (!authResponse.ok) {
+        throw new Error('Error al autenticar con Zigo');
+      }
+
+      const authData = await authResponse.json();
+      const accessToken = authData.data.accessToken;
+      
       // Intentar diferentes formatos de la guía
       const formatosPosibles = [
         numeroIngresado.toUpperCase(), // Mayúsculas tal cual
         `${numeroIngresado.toUpperCase()}-001`, // Mayúsculas + sufijo -001
-        numeroIngresado, // Tal cual fue ingresado
-        `${numeroIngresado}-001`, // Tal cual + sufijo -001
+        numeroIngresado.toLowerCase(), // Minúsculas
+        `${numeroIngresado.toLowerCase()}-001`, // Minúsculas + sufijo
       ];
       
       console.log('Formatos a probar:', formatosPosibles);
@@ -376,7 +395,7 @@ export default function Guias() {
       let guiaEncontrada = false;
       let guiaData = null;
       
-      // Intentar cada formato
+      // Intentar cada formato con autenticación
       for (const formato of formatosPosibles) {
         if (guiaEncontrada) break;
         
@@ -388,6 +407,8 @@ export default function Guias() {
             method: 'GET',
             headers: {
               'Content-Type': 'application/json',
+              'x-api-key': 'V1c7NjZhYmEtMGQyMi00YmM3LWFkZjgtNTVlNzFiNDFjNzFiQDIwMjUtMDEtMTE=',
+              'Authorization': `Bearer ${accessToken}`
             }
           });
           
