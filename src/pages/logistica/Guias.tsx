@@ -230,40 +230,57 @@ export default function Guias() {
     }
     
     try {
-      // Normalizar el número de guía: convertir a mayúsculas y agregar sufijo si no existe
-      let numeroGuiaNormalizado = consultaData.numero_guia.toUpperCase().trim();
+      const numeroIngresado = consultaData.numero_guia.trim();
       
-      // Si no tiene el formato con sufijo (ZG25J00084660-001), intentar agregarlo
-      if (!numeroGuiaNormalizado.includes('-')) {
-        numeroGuiaNormalizado = `${numeroGuiaNormalizado}-001`;
-      }
+      // Intentar diferentes formatos de la guía
+      const formatosPosibles = [
+        numeroIngresado.toUpperCase(), // Mayúsculas tal cual
+        `${numeroIngresado.toUpperCase()}-001`, // Mayúsculas + sufijo -001
+        numeroIngresado, // Tal cual fue ingresado
+        `${numeroIngresado}-001`, // Tal cual + sufijo -001
+      ];
       
-      console.log('Buscando guía normalizada:', numeroGuiaNormalizado);
+      console.log('Formatos a probar:', formatosPosibles);
       
-      // Primero intentar buscar en la API de Zigo
-      const zigoUrl = `https://dev-api-entregas.zigo.com.gt:443/guide/${numeroGuiaNormalizado}`;
+      let guiaEncontrada = false;
+      let guiaData = null;
       
-      const response = await fetch(zigoUrl, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
+      // Intentar cada formato
+      for (const formato of formatosPosibles) {
+        if (guiaEncontrada) break;
+        
+        try {
+          console.log(`Probando formato: ${formato}`);
+          const zigoUrl = `https://dev-api-entregas.zigo.com.gt:443/guide/${formato}`;
+          
+          const response = await fetch(zigoUrl, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+            }
+          });
+          
+          if (response.ok) {
+            const result = await response.json();
+            guiaData = result.data;
+            guiaEncontrada = true;
+            console.log('✓ Guía encontrada con formato:', formato);
+            break;
+          } else {
+            console.log(`✗ Formato ${formato} no encontrado`);
+          }
+        } catch (error) {
+          console.log(`✗ Error con formato ${formato}:`, error);
         }
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('Error de Zigo:', errorData);
-        throw new Error(`Zigo API error: ${errorData.error?.message || 'Guide not found'}`);
       }
       
-      const result = await response.json();
-      const guiaData = result.data;
-      
-      console.log('Datos recibidos de Zigo:', guiaData);
+      if (!guiaEncontrada) {
+        throw new Error('No se encontró con ningún formato');
+      }
       
       // Llenar el formulario con los datos de Zigo
       setConsultaData({
-        numero_guia: guiaData.guideNumber || numeroGuiaNormalizado,
+        numero_guia: guiaData.guideNumber || numeroIngresado,
         estado_guia: guiaData.guideStatusId || "",
         fecha_guia: guiaData.guideDate || "",
         remitente: guiaData.senderName || "",
@@ -284,7 +301,7 @@ export default function Guias() {
       
       toast({
         title: "Éxito",
-        description: `Guía ${numeroGuiaNormalizado} encontrada en Zigo`
+        description: `Guía ${guiaData.guideNumber} encontrada en Zigo`
       });
       
     } catch (zigoError) {
@@ -295,7 +312,7 @@ export default function Guias() {
         const { data, error } = await supabase
           .from('guias_envio')
           .select('*')
-          .eq('numero_guia', consultaData.numero_guia.toUpperCase())
+          .ilike('numero_guia', `%${consultaData.numero_guia}%`)
           .maybeSingle();
           
         if (error) throw error;
@@ -332,7 +349,7 @@ export default function Guias() {
         console.error('Error searching guia:', error);
         toast({
           title: "Error",
-          description: `No se encontró la guía "${consultaData.numero_guia.toUpperCase()}" ni en Zigo ni en la base de datos local. Intente con el formato completo (ej: ZG25J00084660-001)`,
+          description: `No se encontró la guía "${consultaData.numero_guia}". Intente con el número completo como aparece en Zigo (ej: ZG25J00084660-001)`,
           variant: "destructive"
         });
       }
