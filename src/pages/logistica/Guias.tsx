@@ -195,21 +195,63 @@ export default function Guias() {
     }
   };
 
+  const calcularFechaPromesa = (ciudad: string): string => {
+    const hoy = new Date();
+    let diasAgregar = 1; // Por defecto 1 día para Ciudad de Guatemala
+    
+    const ciudadLower = ciudad.toLowerCase();
+    
+    // Departamentos cercanos (1-2 días)
+    if (ciudadLower.includes('guatemala') || ciudadLower.includes('mixco') || 
+        ciudadLower.includes('villa nueva') || ciudadLower.includes('sacatepéquez') ||
+        ciudadLower.includes('antigua')) {
+      diasAgregar = 1;
+    }
+    // Departamentos medianamente lejanos (2-3 días)
+    else if (ciudadLower.includes('escuintla') || ciudadLower.includes('chimaltenango') ||
+             ciudadLower.includes('sololá') || ciudadLower.includes('alta verapaz') ||
+             ciudadLower.includes('baja verapaz') || ciudadLower.includes('izabal')) {
+      diasAgregar = 2;
+    }
+    // Departamentos lejanos (3-4 días)
+    else if (ciudadLower.includes('petén') || ciudadLower.includes('quiché') ||
+             ciudadLower.includes('huehuetenango') || ciudadLower.includes('san marcos') ||
+             ciudadLower.includes('quetzaltenango') || ciudadLower.includes('totonicapán') ||
+             ciudadLower.includes('suchitepéquez') || ciudadLower.includes('retalhuleu')) {
+      diasAgregar = 3;
+    }
+    // Otros departamentos (2 días)
+    else {
+      diasAgregar = 2;
+    }
+    
+    // Calcular fecha promesa
+    const fechaPromesa = new Date(hoy);
+    fechaPromesa.setDate(fechaPromesa.getDate() + diasAgregar);
+    
+    // Formatear como YYYY-MM-DD
+    return format(fechaPromesa, 'yyyy-MM-dd');
+  };
+
   const handleClienteSelect = (cliente: Cliente) => {
     setClienteSeleccionado(cliente);
+    const ciudadDestino = `${cliente.municipio || ""}, ${cliente.departamento || ""}`.trim();
+    const fechaPromesa = calcularFechaPromesa(ciudadDestino);
+    
     setFormData(prev => ({
       ...prev,
       destinatario: cliente.nombre,
       direccion_destinatario: cliente.direccion || "",
-      ciudad_destino: `${cliente.municipio || ""}, ${cliente.departamento || ""}`.trim(),
+      ciudad_destino: ciudadDestino,
       telefono_destinatario: cliente.celular || cliente.telefono_principal || "",
-      referencia_1: cliente.codigo
+      referencia_1: cliente.codigo,
+      fecha_promesa_entrega: fechaPromesa
     }));
     setOpenClienteCombobox(false);
     
     toast({
       title: "Cliente seleccionado",
-      description: `${cliente.nombre} - ${cliente.codigo}`
+      description: `${cliente.nombre} - Entrega estimada: ${format(new Date(fechaPromesa), 'dd/MM/yyyy')}`
     });
   };
 
