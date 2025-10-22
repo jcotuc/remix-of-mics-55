@@ -19,7 +19,7 @@ import SeguimientoIncidente from "./pages/mostrador/SeguimientoIncidente";
 import IncidentesMostrador from "./pages/mostrador/Incidentes";
 import EntregaMaquinas from "./pages/mostrador/EntregaMaquinas";
 import Embarques from "./pages/logistica/Embarques";
-import HerramientasManuales from "./pages/logistica/HerramientasManuales";
+import GarantiasManuales from "./pages/logistica/GarantiasManuales";
 import Guias from "./pages/logistica/Guias";
 import IngresoMaquinas from "./pages/logistica/IngresoMaquinas";
 import ClientesLogistica from "./pages/logistica/Clientes";
@@ -77,7 +77,7 @@ const App = () => (
               <Route path="/mostrador/productos" element={<Productos />} />
               <Route path="/mostrador/clientes/:codigo" element={<DetalleCliente />} />
               <Route path="/logistica/embarques" element={<Embarques />} />
-              <Route path="/logistica/herramientas-manuales" element={<HerramientasManuales />} />
+              <Route path="/logistica/garantias-manuales" element={<GarantiasManuales />} />
               <Route path="/logistica/guias" element={<Guias />} />
               <Route path="/logistica/ingreso-maquinas" element={<IngresoMaquinas />} />
               <Route path="/logistica/salida-maquinas" element={<SalidaMaquinas />} />

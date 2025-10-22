@@ -357,6 +357,57 @@ export type Database = {
         }
         Relationships: []
       }
+      garantias_manuales: {
+        Row: {
+          cantidad_sku: number
+          codigo_cliente: string
+          comentarios_logistica: string | null
+          created_at: string
+          created_by: string | null
+          descripcion_problema: string
+          descripcion_sku: string
+          estatus: string
+          fotos_urls: string[] | null
+          id: string
+          modified_by: string | null
+          numero_incidente: string | null
+          sku_reportado: string
+          updated_at: string
+        }
+        Insert: {
+          cantidad_sku?: number
+          codigo_cliente: string
+          comentarios_logistica?: string | null
+          created_at?: string
+          created_by?: string | null
+          descripcion_problema: string
+          descripcion_sku: string
+          estatus?: string
+          fotos_urls?: string[] | null
+          id?: string
+          modified_by?: string | null
+          numero_incidente?: string | null
+          sku_reportado: string
+          updated_at?: string
+        }
+        Update: {
+          cantidad_sku?: number
+          codigo_cliente?: string
+          comentarios_logistica?: string | null
+          created_at?: string
+          created_by?: string | null
+          descripcion_problema?: string
+          descripcion_sku?: string
+          estatus?: string
+          fotos_urls?: string[] | null
+          id?: string
+          modified_by?: string | null
+          numero_incidente?: string | null
+          sku_reportado?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       guias_envio: {
         Row: {
           cantidad_piezas: number
