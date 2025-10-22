@@ -38,7 +38,7 @@ import InventarioNuevo from "./pages/bodega/InventarioNuevo";
 import InventarioCiclico from "./pages/bodega/InventarioCiclico";
 import Importacion from "./pages/bodega/Importacion";
 import DespachosDepartamentales from "./pages/bodega/DespachosDepartamentales";
-import StockDepartamento from "./pages/bodega/StockDepartamento";
+import AnalisisABCXYZ from "./pages/bodega/AnalisisABCXYZ";
 import Solicitudes from "./pages/bodega/Solicitudes";
 import DetalleSolicitud from "./pages/bodega/DetalleSolicitud";
 import ConsultaCardex from "./pages/bodega/ConsultaCardex";
@@ -104,7 +104,7 @@ const App = () => (
               <Route path="/bodega/despieces" element={<Despieces />} />
               <Route path="/bodega/importacion" element={<Importacion />} />
               <Route path="/bodega/despachos" element={<DespachosDepartamentales />} />
-              <Route path="/bodega/stock-departamento" element={<StockDepartamento />} />
+              <Route path="/bodega/analisis-abc-xyz" element={<AnalisisABCXYZ />} />
               <Route path="/bodega/solicitudes" element={<Solicitudes />} />
               <Route path="/bodega/solicitudes/:id" element={<DetalleSolicitud />} />
               <Route path="/sac/incidentes" element={<IncidentesSAC />} />
