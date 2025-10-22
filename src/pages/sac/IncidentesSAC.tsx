@@ -36,6 +36,11 @@ type AsignacionSAC = {
   activo: boolean;
 };
 
+type NotificacionCount = {
+  incidente_id: string;
+  count: number;
+};
+
 export default function IncidentesSAC() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
@@ -43,6 +48,7 @@ export default function IncidentesSAC() {
   const [incidentesList, setIncidentesList] = useState<IncidenteDB[]>([]);
   const [clientes, setClientes] = useState<ClienteDB[]>([]);
   const [asignaciones, setAsignaciones] = useState<AsignacionSAC[]>([]);
+  const [notificacionesCount, setNotificacionesCount] = useState<NotificacionCount[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
@@ -91,9 +97,33 @@ export default function IncidentesSAC() {
 
       if (asignacionesError) throw asignacionesError;
 
+      // Fetch notification counts for each incident
+      const { data: notificacionesData, error: notificacionesError } = await supabase
+        .from("notificaciones_cliente")
+        .select("incidente_id, numero_notificacion");
+
+      if (notificacionesError) throw notificacionesError;
+
+      // Count notifications per incident (get max numero_notificacion for each)
+      const notifCounts: NotificacionCount[] = [];
+      if (notificacionesData) {
+        const grouped = notificacionesData.reduce((acc, notif) => {
+          if (!acc[notif.incidente_id]) {
+            acc[notif.incidente_id] = 0;
+          }
+          acc[notif.incidente_id] = Math.max(acc[notif.incidente_id], notif.numero_notificacion);
+          return acc;
+        }, {} as Record<string, number>);
+
+        Object.entries(grouped).forEach(([incidente_id, count]) => {
+          notifCounts.push({ incidente_id, count });
+        });
+      }
+
       setIncidentesList(incidentesData || []);
       setClientes(clientesData || []);
       setAsignaciones(asignacionesData || []);
+      setNotificacionesCount(notifCounts);
     } catch (error: any) {
       console.error("Error fetching data:", error);
       toast.error("Error al cargar los datos");
@@ -119,6 +149,11 @@ export default function IncidentesSAC() {
     return asignaciones.some(
       (a) => a.incidente_id === incidenteId && a.user_id !== currentUserId && a.activo
     );
+  };
+
+  const getNotificacionCount = (incidenteId: string) => {
+    const notif = notificacionesCount.find((n) => n.incidente_id === incidenteId);
+    return notif ? notif.count : 0;
   };
 
   const handleRowClick = (incidente: IncidenteDB) => {
@@ -264,6 +299,7 @@ export default function IncidentesSAC() {
                   <TableHead>Cliente</TableHead>
                   <TableHead>Estado</TableHead>
                   <TableHead>Garantía</TableHead>
+                  <TableHead>Notificaciones</TableHead>
                   <TableHead>Fecha Ingreso</TableHead>
                   <TableHead>Asignación</TableHead>
                 </TableRow>
@@ -271,7 +307,7 @@ export default function IncidentesSAC() {
               <TableBody>
                 {filteredIncidentes.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center text-muted-foreground">
+                    <TableCell colSpan={7} className="text-center text-muted-foreground">
                       No hay incidentes para mostrar
                     </TableCell>
                   </TableRow>
@@ -295,6 +331,11 @@ export default function IncidentesSAC() {
                         ) : (
                           <Badge variant="secondary">No</Badge>
                         )}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="font-semibold">
+                          {getNotificacionCount(incidente.id)}
+                        </Badge>
                       </TableCell>
                       <TableCell>
                         {new Date(incidente.fecha_ingreso).toLocaleDateString()}
