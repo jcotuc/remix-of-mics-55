@@ -1606,6 +1606,7 @@ export type Database = {
         | "jefe_taller"
         | "tecnico"
         | "sac"
+        | "control_calidad"
       clasificacion_abc: "A" | "B" | "C"
       media_tipo: "foto" | "video"
       status_incidente:
@@ -1766,6 +1767,7 @@ export const Constants = {
         "jefe_taller",
         "tecnico",
         "sac",
+        "control_calidad",
       ],
       clasificacion_abc: ["A", "B", "C"],
       media_tipo: ["foto", "video"],
