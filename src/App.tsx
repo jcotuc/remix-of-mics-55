@@ -42,6 +42,9 @@ import AnalisisABCXYZ from "./pages/bodega/AnalisisABCXYZ";
 import Solicitudes from "./pages/bodega/Solicitudes";
 import DetalleSolicitud from "./pages/bodega/DetalleSolicitud";
 import ConsultaCardex from "./pages/bodega/ConsultaCardex";
+import ControlCalidadDashboard from "./pages/calidad/ControlCalidadDashboard";
+import AuditoriasCalidad from "./pages/calidad/AuditoriasCalidad";
+import AnalisisDefectos from "./pages/calidad/AnalisisDefectos";
 import GestionUbicaciones from "./pages/bodega/GestionUbicaciones";
 import DocumentosPendientes from "./pages/bodega/DocumentosPendientes";
 import DocumentosUbicacion from "./pages/bodega/DocumentosUbicacion";
@@ -110,6 +113,11 @@ const App = () => (
               <Route path="/sac/incidentes" element={<IncidentesSAC />} />
               <Route path="/sac/incidentes/:id" element={<DetalleIncidenteSAC />} />
               <Route path="/sac/consulta-existencias" element={<ConsultaExistencias />} />
+              
+              {/* Calidad Routes */}
+              <Route path="/calidad" element={<ControlCalidadDashboard />} />
+              <Route path="/calidad/auditorias" element={<AuditoriasCalidad />} />
+              <Route path="/calidad/defectos" element={<AnalisisDefectos />} />
               
               <Route path="*" element={<NotFound />} />
             </Routes>

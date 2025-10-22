@@ -69,6 +69,11 @@ const menuAreas = {
   sac: [
     { title: "Incidentes", url: "/sac/incidentes", icon: FileText },
     { title: "Consulta Existencias", url: "/sac/consulta-existencias", icon: Package },
+  ],
+  calidad: [
+    { title: "Dashboard", url: "/calidad", icon: BarChart3 },
+    { title: "Auditorías", url: "/calidad/auditorias", icon: ClipboardCheck },
+    { title: "Análisis de Defectos", url: "/calidad/defectos", icon: AlertCircle },
   ]
 };
 
@@ -129,6 +134,7 @@ export function AppSidebar() {
                     {userRole === 'taller' && 'Taller'}
                     {userRole === 'bodega' && 'Bodega'}
                     {userRole === 'sac' && 'SAC'}
+                    {userRole === 'control_calidad' && 'Control de Calidad'}
                     {userRole === 'admin' && 'Administrador'}
                   </span>
                 </div>
@@ -148,6 +154,7 @@ export function AppSidebar() {
         {renderMenuSection("Taller", menuAreas.taller)}
         {renderMenuSection("Bodega", menuAreas.bodega)}
         {renderMenuSection("SAC", menuAreas.sac)}
+        {renderMenuSection("Calidad", menuAreas.calidad)}
 
         <div className="mt-auto p-4 border-t border-border bg-muted/50">
           <Button

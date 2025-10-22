@@ -49,6 +49,78 @@ export type Database = {
           },
         ]
       }
+      auditorias_calidad: {
+        Row: {
+          auditor_id: string | null
+          causa_raiz: string | null
+          created_at: string
+          cumple_ensamblaje: boolean | null
+          cumple_limpieza: boolean | null
+          cumple_presentacion: boolean | null
+          cumple_sellado: boolean | null
+          evidencias_urls: string[] | null
+          fecha_auditoria: string
+          id: string
+          incidente_id: string
+          observaciones: string | null
+          presion_medida: number | null
+          proveedor_involucrado: string | null
+          resultado: string
+          tecnico_responsable: string
+          temperatura_medida: number | null
+          tipo_falla: string | null
+          updated_at: string
+          velocidad_medida: number | null
+          voltaje_medido: number | null
+        }
+        Insert: {
+          auditor_id?: string | null
+          causa_raiz?: string | null
+          created_at?: string
+          cumple_ensamblaje?: boolean | null
+          cumple_limpieza?: boolean | null
+          cumple_presentacion?: boolean | null
+          cumple_sellado?: boolean | null
+          evidencias_urls?: string[] | null
+          fecha_auditoria?: string
+          id?: string
+          incidente_id: string
+          observaciones?: string | null
+          presion_medida?: number | null
+          proveedor_involucrado?: string | null
+          resultado: string
+          tecnico_responsable: string
+          temperatura_medida?: number | null
+          tipo_falla?: string | null
+          updated_at?: string
+          velocidad_medida?: number | null
+          voltaje_medido?: number | null
+        }
+        Update: {
+          auditor_id?: string | null
+          causa_raiz?: string | null
+          created_at?: string
+          cumple_ensamblaje?: boolean | null
+          cumple_limpieza?: boolean | null
+          cumple_presentacion?: boolean | null
+          cumple_sellado?: boolean | null
+          evidencias_urls?: string[] | null
+          fecha_auditoria?: string
+          id?: string
+          incidente_id?: string
+          observaciones?: string | null
+          presion_medida?: number | null
+          proveedor_involucrado?: string | null
+          resultado?: string
+          tecnico_responsable?: string
+          temperatura_medida?: number | null
+          tipo_falla?: string | null
+          updated_at?: string
+          velocidad_medida?: number | null
+          voltaje_medido?: number | null
+        }
+        Relationships: []
+      }
       centros_servicio: {
         Row: {
           activo: boolean | null
@@ -186,6 +258,62 @@ export type Database = {
           precio_unitario?: number | null
         }
         Relationships: []
+      }
+      defectos_calidad: {
+        Row: {
+          auditoria_id: string | null
+          codigo_elemento: string
+          comentarios_tecnicos: string | null
+          created_at: string
+          descripcion_defecto: string
+          descripcion_elemento: string | null
+          frecuencia: number | null
+          gravedad: string | null
+          id: string
+          proveedor: string | null
+          sugerencias_mejora: string | null
+          tipo_defecto: string
+          tipo_elemento: string
+        }
+        Insert: {
+          auditoria_id?: string | null
+          codigo_elemento: string
+          comentarios_tecnicos?: string | null
+          created_at?: string
+          descripcion_defecto: string
+          descripcion_elemento?: string | null
+          frecuencia?: number | null
+          gravedad?: string | null
+          id?: string
+          proveedor?: string | null
+          sugerencias_mejora?: string | null
+          tipo_defecto: string
+          tipo_elemento: string
+        }
+        Update: {
+          auditoria_id?: string | null
+          codigo_elemento?: string
+          comentarios_tecnicos?: string | null
+          created_at?: string
+          descripcion_defecto?: string
+          descripcion_elemento?: string | null
+          frecuencia?: number | null
+          gravedad?: string | null
+          id?: string
+          proveedor?: string | null
+          sugerencias_mejora?: string | null
+          tipo_defecto?: string
+          tipo_elemento?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "defectos_calidad_auditoria_id_fkey"
+            columns: ["auditoria_id"]
+            isOneToOne: false
+            referencedRelation: "auditorias_calidad"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       despieces: {
         Row: {
