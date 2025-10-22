@@ -123,6 +123,37 @@ export default function Asignaciones() {
     return Math.max(...incidentesFamilia.map(inc => getDiasDesdeIngreso(inc.fecha_ingreso)));
   };
 
+  // Métricas adicionales
+  const [productividadGeneral, setProductividadGeneral] = useState(0);
+  
+  useEffect(() => {
+    const fetchProductividad = async () => {
+      try {
+        // Productividad general: diagnósticos completados en los últimos 7 días
+        const hace7Dias = new Date();
+        hace7Dias.setDate(hace7Dias.getDate() - 7);
+        
+        const { data } = await supabase
+          .from('diagnosticos')
+          .select('id')
+          .eq('estado', 'completado')
+          .gte('updated_at', hace7Dias.toISOString());
+        
+        setProductividadGeneral(data?.length || 0);
+      } catch (error) {
+        console.error('Error:', error);
+      }
+    };
+    fetchProductividad();
+  }, []);
+
+  const pendientesDiagnosticar = incidentes.length;
+  const enDiagnostico = incidentesEnDiagnostico.length;
+  const diaMaximo = incidentes.length > 0 
+    ? Math.max(...incidentes.map(inc => getDiasDesdeIngreso(inc.fecha_ingreso))) 
+    : 0;
+  const familiasActivas = FAMILIAS.filter(f => getIncidentesPorFamilia(f).length > 0).length;
+
   return (
     <div className="container mx-auto py-8 space-y-6">
       <div>
@@ -136,13 +167,13 @@ export default function Asignaciones() {
       </div>
 
       {/* Dashboard de métricas */}
-      <div className="grid gap-4 md:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-5">
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">Total Pendientes</CardTitle>
+            <CardTitle className="text-sm font-medium">Pendientes por Diagnosticar</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-primary">{incidentes.length}</div>
+            <div className="text-3xl font-bold text-primary">{pendientesDiagnosticar}</div>
           </CardContent>
         </Card>
 
@@ -151,18 +182,26 @@ export default function Asignaciones() {
             <CardTitle className="text-sm font-medium">En Diagnóstico</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-blue-600">{incidentesEnDiagnostico.length}</div>
+            <div className="text-3xl font-bold text-blue-600">{enDiagnostico}</div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">Día Máximo</CardTitle>
+            <CardTitle className="text-sm font-medium">Productividad General</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-orange-600">
-              {incidentes.length > 0 ? Math.max(...incidentes.map(inc => getDiasDesdeIngreso(inc.fecha_ingreso))) : 0}
-            </div>
+            <div className="text-3xl font-bold text-green-600">{productividadGeneral}</div>
+            <p className="text-xs text-muted-foreground mt-1">últimos 7 días</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium">Día Más Alto</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-orange-600">{diaMaximo}</div>
             <p className="text-xs text-muted-foreground mt-1">días esperando</p>
           </CardContent>
         </Card>
@@ -172,9 +211,7 @@ export default function Asignaciones() {
             <CardTitle className="text-sm font-medium">Familias Activas</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-green-600">
-              {FAMILIAS.filter(f => getIncidentesPorFamilia(f).length > 0).length}
-            </div>
+            <div className="text-3xl font-bold text-purple-600">{familiasActivas}</div>
             <p className="text-xs text-muted-foreground mt-1">de {FAMILIAS.length}</p>
           </CardContent>
         </Card>

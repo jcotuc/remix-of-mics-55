@@ -107,6 +107,45 @@ export default function MisAsignaciones() {
     return dias;
   };
 
+  // Calcular métricas del dashboard
+  const totalAsignadas = incidentes.length;
+  const promedioDias = incidentes.length > 0
+    ? Math.round(incidentes.reduce((sum, inc) => sum + getDiasDesdeIngreso(inc.fecha_ingreso), 0) / incidentes.length)
+    : 0;
+  
+  // Productividad del día: incidentes completados hoy
+  const hoy = new Date();
+  hoy.setHours(0, 0, 0, 0);
+  const [productividadDia, setProductividadDia] = useState(0);
+  const [reingresos, setReingresos] = useState(0);
+
+  useEffect(() => {
+    const fetchMetricas = async () => {
+      try {
+        // Productividad del día: diagnósticos completados hoy
+        const { data: diagHoy } = await supabase
+          .from('diagnosticos')
+          .select('id')
+          .eq('estado', 'completado')
+          .gte('updated_at', hoy.toISOString());
+        
+        setProductividadDia(diagHoy?.length || 0);
+
+        // Reingresos: incidentes marcados como reingreso
+        const { data: reingresosData } = await supabase
+          .from('incidentes')
+          .select('id')
+          .eq('es_reingreso', true)
+          .eq('status', 'En diagnostico');
+        
+        setReingresos(reingresosData?.length || 0);
+      } catch (error) {
+        console.error('Error:', error);
+      }
+    };
+    fetchMetricas();
+  }, []);
+
   return (
     <div className="container mx-auto py-8 space-y-6">
       <div>
@@ -164,29 +203,41 @@ export default function MisAsignaciones() {
       )}
 
       {/* Métricas */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-5">
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium">Total Asignadas</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-primary">{incidentes.length}</div>
+            <div className="text-3xl font-bold text-primary">{totalAsignadas}</div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">Promedio Días</CardTitle>
+            <CardTitle className="text-sm font-medium">Promedio de Días</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-blue-600">
-              {incidentes.length > 0
-                ? Math.round(
-                    incidentes.reduce((sum, inc) => sum + getDiasDesdeIngreso(inc.fecha_ingreso), 0) /
-                      incidentes.length
-                  )
-                : 0}
-            </div>
+            <div className="text-3xl font-bold text-blue-600">{promedioDias}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium">Productividad del Día</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-green-600">{productividadDia}</div>
+            <p className="text-xs text-muted-foreground mt-1">completados hoy</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium">Reingresos</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-red-600">{reingresos}</div>
           </CardContent>
         </Card>
 

@@ -99,6 +99,19 @@ export default function IncidentesMostrador() {
     navigate(`/mostrador/seguimiento/${incidenteId}`);
   };
 
+  // Calcular métricas del dashboard
+  const hoy = new Date();
+  hoy.setHours(0, 0, 0, 0);
+  const ingresadasHoy = incidentesList.filter(i => {
+    const fechaIngreso = new Date(i.fecha_ingreso);
+    fechaIngreso.setHours(0, 0, 0, 0);
+    return fechaIngreso.getTime() === hoy.getTime();
+  }).length;
+
+  const estatusActivos = ['Ingresado', 'En diagnostico', 'Pendiente por repuestos', 'Presupuesto', 'Reparado'];
+  const totalEnTaller = incidentesList.filter(i => estatusActivos.includes(i.status)).length;
+  const pendientesEntrega = incidentesList.filter(i => i.status === 'Reparado').length;
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -114,15 +127,15 @@ export default function IncidentesMostrador() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center space-x-2">
-              <AlertTriangle className="h-5 w-5 text-warning" />
+              <Calendar className="h-5 w-5 text-primary" />
               <div>
-                <p className="text-sm text-muted-foreground">Pendientes</p>
+                <p className="text-sm text-muted-foreground">Ingresadas en el Día</p>
                 <p className="text-2xl font-bold">
-                  {incidentesList.filter(i => i.status === "Ingresado").length}
+                  {ingresadasHoy}
                 </p>
               </div>
             </div>
@@ -132,11 +145,11 @@ export default function IncidentesMostrador() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center space-x-2">
-              <Calendar className="h-5 w-5 text-info" />
+              <AlertTriangle className="h-5 w-5 text-blue-600" />
               <div>
-                <p className="text-sm text-muted-foreground">En Proceso</p>
+                <p className="text-sm text-muted-foreground">Total en Taller (Estatus Activo)</p>
                 <p className="text-2xl font-bold">
-                  {incidentesList.filter(i => ["En diagnostico", "Pendiente por repuestos", "Presupuesto"].includes(i.status)).length}
+                  {totalEnTaller}
                 </p>
               </div>
             </div>
@@ -146,25 +159,11 @@ export default function IncidentesMostrador() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center space-x-2">
-              <CheckCircle className="h-5 w-5 text-success" />
+              <CheckCircle className="h-5 w-5 text-green-600" />
               <div>
-                <p className="text-sm text-muted-foreground">Pendiente Entrega</p>
+                <p className="text-sm text-muted-foreground">Pendientes de Entrega</p>
                 <p className="text-2xl font-bold">
-                  {incidentesList.filter(i => i.status === "Reparado" && !i.quiere_envio).length}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center space-x-2">
-              <AlertTriangle className="h-5 w-5 text-destructive" />
-              <div>
-                <p className="text-sm text-muted-foreground">Con Garantía</p>
-                <p className="text-2xl font-bold">
-                  {incidentesList.filter(i => i.cobertura_garantia).length}
+                  {pendientesEntrega}
                 </p>
               </div>
             </div>

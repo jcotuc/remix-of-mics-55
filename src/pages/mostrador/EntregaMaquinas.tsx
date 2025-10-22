@@ -354,6 +354,22 @@ export default function EntregaMaquinas() {
         </CardContent>
       </Card>
 
+      {/* Indicador de Pendientes de Entrega */}
+      <Card className="border-primary/50 bg-primary/5">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <PackageCheck className="h-5 w-5 text-primary" />
+            Máquinas Pendientes de Entrega
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-4xl font-bold text-primary">{incidentesReparados.length}</div>
+          <p className="text-sm text-muted-foreground mt-2">
+            máquinas reparadas esperando entrega
+          </p>
+        </CardContent>
+      </Card>
+
       {/* Lista de Máquinas Listas para Entrega */}
       <Card>
         <CardHeader>
@@ -362,7 +378,7 @@ export default function EntregaMaquinas() {
             Máquinas Listas para Entrega
           </CardTitle>
           <CardDescription>
-            {incidentesReparados.length} máquinas reparadas esperando entrega
+            Seleccione una máquina para registrar su entrega
           </CardDescription>
         </CardHeader>
         <CardContent>

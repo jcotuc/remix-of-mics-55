@@ -22,6 +22,10 @@ export function SACDashboard() {
     notificacionesPendientes: 0,
     notificacionesRespondidas: 0,
     incidentesAsignados: 0,
+    faltaPrimeraNotificacion: 0,
+    faltaSegundaNotificacion: 0,
+    faltaTerceraNotificacion: 0,
+    conTresNotificaciones: 0,
   });
   const [notificaciones, setNotificaciones] = useState<NotificacionCliente[]>([]);
   const [loading, setLoading] = useState(true);
@@ -70,6 +74,31 @@ export function SACDashboard() {
           (i) => i.status === "Pendiente entrega"
         ).length;
 
+        // Calcular estadísticas de notificaciones por número
+        const incidentesIds = incidentes.map(i => i.id);
+        const notificacionesPorIncidente = new Map<string, number>();
+        
+        notificacionesData?.forEach(n => {
+          if (incidentesIds.includes(n.incidente_id)) {
+            const count = notificacionesPorIncidente.get(n.incidente_id) || 0;
+            notificacionesPorIncidente.set(n.incidente_id, Math.max(count, n.numero_notificacion));
+          }
+        });
+
+        // Contar incidentes por número de notificaciones
+        let sinNotificacion = 0;
+        let conUnaNotificacion = 0;
+        let conDosNotificaciones = 0;
+        let conTresNotificaciones = 0;
+
+        incidentes.forEach(inc => {
+          const numNotificaciones = notificacionesPorIncidente.get(inc.id) || 0;
+          if (numNotificaciones === 0) sinNotificacion++;
+          else if (numNotificaciones === 1) conUnaNotificacion++;
+          else if (numNotificaciones === 2) conDosNotificaciones++;
+          else if (numNotificaciones >= 3) conTresNotificaciones++;
+        });
+
         setStats({
           presupuestos,
           canjes,
@@ -78,6 +107,10 @@ export function SACDashboard() {
           notificacionesPendientes: notificacionesData?.filter((n) => !n.respondido).length || 0,
           notificacionesRespondidas: notificacionesData?.filter((n) => n.respondido).length || 0,
           incidentesAsignados: asignaciones?.length || 0,
+          faltaPrimeraNotificacion: sinNotificacion,
+          faltaSegundaNotificacion: conUnaNotificacion,
+          faltaTerceraNotificacion: conDosNotificaciones,
+          conTresNotificaciones: conTresNotificaciones,
         });
       }
 
@@ -166,6 +199,48 @@ export function SACDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Sistema de Tres Notificaciones */}
+      <Card className="border-primary/50 bg-primary/5">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <MessageCircle className="h-5 w-5 text-primary" />
+            Sistema de Tres Notificaciones
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">Falta 1ª Notificación</p>
+              <div className="text-3xl font-bold text-red-600">
+                {stats.faltaPrimeraNotificacion}
+              </div>
+              <p className="text-xs text-muted-foreground">sin contactar</p>
+            </div>
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">Falta 2ª Notificación</p>
+              <div className="text-3xl font-bold text-orange-600">
+                {stats.faltaSegundaNotificacion}
+              </div>
+              <p className="text-xs text-muted-foreground">1 notificación enviada</p>
+            </div>
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">Falta 3ª Notificación</p>
+              <div className="text-3xl font-bold text-yellow-600">
+                {stats.faltaTerceraNotificacion}
+              </div>
+              <p className="text-xs text-muted-foreground">2 notificaciones enviadas</p>
+            </div>
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">3 Notificaciones</p>
+              <div className="text-3xl font-bold text-red-700">
+                {stats.conTresNotificaciones}
+              </div>
+              <p className="text-xs text-red-600 font-medium">⚠️ Retornar máquina</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Actividad de notificaciones */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
