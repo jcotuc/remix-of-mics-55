@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Package, AlertTriangle, Download, RefreshCw, TrendingUp, Send } from "lucide-react";
+import { Package, AlertTriangle, Download, RefreshCw, TrendingUp, Send, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -46,8 +46,22 @@ interface NecesidadReabastecimiento {
   stock_maximo: number;
   cantidad_sugerida: number;
   clasificacion_abc: ClasificacionABC;
+  clasificacion_xyz: 'X' | 'Y' | 'Z';
+  categoria_abcxyz: string;
   prioridad: 'Alta' | 'Media' | 'Baja';
 }
+
+const ESTRATEGIAS_ABCXYZ: Record<string, { estrategia: string; nivel: string; frecuencia: string }> = {
+  'AX': { estrategia: 'Reposición frecuente, stock bajo, alta prioridad', nivel: 'Muy alto', frecuencia: 'Semanal' },
+  'AY': { estrategia: 'Control ajustado a variabilidad', nivel: 'Alto', frecuencia: 'Quincenal' },
+  'AZ': { estrategia: 'Bajo stock, revisar bajo pedido', nivel: 'Medio', frecuencia: 'Mensual' },
+  'BX': { estrategia: 'Reposición periódica constante', nivel: 'Medio', frecuencia: 'Quincenal' },
+  'BY': { estrategia: 'Ajustar stock según variación', nivel: 'Medio', frecuencia: 'Mensual' },
+  'BZ': { estrategia: 'Stock mínimo, revisar obsolescencia', nivel: 'Bajo', frecuencia: 'Trimestral' },
+  'CX': { estrategia: 'Mantener stock básico', nivel: 'Bajo', frecuencia: 'Mensual' },
+  'CY': { estrategia: 'Mantener si es necesario', nivel: 'Bajo', frecuencia: 'Trimestral' },
+  'CZ': { estrategia: 'Producto obsoleto, considerar baja', nivel: 'Muy bajo', frecuencia: 'Anual' }
+};
 
 export default function AnalisisABCXYZ() {
   const [centros, setCentros] = useState<CentroServicio[]>([]);
@@ -132,7 +146,7 @@ export default function AnalisisABCXYZ() {
       if (stockActual <= stockMinimo) {
         const cantidadSugerida = stockMaximo - stockActual;
 
-        // Determinar clasificación ABC basado en nivel de stock
+        // Determinar clasificación ABC basado en nivel de stock (prioridad)
         let clasificacion_abc: ClasificacionABC = 'C';
         let prioridad: 'Alta' | 'Media' | 'Baja' = 'Baja';
 
@@ -149,6 +163,22 @@ export default function AnalisisABCXYZ() {
           prioridad = 'Baja';
         }
 
+        // Determinar clasificación XYZ basado en variabilidad de demanda
+        // Simulamos variabilidad basada en la diferencia entre mínimo y máximo
+        let clasificacion_xyz: 'X' | 'Y' | 'Z' = 'X';
+        const rangoStock = stockMaximo - stockMinimo;
+        const coeficienteVariacion = stockMinimo > 0 ? rangoStock / stockMinimo : 0;
+
+        if (coeficienteVariacion <= 0.5) {
+          clasificacion_xyz = 'X'; // Demanda estable
+        } else if (coeficienteVariacion <= 1.5) {
+          clasificacion_xyz = 'Y'; // Demanda variable
+        } else {
+          clasificacion_xyz = 'Z'; // Demanda irregular
+        }
+
+        const categoria_abcxyz = `${clasificacion_abc}${clasificacion_xyz}`;
+
         necesidadesCalculadas.push({
           centro_servicio: stock.centros_servicio?.nombre || '',
           codigo_centro: stock.centros_servicio?.codigo || '',
@@ -159,6 +189,8 @@ export default function AnalisisABCXYZ() {
           stock_maximo: stockMaximo,
           cantidad_sugerida: cantidadSugerida,
           clasificacion_abc,
+          clasificacion_xyz,
+          categoria_abcxyz,
           prioridad,
         });
       }
@@ -250,16 +282,28 @@ export default function AnalisisABCXYZ() {
   const totalNecesidadesMedia = necesidadesFiltradas.filter((n) => n.prioridad === 'Media').length;
   const totalNecesidadesBaja = necesidadesFiltradas.filter((n) => n.prioridad === 'Baja').length;
 
+  // Contar por categoría ABC-XYZ
+  const contarPorCategoria = (cat: string) => {
+    return necesidades.filter((n) => n.categoria_abcxyz === cat).length;
+  };
+
+  const getCategoriaABCXYZColor = (categoria: string) => {
+    const abc = categoria[0];
+    if (abc === 'A') return 'bg-red-50 border-red-200';
+    if (abc === 'B') return 'bg-orange-50 border-orange-200';
+    return 'bg-green-50 border-green-200';
+  };
+
   return (
     <div className="container mx-auto py-8 space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Package className="h-8 w-8 text-primary" />
-            Reabastecimiento a Centros de Servicio
+            <BarChart3 className="h-8 w-8 text-primary" />
+            Análisis ABC-XYZ de Reabastecimiento
           </h1>
           <p className="text-muted-foreground mt-2">
-            Análisis de necesidades de stock en los 13 centros de servicio
+            Clasificación por prioridad (ABC) y variabilidad de demanda (XYZ) para los 13 centros de servicio
           </p>
         </div>
         <div className="flex gap-2">
@@ -273,6 +317,141 @@ export default function AnalisisABCXYZ() {
           </Button>
         </div>
       </div>
+
+      {/* Matriz ABC-XYZ */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <BarChart3 className="h-5 w-5" />
+            Matriz ABC-XYZ de Necesidades
+          </CardTitle>
+          <CardDescription>
+            Distribución de repuestos según prioridad (ABC) y variabilidad de demanda (XYZ)
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-4 gap-2 text-center">
+            <div className="font-bold"></div>
+            <div className="font-bold text-sm">
+              <div>X</div>
+              <div className="text-xs text-muted-foreground font-normal">Estable</div>
+            </div>
+            <div className="font-bold text-sm">
+              <div>Y</div>
+              <div className="text-xs text-muted-foreground font-normal">Variable</div>
+            </div>
+            <div className="font-bold text-sm">
+              <div>Z</div>
+              <div className="text-xs text-muted-foreground font-normal">Irregular</div>
+            </div>
+
+            <div className="font-bold text-sm flex items-center">
+              <div>
+                <div>A</div>
+                <div className="text-xs text-muted-foreground font-normal">Alta</div>
+              </div>
+            </div>
+            <div className={`border-2 p-4 rounded-lg ${getCategoriaABCXYZColor('AX')}`}>
+              <div className="text-2xl font-bold text-red-700">{contarPorCategoria('AX')}</div>
+              <p className="text-xs text-red-600">AX</p>
+              <p className="text-xs text-muted-foreground mt-1">Crítico estable</p>
+            </div>
+            <div className={`border-2 p-4 rounded-lg ${getCategoriaABCXYZColor('AY')}`}>
+              <div className="text-2xl font-bold text-red-700">{contarPorCategoria('AY')}</div>
+              <p className="text-xs text-red-600">AY</p>
+              <p className="text-xs text-muted-foreground mt-1">Crítico variable</p>
+            </div>
+            <div className={`border-2 p-4 rounded-lg ${getCategoriaABCXYZColor('AZ')}`}>
+              <div className="text-2xl font-bold text-red-700">{contarPorCategoria('AZ')}</div>
+              <p className="text-xs text-red-600">AZ</p>
+              <p className="text-xs text-muted-foreground mt-1">Crítico irregular</p>
+            </div>
+
+            <div className="font-bold text-sm flex items-center">
+              <div>
+                <div>B</div>
+                <div className="text-xs text-muted-foreground font-normal">Media</div>
+              </div>
+            </div>
+            <div className={`border-2 p-4 rounded-lg ${getCategoriaABCXYZColor('BX')}`}>
+              <div className="text-2xl font-bold text-orange-700">{contarPorCategoria('BX')}</div>
+              <p className="text-xs text-orange-600">BX</p>
+              <p className="text-xs text-muted-foreground mt-1">Moderado estable</p>
+            </div>
+            <div className={`border-2 p-4 rounded-lg ${getCategoriaABCXYZColor('BY')}`}>
+              <div className="text-2xl font-bold text-orange-700">{contarPorCategoria('BY')}</div>
+              <p className="text-xs text-orange-600">BY</p>
+              <p className="text-xs text-muted-foreground mt-1">Moderado variable</p>
+            </div>
+            <div className={`border-2 p-4 rounded-lg ${getCategoriaABCXYZColor('BZ')}`}>
+              <div className="text-2xl font-bold text-orange-700">{contarPorCategoria('BZ')}</div>
+              <p className="text-xs text-orange-600">BZ</p>
+              <p className="text-xs text-muted-foreground mt-1">Moderado irregular</p>
+            </div>
+
+            <div className="font-bold text-sm flex items-center">
+              <div>
+                <div>C</div>
+                <div className="text-xs text-muted-foreground font-normal">Baja</div>
+              </div>
+            </div>
+            <div className={`border-2 p-4 rounded-lg ${getCategoriaABCXYZColor('CX')}`}>
+              <div className="text-2xl font-bold text-green-700">{contarPorCategoria('CX')}</div>
+              <p className="text-xs text-green-600">CX</p>
+              <p className="text-xs text-muted-foreground mt-1">Normal estable</p>
+            </div>
+            <div className={`border-2 p-4 rounded-lg ${getCategoriaABCXYZColor('CY')}`}>
+              <div className="text-2xl font-bold text-green-700">{contarPorCategoria('CY')}</div>
+              <p className="text-xs text-green-600">CY</p>
+              <p className="text-xs text-muted-foreground mt-1">Normal variable</p>
+            </div>
+            <div className={`border-2 p-4 rounded-lg ${getCategoriaABCXYZColor('CZ')}`}>
+              <div className="text-2xl font-bold text-green-700">{contarPorCategoria('CZ')}</div>
+              <p className="text-xs text-green-600">CZ</p>
+              <p className="text-xs text-muted-foreground mt-1">Normal irregular</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Tabla de estrategias ABC-XYZ */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Estrategias de Reposición por Categoría ABC-XYZ</CardTitle>
+          <CardDescription>Políticas de reabastecimiento según clasificación combinada</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Categoría</TableHead>
+                <TableHead>Estrategia de Reposición</TableHead>
+                <TableHead>Nivel de Control</TableHead>
+                <TableHead>Frecuencia de Revisión</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {Object.entries(ESTRATEGIAS_ABCXYZ).map(([cat, est]) => {
+                const abc = cat[0] as ClasificacionABC;
+                return (
+                  <TableRow key={cat}>
+                    <TableCell>
+                      <Badge variant={getClasificacionColor(abc)}>
+                        {cat}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{est.estrategia}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{est.nivel}</Badge>
+                    </TableCell>
+                    <TableCell>{est.frecuencia}</TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
 
       {/* Resumen de Necesidades */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -454,7 +633,7 @@ export default function AnalisisABCXYZ() {
                         <TableHead className="text-right">Stock Mín</TableHead>
                         <TableHead className="text-right">Stock Máx</TableHead>
                         <TableHead className="text-right">Cant. Sugerida</TableHead>
-                        <TableHead>Clasificación</TableHead>
+                        <TableHead>ABC-XYZ</TableHead>
                         <TableHead>Prioridad</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -477,9 +656,11 @@ export default function AnalisisABCXYZ() {
                           <TableCell className="text-right">{necesidad.stock_maximo}</TableCell>
                           <TableCell className="text-right font-bold">{necesidad.cantidad_sugerida}</TableCell>
                           <TableCell>
-                            <Badge variant={getClasificacionColor(necesidad.clasificacion_abc)}>
-                              {necesidad.clasificacion_abc}
-                            </Badge>
+                            <div className="flex gap-1">
+                              <Badge variant={getClasificacionColor(necesidad.clasificacion_abc)} className="text-xs">
+                                {necesidad.categoria_abcxyz}
+                              </Badge>
+                            </div>
                           </TableCell>
                           <TableCell>
                             <Badge variant={getPrioridadColor(necesidad.prioridad)}>{necesidad.prioridad}</Badge>
