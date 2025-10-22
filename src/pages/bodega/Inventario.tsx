@@ -19,6 +19,7 @@ type Repuesto = {
   stock_minimo: number;
   ubicacion: string;
   codigo_producto: string;
+  centro_servicio: string;
 };
 
 export default function Inventario() {
@@ -38,25 +39,50 @@ export default function Inventario() {
   const fetchRepuestos = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      
+      // Fetch repuestos from bodega central
+      const { data: repuestosCentral, error: errorCentral } = await supabase
         .from('repuestos')
         .select('*')
         .order('codigo');
 
-      if (error) throw error;
+      if (errorCentral) throw errorCentral;
 
-      // Simular datos de inventario
-      const repuestosConStock = (data || []).map((r, idx) => ({
+      // Fetch stock departamental
+      const { data: stockDept, error: errorDept } = await supabase
+        .from('stock_departamental')
+        .select(`
+          *,
+          centros_servicio(nombre)
+        `);
+
+      if (errorDept) throw errorDept;
+
+      // Combinar datos
+      const repuestosConStock = (repuestosCentral || []).map((r, idx) => ({
         id: r.id,
         codigo: r.codigo,
         descripcion: r.descripcion,
-        stock_actual: Math.floor(Math.random() * 100),
+        stock_actual: r.stock_actual || 0,
         stock_minimo: 10,
-        ubicacion: `Bodega ${String.fromCharCode(65 + (idx % 3))}-${Math.floor(Math.random() * 10) + 1}`,
-        codigo_producto: r.codigo_producto
+        ubicacion: r.ubicacion_bodega || `Bodega ${String.fromCharCode(65 + (idx % 3))}-${Math.floor(Math.random() * 10) + 1}`,
+        codigo_producto: r.codigo_producto,
+        centro_servicio: 'Bodega Central'
       }));
 
-      setRepuestos(repuestosConStock);
+      // Agregar stock departamental
+      const stockDeptFormateado = (stockDept || []).map(s => ({
+        id: s.id,
+        codigo: s.codigo_repuesto,
+        descripcion: '',
+        stock_actual: s.cantidad_actual || 0,
+        stock_minimo: s.stock_minimo || 10,
+        ubicacion: s.ubicacion || 'Sin ubicación',
+        codigo_producto: '',
+        centro_servicio: (s.centros_servicio as any)?.nombre || 'Departamental'
+      }));
+
+      setRepuestos([...repuestosConStock, ...stockDeptFormateado]);
     } catch (error) {
       console.error('Error:', error);
       toast.error('Error al cargar inventario');
@@ -186,6 +212,7 @@ export default function Inventario() {
                 <TableRow>
                   <TableHead>Código</TableHead>
                   <TableHead>Descripción</TableHead>
+                  <TableHead>Centro/Bodega</TableHead>
                   <TableHead>Ubicación</TableHead>
                   <TableHead>Stock Actual</TableHead>
                   <TableHead>Stock Mínimo</TableHead>
@@ -198,6 +225,9 @@ export default function Inventario() {
                   <TableRow key={repuesto.id}>
                     <TableCell className="font-medium">{repuesto.codigo}</TableCell>
                     <TableCell>{repuesto.descripcion}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline">{repuesto.centro_servicio}</Badge>
+                    </TableCell>
                     <TableCell>{repuesto.ubicacion}</TableCell>
                     <TableCell>
                       <span className={repuesto.stock_actual <= repuesto.stock_minimo ? "text-orange-500 font-bold" : ""}>

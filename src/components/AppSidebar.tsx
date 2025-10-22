@@ -1,4 +1,4 @@
-import { Users, Package, Wrench, FileText, Truck, LogOut, Home, ShoppingCart, DollarSign, ClipboardList, BarChart3, ClipboardCheck, FileSpreadsheet, LogIn, LogOut as LogOutIcon, Send, PackageCheck, AlertTriangle, AlertCircle, MapPin } from "lucide-react";
+import { Users, Package, Wrench, FileText, Truck, LogOut, Home, ShoppingCart, DollarSign, ClipboardList, BarChart3, ClipboardCheck, FileSpreadsheet, LogIn, LogOut as LogOutIcon, Send, PackageCheck, AlertTriangle, AlertCircle, MapPin, Calendar } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -53,6 +53,7 @@ const menuAreas = {
   ],
   bodega: [
     { title: "Inventario", url: "/bodega/inventario", icon: ClipboardCheck },
+    { title: "Inventario Cíclico", url: "/bodega/inventario-ciclico", icon: Calendar },
     { title: "Consulta Cardex", url: "/bodega/consulta-cardex", icon: FileText },
     { title: "Gestión Ubicaciones", url: "/bodega/ubicaciones", icon: MapPin },
     { title: "Docs Pendientes", url: "/bodega/documentos-pendientes", icon: AlertCircle },

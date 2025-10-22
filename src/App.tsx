@@ -35,6 +35,7 @@ import BusquedaIncidentes from "./pages/taller/BusquedaIncidentes";
 
 import DiagnosticoInicial from "./pages/taller/DiagnosticoInicial";
 import InventarioNuevo from "./pages/bodega/InventarioNuevo";
+import InventarioCiclico from "./pages/bodega/InventarioCiclico";
 import Importacion from "./pages/bodega/Importacion";
 import DespachosDepartamentales from "./pages/bodega/DespachosDepartamentales";
 import StockDepartamento from "./pages/bodega/StockDepartamento";
@@ -93,6 +94,7 @@ const App = () => (
               
               <Route path="/taller/diagnostico/:id" element={<DiagnosticoInicial />} />
               <Route path="/bodega/inventario" element={<InventarioNuevo />} />
+              <Route path="/bodega/inventario-ciclico" element={<InventarioCiclico />} />
               <Route path="/bodega/consulta-cardex" element={<ConsultaCardex />} />
               <Route path="/bodega/ubicaciones" element={<GestionUbicaciones />} />
               <Route path="/bodega/documentos-pendientes" element={<DocumentosPendientes />} />
