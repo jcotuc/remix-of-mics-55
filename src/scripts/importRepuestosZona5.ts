@@ -45,7 +45,44 @@ export async function importRepuestosZona5() {
 
     console.log(`Total de registros a procesar: ${jsonData.length}`);
 
-    // Procesar los datos en lotes
+    // Primero, crear los repuestos que no existen
+    const repuestosUnicos = new Map();
+    jsonData.forEach(row => {
+      const sku = String(row.sku || '');
+      const descripcion = String(row['descripción'] || row['descripcion'] || '');
+      if (sku && !repuestosUnicos.has(sku)) {
+        repuestosUnicos.set(sku, {
+          numero: '1',
+          codigo: sku,
+          clave: sku,
+          descripcion: descripcion,
+          codigo_producto: 'GENERAL',
+          stock_actual: 0,
+          disponible_mostrador: false,
+        });
+      }
+    });
+
+    console.log(`Repuestos únicos encontrados: ${repuestosUnicos.size}`);
+
+    // Insertar repuestos (ignorar duplicados)
+    if (repuestosUnicos.size > 0) {
+      const repuestosArray = Array.from(repuestosUnicos.values());
+      const { error: repuestosError } = await supabase
+        .from('repuestos')
+        .upsert(repuestosArray, {
+          onConflict: 'codigo',
+          ignoreDuplicates: false,
+        });
+
+      if (repuestosError) {
+        console.error('Error insertando repuestos:', repuestosError);
+      } else {
+        console.log('Repuestos creados/actualizados exitosamente');
+      }
+    }
+
+    // Procesar los datos en lotes para stock departamental
     const batchSize = 100;
     let processedCount = 0;
     let errorCount = 0;
