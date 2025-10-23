@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Package, Search, AlertTriangle, TrendingUp, TrendingDown, Plus, Edit, History } from "lucide-react";
+import { Package, Search, AlertTriangle, TrendingUp, TrendingDown, Plus, Edit, History, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { importRepuestosZona5 } from "@/scripts/importRepuestosZona5";
 
 type Repuesto = {
   id: string;
@@ -31,6 +32,7 @@ export default function Inventario() {
   const [tipoMovimiento, setTipoMovimiento] = useState<"entrada" | "salida">("entrada");
   const [cantidad, setCantidad] = useState("");
   const [motivo, setMotivo] = useState("");
+  const [importing, setImporting] = useState(false);
 
   useEffect(() => {
     fetchRepuestos();
@@ -96,6 +98,31 @@ export default function Inventario() {
     setShowMovimiento(true);
   };
 
+  const handleImportZona5 = async () => {
+    setImporting(true);
+    toast.loading('Importando datos de Zona 5...');
+    
+    try {
+      const result = await importRepuestosZona5();
+      
+      if (result.success) {
+        toast.success(`Importación completada: ${result.processedCount} registros procesados`);
+        if (result.errorCount > 0) {
+          toast.warning(`${result.errorCount} registros con errores`);
+        }
+        fetchRepuestos(); // Recargar datos
+      } else {
+        toast.error(`Error en importación: ${result.error}`);
+      }
+    } catch (error) {
+      toast.error('Error al importar datos');
+      console.error(error);
+    } finally {
+      setImporting(false);
+      toast.dismiss();
+    }
+  };
+
   const guardarMovimiento = async () => {
     if (!selectedRepuesto || !cantidad) {
       toast.error('Complete todos los campos');
@@ -135,14 +162,24 @@ export default function Inventario() {
 
   return (
     <div className="container mx-auto py-8 space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold flex items-center gap-2">
-          <Package className="h-8 w-8 text-primary" />
-          Control de Inventario
-        </h1>
-        <p className="text-muted-foreground mt-2">
-          Gestión de stock de repuestos y movimientos
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold flex items-center gap-2">
+            <Package className="h-8 w-8 text-primary" />
+            Control de Inventario
+          </h1>
+          <p className="text-muted-foreground mt-2">
+            Gestión de stock de repuestos y movimientos
+          </p>
+        </div>
+        <Button
+          onClick={handleImportZona5}
+          disabled={importing}
+          className="gap-2"
+        >
+          <Upload className="h-4 w-4" />
+          {importing ? 'Importando...' : 'Importar Bodega Zona 5'}
+        </Button>
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">
