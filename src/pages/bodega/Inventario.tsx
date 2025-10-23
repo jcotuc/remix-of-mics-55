@@ -50,41 +50,33 @@ export default function Inventario() {
 
       if (errorCentral) throw errorCentral;
 
-      // Fetch stock departamental
+      // Fetch stock departamental con datos del repuesto
       const { data: stockDept, error: errorDept } = await supabase
         .from('stock_departamental')
         .select(`
           *,
-          centros_servicio(nombre)
+          centros_servicio(nombre),
+          repuestos!stock_departamental_codigo_repuesto_fkey(descripcion, codigo_producto)
         `);
 
       if (errorDept) throw errorDept;
 
-      // Combinar datos
-      const repuestosConStock = (repuestosCentral || []).map((r, idx) => ({
-        id: r.id,
-        codigo: r.codigo,
-        descripcion: r.descripcion,
-        stock_actual: r.stock_actual || 0,
-        stock_minimo: 10,
-        ubicacion: r.ubicacion_bodega || `Bodega ${String.fromCharCode(65 + (idx % 3))}-${Math.floor(Math.random() * 10) + 1}`,
-        codigo_producto: r.codigo_producto,
-        centro_servicio: 'Bodega Central'
-      }));
+      // Mapear stock departamental con toda la información
+      const stockDeptFormateado = (stockDept || []).map(s => {
+        const repuestoInfo = s.repuestos as any;
+        return {
+          id: s.id,
+          codigo: s.codigo_repuesto,
+          descripcion: repuestoInfo?.descripcion || s.codigo_repuesto,
+          stock_actual: s.cantidad_actual || 0,
+          stock_minimo: s.stock_minimo || 0,
+          ubicacion: s.ubicacion || 'Sin ubicación',
+          codigo_producto: repuestoInfo?.codigo_producto || '',
+          centro_servicio: (s.centros_servicio as any)?.nombre || 'Sin centro'
+        };
+      });
 
-      // Agregar stock departamental
-      const stockDeptFormateado = (stockDept || []).map(s => ({
-        id: s.id,
-        codigo: s.codigo_repuesto,
-        descripcion: '',
-        stock_actual: s.cantidad_actual || 0,
-        stock_minimo: s.stock_minimo || 10,
-        ubicacion: s.ubicacion || 'Sin ubicación',
-        codigo_producto: '',
-        centro_servicio: (s.centros_servicio as any)?.nombre || 'Departamental'
-      }));
-
-      setRepuestos([...repuestosConStock, ...stockDeptFormateado]);
+      setRepuestos(stockDeptFormateado);
     } catch (error) {
       console.error('Error:', error);
       toast.error('Error al cargar inventario');
