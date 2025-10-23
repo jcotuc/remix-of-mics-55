@@ -19,7 +19,7 @@ export async function importRepuestosZona5() {
         .from('centros_servicio')
         .insert({
           codigo: 'ZONA5',
-          nombre: 'ZONA 5',
+          nombre: 'CS ZONA 5',
           es_central: true,
           activo: true,
           direccion: 'Guatemala, Zona 5',
