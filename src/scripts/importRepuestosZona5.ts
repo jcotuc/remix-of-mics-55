@@ -4,36 +4,20 @@ import * as XLSX from 'xlsx';
 
 export async function importRepuestosZona5() {
   try {
-    // Primero verificar/crear el centro de servicio Zona 5
-    let { data: centroData, error: centroError } = await supabase
+    // Obtener el centro de servicio Zona 5
+    const { data: centroData, error: centroError } = await supabase
       .from('centros_servicio')
       .select('id')
       .eq('codigo', 'ZONA5')
-      .single();
+      .maybeSingle();
 
-    let centroId: string;
-
-    if (centroError || !centroData) {
-      // Crear el centro de servicio
-      const { data: newCentro, error: createError } = await supabase
-        .from('centros_servicio')
-        .insert({
-          codigo: 'ZONA5',
-          nombre: 'CS ZONA 5',
-          es_central: true,
-          activo: true,
-          direccion: 'Guatemala, Zona 5',
-        })
-        .select('id')
-        .single();
-
-      if (createError) throw createError;
-      centroId = newCentro.id;
-      console.log('Centro de servicio ZONA 5 creado');
-    } else {
-      centroId = centroData.id;
-      console.log('Centro de servicio ZONA 5 encontrado');
+    if (centroError) throw centroError;
+    if (!centroData) {
+      throw new Error('Centro de servicio ZONA5 no encontrado. Contacte al administrador.');
     }
+
+    const centroId = centroData.id;
+    console.log('Centro de servicio ZONA 5 encontrado:', centroId);
 
     // Leer el archivo Excel
     const response = await fetch('/temp/Repuestos_bodega_zona_5.xlsx');

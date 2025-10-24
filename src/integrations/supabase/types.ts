@@ -1703,18 +1703,9 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      generar_codigo_hpc: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
-      generar_codigo_incidente: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
-      generar_numero_guia: {
-        Args: Record<PropertyKey, never>
-        Returns: string
-      }
+      generar_codigo_hpc: { Args: never; Returns: string }
+      generar_codigo_incidente: { Args: never; Returns: string }
+      generar_numero_guia: { Args: never; Returns: string }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
