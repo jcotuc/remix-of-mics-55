@@ -5,13 +5,17 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, CheckCircle, Package } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Search, CheckCircle, Package, Plus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
 
 type Incidente = Database['public']['Tables']['incidentes']['Row'];
 type Cliente = Database['public']['Tables']['clientes']['Row'];
+type Producto = Database['public']['Tables']['productos']['Row'];
 
 export default function IngresoMaquinas() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -19,9 +23,24 @@ export default function IngresoMaquinas() {
   const [incidentes, setIncidentes] = useState<(Incidente & { cliente: Cliente })[]>([]);
   const [embarques, setEmbarques] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // Estado para crear incidente manual
+  const [showManualDialog, setShowManualDialog] = useState(false);
+  const [clientesSAP, setClientesSAP] = useState<Cliente[]>([]);
+  const [productos, setProductos] = useState<Producto[]>([]);
+  const [manualIncidente, setManualIncidente] = useState({
+    codigo_cliente: "",
+    codigo_producto: "",
+    sku_maquina: "",
+    descripcion_problema: "",
+    persona_deja_maquina: ""
+  });
+  const [creatingIncidente, setCreatingIncidente] = useState(false);
 
   useEffect(() => {
     fetchData();
+    fetchClientesSAP();
+    fetchProductos();
   }, []);
 
   const fetchData = async () => {
@@ -58,6 +77,87 @@ export default function IngresoMaquinas() {
       toast.error('Error al cargar datos');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchClientesSAP = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('clientes')
+        .select('*')
+        .not('codigo_sap', 'is', null)
+        .order('nombre');
+
+      if (error) throw error;
+      setClientesSAP(data || []);
+    } catch (error) {
+      console.error('Error fetching clientes SAP:', error);
+    }
+  };
+
+  const fetchProductos = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('productos')
+        .select('*')
+        .order('descripcion');
+
+      if (error) throw error;
+      setProductos(data || []);
+    } catch (error) {
+      console.error('Error fetching productos:', error);
+    }
+  };
+
+  const handleCreateManualIncidente = async () => {
+    if (!manualIncidente.codigo_cliente || !manualIncidente.codigo_producto || 
+        !manualIncidente.descripcion_problema || !manualIncidente.persona_deja_maquina) {
+      toast.error('Complete todos los campos obligatorios');
+      return;
+    }
+
+    setCreatingIncidente(true);
+    try {
+      // Generar código de incidente
+      const { data: codigoData, error: codigoError } = await supabase
+        .rpc('generar_codigo_incidente');
+
+      if (codigoError) throw codigoError;
+
+      const nuevoIncidente = {
+        codigo: codigoData,
+        codigo_cliente: manualIncidente.codigo_cliente,
+        codigo_producto: manualIncidente.codigo_producto,
+        sku_maquina: manualIncidente.sku_maquina || null,
+        descripcion_problema: manualIncidente.descripcion_problema,
+        persona_deja_maquina: manualIncidente.persona_deja_maquina,
+        status: 'Ingresado' as const,
+        cobertura_garantia: false,
+        ingresado_en_mostrador: false,
+        fecha_ingreso: new Date().toISOString()
+      };
+
+      const { error } = await supabase
+        .from('incidentes')
+        .insert([nuevoIncidente]);
+
+      if (error) throw error;
+
+      toast.success('Incidente creado exitosamente');
+      setShowManualDialog(false);
+      setManualIncidente({
+        codigo_cliente: "",
+        codigo_producto: "",
+        sku_maquina: "",
+        descripcion_problema: "",
+        persona_deja_maquina: ""
+      });
+      fetchData();
+    } catch (error) {
+      console.error('Error:', error);
+      toast.error('Error al crear incidente');
+    } finally {
+      setCreatingIncidente(false);
     }
   };
 
@@ -105,6 +205,10 @@ export default function IngresoMaquinas() {
             Ingreso formal de máquinas que llegan en embarques
           </p>
         </div>
+        <Button onClick={() => setShowManualDialog(true)}>
+          <Plus className="h-4 w-4 mr-2" />
+          Crear Incidente Manual
+        </Button>
       </div>
 
       <Card>
@@ -187,6 +291,98 @@ export default function IngresoMaquinas() {
           )}
         </CardContent>
       </Card>
+
+      {/* Dialog para crear incidente manual */}
+      <Dialog open={showManualDialog} onOpenChange={setShowManualDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Crear Incidente Manual - Clientes SAP</DialogTitle>
+            <DialogDescription>
+              Registre un incidente manualmente para clientes SAP
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="cliente">Cliente SAP *</Label>
+              <Select 
+                value={manualIncidente.codigo_cliente} 
+                onValueChange={(value) => setManualIncidente({ ...manualIncidente, codigo_cliente: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccione un cliente SAP" />
+                </SelectTrigger>
+                <SelectContent>
+                  {clientesSAP.map((cliente) => (
+                    <SelectItem key={cliente.codigo} value={cliente.codigo}>
+                      {cliente.nombre} - SAP: {cliente.codigo_sap}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="producto">Producto *</Label>
+              <Select 
+                value={manualIncidente.codigo_producto} 
+                onValueChange={(value) => setManualIncidente({ ...manualIncidente, codigo_producto: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccione un producto" />
+                </SelectTrigger>
+                <SelectContent>
+                  {productos.map((producto) => (
+                    <SelectItem key={producto.codigo} value={producto.codigo}>
+                      {producto.codigo} - {producto.descripcion}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="sku">SKU Máquina</Label>
+              <Input
+                id="sku"
+                value={manualIncidente.sku_maquina}
+                onChange={(e) => setManualIncidente({ ...manualIncidente, sku_maquina: e.target.value })}
+                placeholder="Número de serie de la máquina"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="persona">Persona que deja la máquina *</Label>
+              <Input
+                id="persona"
+                value={manualIncidente.persona_deja_maquina}
+                onChange={(e) => setManualIncidente({ ...manualIncidente, persona_deja_maquina: e.target.value })}
+                placeholder="Nombre de quien entrega"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="descripcion">Descripción del Problema *</Label>
+              <Textarea
+                id="descripcion"
+                value={manualIncidente.descripcion_problema}
+                onChange={(e) => setManualIncidente({ ...manualIncidente, descripcion_problema: e.target.value })}
+                placeholder="Describa el problema reportado..."
+                rows={4}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowManualDialog(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleCreateManualIncidente} disabled={creatingIncidente}>
+              {creatingIncidente ? 'Creando...' : 'Crear Incidente'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
