@@ -30,10 +30,8 @@ export default function IngresoMaquinas() {
   const [productos, setProductos] = useState<Producto[]>([]);
   const [manualIncidente, setManualIncidente] = useState({
     codigo_cliente: "",
-    codigo_producto: "",
     sku_maquina: "",
-    descripcion_problema: "",
-    persona_deja_maquina: ""
+    descripcion_problema: ""
   });
   const [creatingIncidente, setCreatingIncidente] = useState(false);
 
@@ -110,14 +108,28 @@ export default function IngresoMaquinas() {
   };
 
   const handleCreateManualIncidente = async () => {
-    if (!manualIncidente.codigo_cliente || !manualIncidente.codigo_producto || 
-        !manualIncidente.descripcion_problema || !manualIncidente.persona_deja_maquina) {
+    if (!manualIncidente.codigo_cliente || !manualIncidente.sku_maquina || 
+        !manualIncidente.descripcion_problema) {
       toast.error('Complete todos los campos obligatorios');
       return;
     }
 
     setCreatingIncidente(true);
     try {
+      // Buscar el producto por SKU
+      const { data: productoData, error: productoError } = await supabase
+        .from('productos')
+        .select('codigo')
+        .or(`codigo.ilike.%${manualIncidente.sku_maquina}%,clave.ilike.%${manualIncidente.sku_maquina}%`)
+        .limit(1)
+        .single();
+
+      if (productoError || !productoData) {
+        toast.error('No se encontró el producto con ese SKU');
+        setCreatingIncidente(false);
+        return;
+      }
+
       // Generar código de incidente
       const { data: codigoData, error: codigoError } = await supabase
         .rpc('generar_codigo_incidente');
@@ -127,10 +139,9 @@ export default function IngresoMaquinas() {
       const nuevoIncidente = {
         codigo: codigoData,
         codigo_cliente: manualIncidente.codigo_cliente,
-        codigo_producto: manualIncidente.codigo_producto,
-        sku_maquina: manualIncidente.sku_maquina || null,
+        codigo_producto: productoData.codigo,
+        sku_maquina: manualIncidente.sku_maquina,
         descripcion_problema: manualIncidente.descripcion_problema,
-        persona_deja_maquina: manualIncidente.persona_deja_maquina,
         status: 'Ingresado' as const,
         cobertura_garantia: false,
         ingresado_en_mostrador: false,
@@ -147,10 +158,8 @@ export default function IngresoMaquinas() {
       setShowManualDialog(false);
       setManualIncidente({
         codigo_cliente: "",
-        codigo_producto: "",
         sku_maquina: "",
-        descripcion_problema: "",
-        persona_deja_maquina: ""
+        descripcion_problema: ""
       });
       fetchData();
     } catch (error) {
@@ -323,41 +332,12 @@ export default function IngresoMaquinas() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="producto">Producto *</Label>
-              <Select 
-                value={manualIncidente.codigo_producto} 
-                onValueChange={(value) => setManualIncidente({ ...manualIncidente, codigo_producto: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccione un producto" />
-                </SelectTrigger>
-                <SelectContent>
-                  {productos.map((producto) => (
-                    <SelectItem key={producto.codigo} value={producto.codigo}>
-                      {producto.codigo} - {producto.descripcion}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="sku">SKU Máquina</Label>
+              <Label htmlFor="sku">SKU Máquina *</Label>
               <Input
                 id="sku"
                 value={manualIncidente.sku_maquina}
                 onChange={(e) => setManualIncidente({ ...manualIncidente, sku_maquina: e.target.value })}
-                placeholder="Número de serie de la máquina"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="persona">Persona que deja la máquina *</Label>
-              <Input
-                id="persona"
-                value={manualIncidente.persona_deja_maquina}
-                onChange={(e) => setManualIncidente({ ...manualIncidente, persona_deja_maquina: e.target.value })}
-                placeholder="Nombre de quien entrega"
+                placeholder="Código o clave del producto"
               />
             </div>
 
