@@ -191,7 +191,8 @@ export function DiagnosticoTecnico({ incidente, onDiagnosticoCompleto }: Diagnos
 
       const tecnicoNombre = profile ? `${profile.nombre} ${profile.apellido}` : user.email || 'Técnico';
 
-      const { error } = await supabase
+      // Insertar la solicitud
+      const { data: solicitud, error: solicitudError } = await supabase
         .from('solicitudes_repuestos')
         .insert({
           incidente_id: incidente.id,
@@ -199,15 +200,25 @@ export function DiagnosticoTecnico({ incidente, onDiagnosticoCompleto }: Diagnos
           repuestos: repuestosSeleccionados,
           notas: notas,
           estado: 'pendiente'
-        });
+        })
+        .select()
+        .single();
 
-      if (error) throw error;
+      if (solicitudError) {
+        console.error('Error detallado:', solicitudError);
+        if (solicitudError.code === '42501') {
+          toast.error('No tienes permisos para crear solicitudes de repuestos. Contacta al administrador.');
+        } else {
+          toast.error(`Error al solicitar repuestos: ${solicitudError.message}`);
+        }
+        return;
+      }
 
       toast.success("Solicitud de repuestos enviada a bodega");
       setPaso(3);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error al solicitar repuestos:', error);
-      toast.error("Error al solicitar repuestos");
+      toast.error(`Error al solicitar repuestos: ${error.message || 'Error desconocido'}`);
     }
   };
 
