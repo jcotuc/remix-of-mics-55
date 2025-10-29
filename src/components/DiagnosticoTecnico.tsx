@@ -191,33 +191,53 @@ export function DiagnosticoTecnico({ incidente, onDiagnosticoCompleto }: Diagnos
 
       const tecnicoNombre = profile ? `${profile.nombre} ${profile.apellido}` : user.email || 'Técnico';
 
+      // Preparar los datos de repuestos en formato JSON correcto
+      const repuestosData = repuestosSeleccionados.map(r => ({
+        codigo: r.codigo,
+        cantidad: r.cantidad,
+        descripcion: r.descripcion
+      }));
+
+      console.log('Datos a insertar:', {
+        incidente_id: incidente.id,
+        tecnico_solicitante: tecnicoNombre,
+        repuestos: repuestosData,
+        notas: notas || null,
+        estado: 'pendiente'
+      });
+
       // Insertar la solicitud
       const { data: solicitud, error: solicitudError } = await supabase
         .from('solicitudes_repuestos')
         .insert({
           incidente_id: incidente.id,
           tecnico_solicitante: tecnicoNombre,
-          repuestos: repuestosSeleccionados,
-          notas: notas,
+          repuestos: repuestosData,
+          notas: notas || null,
           estado: 'pendiente'
         })
         .select()
         .single();
 
       if (solicitudError) {
-        console.error('Error detallado:', solicitudError);
+        console.error('Error detallado al insertar solicitud:', solicitudError);
+        console.error('Código de error:', solicitudError.code);
+        console.error('Mensaje:', solicitudError.message);
+        console.error('Detalles:', solicitudError.details);
+        
         if (solicitudError.code === '42501') {
           toast.error('No tienes permisos para crear solicitudes de repuestos. Contacta al administrador.');
         } else {
-          toast.error(`Error al solicitar repuestos: ${solicitudError.message}`);
+          toast.error(`Error: ${solicitudError.message}`);
         }
         return;
       }
 
+      console.log('Solicitud creada exitosamente:', solicitud);
       toast.success("Solicitud de repuestos enviada a bodega");
       setPaso(3);
     } catch (error: any) {
-      console.error('Error al solicitar repuestos:', error);
+      console.error('Error general al solicitar repuestos:', error);
       toast.error(`Error al solicitar repuestos: ${error.message || 'Error desconocido'}`);
     }
   };
