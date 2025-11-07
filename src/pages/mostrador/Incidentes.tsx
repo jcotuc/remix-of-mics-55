@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, Eye, AlertTriangle, CheckCircle, Calendar, Plus, Package } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -171,138 +172,242 @@ export default function IncidentesMostrador() {
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Lista de Incidentes</CardTitle>
-          <CardDescription>
-            {filteredIncidentes.length} incidentes registrados
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center space-x-4 mb-4">
-            <div className="flex items-center space-x-2">
-              <Search className="h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar incidentes..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="max-w-sm"
-              />
-            </div>
-            
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Filtrar por estado" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos los estados</SelectItem>
-                {statusOptions.map((status) => (
-                  <SelectItem key={status} value={status}>
-                    {status}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+      <Tabs defaultValue="ingresadas" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="ingresadas">
+            Máquinas Ingresadas ({maquinasIngresadas})
+          </TabsTrigger>
+          <TabsTrigger value="notificar">
+            Pendientes de Notificar ({pendientesNotificar})
+          </TabsTrigger>
+        </TabsList>
 
-            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-              <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Filtrar por familia" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas las familias</SelectItem>
-                {categoryOptions.map((category) => (
-                  <SelectItem key={category} value={category}>
-                    {category}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+        <TabsContent value="ingresadas">
+          <Card>
+            <CardHeader>
+              <CardTitle>Máquinas Ingresadas</CardTitle>
+              <CardDescription>
+                {incidentesList.filter(i => i.status === 'Ingresado').length} máquinas ingresadas
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center space-x-4 mb-4">
+                <div className="flex items-center space-x-2">
+                  <Search className="h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar incidentes..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="max-w-sm"
+                  />
+                </div>
+              </div>
 
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Código</TableHead>
-                  <TableHead>Cliente</TableHead>
-                  <TableHead>Producto</TableHead>
-                  <TableHead>Técnico</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead>Garantía</TableHead>
-                  <TableHead>Fecha Ingreso</TableHead>
-                  <TableHead className="text-right">Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {loading ? (
-                  <TableRow>
-                    <TableCell colSpan={8} className="text-center">
-                      Cargando incidentes...
-                    </TableCell>
-                  </TableRow>
-                ) : filteredIncidentes.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={8} className="text-center">
-                      No hay incidentes registrados
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredIncidentes.map((incidente) => (
-                  <TableRow 
-                    key={incidente.id}
-                    className="cursor-pointer hover:bg-muted/30"
-                    onClick={() => handleRowClick(incidente.id)}
-                  >
-                    <TableCell className="font-medium">{incidente.codigo}</TableCell>
-                    <TableCell>{getClienteName(incidente.codigo_cliente)}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center space-x-2">
-                        <span className="text-sm">{getProductDisplayName(incidente.codigo_producto)}</span>
-                        {isProductDiscontinued(incidente.codigo_producto) && (
-                          <Badge variant="destructive" className="text-xs">
-                            <AlertTriangle className="h-3 w-3 mr-1" />
-                            Descontinuado
-                          </Badge>
-                        )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-sm">{getTecnicoName(incidente.codigo_tecnico || '')}</TableCell>
-                    <TableCell>
-                      <StatusBadge status={incidente.status as StatusIncidente} />
-                    </TableCell>
-                    <TableCell>
-                      {incidente.cobertura_garantia ? (
-                        <Badge className="bg-success text-success-foreground">
-                          Sí
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline">
-                          No
-                        </Badge>
-                      )}
-                    </TableCell>
-                    <TableCell>{new Date(incidente.fecha_ingreso).toLocaleDateString()}</TableCell>
-                    <TableCell className="text-right">
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleRowClick(incidente.id);
-                        }}
-                      >
-                        <Eye className="h-4 w-4 mr-1" />
-                        Ver Detalles
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Código</TableHead>
+                      <TableHead>Cliente</TableHead>
+                      <TableHead>Producto</TableHead>
+                      <TableHead>Garantía</TableHead>
+                      <TableHead>Fecha Ingreso</TableHead>
+                      <TableHead className="text-right">Acciones</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {loading ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center">
+                          Cargando incidentes...
+                        </TableCell>
+                      </TableRow>
+                    ) : incidentesList.filter(i => {
+                      const matchesSearch = i.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                        i.descripcion_problema.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                        getClienteName(i.codigo_cliente).toLowerCase().includes(searchTerm.toLowerCase());
+                      return i.status === 'Ingresado' && matchesSearch;
+                    }).length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center">
+                          No hay máquinas ingresadas
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      incidentesList
+                        .filter(i => {
+                          const matchesSearch = i.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            i.descripcion_problema.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            getClienteName(i.codigo_cliente).toLowerCase().includes(searchTerm.toLowerCase());
+                          return i.status === 'Ingresado' && matchesSearch;
+                        })
+                        .map((incidente) => (
+                          <TableRow 
+                            key={incidente.id}
+                            className="cursor-pointer hover:bg-muted/30"
+                            onClick={() => handleRowClick(incidente.id)}
+                          >
+                            <TableCell className="font-medium">{incidente.codigo}</TableCell>
+                            <TableCell>{getClienteName(incidente.codigo_cliente)}</TableCell>
+                            <TableCell>
+                              <div className="flex items-center space-x-2">
+                                <span className="text-sm">{getProductDisplayName(incidente.codigo_producto)}</span>
+                                {isProductDiscontinued(incidente.codigo_producto) && (
+                                  <Badge variant="destructive" className="text-xs">
+                                    <AlertTriangle className="h-3 w-3 mr-1" />
+                                    Descontinuado
+                                  </Badge>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              {incidente.cobertura_garantia ? (
+                                <Badge className="bg-success text-success-foreground">
+                                  Sí
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline">
+                                  No
+                                </Badge>
+                              )}
+                            </TableCell>
+                            <TableCell>{new Date(incidente.fecha_ingreso).toLocaleDateString()}</TableCell>
+                            <TableCell className="text-right">
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRowClick(incidente.id);
+                                }}
+                              >
+                                <Eye className="h-4 w-4 mr-1" />
+                                Ver Detalles
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="notificar">
+          <Card>
+            <CardHeader>
+              <CardTitle>Pendientes de Notificar</CardTitle>
+              <CardDescription>
+                {incidentesList.filter(i => i.status === 'Reparado').length} máquinas listas para notificar al cliente
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center space-x-4 mb-4">
+                <div className="flex items-center space-x-2">
+                  <Search className="h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar incidentes..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="max-w-sm"
+                  />
+                </div>
+              </div>
+
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Código</TableHead>
+                      <TableHead>Cliente</TableHead>
+                      <TableHead>Producto</TableHead>
+                      <TableHead>Garantía</TableHead>
+                      <TableHead>Fecha Ingreso</TableHead>
+                      <TableHead className="text-right">Acciones</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {loading ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center">
+                          Cargando incidentes...
+                        </TableCell>
+                      </TableRow>
+                    ) : incidentesList.filter(i => {
+                      const matchesSearch = i.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                        i.descripcion_problema.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                        getClienteName(i.codigo_cliente).toLowerCase().includes(searchTerm.toLowerCase());
+                      return i.status === 'Reparado' && matchesSearch;
+                    }).length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center">
+                          No hay máquinas pendientes de notificar
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      incidentesList
+                        .filter(i => {
+                          const matchesSearch = i.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            i.descripcion_problema.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            getClienteName(i.codigo_cliente).toLowerCase().includes(searchTerm.toLowerCase());
+                          return i.status === 'Reparado' && matchesSearch;
+                        })
+                        .map((incidente) => (
+                          <TableRow 
+                            key={incidente.id}
+                            className="cursor-pointer hover:bg-muted/30"
+                            onClick={() => handleRowClick(incidente.id)}
+                          >
+                            <TableCell className="font-medium">{incidente.codigo}</TableCell>
+                            <TableCell>{getClienteName(incidente.codigo_cliente)}</TableCell>
+                            <TableCell>
+                              <div className="flex items-center space-x-2">
+                                <span className="text-sm">{getProductDisplayName(incidente.codigo_producto)}</span>
+                                {isProductDiscontinued(incidente.codigo_producto) && (
+                                  <Badge variant="destructive" className="text-xs">
+                                    <AlertTriangle className="h-3 w-3 mr-1" />
+                                    Descontinuado
+                                  </Badge>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              {incidente.cobertura_garantia ? (
+                                <Badge className="bg-success text-success-foreground">
+                                  Sí
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline">
+                                  No
+                                </Badge>
+                              )}
+                            </TableCell>
+                            <TableCell>{new Date(incidente.fecha_ingreso).toLocaleDateString()}</TableCell>
+                            <TableCell className="text-right">
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRowClick(incidente.id);
+                                }}
+                              >
+                                <Eye className="h-4 w-4 mr-1" />
+                                Ver Detalles
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
