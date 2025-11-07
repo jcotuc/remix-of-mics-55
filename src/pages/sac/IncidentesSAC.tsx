@@ -66,16 +66,12 @@ export default function IncidentesSAC() {
         setCurrentUserId(user.id);
       }
 
-      // Fetch incidents that need SAC attention (Presupuesto, Canje, Cambio por garantia, Nota de credito, Reparado, Pendiente entrega)
+      // Fetch incidents that need SAC attention (only Presupuesto and Porcentaje for notifications)
       const { data: incidentesData, error: incidentesError } = await supabase
         .from("incidentes")
         .select("*")
         .in("status", [
           "Presupuesto",
-          "Cambio por garantia",
-          "Nota de credito",
-          "Reparado",
-          "Pendiente entrega",
           "Porcentaje"
         ])
         .order("fecha_ingreso", { ascending: false });
@@ -176,10 +172,6 @@ export default function IncidentesSAC() {
 
   const statusOptions = [
     "Presupuesto",
-    "Cambio por garantia",
-    "Nota de credito",
-    "Reparado",
-    "Pendiente entrega",
     "Porcentaje"
   ];
 
@@ -194,10 +186,11 @@ export default function IncidentesSAC() {
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Incidentes para Notificación</h1>
+        <h1 className="text-3xl font-bold">Pendientes por Notificar</h1>
+        <p className="text-muted-foreground">Presupuestos y Porcentajes</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -206,7 +199,7 @@ export default function IncidentesSAC() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {incidentesList.filter((i) => i.status === "Presupuesto" || i.status === "Porcentaje").length}
+              {incidentesList.filter((i) => i.status === "Presupuesto").length}
             </div>
           </CardContent>
         </Card>
@@ -214,40 +207,12 @@ export default function IncidentesSAC() {
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Canjes/Garantías
+              Porcentajes
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {incidentesList.filter((i) => 
-                i.status === "Cambio por garantia" || i.status === "Nota de credito"
-              ).length}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Reparados
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {incidentesList.filter((i) => i.status === "Reparado").length}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Pendientes Entrega
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {incidentesList.filter((i) => i.status === "Pendiente entrega").length}
+              {incidentesList.filter((i) => i.status === "Porcentaje").length}
             </div>
           </CardContent>
         </Card>

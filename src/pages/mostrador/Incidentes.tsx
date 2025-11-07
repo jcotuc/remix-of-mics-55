@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Eye, AlertTriangle, CheckCircle, Calendar, Plus } from "lucide-react";
+import { Search, Eye, AlertTriangle, CheckCircle, Calendar, Plus, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -108,8 +108,10 @@ export default function IncidentesMostrador() {
     return fechaIngreso.getTime() === hoy.getTime();
   }).length;
 
-  const estatusActivos = ['Ingresado', 'En diagnostico', 'Pendiente por repuestos', 'Presupuesto', 'Reparado'];
-  const totalEnTaller = incidentesList.filter(i => estatusActivos.includes(i.status)).length;
+  const maquinasIngresadas = incidentesList.filter(i => i.status === 'Ingresado').length;
+  const pendientesNotificar = incidentesList.filter(i => 
+    i.status === 'Presupuesto' || i.status === 'Porcentaje'
+  ).length;
   const pendientesEntrega = incidentesList.filter(i => i.status === 'Reparado').length;
 
   return (
@@ -131,11 +133,11 @@ export default function IncidentesMostrador() {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center space-x-2">
-              <Calendar className="h-5 w-5 text-primary" />
+              <Package className="h-5 w-5 text-primary" />
               <div>
-                <p className="text-sm text-muted-foreground">Ingresadas en el Día</p>
+                <p className="text-sm text-muted-foreground">Máquinas Ingresadas</p>
                 <p className="text-2xl font-bold">
-                  {ingresadasHoy}
+                  {maquinasIngresadas}
                 </p>
               </div>
             </div>
@@ -147,9 +149,9 @@ export default function IncidentesMostrador() {
             <div className="flex items-center space-x-2">
               <AlertTriangle className="h-5 w-5 text-blue-600" />
               <div>
-                <p className="text-sm text-muted-foreground">Total en Taller (Estatus Activo)</p>
+                <p className="text-sm text-muted-foreground">Pendientes por Notificar</p>
                 <p className="text-2xl font-bold">
-                  {totalEnTaller}
+                  {pendientesNotificar}
                 </p>
               </div>
             </div>
