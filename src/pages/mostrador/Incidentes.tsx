@@ -109,9 +109,7 @@ export default function IncidentesMostrador() {
   }).length;
 
   const maquinasIngresadas = incidentesList.filter(i => i.status === 'Ingresado').length;
-  const pendientesNotificar = incidentesList.filter(i => 
-    i.status === 'Presupuesto' || i.status === 'Porcentaje'
-  ).length;
+  const pendientesNotificar = incidentesList.filter(i => i.status === 'Reparado').length;
   const pendientesEntrega = incidentesList.filter(i => i.status === 'Reparado').length;
 
   return (
@@ -149,7 +147,7 @@ export default function IncidentesMostrador() {
             <div className="flex items-center space-x-2">
               <AlertTriangle className="h-5 w-5 text-blue-600" />
               <div>
-                <p className="text-sm text-muted-foreground">Pendientes por Notificar</p>
+                <p className="text-sm text-muted-foreground">Pendientes por Notificar (Reparadas)</p>
                 <p className="text-2xl font-bold">
                   {pendientesNotificar}
                 </p>
