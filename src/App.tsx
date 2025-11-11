@@ -54,6 +54,7 @@ import Despieces from "./pages/bodega/Despieces";
 import IncidentesSAC from "./pages/sac/IncidentesSAC";
 import DetalleIncidenteSAC from "./pages/sac/DetalleIncidenteSAC";
 import ConsultaExistencias from "./pages/sac/ConsultaExistencias";
+import Usuarios from "./pages/admin/Usuarios";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -118,6 +119,9 @@ const App = () => (
               <Route path="/calidad" element={<ControlCalidadDashboard />} />
               <Route path="/calidad/auditorias" element={<AuditoriasCalidad />} />
               <Route path="/calidad/defectos" element={<AnalisisDefectos />} />
+              
+              {/* Admin Routes */}
+              <Route path="/admin/usuarios" element={<Usuarios />} />
               
               <Route path="*" element={<NotFound />} />
             </Routes>

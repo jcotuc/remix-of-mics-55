@@ -1,4 +1,4 @@
-import { Users, Package, Wrench, FileText, Truck, LogOut, Home, ShoppingCart, DollarSign, ClipboardList, BarChart3, ClipboardCheck, FileSpreadsheet, LogIn, LogOut as LogOutIcon, Send, PackageCheck, AlertTriangle, AlertCircle, MapPin, Calendar } from "lucide-react";
+import { Users, Package, Wrench, FileText, Truck, LogOut, Home, ShoppingCart, DollarSign, ClipboardList, BarChart3, ClipboardCheck, FileSpreadsheet, LogIn, LogOut as LogOutIcon, Send, PackageCheck, AlertTriangle, AlertCircle, MapPin, Calendar, Settings } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -74,6 +74,9 @@ const menuAreas = {
     { title: "Dashboard", url: "/calidad", icon: BarChart3 },
     { title: "Auditorías", url: "/calidad/auditorias", icon: ClipboardCheck },
     { title: "Análisis de Defectos", url: "/calidad/defectos", icon: AlertCircle },
+  ],
+  admin: [
+    { title: "Gestión de Usuarios", url: "/admin/usuarios", icon: Settings },
   ]
 };
 
@@ -155,6 +158,7 @@ export function AppSidebar() {
         {renderMenuSection("Bodega", menuAreas.bodega)}
         {renderMenuSection("SAC", menuAreas.sac)}
         {renderMenuSection("Calidad", menuAreas.calidad)}
+        {userRole === "admin" && renderMenuSection("Administración", menuAreas.admin)}
 
         <div className="mt-auto p-4 border-t border-border bg-muted/50">
           <Button
