@@ -507,7 +507,7 @@ export default function Usuarios() {
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="role">Rol *</Label>
+              <Label htmlFor="role">Puesto *</Label>
               <Select value={formData.role} onValueChange={(value) => setFormData({ ...formData, role: value as UserRole })}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecciona un rol" />
@@ -567,7 +567,7 @@ export default function Usuarios() {
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="edit-role">Rol *</Label>
+              <Label htmlFor="edit-role">Puesto *</Label>
               <Select value={formData.role} onValueChange={(value) => setFormData({ ...formData, role: value as UserRole })}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecciona un rol" />
