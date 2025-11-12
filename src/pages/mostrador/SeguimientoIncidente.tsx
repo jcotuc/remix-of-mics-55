@@ -367,8 +367,8 @@ export default function SeguimientoIncidente() {
                 </div>}
 
               {incidente.persona_deja_maquina && <div>
-                  <p className="text-sm text-muted-foreground">Persona que dejó</p>
-                  <p className="font-medium">{incidente.persona_deja_maquina}</p>
+                  
+                  
                 </div>}
             </div>
 
