@@ -612,10 +612,9 @@ export default function DiagnosticoInicial() {
         cobertura_garantia: aplicaGarantia,
       };
 
-      // Si es canje, guardar el producto alternativo y porcentaje
+      // Si es canje, guardar el producto alternativo
       if (tipoResolucion === "Canje" && productoSeleccionado) {
         updateData.producto_sugerido_alternativo = productoSeleccionado.codigo;
-        updateData.porcentaje_descuento = porcentajeDescuento;
       }
 
       const { error: incidenteError } = await supabase
