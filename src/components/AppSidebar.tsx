@@ -115,23 +115,23 @@ export function AppSidebar() {
   );
 
   return (
-    <Sidebar className={isCollapsed ? "w-16" : "w-64"} collapsible="icon">
+    <Sidebar className={isCollapsed ? "w-16" : "w-52 sm:w-60 md:w-64"} collapsible="icon">
       <SidebarContent className="bg-card border-r-2 border-border">
-        {/* Logo y branding con colores corporativos */}
-        <div className="p-4 border-b border-border bg-gradient-to-r from-secondary to-secondary/90">
+        {/* Logo y branding responsive */}
+        <div className="p-3 sm:p-4 border-b border-border bg-gradient-to-r from-secondary to-secondary/90">
           {!isCollapsed ? (
             <div>
               <div className="flex items-center gap-2 mb-2">
-                <div className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center shadow-lg">
-                  <Wrench className="h-5 w-5 text-primary-foreground" />
+                <div className="w-8 h-8 sm:w-9 sm:h-9 bg-primary rounded-lg flex items-center justify-center shadow-lg">
+                  <Wrench className="h-4 w-4 sm:h-5 sm:w-5 text-primary-foreground" />
                 </div>
-                <h2 className="font-bold text-base text-secondary-foreground">
+                <h2 className="font-bold text-sm sm:text-base text-secondary-foreground">
                   Centro de Servicio
                 </h2>
               </div>
               {userRole && (
-                <div className="ml-11">
-                  <span className="text-xs font-medium text-secondary-foreground/80 uppercase tracking-wider px-2 py-1 bg-secondary-foreground/10 rounded">
+                <div className="ml-10 sm:ml-11">
+                  <span className="text-[10px] sm:text-xs font-medium text-secondary-foreground/80 uppercase tracking-wider px-1.5 sm:px-2 py-0.5 sm:py-1 bg-secondary-foreground/10 rounded">
                     {userRole === 'mostrador' && 'Mostrador'}
                     {userRole === 'logistica' && 'Logística'}
                     {userRole === 'taller' && 'Taller'}
@@ -144,29 +144,31 @@ export function AppSidebar() {
               )}
             </div>
           ) : (
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center mx-auto shadow-lg">
-              <Wrench className="h-4 w-4 text-primary-foreground" />
+            <div className="w-7 h-7 sm:w-8 sm:h-8 bg-primary rounded-lg flex items-center justify-center mx-auto shadow-lg">
+              <Wrench className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary-foreground" />
             </div>
           )}
         </div>
         
-        {/* Mostrar todas las secciones para desarrollo */}
-        {renderMenuSection("Home", menuAreas.home)}
-        {renderMenuSection("Mostrador", menuAreas.mostrador)}
-        {renderMenuSection("Logística", menuAreas.logistica)}
-        {renderMenuSection("Taller", menuAreas.taller)}
-        {renderMenuSection("Bodega", menuAreas.bodega)}
-        {renderMenuSection("SAC", menuAreas.sac)}
-        {renderMenuSection("Calidad", menuAreas.calidad)}
-        {userRole === "admin" && renderMenuSection("Administración", menuAreas.admin)}
+        <div className="overflow-y-auto flex-1">
+          {/* Mostrar todas las secciones para desarrollo */}
+          {renderMenuSection("Home", menuAreas.home)}
+          {renderMenuSection("Mostrador", menuAreas.mostrador)}
+          {renderMenuSection("Logística", menuAreas.logistica)}
+          {renderMenuSection("Taller", menuAreas.taller)}
+          {renderMenuSection("Bodega", menuAreas.bodega)}
+          {renderMenuSection("SAC", menuAreas.sac)}
+          {renderMenuSection("Calidad", menuAreas.calidad)}
+          {userRole === "admin" && renderMenuSection("Administración", menuAreas.admin)}
+        </div>
 
-        <div className="mt-auto p-4 border-t border-border bg-muted/50">
+        <div className="mt-auto p-3 sm:p-4 border-t border-border bg-muted/50">
           <Button
             variant="ghost"
-            className="w-full justify-start gap-2 hover:bg-destructive/10 hover:text-destructive"
+            className="w-full justify-start gap-2 text-xs sm:text-sm hover:bg-destructive/10 hover:text-destructive"
             onClick={signOut}
           >
-            <LogOut className="h-4 w-4" />
+            <LogOut className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
             {!isCollapsed && <span>Cerrar Sesión</span>}
           </Button>
         </div>

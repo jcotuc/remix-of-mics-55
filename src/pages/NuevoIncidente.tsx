@@ -614,18 +614,18 @@ export default function NuevoIncidente() {
                         <div
                           key={cliente.codigo}
                           onClick={() => seleccionarCliente(cliente)}
-                          className="p-4 hover:bg-accent cursor-pointer transition-colors"
+                          className="p-3 sm:p-4 hover:bg-accent cursor-pointer transition-colors"
                         >
-                          <div className="flex justify-between items-start">
-                            <div className="space-y-1">
-                              <p className="font-semibold text-foreground">{cliente.nombre}</p>
-                              <div className="flex gap-4 text-sm text-muted-foreground">
+                          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">
+                            <div className="space-y-1 flex-1">
+                              <p className="font-semibold text-sm sm:text-base text-foreground">{cliente.nombre}</p>
+                              <div className="flex flex-col sm:flex-row sm:gap-4 gap-1 text-xs sm:text-sm text-muted-foreground">
                                 <span>Código: {cliente.codigo}</span>
                                 <span>Celular: {cliente.celular}</span>
-                                <span>NIT: {cliente.nit}</span>
+                                <span className="hidden sm:inline">NIT: {cliente.nit}</span>
                               </div>
                             </div>
-                            <Button size="sm" variant="ghost">
+                            <Button size="sm" variant="ghost" className="self-start sm:self-auto text-xs">
                               Seleccionar
                             </Button>
                           </div>
@@ -675,7 +675,7 @@ export default function NuevoIncidente() {
                     Cambiar
                   </Button>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div>
                     <Label htmlFor="nombre-existente">Nombre Completo *</Label>
                     <Input
@@ -723,10 +723,10 @@ export default function NuevoIncidente() {
 
             {/* Formulario nuevo cliente */}
             {mostrarFormNuevoCliente && (
-              <div className="space-y-6 p-4 border rounded-lg bg-muted/30">
-                <div className="flex justify-between items-center">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <AlertCircle className="w-4 h-4" />
+              <div className="space-y-4 sm:space-y-6 p-3 sm:p-4 border rounded-lg bg-muted/30">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
+                  <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground">
+                    <AlertCircle className="w-3 h-3 sm:w-4 sm:h-4" />
                     <span>Se generará automáticamente un código HPC para este cliente</span>
                   </div>
                   <Button
@@ -747,15 +747,16 @@ export default function NuevoIncidente() {
                         municipio: ""
                       });
                     }}
+                    className="text-xs"
                   >
                     Cancelar
                   </Button>
                 </div>
                 
                 {/* Datos Personales */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold border-b pb-2">Datos Personales</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-3 sm:space-y-4">
+                  <h3 className="text-base sm:text-lg font-semibold border-b pb-2">Datos Personales</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                     <div className="col-span-2">
                       <Label htmlFor="nombre">Nombre Completo *</Label>
                       <Input
@@ -859,9 +860,9 @@ export default function NuevoIncidente() {
                 </div>
 
                 {/* Datos de Facturación */}
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold border-b pb-2">Datos de Facturación</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-3 sm:space-y-4">
+                  <h3 className="text-base sm:text-lg font-semibold border-b pb-2">Datos de Facturación</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                     <div>
                       <Label htmlFor="nit">NIT *</Label>
                       <Input
@@ -891,6 +892,7 @@ export default function NuevoIncidente() {
                 onClick={() => {
                   if (validarPaso1()) setPaso(2);
                 }}
+                className="w-full sm:w-auto"
               >
                 Siguiente
               </Button>
@@ -902,11 +904,11 @@ export default function NuevoIncidente() {
       {/* Paso 2: Incidente */}
       {paso === 2 && (
         <Card>
-          <CardHeader>
-            <CardTitle>Información del Incidente</CardTitle>
-            <CardDescription>Datos del equipo y problema reportado</CardDescription>
+          <CardHeader className="p-4 sm:p-6">
+            <CardTitle className="text-base sm:text-lg">Información del Incidente</CardTitle>
+            <CardDescription className="text-xs sm:text-sm">Datos del equipo y problema reportado</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-6">
+          <CardContent className="space-y-4 sm:space-y-6 p-4 sm:p-6">
             <div>
               <Label htmlFor="sku">SKU de la Máquina *</Label>
               <Input
@@ -976,8 +978,8 @@ export default function NuevoIncidente() {
               )}
             </div>
 
-            <div className="space-y-4 p-4 border rounded-lg bg-muted/30">
-              <h4 className="font-medium">Reporte de Fallas</h4>
+            <div className="space-y-3 sm:space-y-4 p-3 sm:p-4 border rounded-lg bg-muted/30">
+              <h4 className="font-medium text-sm sm:text-base">Reporte de Fallas</h4>
               <div>
                 <Label htmlFor="descripcion">Comentario del cliente (o fallas de la máquina) *</Label>
                 <Textarea
@@ -986,10 +988,11 @@ export default function NuevoIncidente() {
                   onChange={(e) => setDescripcionProblema(e.target.value)}
                   placeholder="Describa las fallas o problema reportado por el cliente"
                   rows={4}
+                  className="text-sm"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
                   <Label htmlFor="persona-deja">Persona quien deja la máquina *</Label>
                   <Input
@@ -1210,11 +1213,11 @@ export default function NuevoIncidente() {
               />
             </div>
 
-            <div className="flex justify-between">
-              <Button variant="outline" onClick={() => setPaso(1)}>
+            <div className="flex flex-col sm:flex-row justify-between gap-2 sm:gap-0">
+              <Button variant="outline" onClick={() => setPaso(1)} className="w-full sm:w-auto order-2 sm:order-1">
                 Atrás
               </Button>
-              <Button onClick={guardarIncidente} disabled={guardando}>
+              <Button onClick={guardarIncidente} disabled={guardando} className="w-full sm:w-auto order-1 sm:order-2">
                 {guardando ? "Guardando..." : "Crear Incidente"}
               </Button>
             </div>

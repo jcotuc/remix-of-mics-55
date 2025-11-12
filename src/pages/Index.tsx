@@ -72,24 +72,24 @@ const Index = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-foreground">Dashboard - Centro de Servicio</h1>
-        <p className="text-muted-foreground">
+        <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground">Dashboard - Centro de Servicio</h1>
+        <p className="text-sm sm:text-base text-muted-foreground">
           Panel de control interactivo por área
         </p>
       </div>
 
       {/* Buscador de incidentes - Disponible para todas las áreas */}
       <Card>
-        <CardHeader>
-          <CardTitle>Buscador de Incidentes</CardTitle>
-          <CardDescription>
+        <CardHeader className="p-4 sm:p-6">
+          <CardTitle className="text-base sm:text-lg">Buscador de Incidentes</CardTitle>
+          <CardDescription className="text-xs sm:text-sm">
             Busca incidentes por código, máquina o fecha de ingreso
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="flex gap-4 mb-4">
+        <CardContent className="p-4 sm:p-6">
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 mb-4">
             <div className="flex items-center space-x-2 flex-1">
               <Search className="h-4 w-4 text-muted-foreground" />
               <Input
@@ -99,7 +99,7 @@ const Index = () => {
               />
             </div>
             <Select value={searchFilter} onValueChange={setSearchFilter}>
-              <SelectTrigger className="w-48">
+              <SelectTrigger className="w-full sm:w-48">
                 <SelectValue placeholder="Filtrar por" />
               </SelectTrigger>
               <SelectContent>
@@ -134,12 +134,12 @@ const Index = () => {
               {filteredIncidentes.slice(0, 5).map((incidente) => (
                 <div 
                   key={incidente.id} 
-                  className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
+                  className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors gap-2"
                   onClick={() => handleIncidenteClick(incidente.id)}
                 >
-                  <div>
-                    <p className="font-medium text-sm">{incidente.codigo}</p>
-                    <p className="text-xs text-muted-foreground">
+                  <div className="flex-1">
+                    <p className="font-medium text-xs sm:text-sm">{incidente.codigo}</p>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground">
                       Máquina: {incidente.codigo_producto} | Fecha: {new Date(incidente.fecha_ingreso).toLocaleDateString('es-GT')}
                     </p>
                   </div>
@@ -152,13 +152,13 @@ const Index = () => {
       </Card>
 
       {/* Dashboards por área */}
-      <Tabs defaultValue={getDefaultTab()} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="mostrador">Mostrador</TabsTrigger>
-          <TabsTrigger value="taller">Taller</TabsTrigger>
-          <TabsTrigger value="logistica">Logística</TabsTrigger>
-          <TabsTrigger value="bodega">Bodega</TabsTrigger>
-          <TabsTrigger value="sac">SAC</TabsTrigger>
+      <Tabs defaultValue={getDefaultTab()} className="space-y-4 sm:space-y-6">
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-1">
+          <TabsTrigger value="mostrador" className="text-xs sm:text-sm">Mostrador</TabsTrigger>
+          <TabsTrigger value="taller" className="text-xs sm:text-sm">Taller</TabsTrigger>
+          <TabsTrigger value="logistica" className="text-xs sm:text-sm">Logística</TabsTrigger>
+          <TabsTrigger value="bodega" className="text-xs sm:text-sm">Bodega</TabsTrigger>
+          <TabsTrigger value="sac" className="text-xs sm:text-sm col-span-2 sm:col-span-1">SAC</TabsTrigger>
         </TabsList>
 
         <TabsContent value="mostrador" className="space-y-4">
