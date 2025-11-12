@@ -522,7 +522,7 @@ export default function NuevoIncidente() {
   return (
     <div className="container mx-auto p-6 max-w-4xl">
       <div className="flex items-center gap-4 mb-6">
-        <Button variant="ghost" onClick={() => navigate("/incidentes")}>
+        <Button variant="ghost" onClick={() => navigate("/mostrador/incidentes")}>
           <ArrowLeft className="w-4 h-4 mr-2" />
           Volver a Incidentes
         </Button>
