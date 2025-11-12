@@ -72,6 +72,7 @@ interface Cliente {
   codigo: string;
   nombre: string;
   nit: string;
+  celular: string;
   direccion?: string;
   correo?: string;
   telefono_principal?: string;
@@ -87,10 +88,10 @@ export default function NuevoIncidente() {
   const [paso, setPaso] = useState(1);
   
   // Paso 1: Cliente
-  const [esNuevoCliente, setEsNuevoCliente] = useState<boolean | null>(null);
   const [busquedaCliente, setBusquedaCliente] = useState("");
   const [clientesEncontrados, setClientesEncontrados] = useState<Cliente[]>([]);
   const [clienteSeleccionado, setClienteSeleccionado] = useState<Cliente | null>(null);
+  const [mostrarFormNuevoCliente, setMostrarFormNuevoCliente] = useState(false);
   
   // Datos del nuevo cliente
   const [nuevoCliente, setNuevoCliente] = useState({
@@ -198,15 +199,16 @@ export default function NuevoIncidente() {
     fetchDirecciones();
   }, [clienteSeleccionado]);
 
-  // Buscar clientes
+  // Buscar clientes en tiempo real por múltiples campos
   useEffect(() => {
-    if (busquedaCliente.length >= 3 && esNuevoCliente === false) {
+    if (busquedaCliente.length >= 2) {
       const fetchClientes = async () => {
         try {
           const { data, error } = await supabase
             .from('clientes')
             .select('*')
-            .or(`nombre.ilike.%${busquedaCliente}%,nit.ilike.%${busquedaCliente}%`);
+            .or(`nombre.ilike.%${busquedaCliente}%,nit.ilike.%${busquedaCliente}%,celular.ilike.%${busquedaCliente}%,codigo.ilike.%${busquedaCliente}%`)
+            .limit(10);
           
           if (error) throw error;
           setClientesEncontrados(data || []);
@@ -218,7 +220,7 @@ export default function NuevoIncidente() {
     } else {
       setClientesEncontrados([]);
     }
-  }, [busquedaCliente, esNuevoCliente]);
+  }, [busquedaCliente]);
 
   // Buscar productos
   useEffect(() => {
@@ -289,12 +291,7 @@ export default function NuevoIncidente() {
   };
 
   const validarPaso1 = () => {
-    if (esNuevoCliente === null) {
-      toast({ title: "Error", description: "Seleccione si es un cliente nuevo o existente", variant: "destructive" });
-      return false;
-    }
-
-    if (esNuevoCliente) {
+    if (mostrarFormNuevoCliente) {
       if (!nuevoCliente.nombre || !nuevoCliente.nit || !nuevoCliente.direccion || 
           !nuevoCliente.correo || !nuevoCliente.telefono_principal || !nuevoCliente.nombre_facturacion ||
           !nuevoCliente.departamento || !nuevoCliente.municipio) {
@@ -356,7 +353,7 @@ export default function NuevoIncidente() {
       let direccionEnvioId = direccionSeleccionada;
 
       // Si es nuevo cliente, crearlo primero
-      if (esNuevoCliente) {
+      if (mostrarFormNuevoCliente) {
         // Generar código HPC
         const { data: codigoData, error: codigoError } = await supabase
           .rpc('generar_codigo_hpc');
@@ -560,34 +557,193 @@ export default function NuevoIncidente() {
       {paso === 1 && (
         <Card>
           <CardHeader>
-            <CardTitle>Información del Cliente</CardTitle>
-            <CardDescription>Seleccione si es un cliente nuevo o existente</CardDescription>
+            <CardTitle className="flex items-center gap-2">
+              <User className="w-5 h-5" />
+              Información del Cliente
+            </CardTitle>
+            <CardDescription>Busque un cliente existente o cree uno nuevo</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            <RadioGroup 
-              value={esNuevoCliente === null ? "" : esNuevoCliente ? "nuevo" : "existente"} 
-              onValueChange={(value) => {
-                setEsNuevoCliente(value === "nuevo");
-                setClienteSeleccionado(null);
-                setBusquedaCliente("");
-              }}
-              className="flex gap-6"
-            >
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="nuevo" id="cliente-nuevo" />
-                <Label htmlFor="cliente-nuevo" className="cursor-pointer">Nuevo Cliente</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="existente" id="cliente-existente" />
-                <Label htmlFor="cliente-existente" className="cursor-pointer">Cliente Existente</Label>
-              </div>
-            </RadioGroup>
+            {/* Botón fijo para crear cliente */}
+            <div className="flex justify-end">
+              <Button
+                type="button"
+                onClick={() => {
+                  setMostrarFormNuevoCliente(true);
+                  setClienteSeleccionado(null);
+                  setBusquedaCliente("");
+                }}
+                variant="default"
+                className="gap-2"
+              >
+                <User className="w-4 h-4" />
+                Crear Cliente Nuevo
+              </Button>
+            </div>
 
-            {esNuevoCliente === true && (
+            {!mostrarFormNuevoCliente && !clienteSeleccionado && (
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="busqueda-cliente">Buscar Cliente</Label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="busqueda-cliente"
+                      value={busquedaCliente}
+                      onChange={(e) => setBusquedaCliente(e.target.value)}
+                      placeholder="Buscar por celular, código, NIT o nombre..."
+                      className="pl-10"
+                    />
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Ingrese al menos 2 caracteres para buscar
+                  </p>
+                </div>
+
+                {/* Resultados de búsqueda en tiempo real */}
+                {busquedaCliente.length >= 2 && (
+                  <div className="border rounded-lg divide-y max-h-96 overflow-y-auto">
+                    {clientesEncontrados.length > 0 ? (
+                      clientesEncontrados.map((cliente) => (
+                        <div
+                          key={cliente.codigo}
+                          onClick={() => seleccionarCliente(cliente)}
+                          className="p-4 hover:bg-accent cursor-pointer transition-colors"
+                        >
+                          <div className="flex justify-between items-start">
+                            <div className="space-y-1">
+                              <p className="font-semibold text-foreground">{cliente.nombre}</p>
+                              <div className="flex gap-4 text-sm text-muted-foreground">
+                                <span>Código: {cliente.codigo}</span>
+                                <span>Celular: {cliente.celular}</span>
+                                <span>NIT: {cliente.nit}</span>
+                              </div>
+                            </div>
+                            <Button size="sm" variant="ghost">
+                              Seleccionar
+                            </Button>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="p-8 text-center space-y-4">
+                        <AlertCircle className="w-12 h-12 mx-auto text-muted-foreground" />
+                        <div>
+                          <p className="font-medium text-foreground">Cliente no encontrado</p>
+                          <p className="text-sm text-muted-foreground">
+                            ¿Desea crear uno nuevo?
+                          </p>
+                        </div>
+                        <Button
+                          onClick={() => {
+                            setMostrarFormNuevoCliente(true);
+                            setBusquedaCliente("");
+                          }}
+                          variant="default"
+                        >
+                          Crear Cliente
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Cliente seleccionado */}
+            {clienteSeleccionado && !mostrarFormNuevoCliente && (
+              <div className="space-y-4 p-4 border rounded-lg bg-accent/50">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-lg font-semibold flex items-center gap-2">
+                    <CheckCircle2 className="w-5 h-5 text-primary" />
+                    Cliente Seleccionado
+                  </h3>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setClienteSeleccionado(null);
+                      setBusquedaCliente("");
+                    }}
+                  >
+                    Cambiar
+                  </Button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="nombre-existente">Nombre Completo *</Label>
+                    <Input
+                      id="nombre-existente"
+                      value={datosClienteExistente.nombre}
+                      onChange={(e) => setDatosClienteExistente({ ...datosClienteExistente, nombre: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="nit-existente">NIT *</Label>
+                    <Input
+                      id="nit-existente"
+                      value={datosClienteExistente.nit}
+                      onChange={(e) => setDatosClienteExistente({ ...datosClienteExistente, nit: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="correo-existente">Correo Electrónico *</Label>
+                    <Input
+                      id="correo-existente"
+                      type="email"
+                      value={datosClienteExistente.correo}
+                      onChange={(e) => setDatosClienteExistente({ ...datosClienteExistente, correo: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="telefono-principal-existente">Teléfono Principal *</Label>
+                    <Input
+                      id="telefono-principal-existente"
+                      value={datosClienteExistente.telefono_principal}
+                      onChange={(e) => setDatosClienteExistente({ ...datosClienteExistente, telefono_principal: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="telefono-secundario-existente">Teléfono Secundario</Label>
+                    <Input
+                      id="telefono-secundario-existente"
+                      value={datosClienteExistente.telefono_secundario}
+                      onChange={(e) => setDatosClienteExistente({ ...datosClienteExistente, telefono_secundario: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Formulario nuevo cliente */}
+            {mostrarFormNuevoCliente && (
               <div className="space-y-6 p-4 border rounded-lg bg-muted/30">
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <AlertCircle className="w-4 h-4" />
-                  <span>Se generará automáticamente un código HPC para este cliente</span>
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <AlertCircle className="w-4 h-4" />
+                    <span>Se generará automáticamente un código HPC para este cliente</span>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setMostrarFormNuevoCliente(false);
+                      setNuevoCliente({
+                        nombre: "",
+                        nit: "",
+                        direccion: "",
+                        correo: "",
+                        telefono_principal: "",
+                        telefono_secundario: "",
+                        nombre_facturacion: "",
+                        pais: "Guatemala",
+                        departamento: "",
+                        municipio: ""
+                      });
+                    }}
+                  >
+                    Cancelar
+                  </Button>
                 </div>
                 
                 {/* Datos Personales */}
@@ -721,98 +877,6 @@ export default function NuevoIncidente() {
                     </div>
                   </div>
                 </div>
-              </div>
-            )}
-
-            {esNuevoCliente === false && (
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="busqueda-cliente">Buscar Cliente</Label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="busqueda-cliente"
-                      value={busquedaCliente}
-                      onChange={(e) => setBusquedaCliente(e.target.value)}
-                      placeholder="Buscar por nombre o NIT (mín. 3 caracteres)"
-                      className="pl-10"
-                    />
-                  </div>
-                  
-                  {clientesEncontrados.length > 0 && (
-                    <div className="mt-2 border rounded-lg max-h-60 overflow-y-auto bg-background">
-                      {clientesEncontrados.map((cliente) => (
-                        <div 
-                          key={cliente.codigo}
-                          className="p-3 hover:bg-muted cursor-pointer border-b last:border-b-0"
-                          onClick={() => seleccionarCliente(cliente)}
-                        >
-                          <div className="font-medium">{cliente.nombre}</div>
-                          <div className="text-sm text-muted-foreground">
-                            Código: {cliente.codigo} | NIT: {cliente.nit}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {clienteSeleccionado && (
-                  <div className="p-4 border rounded-lg bg-muted/30 space-y-4">
-                    <div className="flex items-center gap-2 text-sm font-medium">
-                      <CheckCircle2 className="w-4 h-4 text-primary" />
-                      <span>Cliente seleccionado: {clienteSeleccionado.codigo}</span>
-                    </div>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="nombre-existente">Nombre *</Label>
-                        <Input
-                          id="nombre-existente"
-                          value={datosClienteExistente.nombre}
-                          onChange={(e) => setDatosClienteExistente({ ...datosClienteExistente, nombre: e.target.value })}
-                        />
-                      </div>
-
-                      <div>
-                        <Label htmlFor="nit-existente">NIT *</Label>
-                        <Input
-                          id="nit-existente"
-                          value={datosClienteExistente.nit}
-                          onChange={(e) => setDatosClienteExistente({ ...datosClienteExistente, nit: e.target.value })}
-                        />
-                      </div>
-
-                      <div>
-                        <Label htmlFor="correo-existente">Correo *</Label>
-                        <Input
-                          id="correo-existente"
-                          type="email"
-                          value={datosClienteExistente.correo}
-                          onChange={(e) => setDatosClienteExistente({ ...datosClienteExistente, correo: e.target.value })}
-                        />
-                      </div>
-
-                      <div>
-                        <Label htmlFor="tel1-existente">Teléfono Principal *</Label>
-                        <Input
-                          id="tel1-existente"
-                          value={datosClienteExistente.telefono_principal}
-                          onChange={(e) => setDatosClienteExistente({ ...datosClienteExistente, telefono_principal: e.target.value })}
-                        />
-                      </div>
-
-                      <div>
-                        <Label htmlFor="tel2-existente">Teléfono Secundario</Label>
-                        <Input
-                          id="tel2-existente"
-                          value={datosClienteExistente.telefono_secundario}
-                          onChange={(e) => setDatosClienteExistente({ ...datosClienteExistente, telefono_secundario: e.target.value })}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
               </div>
             )}
 
