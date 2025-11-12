@@ -53,9 +53,9 @@ export default function DetalleIncidente() {
   // Estado del dialog de confirmación
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   
-  // Estado para editar SKU
-  const [isEditingSku, setIsEditingSku] = useState(false);
-  const [editedSku, setEditedSku] = useState("");
+  // Estado para editar código de producto
+  const [isEditingProductCode, setIsEditingProductCode] = useState(false);
+  const [editedProductCode, setEditedProductCode] = useState("");
 
   type RepuestoItem = { repuestoCodigo: string; cantidad: number };
   const [repuestosList, setRepuestosList] = useState<RepuestoItem[]>([]);
@@ -308,28 +308,28 @@ export default function DetalleIncidente() {
     repuesto.clave.toLowerCase().includes(searchRepuesto.toLowerCase())
   );
 
-  // Funciones para editar SKU
-  const handleEditSku = () => {
-    setEditedSku(incidenteDB?.sku_maquina || "");
-    setIsEditingSku(true);
+  // Funciones para editar código de producto
+  const handleEditProductCode = () => {
+    setEditedProductCode(incidenteDB?.codigo_producto || "");
+    setIsEditingProductCode(true);
   };
 
-  const handleSaveSku = async () => {
+  const handleSaveProductCode = async () => {
     // Validación
-    const skuPattern = /^[a-zA-Z0-9-_]+$/;
-    if (!editedSku.trim()) {
+    const codePattern = /^[a-zA-Z0-9-_]+$/;
+    if (!editedProductCode.trim()) {
       toast({
         title: "Error de validación",
-        description: "El SKU no puede estar vacío",
+        description: "El código de producto no puede estar vacío",
         variant: "destructive"
       });
       return;
     }
 
-    if (!skuPattern.test(editedSku)) {
+    if (!codePattern.test(editedProductCode)) {
       toast({
         title: "Error de validación",
-        description: "El SKU solo puede contener letras, números, guiones y guiones bajos (sin espacios)",
+        description: "El código de producto solo puede contener letras, números, guiones y guiones bajos (sin espacios)",
         variant: "destructive"
       });
       return;
@@ -338,24 +338,42 @@ export default function DetalleIncidente() {
     try {
       const { error } = await supabase
         .from('incidentes')
-        .update({ sku_maquina: editedSku })
+        .update({ codigo_producto: editedProductCode })
         .eq('id', id);
 
       if (error) throw error;
 
-      // Actualizar estado local
-      setIncidenteDB(prev => prev ? { ...prev, sku_maquina: editedSku } : null);
-      setIsEditingSku(false);
+      // Actualizar estado local y recargar información del producto
+      setIncidenteDB(prev => prev ? { ...prev, codigo_producto: editedProductCode } : null);
+      
+      // Buscar nueva información del producto
+      const { data: nuevoProducto } = await supabase
+        .from('productos')
+        .select('*')
+        .eq('codigo', editedProductCode)
+        .maybeSingle();
+      
+      if (nuevoProducto) setProductoInfo(nuevoProducto);
+
+      // Buscar repuestos del nuevo producto
+      const { data: nuevosRepuestos } = await supabase
+        .from('repuestos')
+        .select('*')
+        .eq('codigo_producto', editedProductCode);
+      
+      if (nuevosRepuestos) setRepuestosDisponibles(nuevosRepuestos);
+
+      setIsEditingProductCode(false);
 
       toast({
-        title: "SKU actualizado correctamente",
-        description: `El SKU se ha actualizado a: ${editedSku}`,
+        title: "Código de producto actualizado correctamente",
+        description: `El código se ha actualizado a: ${editedProductCode}`,
       });
     } catch (error) {
-      console.error('Error updating SKU:', error);
+      console.error('Error updating product code:', error);
       toast({
         title: "Error",
-        description: "No se pudo actualizar el SKU. Inténtalo de nuevo.",
+        description: "No se pudo actualizar el código de producto. Inténtalo de nuevo.",
         variant: "destructive"
       });
     }
@@ -405,28 +423,32 @@ export default function DetalleIncidente() {
             <p className="font-semibold">
               {productoInfo ? productoInfo.descripcion : `Código: ${incidente.codigoProducto}`}
             </p>
-            <p className="text-sm text-muted-foreground">
-              Código: {incidente.codigoProducto}
-              {productoInfo && ` | Clave: ${productoInfo.clave}`}
-            </p>
-            {incidenteDB?.sku_maquina && (
-              <div className="mt-3 space-y-2">
-                <div className="flex items-center justify-between">
-                  <p className="text-xs text-muted-foreground font-medium">SKU:</p>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleEditSku}
-                    className="h-7 text-xs"
-                  >
-                    <Edit className="w-3 h-3 mr-1" />
-                    Editar SKU
-                  </Button>
-                </div>
-                <div className="bg-muted/50 px-3 py-2 rounded-md">
-                  <p className="text-sm font-mono">{incidenteDB.sku_maquina}</p>
-                </div>
+            <div className="mt-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-muted-foreground font-medium">Código de Producto (SKU):</p>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleEditProductCode}
+                  className="h-7 text-xs"
+                >
+                  <Edit className="w-3 h-3 mr-1" />
+                  Editar
+                </Button>
               </div>
+              <div className="bg-muted/50 px-3 py-2 rounded-md">
+                <p className="text-sm font-mono">{incidenteDB?.codigo_producto || incidente.codigoProducto}</p>
+              </div>
+            </div>
+            {productoInfo?.clave && (
+              <p className="text-xs text-muted-foreground mt-2">
+                Clave: {productoInfo.clave}
+              </p>
+            )}
+            {incidenteDB?.sku_maquina && (
+              <p className="text-xs text-muted-foreground mt-1">
+                SKU Máquina: {incidenteDB.sku_maquina}
+              </p>
             )}
             {productoInfo?.descontinuado && (
               <Badge variant="destructive" className="mt-2">
@@ -1638,26 +1660,26 @@ export default function DetalleIncidente() {
         </DialogContent>
       </Dialog>
 
-      {/* Dialog para editar SKU */}
-      <Dialog open={isEditingSku} onOpenChange={setIsEditingSku}>
+      {/* Dialog para editar código de producto */}
+      <Dialog open={isEditingProductCode} onOpenChange={setIsEditingProductCode}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Editar SKU</DialogTitle>
+            <DialogTitle>Editar Código de Producto (SKU)</DialogTitle>
             <DialogDescription>
-              Modifica el SKU de la máquina. Solo se permiten letras, números, guiones y guiones bajos.
+              Modifica el código del producto. Solo se permiten letras, números, guiones y guiones bajos.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <label htmlFor="sku-input" className="text-sm font-medium">
-                SKU de la máquina
+              <label htmlFor="product-code-input" className="text-sm font-medium">
+                Código de Producto
               </label>
               <Input
-                id="sku-input"
+                id="product-code-input"
                 type="text"
-                value={editedSku}
-                onChange={(e) => setEditedSku(e.target.value.replace(/\s/g, ''))}
-                placeholder="Ej: SKU-12345"
+                value={editedProductCode}
+                onChange={(e) => setEditedProductCode(e.target.value.replace(/\s/g, ''))}
+                placeholder="Ej: PROD-12345"
                 className="font-mono"
                 autoFocus
               />
@@ -1669,12 +1691,12 @@ export default function DetalleIncidente() {
           <DialogFooter className="gap-2 sm:gap-0">
             <Button 
               variant="outline" 
-              onClick={() => setIsEditingSku(false)}
+              onClick={() => setIsEditingProductCode(false)}
             >
               Cancelar
             </Button>
             <Button 
-              onClick={handleSaveSku}
+              onClick={handleSaveProductCode}
               className="bg-success hover:bg-success/90 text-success-foreground"
             >
               <Save className="w-4 h-4 mr-2" />
