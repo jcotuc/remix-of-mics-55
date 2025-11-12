@@ -687,7 +687,7 @@ export default function NuevoIncidente() {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="correo-existente">Correo Electrónico *</Label>
+                    <Label htmlFor="correo-existente">Correo Electrónico</Label>
                     <Input
                       id="correo-existente"
                       type="email"
@@ -761,7 +761,7 @@ export default function NuevoIncidente() {
                     </div>
                     
                     <div>
-                      <Label htmlFor="correo">Correo Electrónico *</Label>
+                      <Label htmlFor="correo">Correo Electrónico</Label>
                       <Input
                         id="correo"
                         type="email"
