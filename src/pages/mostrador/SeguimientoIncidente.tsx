@@ -351,15 +351,7 @@ export default function SeguimientoIncidente() {
             <Separator />
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <p className="text-sm text-muted-foreground flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4" />
-                  Garantía
-                </p>
-                <Badge variant={incidente.cobertura_garantia ? "default" : "outline"}>
-                  {incidente.cobertura_garantia ? 'Con Garantía' : 'Sin Garantía'}
-                </Badge>
-              </div>
+              
 
               <div>
                 <p className="text-sm text-muted-foreground flex items-center gap-2">
