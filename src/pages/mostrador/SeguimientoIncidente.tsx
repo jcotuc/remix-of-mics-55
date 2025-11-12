@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { 
   ArrowLeft, Package, User, Calendar, MapPin, FileText, DollarSign, 
   CheckCircle2, Printer, AlertTriangle, Wrench, TrendingUp, Phone, Mail,
-  Home, Truck, FileCheck
+  Home, Truck, FileCheck, Edit, Save
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -11,6 +11,9 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { StatusBadge } from "@/components/StatusBadge";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { toast } from "@/hooks/use-toast";
 import type { Database } from "@/integrations/supabase/types";
 
 type IncidenteDB = Database['public']['Tables']['incidentes']['Row'];
@@ -30,6 +33,8 @@ export default function SeguimientoIncidente() {
   const [diagnostico, setDiagnostico] = useState<DiagnosticoDB | null>(null);
   const [direccionEnvio, setDireccionEnvio] = useState<DireccionEnvio | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isEditingProductCode, setIsEditingProductCode] = useState(false);
+  const [editedProductCode, setEditedProductCode] = useState("");
 
   useEffect(() => {
     fetchData();
@@ -157,6 +162,58 @@ export default function SeguimientoIncidente() {
     window.print();
   };
 
+  const handleEditProductCode = () => {
+    setEditedProductCode(incidente?.codigo_producto || "");
+    setIsEditingProductCode(true);
+  };
+
+  const handleSaveProductCode = async () => {
+    const codePattern = /^[a-zA-Z0-9-_]+$/;
+    if (!editedProductCode.trim()) {
+      toast({
+        title: "Error de validación",
+        description: "El código de producto no puede estar vacío",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!codePattern.test(editedProductCode)) {
+      toast({
+        title: "Error de validación",
+        description: "El código de producto solo puede contener letras, números, guiones y guiones bajos (sin espacios)",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('incidentes')
+        .update({ codigo_producto: editedProductCode })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      setIsEditingProductCode(false);
+      
+      toast({
+        title: "Código de producto actualizado correctamente",
+        description: `El código se ha actualizado a: ${editedProductCode}`,
+      });
+
+      // Recargar los datos
+      fetchData();
+    } catch (error) {
+      console.error('Error updating product code:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar el código de producto. Inténtalo de nuevo.",
+        variant: "destructive"
+      });
+    }
+  };
+
   return (
     <div className="container mx-auto p-6 max-w-7xl space-y-6">
       {/* Header */}
@@ -266,13 +323,27 @@ export default function SeguimientoIncidente() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div>
-              <p className="text-sm text-muted-foreground">Código Producto</p>
-              <p className="text-lg font-semibold">{incidente.codigo_producto}</p>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground font-medium">Código de Producto (SKU)</p>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleEditProductCode}
+                  className="h-7 text-xs"
+                >
+                  <Edit className="w-3 h-3 mr-1" />
+                  Editar
+                </Button>
+              </div>
+              <div className="bg-muted/50 px-3 py-2 rounded-md">
+                <p className="text-lg font-mono font-semibold">{incidente.codigo_producto}</p>
+              </div>
             </div>
             
             {producto && (
               <>
+                <Separator />
                 <div>
                   <p className="text-sm text-muted-foreground">Descripción</p>
                   <p className="font-medium">{producto.descripcion}</p>
@@ -293,17 +364,23 @@ export default function SeguimientoIncidente() {
             )}
 
             {incidente.sku_maquina && (
-              <div>
-                <p className="text-sm text-muted-foreground">SKU Máquina</p>
-                <p className="font-medium">{incidente.sku_maquina}</p>
-              </div>
+              <>
+                <Separator />
+                <div>
+                  <p className="text-sm text-muted-foreground">SKU Máquina</p>
+                  <p className="font-medium">{incidente.sku_maquina}</p>
+                </div>
+              </>
             )}
 
             {incidente.accesorios && (
-              <div>
-                <p className="text-sm text-muted-foreground">Accesorios</p>
-                <p className="text-sm">{incidente.accesorios}</p>
-              </div>
+              <>
+                <Separator />
+                <div>
+                  <p className="text-sm text-muted-foreground">Accesorios</p>
+                  <p className="text-sm">{incidente.accesorios}</p>
+                </div>
+              </>
             )}
           </CardContent>
         </Card>
@@ -542,10 +619,56 @@ export default function SeguimientoIncidente() {
               <p className="text-sm bg-muted p-4 rounded-md whitespace-pre-wrap">
                 {incidente.log_observaciones}
               </p>
-            </CardContent>
-          </Card>
-        )}
+          </CardContent>
+        </Card>
+      )}
       </div>
+
+      {/* Dialog para editar código de producto */}
+      <Dialog open={isEditingProductCode} onOpenChange={setIsEditingProductCode}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Editar Código de Producto (SKU)</DialogTitle>
+            <DialogDescription>
+              Modifica el código del producto. Solo se permiten letras, números, guiones y guiones bajos.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label htmlFor="product-code-input" className="text-sm font-medium">
+                Código de Producto
+              </label>
+              <Input
+                id="product-code-input"
+                type="text"
+                value={editedProductCode}
+                onChange={(e) => setEditedProductCode(e.target.value.replace(/\s/g, ''))}
+                placeholder="Ej: PROD-12345"
+                className="font-mono"
+                autoFocus
+              />
+              <p className="text-xs text-muted-foreground">
+                Formato: Solo alfanuméricos, guiones y guiones bajos (sin espacios)
+              </p>
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button 
+              variant="outline" 
+              onClick={() => setIsEditingProductCode(false)}
+            >
+              Cancelar
+            </Button>
+            <Button 
+              onClick={handleSaveProductCode}
+              className="bg-success hover:bg-success/90 text-success-foreground"
+            >
+              <Save className="w-4 h-4 mr-2" />
+              Guardar cambios
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
