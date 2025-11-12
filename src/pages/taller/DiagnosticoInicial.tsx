@@ -604,7 +604,7 @@ export default function DiagnosticoInicial() {
       } else if (tipoResolucion === "Reparar en Garantía") {
         nuevoStatus = "Reparado";
       } else if (tipoResolucion === "Canje") {
-        nuevoStatus = "Cambio por garantia";
+        nuevoStatus = "Porcentaje";
       }
 
       const updateData: any = {
