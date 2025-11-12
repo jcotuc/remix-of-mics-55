@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Eye, AlertTriangle, CheckCircle, Calendar, Plus, Package } from "lucide-react";
+import { Search, Eye, AlertTriangle, CheckCircle, Calendar, Plus, Package, PlusCircle } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -122,8 +122,12 @@ export default function IncidentesMostrador() {
             Consulte el estado de los incidentes y seguimiento de reparaciones
           </p>
         </div>
-        <Button onClick={() => navigate("/mostrador/incidentes/nuevo")}>
-          <Plus className="h-4 w-4 mr-2" />
+        <Button 
+          onClick={() => navigate("/mostrador/incidentes/nuevo")}
+          size="lg"
+          className="shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
+        >
+          <PlusCircle className="h-5 w-5 mr-2" />
           Crear Incidente
         </Button>
       </div>
