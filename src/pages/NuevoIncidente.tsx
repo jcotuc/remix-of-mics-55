@@ -304,7 +304,7 @@ export default function NuevoIncidente() {
         return false;
       }
       if (!datosClienteExistente.nombre || !datosClienteExistente.nit || 
-          !datosClienteExistente.correo || !datosClienteExistente.telefono_principal) {
+          !datosClienteExistente.telefono_principal) {
         toast({ title: "Error", description: "Complete todos los campos obligatorios del cliente", variant: "destructive" });
         return false;
       }
