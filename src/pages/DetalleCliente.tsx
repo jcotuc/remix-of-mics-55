@@ -346,11 +346,18 @@ export default function DetalleCliente() {
         </CardHeader>
         <CardContent>
           {(() => {
-            const filtered = incidentes.filter(inc => 
-              inc.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-              inc.codigo_producto?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-              inc.status.toLowerCase().includes(searchTerm.toLowerCase())
-            );
+            const filtered = incidentes.filter(inc => {
+              const searchLower = searchTerm.toLowerCase();
+              const fechaIngreso = new Date(inc.fecha_ingreso).toLocaleDateString('es-GT');
+              
+              return (
+                inc.codigo.toLowerCase().includes(searchLower) ||
+                inc.codigo_producto?.toLowerCase().includes(searchLower) ||
+                inc.status.toLowerCase().includes(searchLower) ||
+                inc.centro_servicio?.toLowerCase().includes(searchLower) ||
+                fechaIngreso.includes(searchLower)
+              );
+            });
             
             return filtered.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
