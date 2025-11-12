@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Package, Calendar, AlertCircle } from "lucide-react";
+import { ArrowLeft, Package, Calendar, AlertCircle, Edit, CheckCircle, FileText, RefreshCw, CreditCard, Repeat } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { StatusBadge } from "@/components/StatusBadge";
 import { toast } from "sonner";
@@ -22,6 +23,8 @@ export default function DetalleCliente() {
   const [incidentes, setIncidentes] = useState<Incidente[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingCliente, setEditingCliente] = useState<Cliente | null>(null);
 
   useEffect(() => {
     if (codigo) {
@@ -60,6 +63,56 @@ export default function DetalleCliente() {
     }
   };
 
+  const handleEditCliente = () => {
+    setEditingCliente(cliente);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!editingCliente) return;
+
+    const formData = new FormData(e.currentTarget);
+    
+    try {
+      const { error } = await supabase
+        .from('clientes')
+        .update({
+          nombre: formData.get('nombre') as string,
+          nit: formData.get('nit') as string,
+          celular: formData.get('celular') as string,
+          direccion: formData.get('direccion') as string || null,
+          correo: formData.get('correo') as string || null,
+          telefono_principal: formData.get('telefono_principal') as string || null,
+          telefono_secundario: formData.get('telefono_secundario') as string || null,
+          nombre_facturacion: formData.get('nombre_facturacion') as string || null,
+          pais: formData.get('pais') as string || null,
+          departamento: formData.get('departamento') as string || null,
+          municipio: formData.get('municipio') as string || null,
+        })
+        .eq('codigo', editingCliente.codigo);
+
+      if (error) throw error;
+      
+      toast.success('Cliente actualizado exitosamente');
+      setIsEditDialogOpen(false);
+      setEditingCliente(null);
+      fetchClienteData();
+    } catch (error) {
+      console.error('Error al actualizar cliente:', error);
+      toast.error('Error al actualizar el cliente');
+    }
+  };
+
+  // Calcular indicadores
+  const indicadores = {
+    reparadasGarantia: incidentes.filter(i => i.status === 'Reparado' && i.cobertura_garantia).length,
+    presupuestos: incidentes.filter(i => i.status === 'Presupuesto').length,
+    canjes: incidentes.filter(i => i.status === 'Porcentaje').length,
+    cambios: incidentes.filter(i => i.status === 'Cambio por garantia').length,
+    notasCredito: incidentes.filter(i => i.status === 'Nota de credito').length,
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -82,19 +135,106 @@ export default function DetalleCliente() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Button 
-          variant="ghost" 
-          size="icon"
-          onClick={() => navigate('/mostrador/clientes')}
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">{cliente.nombre}</h1>
-          <p className="text-muted-foreground">Código: {cliente.codigo}</p>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Button 
+            variant="ghost" 
+            size="icon"
+            onClick={() => navigate('/mostrador/clientes')}
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">{cliente.nombre}</h1>
+            <p className="text-muted-foreground">Código: {cliente.codigo}</p>
+          </div>
         </div>
+        <Button onClick={handleEditCliente}>
+          <Edit className="h-4 w-4 mr-2" />
+          Editar Cliente
+        </Button>
       </div>
+
+      {/* Indicadores de Estado */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Resumen de Incidentes</CardTitle>
+          <CardDescription>Vista general del estado de las máquinas del cliente</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <Card className="border-2 border-green-500/20 bg-green-500/5">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-green-500/10">
+                    <CheckCircle className="h-5 w-5 text-green-600" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-foreground">{indicadores.reparadasGarantia}</p>
+                    <p className="text-xs text-muted-foreground">Reparadas en Garantía</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-2 border-blue-500/20 bg-blue-500/5">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-blue-500/10">
+                    <FileText className="h-5 w-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-foreground">{indicadores.presupuestos}</p>
+                    <p className="text-xs text-muted-foreground">Presupuestos</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-2 border-orange-500/20 bg-orange-500/5">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-orange-500/10">
+                    <Repeat className="h-5 w-5 text-orange-600" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-foreground">{indicadores.canjes}</p>
+                    <p className="text-xs text-muted-foreground">Canjes</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-2 border-purple-500/20 bg-purple-500/5">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-purple-500/10">
+                    <RefreshCw className="h-5 w-5 text-purple-600" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-foreground">{indicadores.cambios}</p>
+                    <p className="text-xs text-muted-foreground">Cambios</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-2 border-red-500/20 bg-red-500/5">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-red-500/10">
+                    <CreditCard className="h-5 w-5 text-red-600" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-foreground">{indicadores.notasCredito}</p>
+                    <p className="text-xs text-muted-foreground">Notas de Crédito</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Datos Personales */}
@@ -257,6 +397,140 @@ export default function DetalleCliente() {
           })()}
         </CardContent>
       </Card>
+
+      {/* Dialog de Edición */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Editar Cliente</DialogTitle>
+            <DialogDescription>
+              Actualiza la información del cliente
+            </DialogDescription>
+          </DialogHeader>
+          
+          {editingCliente && (
+            <form onSubmit={handleSaveEdit} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-nombre">Nombre *</Label>
+                  <Input
+                    id="edit-nombre"
+                    name="nombre"
+                    defaultValue={editingCliente.nombre}
+                    required
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="edit-nit">NIT *</Label>
+                  <Input
+                    id="edit-nit"
+                    name="nit"
+                    defaultValue={editingCliente.nit}
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="edit-celular">Celular *</Label>
+                  <Input
+                    id="edit-celular"
+                    name="celular"
+                    defaultValue={editingCliente.celular}
+                    required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="edit-correo">Correo</Label>
+                  <Input
+                    id="edit-correo"
+                    name="correo"
+                    type="email"
+                    defaultValue={editingCliente.correo || ''}
+                  />
+                </div>
+
+                <div className="space-y-2 col-span-2">
+                  <Label htmlFor="edit-direccion">Dirección</Label>
+                  <Input
+                    id="edit-direccion"
+                    name="direccion"
+                    defaultValue={editingCliente.direccion || ''}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="edit-telefono-principal">Teléfono Principal</Label>
+                  <Input
+                    id="edit-telefono-principal"
+                    name="telefono_principal"
+                    defaultValue={editingCliente.telefono_principal || ''}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="edit-telefono-secundario">Teléfono Secundario</Label>
+                  <Input
+                    id="edit-telefono-secundario"
+                    name="telefono_secundario"
+                    defaultValue={editingCliente.telefono_secundario || ''}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="edit-nombre-facturacion">Nombre Facturación</Label>
+                  <Input
+                    id="edit-nombre-facturacion"
+                    name="nombre_facturacion"
+                    defaultValue={editingCliente.nombre_facturacion || ''}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="edit-pais">País</Label>
+                  <Input
+                    id="edit-pais"
+                    name="pais"
+                    defaultValue={editingCliente.pais || 'Guatemala'}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="edit-departamento">Departamento</Label>
+                  <Input
+                    id="edit-departamento"
+                    name="departamento"
+                    defaultValue={editingCliente.departamento || ''}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="edit-municipio">Municipio</Label>
+                  <Input
+                    id="edit-municipio"
+                    name="municipio"
+                    defaultValue={editingCliente.municipio || ''}
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end space-x-2">
+                <Button 
+                  type="button" 
+                  variant="outline"
+                  onClick={() => setIsEditDialogOpen(false)}
+                >
+                  Cancelar
+                </Button>
+                <Button type="submit">
+                  Guardar Cambios
+                </Button>
+              </div>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
