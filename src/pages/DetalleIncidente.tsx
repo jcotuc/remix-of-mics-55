@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Edit, Calendar, User, Package, AlertTriangle, CheckCircle, Clock, Truck, DollarSign, FileText, Wrench, Plus, X, Stethoscope, Info, Search, ShoppingCart, Minus, Trash2 } from "lucide-react";
+import { ArrowLeft, Edit, Calendar, User, Package, AlertTriangle, CheckCircle, Clock, Truck, DollarSign, FileText, Wrench, Plus, X, Stethoscope, Info, Search, ShoppingCart, Minus, Trash2, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -52,6 +52,10 @@ export default function DetalleIncidente() {
   
   // Estado del dialog de confirmación
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  
+  // Estado para editar SKU
+  const [isEditingSku, setIsEditingSku] = useState(false);
+  const [editedSku, setEditedSku] = useState("");
 
   type RepuestoItem = { repuestoCodigo: string; cantidad: number };
   const [repuestosList, setRepuestosList] = useState<RepuestoItem[]>([]);
@@ -304,6 +308,59 @@ export default function DetalleIncidente() {
     repuesto.clave.toLowerCase().includes(searchRepuesto.toLowerCase())
   );
 
+  // Funciones para editar SKU
+  const handleEditSku = () => {
+    setEditedSku(incidenteDB?.sku_maquina || "");
+    setIsEditingSku(true);
+  };
+
+  const handleSaveSku = async () => {
+    // Validación
+    const skuPattern = /^[a-zA-Z0-9-_]+$/;
+    if (!editedSku.trim()) {
+      toast({
+        title: "Error de validación",
+        description: "El SKU no puede estar vacío",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!skuPattern.test(editedSku)) {
+      toast({
+        title: "Error de validación",
+        description: "El SKU solo puede contener letras, números, guiones y guiones bajos (sin espacios)",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('incidentes')
+        .update({ sku_maquina: editedSku })
+        .eq('id', id);
+
+      if (error) throw error;
+
+      // Actualizar estado local
+      setIncidenteDB(prev => prev ? { ...prev, sku_maquina: editedSku } : null);
+      setIsEditingSku(false);
+
+      toast({
+        title: "SKU actualizado correctamente",
+        description: `El SKU se ha actualizado a: ${editedSku}`,
+      });
+    } catch (error) {
+      console.error('Error updating SKU:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo actualizar el SKU. Inténtalo de nuevo.",
+        variant: "destructive"
+      });
+    }
+  };
+
   return (
     <div className="container mx-auto p-6 max-w-6xl">
       <div className="flex items-center justify-between mb-6">
@@ -352,6 +409,25 @@ export default function DetalleIncidente() {
               Código: {incidente.codigoProducto}
               {productoInfo && ` | Clave: ${productoInfo.clave}`}
             </p>
+            {incidenteDB?.sku_maquina && (
+              <div className="mt-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-muted-foreground font-medium">SKU:</p>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleEditSku}
+                    className="h-7 text-xs"
+                  >
+                    <Edit className="w-3 h-3 mr-1" />
+                    Editar SKU
+                  </Button>
+                </div>
+                <div className="bg-muted/50 px-3 py-2 rounded-md">
+                  <p className="text-sm font-mono">{incidenteDB.sku_maquina}</p>
+                </div>
+              </div>
+            )}
             {productoInfo?.descontinuado && (
               <Badge variant="destructive" className="mt-2">
                 <AlertTriangle className="w-3 h-3 mr-1" />
@@ -1557,6 +1633,52 @@ export default function DetalleIncidente() {
               className="bg-primary text-primary-foreground hover:bg-primary/90"
             >
               Confirmar y Guardar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog para editar SKU */}
+      <Dialog open={isEditingSku} onOpenChange={setIsEditingSku}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Editar SKU</DialogTitle>
+            <DialogDescription>
+              Modifica el SKU de la máquina. Solo se permiten letras, números, guiones y guiones bajos.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label htmlFor="sku-input" className="text-sm font-medium">
+                SKU de la máquina
+              </label>
+              <Input
+                id="sku-input"
+                type="text"
+                value={editedSku}
+                onChange={(e) => setEditedSku(e.target.value.replace(/\s/g, ''))}
+                placeholder="Ej: SKU-12345"
+                className="font-mono"
+                autoFocus
+              />
+              <p className="text-xs text-muted-foreground">
+                Formato: Solo alfanuméricos, guiones y guiones bajos (sin espacios)
+              </p>
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button 
+              variant="outline" 
+              onClick={() => setIsEditingSku(false)}
+            >
+              Cancelar
+            </Button>
+            <Button 
+              onClick={handleSaveSku}
+              className="bg-success hover:bg-success/90 text-success-foreground"
+            >
+              <Save className="w-4 h-4 mr-2" />
+              Guardar cambios
             </Button>
           </DialogFooter>
         </DialogContent>
