@@ -293,7 +293,7 @@ export default function NuevoIncidente() {
   const validarPaso1 = () => {
     if (mostrarFormNuevoCliente) {
       if (!nuevoCliente.nombre || !nuevoCliente.nit || !nuevoCliente.direccion || 
-          !nuevoCliente.correo || !nuevoCliente.telefono_principal || !nuevoCliente.nombre_facturacion ||
+          !nuevoCliente.telefono_principal || !nuevoCliente.nombre_facturacion ||
           !nuevoCliente.departamento || !nuevoCliente.municipio) {
         toast({ title: "Error", description: "Complete todos los campos obligatorios del cliente", variant: "destructive" });
         return false;
