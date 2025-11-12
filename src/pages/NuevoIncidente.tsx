@@ -1085,12 +1085,6 @@ export default function NuevoIncidente() {
                   </Label>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="llamar_antes" id="llamar_antes" />
-                  <Label htmlFor="llamar_antes" className="cursor-pointer font-normal">
-                    Quiere envío pero llamar antes
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-2">
                   <RadioGroupItem value="directo" id="directo" />
                   <Label htmlFor="directo" className="cursor-pointer font-normal">
                     Envío directo
