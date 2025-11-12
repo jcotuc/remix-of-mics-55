@@ -351,21 +351,24 @@ export default function SeguimientoIncidente() {
             <Separator />
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              
-
               <div>
                 <p className="text-sm text-muted-foreground flex items-center gap-2">
                   <TrendingUp className="w-4 h-4" />
                   Reingreso
                 </p>
                 <Badge variant={incidente.es_reingreso ? "destructive" : "outline"}>
-                  {incidente.es_reingreso ? 'Es Reingreso' : 'Primera Vez'}
+                  {incidente.es_reingreso ? 'Sí, es Reingreso' : 'No, Primera Vez'}
                 </Badge>
               </div>
 
               {incidente.tipologia && <div>
                   <p className="text-sm text-muted-foreground">Tipología</p>
                   <p className="font-medium">{incidente.tipologia}</p>
+                </div>}
+
+              {incidente.persona_deja_maquina && <div>
+                  <p className="text-sm text-muted-foreground">Persona que dejó</p>
+                  <p className="font-medium">{incidente.persona_deja_maquina}</p>
                 </div>}
             </div>
 
