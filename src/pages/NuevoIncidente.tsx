@@ -124,6 +124,7 @@ export default function NuevoIncidente() {
   const [productosEncontrados, setProductosEncontrados] = useState<Producto[]>([]);
   const [descripcionProblema, setDescripcionProblema] = useState("");
   const [personaDejaMaquina, setPersonaDejaMaquina] = useState("");
+  const [dpiPersonaDeja, setDpiPersonaDeja] = useState("");
   const [accesoriosSeleccionados, setAccesoriosSeleccionados] = useState<string[]>([]);
   const [accesoriosDisponibles, setAccesoriosDisponibles] = useState<any[]>([]);
   const [centroServicio, setCentroServicio] = useState("");
@@ -275,6 +276,7 @@ export default function NuevoIncidente() {
     setProductosEncontrados([]);
     setDescripcionProblema("");
     setPersonaDejaMaquina("");
+    setDpiPersonaDeja("");
     setAccesoriosSeleccionados([]);
     setCentroServicio("");
     setOpcionEnvio("");
@@ -323,6 +325,10 @@ export default function NuevoIncidente() {
     }
     if (!personaDejaMaquina.trim()) {
       toast({ title: "Error", description: "Ingrese quién deja la máquina", variant: "destructive" });
+      return false;
+    }
+    if (!dpiPersonaDeja.trim()) {
+      toast({ title: "Error", description: "Ingrese el DPI de quien deja la máquina", variant: "destructive" });
       return false;
     }
     if (!centroServicio) {
@@ -983,14 +989,26 @@ export default function NuevoIncidente() {
                 />
               </div>
 
-              <div>
-                <Label htmlFor="persona-deja">Persona quien deja la máquina *</Label>
-                <Input
-                  id="persona-deja"
-                  value={personaDejaMaquina}
-                  onChange={(e) => setPersonaDejaMaquina(e.target.value)}
-                  placeholder="Nombre de quien entrega el equipo"
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="persona-deja">Persona quien deja la máquina *</Label>
+                  <Input
+                    id="persona-deja"
+                    value={personaDejaMaquina}
+                    onChange={(e) => setPersonaDejaMaquina(e.target.value)}
+                    placeholder="Nombre de quien entrega el equipo"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="dpi-persona">DPI *</Label>
+                  <Input
+                    id="dpi-persona"
+                    value={dpiPersonaDeja}
+                    onChange={(e) => setDpiPersonaDeja(e.target.value)}
+                    placeholder="Número de DPI"
+                    maxLength={13}
+                  />
+                </div>
               </div>
             </div>
 
