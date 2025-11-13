@@ -396,6 +396,27 @@ export default function NuevoIncidente() {
         if (clienteError) throw clienteError;
         codigoCliente = clienteData.codigo;
         
+        // Crear dirección principal del nuevo cliente en la tabla direcciones_envio
+        if (nuevoCliente.direccion && nuevoCliente.direccion.trim()) {
+          const { data: dirData, error: dirError } = await supabase
+            .from('direcciones_envio')
+            .insert({
+              codigo_cliente: nuevoCodigoHPC,
+              direccion: nuevoCliente.direccion,
+              nombre_referencia: 'Dirección Principal',
+              es_principal: true
+            })
+            .select()
+            .single();
+
+          if (dirError) {
+            console.error('Error creando dirección principal:', dirError);
+          } else if (opcionEnvio !== 'recoger') {
+            // Si se creó exitosamente y el cliente quiere envío, usar esta dirección
+            direccionEnvioId = dirData.id;
+          }
+        }
+        
         toast({ title: "Cliente creado", description: `Código HPC: ${nuevoCodigoHPC}` });
       } else {
         // Actualizar datos del cliente existente
@@ -414,7 +435,7 @@ export default function NuevoIncidente() {
         if (updateError) throw updateError;
       }
 
-      // Si hay nueva dirección, crearla
+      // Si hay nueva dirección adicional, crearla
       if (nuevaDireccion.trim() && opcionEnvio !== 'recoger') {
         const { data: dirData, error: dirError } = await supabase
           .from('direcciones_envio')
