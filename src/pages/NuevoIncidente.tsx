@@ -690,6 +690,8 @@ export default function NuevoIncidente() {
                     onClick={() => {
                       setClienteSeleccionado(null);
                       setBusquedaCliente("");
+                      setDireccionesEnvio([]);
+                      setDireccionSeleccionada("");
                     }}
                   >
                     Cambiar
@@ -738,6 +740,28 @@ export default function NuevoIncidente() {
                     />
                   </div>
                 </div>
+                
+                {/* Mostrar dirección del cliente */}
+                {clienteSeleccionado.direccion && (
+                  <div className="mt-4 p-3 bg-background rounded-md border">
+                    <Label className="text-sm font-medium">Dirección Registrada</Label>
+                    <p className="text-sm text-muted-foreground mt-1">{clienteSeleccionado.direccion}</p>
+                  </div>
+                )}
+                
+                {/* Mostrar direcciones de envío cargadas */}
+                {direccionesEnvio.length > 0 && (
+                  <div className="mt-4 p-3 bg-background rounded-md border">
+                    <Label className="text-sm font-medium">Direcciones de Envío Guardadas ({direccionesEnvio.length})</Label>
+                    <div className="mt-2 space-y-2">
+                      {direccionesEnvio.map((dir) => (
+                        <p key={dir.id} className="text-sm text-muted-foreground">
+                          • {dir.direccion} {dir.es_principal && <span className="text-primary font-medium">(Principal)</span>}
+                        </p>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
