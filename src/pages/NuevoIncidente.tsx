@@ -1121,7 +1121,22 @@ export default function NuevoIncidente() {
                     <Label htmlFor="direccion-envio">
                       Dirección de Envío {opcionEnvio === 'directo' && '*'}
                     </Label>
-                    {direccionesEnvio.length > 0 ? (
+                    
+                    {/* Si es nuevo cliente, mostrar su dirección directamente */}
+                    {mostrarFormNuevoCliente ? (
+                      <div className="mt-2">
+                        {nuevoCliente.direccion ? (
+                          <div className="p-3 border rounded-md bg-accent/50">
+                            <p className="text-sm font-medium">Dirección del nuevo cliente:</p>
+                            <p className="text-sm text-muted-foreground mt-1">{nuevoCliente.direccion}</p>
+                          </div>
+                        ) : (
+                          <p className="text-sm text-destructive">
+                            Complete la dirección del cliente en el paso anterior
+                          </p>
+                        )}
+                      </div>
+                    ) : direccionesEnvio.length > 0 ? (
                       <Select value={direccionSeleccionada} onValueChange={setDireccionSeleccionada}>
                         <SelectTrigger>
                           <SelectValue placeholder="Seleccione una dirección" />
