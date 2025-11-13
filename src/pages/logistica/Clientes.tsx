@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,6 +18,7 @@ interface Cliente {
 }
 
 export default function ClientesLogistica() {
+  const navigate = useNavigate();
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
@@ -100,7 +102,11 @@ export default function ClientesLogistica() {
                     </TableRow>
                   ) : (
                     filteredClientes.map((cliente) => (
-                      <TableRow key={cliente.id}>
+                      <TableRow 
+                        key={cliente.id}
+                        className="cursor-pointer hover:bg-muted/50 transition-colors"
+                        onClick={() => navigate(`/detalle-cliente/${cliente.codigo}`)}
+                      >
                         <TableCell className="font-medium">{cliente.codigo}</TableCell>
                         <TableCell>{cliente.nombre}</TableCell>
                         <TableCell>{cliente.nit}</TableCell>
