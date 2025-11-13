@@ -10,6 +10,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
+import { IncidentPhotoGallery } from "@/components/IncidentPhotoGallery";
 import type { Database } from "@/integrations/supabase/types";
 type IncidenteDB = Database['public']['Tables']['incidentes']['Row'];
 type ClienteDB = Database['public']['Tables']['clientes']['Row'];
@@ -542,5 +543,8 @@ export default function SeguimientoIncidente() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Galería de Fotos del Incidente */}
+      <IncidentPhotoGallery incidenteId={id!} />
     </div>;
 }
