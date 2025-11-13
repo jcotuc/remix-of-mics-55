@@ -179,22 +179,45 @@ export default function NuevoIncidente() {
       if (!clienteSeleccionado) return;
       
       try {
-        const { data, error } = await supabase
+        // Primero intentar cargar direcciones de envío guardadas
+        const { data: direccionesData, error: direccionesError } = await supabase
           .from('direcciones_envio')
           .select('*')
           .eq('codigo_cliente', clienteSeleccionado.codigo)
           .order('es_principal', { ascending: false });
         
-        if (error) throw error;
-        setDireccionesEnvio(data || []);
+        if (direccionesError) throw direccionesError;
         
-        // Auto-seleccionar dirección principal si existe
-        const principal = data?.find(d => d.es_principal);
-        if (principal) {
-          setDireccionSeleccionada(principal.id);
+        // Si hay direcciones guardadas, usarlas
+        if (direccionesData && direccionesData.length > 0) {
+          setDireccionesEnvio(direccionesData);
+          
+          // Auto-seleccionar dirección principal si existe
+          const principal = direccionesData.find(d => d.es_principal);
+          if (principal) {
+            setDireccionSeleccionada(principal.id);
+          }
+        } else {
+          // Si no hay direcciones de envío, usar la dirección principal del cliente
+          if (clienteSeleccionado.direccion) {
+            const tempDireccion = {
+              id: 'temp-' + clienteSeleccionado.codigo,
+              codigo_cliente: clienteSeleccionado.codigo,
+              direccion: clienteSeleccionado.direccion,
+              es_principal: true,
+              nombre_referencia: 'Dirección Principal',
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            };
+            setDireccionesEnvio([tempDireccion]);
+            setDireccionSeleccionada(tempDireccion.id);
+          } else {
+            setDireccionesEnvio([]);
+          }
         }
       } catch (error) {
         console.error('Error fetching direcciones:', error);
+        setDireccionesEnvio([]);
       }
     };
     
