@@ -411,11 +411,20 @@ export default function NuevoIncidente() {
 
           if (dirError) {
             console.error('Error creando dirección principal:', dirError);
-          } else if (opcionEnvio !== 'recoger') {
-            // Si se creó exitosamente y el cliente quiere envío, usar esta dirección
-            direccionEnvioId = dirData.id;
+          } else {
+            // Actualizar el estado local de direcciones para que aparezca en el selector
+            setDireccionesEnvio([dirData]);
+            
+            if (opcionEnvio !== 'recoger') {
+              // Auto-seleccionar la dirección recién creada
+              setDireccionSeleccionada(dirData.id);
+              direccionEnvioId = dirData.id;
+            }
           }
         }
+        
+        // Actualizar clienteSeleccionado para que el resto del flujo funcione
+        setClienteSeleccionado(clienteData);
         
         toast({ title: "Cliente creado", description: `Código HPC: ${nuevoCodigoHPC}` });
       } else {
