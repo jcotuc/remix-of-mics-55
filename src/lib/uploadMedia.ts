@@ -85,7 +85,8 @@ export async function saveIncidentePhotos(
     created_by: userData.user?.id
   }));
 
-  const { error } = await supabase
+  // Using any to bypass type checking until Supabase types are regenerated
+  const { error } = await (supabase as any)
     .from('incidente_fotos')
     .insert(photosToInsert);
 
