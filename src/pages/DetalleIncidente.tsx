@@ -27,6 +27,7 @@ export default function DetalleIncidente() {
   const [incidente, setIncidente] = useState<Incidente | null>(null);
   const [incidenteDB, setIncidenteDB] = useState<IncidenteDB | null>(null);
   const [productoInfo, setProductoInfo] = useState<any>(null);
+  const [guiasEnvio, setGuiasEnvio] = useState<any[]>([]);
   const [repuestosDisponibles, setRepuestosDisponibles] = useState<any[]>([]);
   const [searchRepuesto, setSearchRepuesto] = useState("");
   
@@ -106,6 +107,15 @@ export default function DetalleIncidente() {
           .eq('codigo_producto', dbIncidente.codigo_producto);
         
         if (repuestos) setRepuestosDisponibles(repuestos);
+        
+        // Buscar guías de envío asociadas al incidente
+        const { data: guias } = await supabase
+          .from('guias_envio')
+          .select('*')
+          .contains('incidentes_codigos', [dbIncidente.codigo])
+          .order('fecha_guia', { ascending: false });
+        
+        if (guias) setGuiasEnvio(guias);
       } else {
         // Fallback a mock data
         const incidenteEncontrado = incidentes.find(i => i.id === id);
@@ -526,6 +536,72 @@ export default function DetalleIncidente() {
               </div>
             </CardContent>
           </Card>
+          
+          {/* Mostrar guías de envío solo si existen */}
+          {guiasEnvio.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Truck className="w-5 h-5" />
+                  Guías de Envío
+                </CardTitle>
+                <CardDescription>
+                  {guiasEnvio.length} {guiasEnvio.length === 1 ? 'guía registrada' : 'guías registradas'}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {guiasEnvio.map((guia) => (
+                    <div key={guia.id} className="border rounded-lg p-4 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <FileText className="w-4 h-4 text-primary" />
+                          <span className="font-semibold">{guia.numero_guia}</span>
+                        </div>
+                        <Badge variant={
+                          guia.estado === 'entregado' ? 'default' :
+                          guia.estado === 'en_transito' ? 'secondary' :
+                          guia.estado === 'pendiente' ? 'outline' : 'destructive'
+                        }>
+                          {guia.estado}
+                        </Badge>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div>
+                          <p className="text-muted-foreground">Destinatario</p>
+                          <p className="font-medium">{guia.destinatario}</p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">Ciudad</p>
+                          <p className="font-medium">{guia.ciudad_destino}</p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">Fecha Guía</p>
+                          <p className="font-medium">
+                            {new Date(guia.fecha_guia).toLocaleDateString('es-GT')}
+                          </p>
+                        </div>
+                        {guia.fecha_entrega && (
+                          <div>
+                            <p className="text-muted-foreground">Fecha Entrega</p>
+                            <p className="font-medium">
+                              {new Date(guia.fecha_entrega).toLocaleDateString('es-GT')}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                      {guia.direccion_destinatario && (
+                        <div className="text-sm pt-2 border-t">
+                          <p className="text-muted-foreground">Dirección</p>
+                          <p className="font-medium">{guia.direccion_destinatario}</p>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
         <TabsContent value="diagnostico" className="space-y-6">
