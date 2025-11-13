@@ -14,6 +14,7 @@ import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Producto } from "@/types";
 import { WhatsAppStyleMediaCapture, MediaFile } from "@/components/WhatsAppStyleMediaCapture";
+import { uploadMediaToStorage, saveIncidentePhotos } from "@/lib/uploadMedia";
 
 const centrosServicio = [
   'Zona 5 (Principal)',
@@ -347,6 +348,10 @@ export default function NuevoIncidente() {
       toast({ title: "Error", description: "Seleccione la tipología", variant: "destructive" });
       return false;
     }
+    if (mediaFiles.length === 0) {
+      toast({ title: "Error", description: "Debe agregar al menos 1 foto del ingreso de la máquina", variant: "destructive" });
+      return false;
+    }
     return true;
   };
 
@@ -474,38 +479,23 @@ export default function NuevoIncidente() {
 
       if (incidenteError) throw incidenteError;
 
-      // Upload media files if any
+      // Subir fotos/videos de ingreso
       if (mediaFiles.length > 0) {
-        for (let i = 0; i < mediaFiles.length; i++) {
-          const mediaItem = mediaFiles[i];
-          const file = mediaItem.file;
-          const fileExt = file.name.split('.').pop();
-          const fileName = `${codigoIncidente}_${Date.now()}_${i}.${fileExt}`;
-          const filePath = `${codigoIncidente}/${fileName}`;
-
-          const { error: uploadError } = await supabase.storage
-            .from('incident-photos')
-            .upload(filePath, file);
-
-          if (uploadError) {
-            console.error('Error uploading photo:', uploadError);
-            continue;
-          }
-
-          // Get public URL
-          const { data: { publicUrl } } = supabase.storage
-            .from('incident-photos')
-            .getPublicUrl(filePath);
-
-          // Save to media_files table
-          await supabase
-            .from('media_files')
-            .insert({
-              incidente_id: incidenteData.id,
-              nombre: fileName,
-              url: publicUrl,
-              tipo: 'foto'
-            });
+        try {
+          const uploadedMedia = await uploadMediaToStorage(mediaFiles, incidenteData.id);
+          await saveIncidentePhotos(incidenteData.id, uploadedMedia, 'ingreso');
+          
+          toast({ 
+            title: "Fotos subidas", 
+            description: `${uploadedMedia.length} archivo(s) subido(s) correctamente` 
+          });
+        } catch (uploadError) {
+          console.error('Error uploading media:', uploadError);
+          toast({ 
+            title: "Advertencia", 
+            description: "El incidente se creó pero hubo un error al subir algunas fotos", 
+            variant: "destructive" 
+          });
         }
       }
 
