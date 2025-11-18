@@ -8,10 +8,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Search, CheckCircle, Package, Plus } from "lucide-react";
+import { Search, CheckCircle, Package, Plus, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
+import { WhatsAppStyleMediaCapture, MediaFile } from "@/components/WhatsAppStyleMediaCapture";
+import { uploadMediaToStorage, saveIncidentePhotos } from "@/lib/uploadMedia";
 
 type Incidente = Database['public']['Tables']['incidentes']['Row'];
 type Cliente = Database['public']['Tables']['clientes']['Row'];
@@ -35,6 +37,14 @@ export default function IngresoMaquinas() {
   });
   const [creatingIncidente, setCreatingIncidente] = useState(false);
 
+  // Estados para formalización de ingreso
+  const [selectedIncidenteForIngreso, setSelectedIncidenteForIngreso] = useState<(Incidente & { cliente: Cliente }) | null>(null);
+  const [showFormalizarDialog, setShowFormalizarDialog] = useState(false);
+  const [skuVerificado, setSkuVerificado] = useState("");
+  const [fotosIngreso, setFotosIngreso] = useState<MediaFile[]>([]);
+  const [observacionesIngreso, setObservacionesIngreso] = useState("");
+  const [procesandoIngreso, setProcesandoIngreso] = useState(false);
+
   useEffect(() => {
     fetchData();
     fetchClientesSAP();
@@ -45,12 +55,12 @@ export default function IngresoMaquinas() {
     try {
       setLoading(true);
       
-      // Fetch incidents with embarque_id and status "Ingresado"
+      // Fetch incidents with status "En ruta"
       const { data: incidentesData, error: incidentesError } = await supabase
         .from('incidentes')
         .select('*, clientes!inner(*)')
         .not('embarque_id', 'is', null)
-        .eq('status', 'Ingresado')
+        .eq('status', 'En ruta')
         .order('fecha_ingreso', { ascending: false });
 
       if (incidentesError) throw incidentesError;
@@ -167,6 +177,84 @@ export default function IngresoMaquinas() {
       toast.error('Error al crear incidente');
     } finally {
       setCreatingIncidente(false);
+    }
+  };
+
+  const handleFormalizarIngreso = async () => {
+    if (!selectedIncidenteForIngreso || fotosIngreso.length === 0) {
+      toast.error("Debe capturar al menos una foto");
+      return;
+    }
+
+    setProcesandoIngreso(true);
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Usuario no autenticado");
+
+      // 1. Subir fotos a storage
+      const fotosSubidas = await uploadMediaToStorage(
+        fotosIngreso,
+        selectedIncidenteForIngreso.id
+      );
+
+      // 2. Guardar referencias en incidente_fotos
+      await saveIncidentePhotos(
+        selectedIncidenteForIngreso.id,
+        fotosSubidas,
+        'ingreso'
+      );
+
+      // 3. Crear registro de auditoría en ingresos_logistica
+      const { error: ingresoError } = await supabase
+        .from('ingresos_logistica')
+        .insert({
+          incidente_id: selectedIncidenteForIngreso.id,
+          recibido_por: user.id,
+          sku_original: selectedIncidenteForIngreso.sku_maquina || "",
+          sku_corregido: skuVerificado !== selectedIncidenteForIngreso.sku_maquina ? 
+            skuVerificado : null,
+          fotos_urls: fotosSubidas.map(f => f.url),
+          observaciones: observacionesIngreso || null
+        });
+
+      if (ingresoError) throw ingresoError;
+
+      // 4. Actualizar incidente: status + SKU si fue corregido
+      const updateData: any = {
+        status: 'Pendiente de diagnostico'
+      };
+
+      if (skuVerificado !== selectedIncidenteForIngreso.sku_maquina) {
+        updateData.sku_maquina = skuVerificado;
+      }
+
+      const { error: updateError } = await supabase
+        .from('incidentes')
+        .update(updateData)
+        .eq('id', selectedIncidenteForIngreso.id);
+
+      if (updateError) throw updateError;
+
+      toast.success(
+        skuVerificado !== selectedIncidenteForIngreso.sku_maquina
+          ? "Ingreso formalizado y SKU actualizado correctamente"
+          : "Ingreso formalizado correctamente"
+      );
+
+      // 5. Cerrar modal y refrescar datos
+      setShowFormalizarDialog(false);
+      setFotosIngreso([]);
+      setObservacionesIngreso("");
+      setSkuVerificado("");
+      setSelectedIncidenteForIngreso(null);
+      fetchData();
+
+    } catch (error) {
+      console.error('Error al formalizar ingreso:', error);
+      toast.error('Error al formalizar el ingreso');
+    } finally {
+      setProcesandoIngreso(false);
     }
   };
 
@@ -300,6 +388,94 @@ export default function IngresoMaquinas() {
           )}
         </CardContent>
       </Card>
+
+      {/* Dialog de Formalización de Ingreso */}
+      <Dialog open={showFormalizarDialog} onOpenChange={setShowFormalizarDialog}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Formalizar Ingreso Físico</DialogTitle>
+            <DialogDescription>
+              Incidente: {selectedIncidenteForIngreso?.codigo} | 
+              Cliente: {selectedIncidenteForIngreso?.cliente?.nombre}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6 py-4">
+            {/* Verificación SKU */}
+            <div className="space-y-2">
+              <Label>SKU Registrado en Sistema</Label>
+              <Input 
+                value={selectedIncidenteForIngreso?.sku_maquina || "N/A"} 
+                disabled 
+                className="bg-muted"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>SKU Físico Verificado *</Label>
+              <Input
+                value={skuVerificado}
+                onChange={(e) => setSkuVerificado(e.target.value)}
+                placeholder="Ingrese el SKU que ve en la máquina física"
+                className={skuVerificado !== selectedIncidenteForIngreso?.sku_maquina ? 
+                  "border-yellow-500" : ""}
+              />
+              {skuVerificado && skuVerificado !== selectedIncidenteForIngreso?.sku_maquina && (
+                <p className="text-sm text-yellow-600 flex items-center gap-1">
+                  <AlertCircle className="h-4 w-4" />
+                  El SKU físico difiere del registrado. Se actualizará automáticamente.
+                </p>
+              )}
+            </div>
+
+            {/* Captura de Fotos - OBLIGATORIA */}
+            <div className="space-y-2">
+              <Label>Fotos de Ingreso * (mínimo 1, máximo 10)</Label>
+              <WhatsAppStyleMediaCapture
+                media={fotosIngreso}
+                onMediaChange={setFotosIngreso}
+                maxFiles={10}
+              />
+              {fotosIngreso.length === 0 && (
+                <p className="text-sm text-destructive">
+                  Debe capturar al menos una foto antes de formalizar
+                </p>
+              )}
+            </div>
+
+            {/* Observaciones */}
+            <div className="space-y-2">
+              <Label>Observaciones (Opcional)</Label>
+              <Textarea
+                value={observacionesIngreso}
+                onChange={(e) => setObservacionesIngreso(e.target.value)}
+                placeholder="Indique cualquier daño, faltante de accesorios, etc."
+                rows={3}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowFormalizarDialog(false);
+                setFotosIngreso([]);
+                setObservacionesIngreso("");
+                setSkuVerificado("");
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleFormalizarIngreso}
+              disabled={!skuVerificado || fotosIngreso.length === 0 || procesandoIngreso}
+            >
+              {procesandoIngreso ? "Procesando..." : "Confirmar Ingreso Formal"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Dialog para crear incidente manual */}
       <Dialog open={showManualDialog} onOpenChange={setShowManualDialog}>
