@@ -1,4 +1,4 @@
-import { Users, Package, Wrench, FileText, Truck, LogOut, Home, ShoppingCart, DollarSign, ClipboardList, BarChart3, ClipboardCheck, FileSpreadsheet, LogIn, LogOut as LogOutIcon, Send, PackageCheck, AlertTriangle, AlertCircle, MapPin, Calendar, Settings } from "lucide-react";
+import { Users, Package, Wrench, FileText, Truck, LogOut, Home, ShoppingCart, DollarSign, ClipboardList, BarChart3, ClipboardCheck, FileSpreadsheet, LogIn, LogOut as LogOutIcon, Send, PackageCheck, AlertTriangle, AlertCircle, MapPin, Calendar, Settings, CheckCircle2 } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -32,6 +32,7 @@ const menuAreas = {
     { title: "Consulta Precios", url: "/mostrador/consulta-precios", icon: DollarSign },
     { title: "Incidentes", url: "/mostrador/incidentes", icon: FileText },
     { title: "Entrega de Máquinas", url: "/mostrador/entrega-maquinas", icon: PackageCheck },
+    { title: "Revisión Stock Cemaco", url: "/mostrador/revision-stock-cemaco", icon: ClipboardCheck },
   ],
   logistica: [
     { title: "Clientes", url: "/logistica/clientes", icon: Users },
@@ -50,6 +51,7 @@ const menuAreas = {
     { title: "Asignaciones", url: "/taller/asignaciones", icon: Wrench },
     { title: "Mis Asignaciones", url: "/taller/mis-asignaciones", icon: ClipboardList },
     { title: "Búsqueda Incidentes", url: "/taller/busqueda-incidentes", icon: FileText },
+    { title: "Aprobaciones Stock Cemaco", url: "/taller/aprobaciones-stock-cemaco", icon: CheckCircle2 },
   ],
   bodega: [
     { title: "Inventario", url: "/bodega/inventario", icon: ClipboardCheck },

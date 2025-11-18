@@ -55,6 +55,8 @@ import IncidentesSAC from "./pages/sac/IncidentesSAC";
 import DetalleIncidenteSAC from "./pages/sac/DetalleIncidenteSAC";
 import ConsultaExistencias from "./pages/sac/ConsultaExistencias";
 import Usuarios from "./pages/admin/Usuarios";
+import RevisionStockCemaco from "./pages/mostrador/RevisionStockCemaco";
+import AprobacionesStockCemaco from "./pages/taller/AprobacionesStockCemaco";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -96,6 +98,8 @@ const App = () => (
               <Route path="/taller/asignaciones" element={<Asignaciones />} />
               <Route path="/taller/mis-asignaciones" element={<MisAsignaciones />} />
               <Route path="/taller/busqueda-incidentes" element={<BusquedaIncidentes />} />
+              <Route path="/taller/aprobaciones-stock-cemaco" element={<AprobacionesStockCemaco />} />
+              <Route path="/mostrador/revision-stock-cemaco" element={<RevisionStockCemaco />} />
               
               <Route path="/taller/diagnostico/:id" element={<DiagnosticoInicial />} />
               <Route path="/bodega/inventario" element={<InventarioNuevo />} />

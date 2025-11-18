@@ -138,6 +138,7 @@ export default function NuevoIncidente() {
   const [esReingreso, setEsReingreso] = useState(false);
   const [logObservaciones, setLogObservaciones] = useState("");
   const [tipologia, setTipologia] = useState("");
+  const [esStockCemaco, setEsStockCemaco] = useState(false);
   const [guardando, setGuardando] = useState(false);
   
   // Media (fotos y videos)
@@ -519,6 +520,7 @@ export default function NuevoIncidente() {
           direccion_envio_id: direccionEnvioId || null,
           ingresado_en_mostrador: ingresadoMostrador,
           es_reingreso: esReingreso,
+          es_stock_cemaco: esStockCemaco,
           log_observaciones: logObservaciones || null,
           tipologia: tipologia,
           status: 'Ingresado',
@@ -1116,6 +1118,29 @@ export default function NuevoIncidente() {
                   Seleccionados: {accesoriosSeleccionados.join(", ")}
                 </p>
               )}
+            </div>
+
+            {/* Checkbox Stock Cemaco */}
+            <div className="flex items-center space-x-2 p-4 border rounded-lg bg-accent/30">
+              <Checkbox
+                id="stock-cemaco"
+                checked={esStockCemaco}
+                onCheckedChange={(checked) => setEsStockCemaco(checked as boolean)}
+              />
+              <div className="flex flex-col gap-1">
+                <Label
+                  htmlFor="stock-cemaco"
+                  className="font-medium cursor-pointer"
+                >
+                  ¿Es stock de Cemaco?
+                </Label>
+                {esStockCemaco && (
+                  <p className="text-xs text-muted-foreground">
+                    <AlertCircle className="h-3 w-3 inline mr-1" />
+                    Esta máquina seguirá un flujo de revisión simplificado sin reparación
+                  </p>
+                )}
+              </div>
             </div>
 
             <div>
