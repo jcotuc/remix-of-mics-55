@@ -55,7 +55,7 @@ import IncidentesSAC from "./pages/sac/IncidentesSAC";
 import DetalleIncidenteSAC from "./pages/sac/DetalleIncidenteSAC";
 import ConsultaExistencias from "./pages/sac/ConsultaExistencias";
 import Usuarios from "./pages/admin/Usuarios";
-import RevisionStockCemaco from "./pages/mostrador/RevisionStockCemaco";
+import RevisionStockCemaco from "./pages/taller/RevisionStockCemaco";
 import AprobacionesStockCemaco from "./pages/taller/AprobacionesStockCemaco";
 import NotFound from "./pages/NotFound";
 
