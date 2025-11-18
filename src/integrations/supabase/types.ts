@@ -860,6 +860,50 @@ export type Database = {
           },
         ]
       }
+      ingresos_logistica: {
+        Row: {
+          created_at: string | null
+          fecha_recepcion: string | null
+          fotos_urls: string[]
+          id: string
+          incidente_id: string
+          observaciones: string | null
+          recibido_por: string | null
+          sku_corregido: string | null
+          sku_original: string
+        }
+        Insert: {
+          created_at?: string | null
+          fecha_recepcion?: string | null
+          fotos_urls: string[]
+          id?: string
+          incidente_id: string
+          observaciones?: string | null
+          recibido_por?: string | null
+          sku_corregido?: string | null
+          sku_original: string
+        }
+        Update: {
+          created_at?: string | null
+          fecha_recepcion?: string | null
+          fotos_urls?: string[]
+          id?: string
+          incidente_id?: string
+          observaciones?: string | null
+          recibido_por?: string | null
+          sku_corregido?: string | null
+          sku_original?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ingresos_logistica_incidente_id_fkey"
+            columns: ["incidente_id"]
+            isOneToOne: false
+            referencedRelation: "incidentes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inventario_ciclico: {
         Row: {
           centro_servicio_id: string

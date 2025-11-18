@@ -523,7 +523,7 @@ export default function NuevoIncidente() {
           es_stock_cemaco: esStockCemaco,
           log_observaciones: logObservaciones || null,
           tipologia: tipologia,
-          status: 'Ingresado',
+          status: ingresadoMostrador ? 'Ingresado' : 'En ruta',
           cobertura_garantia: false,
           producto_descontinuado: productoSeleccionado!.descontinuado,
           codigo_tecnico: 'TEC-001',

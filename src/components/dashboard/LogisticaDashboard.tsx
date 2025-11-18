@@ -29,6 +29,7 @@ export function LogisticaDashboard({ incidentes }: LogisticaDashboardProps) {
 
   // Métricas para logística
   const conEnvio = incidentes.filter(i => i.quiere_envio).length;
+  const enRuta = incidentes.filter(i => i.status === "En ruta").length;
   const embarquesActivos = embarques.length;
   const incidentesAsignados = incidentes.filter(i => i.embarque_id).length;
   const pendientesAsignar = incidentes.filter(i => i.quiere_envio && !i.embarque_id).length;
@@ -68,6 +69,19 @@ export function LogisticaDashboard({ incidentes }: LogisticaDashboardProps) {
             <div className="text-3xl font-bold text-primary">{conEnvio}</div>
             <p className="text-xs text-muted-foreground mt-1">
               Clientes con envío
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="hover:shadow-lg transition-shadow">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">En Ruta al Centro</CardTitle>
+            <Package className="h-5 w-5 text-warning" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-warning">{enRuta}</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Pendientes de formalizar ingreso
             </p>
           </CardContent>
         </Card>
