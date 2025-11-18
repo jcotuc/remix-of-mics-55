@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Truck, Plus, Package, Clock } from "lucide-react";
+import { Truck, Plus, Package, Clock, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
@@ -22,6 +22,7 @@ export default function Embarques() {
   const [numeroEmbarque, setNumeroEmbarque] = useState("");
   const [transportista, setTransportista] = useState("");
   const [notas, setNotas] = useState("");
+  const [creatingTest, setCreatingTest] = useState(false);
 
   useEffect(() => {
     fetchEmbarques();
@@ -71,6 +72,83 @@ export default function Embarques() {
     }
   };
 
+  const createTestEmbarque = async () => {
+    setCreatingTest(true);
+    try {
+      // Productos disponibles
+      const productos = ['16441', '15679', '12909', '12908', '12671', '14013'];
+      
+      // Clientes disponibles
+      const clientes = ['HPCN001930', 'HPCN001933', 'HPC-000001', 'HPC009166', 'HPC000019', 'HPC011470'];
+
+      // 1. Crear embarque
+      const { data: embarque, error: embarqueError } = await supabase
+        .from('embarques')
+        .insert({
+          numero_embarque: 'EMB-2024-001',
+          transportista: 'Transportes Guatemala Express',
+          notas: 'Embarque de prueba con máquinas desde zonas'
+        })
+        .select()
+        .single();
+
+      if (embarqueError) throw embarqueError;
+
+      // 2. Generar códigos de incidente
+      const { data: lastIncidente } = await supabase
+        .from('incidentes')
+        .select('codigo')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      let nextNumber = 1;
+      if (lastIncidente?.codigo) {
+        const match = lastIncidente.codigo.match(/INC-(\d+)/);
+        if (match) {
+          nextNumber = parseInt(match[1]) + 1;
+        }
+      }
+
+      // 3. Crear 6 incidentes ficticios
+      const incidentes = [];
+      for (let i = 0; i < 6; i++) {
+        const codigo = `INC-${String(nextNumber + i).padStart(6, '0')}`;
+        const incidente = {
+          codigo,
+          codigo_producto: productos[i],
+          codigo_cliente: clientes[i],
+          descripcion_problema: `Máquina requiere revisión general - Ingreso vía logística`,
+          status: 'En ruta' as const,
+          cobertura_garantia: Math.random() > 0.5,
+          ingresado_en_mostrador: false,
+          embarque_id: embarque.id,
+          sku_maquina: `SKU-${productos[i]}-${Math.floor(Math.random() * 1000)}`,
+          fecha_ingreso: new Date().toISOString()
+        };
+        incidentes.push(incidente);
+      }
+
+      const { data: incidentesCreados, error: incidentesError } = await supabase
+        .from('incidentes')
+        .insert(incidentes)
+        .select();
+
+      if (incidentesError) throw incidentesError;
+      
+      toast.success(`Embarque creado con ${incidentesCreados?.length} incidentes en ruta`, {
+        description: `Códigos: ${incidentesCreados?.map(inc => inc.codigo).join(', ')}`
+      });
+      
+      fetchEmbarques();
+    } catch (error) {
+      console.error('Error:', error);
+      toast.error('Error al crear embarque de prueba');
+    } finally {
+      setCreatingTest(false);
+    }
+  };
+
   return (
     <div className="container mx-auto py-8 space-y-6">
       <div className="flex justify-between items-center">
@@ -84,58 +162,71 @@ export default function Embarques() {
           </p>
         </div>
 
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button size="lg" className="gap-2">
-              <Plus className="h-4 w-4" />
-              Nuevo Embarque
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Registrar Embarque</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleCreate} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="numero">Número *</Label>
-                <Input
-                  id="numero"
-                  placeholder="EMB-001"
-                  value={numeroEmbarque}
-                  onChange={(e) => setNumeroEmbarque(e.target.value)}
-                  required
-                />
-              </div>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            size="lg" 
+            className="gap-2"
+            onClick={createTestEmbarque}
+            disabled={creatingTest}
+          >
+            <Sparkles className="h-4 w-4" />
+            {creatingTest ? "Creando..." : "Crear Embarque de Prueba"}
+          </Button>
+          
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button size="lg" className="gap-2">
+                <Plus className="h-4 w-4" />
+                Nuevo Embarque
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Registrar Embarque</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleCreate} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="numero">Número *</Label>
+                  <Input
+                    id="numero"
+                    placeholder="EMB-001"
+                    value={numeroEmbarque}
+                    onChange={(e) => setNumeroEmbarque(e.target.value)}
+                    required
+                  />
+                </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="transportista">Transportista</Label>
-                <Input
-                  id="transportista"
-                  placeholder="Nombre"
-                  value={transportista}
-                  onChange={(e) => setTransportista(e.target.value)}
-                />
-              </div>
+                <div className="space-y-2">
+                  <Label htmlFor="transportista">Transportista</Label>
+                  <Input
+                    id="transportista"
+                    placeholder="Nombre"
+                    value={transportista}
+                    onChange={(e) => setTransportista(e.target.value)}
+                  />
+                </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="notas">Notas</Label>
-                <Input
-                  id="notas"
-                  placeholder="Observaciones"
-                  value={notas}
-                  onChange={(e) => setNotas(e.target.value)}
-                />
-              </div>
+                <div className="space-y-2">
+                  <Label htmlFor="notas">Notas</Label>
+                  <Input
+                    id="notas"
+                    placeholder="Observaciones"
+                    value={notas}
+                    onChange={(e) => setNotas(e.target.value)}
+                  />
+                </div>
 
-              <div className="flex gap-2 justify-end pt-4">
-                <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
-                  Cancelar
-                </Button>
-                <Button type="submit">Crear</Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
+                <div className="flex gap-2 justify-end pt-4">
+                  <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
+                    Cancelar
+                  </Button>
+                  <Button type="submit">Crear</Button>
+                </div>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       <Card>
