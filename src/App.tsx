@@ -98,8 +98,8 @@ const App = () => (
               <Route path="/taller/asignaciones" element={<Asignaciones />} />
               <Route path="/taller/mis-asignaciones" element={<MisAsignaciones />} />
               <Route path="/taller/busqueda-incidentes" element={<BusquedaIncidentes />} />
+              <Route path="/taller/revision-stock-cemaco" element={<RevisionStockCemaco />} />
               <Route path="/taller/aprobaciones-stock-cemaco" element={<AprobacionesStockCemaco />} />
-              <Route path="/mostrador/revision-stock-cemaco" element={<RevisionStockCemaco />} />
               
               <Route path="/taller/diagnostico/:id" element={<DiagnosticoInicial />} />
               <Route path="/bodega/inventario" element={<InventarioNuevo />} />

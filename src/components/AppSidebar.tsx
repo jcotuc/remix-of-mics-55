@@ -32,7 +32,6 @@ const menuAreas = {
     { title: "Consulta Precios", url: "/mostrador/consulta-precios", icon: DollarSign },
     { title: "Incidentes", url: "/mostrador/incidentes", icon: FileText },
     { title: "Entrega de Máquinas", url: "/mostrador/entrega-maquinas", icon: PackageCheck },
-    { title: "Revisión Stock Cemaco", url: "/mostrador/revision-stock-cemaco", icon: ClipboardCheck },
   ],
   logistica: [
     { title: "Clientes", url: "/logistica/clientes", icon: Users },
@@ -51,6 +50,7 @@ const menuAreas = {
     { title: "Asignaciones", url: "/taller/asignaciones", icon: Wrench },
     { title: "Mis Asignaciones", url: "/taller/mis-asignaciones", icon: ClipboardList },
     { title: "Búsqueda Incidentes", url: "/taller/busqueda-incidentes", icon: FileText },
+    { title: "Revisión Stock Cemaco", url: "/taller/revision-stock-cemaco", icon: ClipboardCheck },
     { title: "Aprobaciones Stock Cemaco", url: "/taller/aprobaciones-stock-cemaco", icon: CheckCircle2 },
   ],
   bodega: [
