@@ -23,7 +23,6 @@ const FAMILIAS = [
 export default function Asignaciones() {
   const navigate = useNavigate();
   const [incidentes, setIncidentes] = useState<IncidenteDB[]>([]);
-  const [incidentesEnDiagnostico, setIncidentesEnDiagnostico] = useState<IncidenteDB[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [searchResults, setSearchResults] = useState<IncidenteDB[]>([]);
   const [loading, setLoading] = useState(true);
@@ -35,24 +34,14 @@ export default function Asignaciones() {
   const fetchIncidentes = async () => {
     try {
       setLoading(true);
-      const [pendientes, enDiagnostico] = await Promise.all([
-        supabase
-          .from('incidentes')
-          .select('*')
-          .eq('status', 'Ingresado')
-          .order('fecha_ingreso', { ascending: true }),
-        supabase
-          .from('incidentes')
-          .select('*')
-          .eq('status', 'En diagnostico')
-          .order('fecha_ingreso', { ascending: true })
-      ]);
+      const { data, error } = await supabase
+        .from('incidentes')
+        .select('*')
+        .eq('status', 'Ingresado')
+        .order('fecha_ingreso', { ascending: true });
 
-      if (pendientes.error) throw pendientes.error;
-      if (enDiagnostico.error) throw enDiagnostico.error;
-
-      setIncidentes(pendientes.data || []);
-      setIncidentesEnDiagnostico(enDiagnostico.data || []);
+      if (error) throw error;
+      setIncidentes(data || []);
     } catch (error) {
       console.error('Error:', error);
       toast.error('Error al cargar incidentes');
@@ -148,7 +137,6 @@ export default function Asignaciones() {
   }, []);
 
   const pendientesDiagnosticar = incidentes.length;
-  const enDiagnostico = incidentesEnDiagnostico.length;
   const diaMaximo = incidentes.length > 0 
     ? Math.max(...incidentes.map(inc => getDiasDesdeIngreso(inc.fecha_ingreso))) 
     : 0;
@@ -167,22 +155,13 @@ export default function Asignaciones() {
       </div>
 
       {/* Dashboard de métricas */}
-      <div className="grid gap-4 md:grid-cols-5">
+      <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium">Pendientes por Diagnosticar</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-primary">{pendientesDiagnosticar}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">En Diagnóstico</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-blue-600">{enDiagnostico}</div>
           </CardContent>
         </Card>
 
@@ -430,43 +409,6 @@ export default function Asignaciones() {
         </Card>
       </div>
 
-      {/* En Diagnóstico */}
-      {incidentesEnDiagnostico.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Wrench className="h-5 w-5 text-blue-600" />
-              En Diagnóstico ({incidentesEnDiagnostico.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-              {incidentesEnDiagnostico.map((inc) => (
-                <div
-                  key={inc.id}
-                  className="p-3 border rounded-lg hover:bg-muted/50 cursor-pointer"
-                  onClick={() => navigate(`/mostrador/seguimiento/${inc.id}`)}
-                >
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <p className="font-medium">{inc.codigo}</p>
-                      <Badge variant="outline" className="bg-blue-50">
-                        {inc.familia_producto || 'Sin familia'}
-                      </Badge>
-                    </div>
-                    <p className="text-sm text-muted-foreground truncate">
-                      {inc.descripcion_problema}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {getDiasDesdeIngreso(inc.fecha_ingreso)} días en proceso
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }

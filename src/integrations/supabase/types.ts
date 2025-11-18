@@ -702,6 +702,39 @@ export type Database = {
           },
         ]
       }
+      incidente_fotos: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          incidente_id: string
+          orden: number | null
+          storage_path: string
+          tipo: string
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          incidente_id: string
+          orden?: number | null
+          storage_path: string
+          tipo: string
+          url: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          incidente_id?: string
+          orden?: number | null
+          storage_path?: string
+          tipo?: string
+          url?: string
+        }
+        Relationships: []
+      }
       incidentes: {
         Row: {
           accesorios: string | null
