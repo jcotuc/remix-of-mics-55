@@ -44,7 +44,9 @@ export type StatusIncidente =
   | "Bodega pedido"
   | "Rechazado"
   | "Pendiente entrega"
-  | "Logistica envio";
+  | "Logistica envio"
+  | "Pendiente de aprobación NC"
+  | "Entregado";
 
 export type CategoriaProducto = 
   | "Electricas"

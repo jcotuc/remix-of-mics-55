@@ -752,6 +752,7 @@ export type Database = {
           embarque_id: string | null
           es_herramienta_manual: boolean | null
           es_reingreso: boolean | null
+          es_stock_cemaco: boolean | null
           familia_producto: string | null
           fecha_ingreso: string
           id: string
@@ -782,6 +783,7 @@ export type Database = {
           embarque_id?: string | null
           es_herramienta_manual?: boolean | null
           es_reingreso?: boolean | null
+          es_stock_cemaco?: boolean | null
           familia_producto?: string | null
           fecha_ingreso?: string
           id?: string
@@ -812,6 +814,7 @@ export type Database = {
           embarque_id?: string | null
           es_herramienta_manual?: boolean | null
           es_reingreso?: boolean | null
+          es_stock_cemaco?: boolean | null
           familia_producto?: string | null
           fecha_ingreso?: string
           id?: string
@@ -1390,6 +1393,59 @@ export type Database = {
             columns: ["solicitud_id"]
             isOneToOne: false
             referencedRelation: "solicitudes_repuestos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      revisiones_stock_cemaco: {
+        Row: {
+          aprobado_por: string | null
+          created_at: string | null
+          decision: string
+          fecha_aprobacion: string | null
+          fecha_revision: string
+          fotos_urls: string[] | null
+          id: string
+          incidente_id: string
+          justificacion: string
+          observaciones: string | null
+          revisor_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          aprobado_por?: string | null
+          created_at?: string | null
+          decision: string
+          fecha_aprobacion?: string | null
+          fecha_revision?: string
+          fotos_urls?: string[] | null
+          id?: string
+          incidente_id: string
+          justificacion: string
+          observaciones?: string | null
+          revisor_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          aprobado_por?: string | null
+          created_at?: string | null
+          decision?: string
+          fecha_aprobacion?: string | null
+          fecha_revision?: string
+          fotos_urls?: string[] | null
+          id?: string
+          incidente_id?: string
+          justificacion?: string
+          observaciones?: string | null
+          revisor_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "revisiones_stock_cemaco_incidente_id_fkey"
+            columns: ["incidente_id"]
+            isOneToOne: false
+            referencedRelation: "incidentes"
             referencedColumns: ["id"]
           },
         ]

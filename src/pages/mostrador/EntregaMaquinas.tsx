@@ -188,7 +188,7 @@ export default function EntregaMaquinas() {
       const { error: updateError } = await supabase
         .from('incidentes')
         .update({
-          status: 'Entregado' as StatusIncidente,
+          status: 'Entregado' as any,
           confirmacion_cliente: {
             fecha_entrega: new Date().toISOString(),
             nombre_recibe: nombreRecibe,
