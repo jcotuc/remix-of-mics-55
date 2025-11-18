@@ -258,25 +258,6 @@ export default function IngresoMaquinas() {
     }
   };
 
-  const handleIngresoFormal = async (incidenteId: string) => {
-    try {
-      const { error } = await supabase
-        .from('incidentes')
-        .update({ 
-          status: 'Pendiente de diagnostico',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', incidenteId);
-
-      if (error) throw error;
-
-      toast.success('Ingreso formal completado');
-      fetchData();
-    } catch (error) {
-      console.error('Error:', error);
-      toast.error('Error al procesar ingreso');
-    }
-  };
 
   const filteredIncidentes = incidentes.filter(inc => {
     const matchesSearch = 
@@ -375,10 +356,16 @@ export default function IngresoMaquinas() {
                       <Button 
                         variant="default" 
                         size="sm"
-                        onClick={() => handleIngresoFormal(incidente.id)}
+                        onClick={() => {
+                          setSelectedIncidenteForIngreso(incidente);
+                          setSkuVerificado(incidente.sku_maquina || "");
+                          setFotosIngreso([]);
+                          setObservacionesIngreso("");
+                          setShowFormalizarDialog(true);
+                        }}
                       >
                         <CheckCircle className="h-4 w-4 mr-1" />
-                        Dar Ingreso
+                        Recibir e Inspeccionar
                       </Button>
                     </TableCell>
                   </TableRow>
