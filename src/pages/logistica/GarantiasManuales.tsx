@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Search, Plus, Paperclip, Camera } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { PhotoGalleryWithDescriptions, type PhotoWithDescription } from "@/components/PhotoGalleryWithDescriptions";
 import { toast } from "sonner";
 type GarantiaManuaDB = {
   id: string;
@@ -64,6 +65,7 @@ export default function GarantiasManuales() {
     cantidad_sku: 1,
     descripcion_problema: ""
   });
+  const [fotosNuevaSolicitud, setFotosNuevaSolicitud] = useState<PhotoWithDescription[]>([]);
   const [updateData, setUpdateData] = useState({
     estatus: "",
     comentarios_logistica: "",
@@ -115,10 +117,35 @@ export default function GarantiasManuales() {
   };
   const handleCreateGarantia = async () => {
     try {
+      // Upload photos to storage and get URLs
+      const fotosUrls: string[] = [];
+      
+      for (const foto of fotosNuevaSolicitud) {
+        const fileExt = foto.file.name.split('.').pop();
+        const fileName = `${crypto.randomUUID()}.${fileExt}`;
+        const filePath = `garantias/${fileName}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from('garantias-manuales')
+          .upload(filePath, foto.file);
+        
+        if (uploadError) {
+          console.error('Error uploading photo:', uploadError);
+          continue;
+        }
+        
+        const { data: { publicUrl } } = supabase.storage
+          .from('garantias-manuales')
+          .getPublicUrl(filePath);
+        
+        fotosUrls.push(publicUrl);
+      }
+      
       const {
         error
       } = await supabase.from("garantias_manuales").insert([{
         ...formData,
+        fotos_urls: fotosUrls.length > 0 ? fotosUrls : null,
         created_by: (await supabase.auth.getUser()).data.user?.id
       }]);
       if (error) throw error;
@@ -131,6 +158,7 @@ export default function GarantiasManuales() {
         cantidad_sku: 1,
         descripcion_problema: ""
       });
+      setFotosNuevaSolicitud([]);
       fetchGarantias();
     } catch (error) {
       console.error("Error creating garantía:", error);
@@ -204,7 +232,7 @@ export default function GarantiasManuales() {
               Nueva Solicitud
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Nueva Solicitud de Garantía</DialogTitle>
             </DialogHeader>
@@ -244,8 +272,24 @@ export default function GarantiasManuales() {
                 descripcion_problema: e.target.value
               })} placeholder="Describa el problema reportado por el cliente..." rows={4} />
               </div>
-              <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={() => setShowNewDialog(false)}>
+              
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <Camera className="h-4 w-4" />
+                  Fotos de Evidencia (Opcional)
+                </Label>
+                <PhotoGalleryWithDescriptions
+                  photos={fotosNuevaSolicitud}
+                  onPhotosChange={setFotosNuevaSolicitud}
+                  maxPhotos={10}
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-4 border-t">
+                <Button variant="outline" onClick={() => {
+                  setShowNewDialog(false);
+                  setFotosNuevaSolicitud([]);
+                }}>
                   Cancelar
                 </Button>
                 <Button onClick={handleCreateGarantia}>
