@@ -1306,13 +1306,16 @@ export type Database = {
         Row: {
           clave: string
           codigo: string
+          codigo_padre: string | null
           codigo_producto: string
           created_at: string
           descripcion: string
           disponible_mostrador: boolean | null
           es_catalogo_truper: boolean | null
+          es_codigo_padre: boolean | null
           id: string
           numero: string
+          prefijo_clasificacion: string | null
           stock_actual: number | null
           ubicacion_bodega: string | null
           updated_at: string
@@ -1321,13 +1324,16 @@ export type Database = {
         Insert: {
           clave: string
           codigo: string
+          codigo_padre?: string | null
           codigo_producto: string
           created_at?: string
           descripcion: string
           disponible_mostrador?: boolean | null
           es_catalogo_truper?: boolean | null
+          es_codigo_padre?: boolean | null
           id?: string
           numero: string
+          prefijo_clasificacion?: string | null
           stock_actual?: number | null
           ubicacion_bodega?: string | null
           updated_at?: string
@@ -1336,19 +1342,29 @@ export type Database = {
         Update: {
           clave?: string
           codigo?: string
+          codigo_padre?: string | null
           codigo_producto?: string
           created_at?: string
           descripcion?: string
           disponible_mostrador?: boolean | null
           es_catalogo_truper?: boolean | null
+          es_codigo_padre?: boolean | null
           id?: string
           numero?: string
+          prefijo_clasificacion?: string | null
           stock_actual?: number | null
           ubicacion_bodega?: string | null
           updated_at?: string
           url_foto?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_repuestos_codigo_padre"
+            columns: ["codigo_padre"]
+            isOneToOne: false
+            referencedRelation: "repuestos"
+            referencedColumns: ["codigo"]
+          },
           {
             foreignKeyName: "repuestos_codigo_producto_fkey"
             columns: ["codigo_producto"]
@@ -1390,6 +1406,99 @@ export type Database = {
           valor_rotacion?: number | null
         }
         Relationships: []
+      }
+      repuestos_productos: {
+        Row: {
+          codigo_producto: string
+          codigo_repuesto: string
+          created_at: string | null
+          es_original: boolean | null
+          id: string
+          notas: string | null
+        }
+        Insert: {
+          codigo_producto: string
+          codigo_repuesto: string
+          created_at?: string | null
+          es_original?: boolean | null
+          id?: string
+          notas?: string | null
+        }
+        Update: {
+          codigo_producto?: string
+          codigo_repuesto?: string
+          created_at?: string | null
+          es_original?: boolean | null
+          id?: string
+          notas?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_producto"
+            columns: ["codigo_producto"]
+            isOneToOne: false
+            referencedRelation: "productos"
+            referencedColumns: ["codigo"]
+          },
+          {
+            foreignKeyName: "fk_repuesto"
+            columns: ["codigo_repuesto"]
+            isOneToOne: false
+            referencedRelation: "repuestos"
+            referencedColumns: ["codigo"]
+          },
+        ]
+      }
+      repuestos_relaciones: {
+        Row: {
+          activo: boolean | null
+          bidireccional: boolean | null
+          codigo_principal: string
+          codigo_relacionado: string
+          created_at: string | null
+          id: string
+          prioridad: number | null
+          tipo_relacion: string
+          updated_at: string | null
+        }
+        Insert: {
+          activo?: boolean | null
+          bidireccional?: boolean | null
+          codigo_principal: string
+          codigo_relacionado: string
+          created_at?: string | null
+          id?: string
+          prioridad?: number | null
+          tipo_relacion: string
+          updated_at?: string | null
+        }
+        Update: {
+          activo?: boolean | null
+          bidireccional?: boolean | null
+          codigo_principal?: string
+          codigo_relacionado?: string
+          created_at?: string | null
+          id?: string
+          prioridad?: number | null
+          tipo_relacion?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_codigo_principal"
+            columns: ["codigo_principal"]
+            isOneToOne: false
+            referencedRelation: "repuestos"
+            referencedColumns: ["codigo"]
+          },
+          {
+            foreignKeyName: "fk_codigo_relacionado"
+            columns: ["codigo_relacionado"]
+            isOneToOne: false
+            referencedRelation: "repuestos"
+            referencedColumns: ["codigo"]
+          },
+        ]
       }
       repuestos_solicitud_detalle: {
         Row: {
@@ -1845,6 +1954,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      buscar_repuesto_disponible: {
+        Args: { p_centro_servicio_id: string; p_codigo_solicitado: string }
+        Returns: {
+          codigo_encontrado: string
+          descripcion: string
+          prioridad: number
+          stock_disponible: number
+          tipo_coincidencia: string
+          ubicacion: string
+        }[]
+      }
       generar_codigo_hpc: { Args: never; Returns: string }
       generar_codigo_incidente: { Args: never; Returns: string }
       generar_numero_guia: { Args: never; Returns: string }
