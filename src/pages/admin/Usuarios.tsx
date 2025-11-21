@@ -43,7 +43,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { UserPlus, Edit, Trash2, RefreshCw, Search } from "lucide-react";
 
-type UserRole = "admin" | "mostrador" | "logistica" | "taller" | "bodega" | "tecnico" | "digitador" | "jefe_taller" | "sac" | "control_calidad";
+type UserRole = "admin" | "mostrador" | "logistica" | "taller" | "bodega" | "tecnico" | "digitador" | "jefe_taller" | "sac" | "control_calidad" | "asesor";
 
 interface UserData {
   id: string;
@@ -313,6 +313,7 @@ export default function Usuarios() {
       jefe_taller: "Jefe de Taller",
       sac: "SAC",
       control_calidad: "Control de Calidad",
+      asesor: "Asesor",
     };
     return labels[role] || role;
   };
@@ -389,6 +390,7 @@ export default function Usuarios() {
                 <SelectItem value="bodega">Bodega</SelectItem>
                 <SelectItem value="sac">SAC</SelectItem>
                 <SelectItem value="control_calidad">Control de Calidad</SelectItem>
+                <SelectItem value="asesor">Asesor</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -523,6 +525,7 @@ export default function Usuarios() {
                   <SelectItem value="jefe_taller">Jefe de Taller</SelectItem>
                   <SelectItem value="sac">SAC</SelectItem>
                   <SelectItem value="control_calidad">Control de Calidad</SelectItem>
+                  <SelectItem value="asesor">Asesor</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -583,6 +586,7 @@ export default function Usuarios() {
                   <SelectItem value="jefe_taller">Jefe de Taller</SelectItem>
                   <SelectItem value="sac">SAC</SelectItem>
                   <SelectItem value="control_calidad">Control de Calidad</SelectItem>
+                  <SelectItem value="asesor">Asesor</SelectItem>
                 </SelectContent>
               </Select>
             </div>
