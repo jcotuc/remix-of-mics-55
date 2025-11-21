@@ -12,6 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { importRepuestosZona5 } from "@/scripts/importRepuestosZona5";
 import { PuertaEntradaWidget } from "@/components/dashboard/PuertaEntradaWidget";
+import { EquivalenciasWidget } from "@/components/dashboard/EquivalenciasWidget";
 
 type Repuesto = {
   id: string;
@@ -215,9 +216,11 @@ export default function Inventario() {
           </CardContent>
         </Card>
 
-        <div className="md:row-span-2">
-          <PuertaEntradaWidget />
-        </div>
+        <PuertaEntradaWidget />
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <EquivalenciasWidget />
       </div>
 
       <Card>
