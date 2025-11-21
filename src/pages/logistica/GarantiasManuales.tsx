@@ -164,11 +164,17 @@ export default function GarantiasManuales() {
   const getEstatusBadgeVariant = (estatus: string) => {
     switch (estatus) {
       case "pendiente_resolucion":
-        return "secondary";
+        return "secondary"; // Amarillo
       case "aplica_nc":
-        return "destructive";
+        return "default"; // Verde
+      case "no_aplica_nc":
+        return "destructive"; // Rojo
       case "cambio_garantia":
-        return "default";
+        return "default"; // Azul
+      case "informacion_incompleta":
+        return "outline"; // Gris
+      case "enviar_centro_servicio":
+        return "default"; // Morado
       default:
         return "outline";
     }
@@ -252,7 +258,7 @@ export default function GarantiasManuales() {
       </div>
 
       {/* Dashboard */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -260,7 +266,7 @@ export default function GarantiasManuales() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-yellow-600">{pendientesCount}</div>
+            <div className="text-3xl font-bold text-yellow-600">{garantiasPorEstatus.pendiente_resolucion?.length || 0}</div>
           </CardContent>
         </Card>
         <Card>
@@ -270,7 +276,7 @@ export default function GarantiasManuales() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">{garantiasPorEstatus.aplica_nc?.length || 0}</div>
+            <div className="text-3xl font-bold text-green-600">{garantiasPorEstatus.aplica_nc?.length || 0}</div>
           </CardContent>
         </Card>
         <Card>
@@ -280,7 +286,7 @@ export default function GarantiasManuales() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">{garantiasPorEstatus.no_aplica_nc?.length || 0}</div>
+            <div className="text-3xl font-bold text-red-600">{garantiasPorEstatus.no_aplica_nc?.length || 0}</div>
           </CardContent>
         </Card>
         <Card>
@@ -290,17 +296,27 @@ export default function GarantiasManuales() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">{garantiasPorEstatus.cambio_garantia?.length || 0}</div>
+            <div className="text-3xl font-bold text-blue-600">{garantiasPorEstatus.cambio_garantia?.length || 0}</div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Solicitudes
+              Información Incompleta
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">{garantias.length}</div>
+            <div className="text-3xl font-bold text-gray-600">{garantiasPorEstatus.informacion_incompleta?.length || 0}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Enviar a Centro de Servicio
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-purple-600">{garantiasPorEstatus.enviar_centro_servicio?.length || 0}</div>
           </CardContent>
         </Card>
       </div>
@@ -327,13 +343,13 @@ export default function GarantiasManuales() {
       </Card>
 
       {/* Vista Kanban */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         {/* Pendiente Resolución */}
         <Card className="bg-muted/30">
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center justify-between">
               <span>PENDIENTE RESOLUCIÓN</span>
-              <Badge variant="secondary">{garantiasPorEstatus.pendiente_resolucion?.length || 0}+</Badge>
+              <Badge variant="secondary">{garantiasPorEstatus.pendiente_resolucion?.length || 0}</Badge>
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -377,7 +393,7 @@ export default function GarantiasManuales() {
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center justify-between">
               <span>APLICA NC</span>
-              <Badge variant="destructive">{garantiasPorEstatus.aplica_nc?.length || 0}+</Badge>
+              <Badge className="bg-green-600">{garantiasPorEstatus.aplica_nc?.length || 0}</Badge>
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -417,7 +433,7 @@ export default function GarantiasManuales() {
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center justify-between">
               <span>NO APLICA NC</span>
-              <Badge>{garantiasPorEstatus.no_aplica_nc?.length || 0}+</Badge>
+              <Badge variant="destructive">{garantiasPorEstatus.no_aplica_nc?.length || 0}</Badge>
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -454,7 +470,7 @@ export default function GarantiasManuales() {
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center justify-between">
               <span>CAMBIO EN GARANTÍA</span>
-              <Badge>{garantiasPorEstatus.cambio_garantia?.length || 0}+</Badge>
+              <Badge className="bg-blue-600">{garantiasPorEstatus.cambio_garantia?.length || 0}</Badge>
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -481,15 +497,89 @@ export default function GarantiasManuales() {
                       {garantia.profiles.nombre} {garantia.profiles.apellido}
                     </div>
                   )}
+                  {garantia.numero_incidente && <Badge variant="outline" className="text-xs">
+                      {garantia.numero_incidente}
+                    </Badge>}
+                </CardContent>
+              </Card>)}
+          </CardContent>
+        </Card>
+
+        {/* Información Incompleta */}
+        <Card className="bg-muted/30">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center justify-between">
+              <span>INFORMACIÓN INCOMPLETA</span>
+              <Badge variant="outline">{garantiasPorEstatus.informacion_incompleta?.length || 0}</Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {garantiasPorEstatus.informacion_incompleta?.map(garantia => <Card key={garantia.id} className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => {
+            setSelectedGarantia(garantia);
+            setUpdateData({
+              estatus: garantia.estatus,
+              comentarios_logistica: garantia.comentarios_logistica || "",
+              numero_incidente: garantia.numero_incidente || ""
+            });
+            setShowDetailDialog(true);
+          }}>
+                <CardContent className="pt-4 space-y-2">
+                  <div className="text-sm">
+                    <span className="font-semibold">ID:</span> {garantia.id.slice(0, 8)}
+                  </div>
+                  <div className="text-sm">
+                    <span className="font-semibold">CODIGO CLIENTE:</span><br />
+                    {garantia.codigo_cliente}
+                  </div>
                   {garantia.profiles && (
                     <div className="text-sm">
                       <span className="font-semibold">ASESOR:</span><br />
                       {garantia.profiles.nombre} {garantia.profiles.apellido}
                     </div>
                   )}
-                  {garantia.numero_incidente && <Badge variant="outline" className="text-xs">
-                      {garantia.numero_incidente}
-                    </Badge>}
+                  <div className="text-sm text-muted-foreground">
+                    {garantia.descripcion_sku}
+                  </div>
+                </CardContent>
+              </Card>)}
+          </CardContent>
+        </Card>
+
+        {/* Enviar a Centro de Servicio */}
+        <Card className="bg-muted/30">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center justify-between">
+              <span>ENVIAR A CENTRO</span>
+              <Badge className="bg-purple-600">{garantiasPorEstatus.enviar_centro_servicio?.length || 0}</Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {garantiasPorEstatus.enviar_centro_servicio?.map(garantia => <Card key={garantia.id} className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => {
+            setSelectedGarantia(garantia);
+            setUpdateData({
+              estatus: garantia.estatus,
+              comentarios_logistica: garantia.comentarios_logistica || "",
+              numero_incidente: garantia.numero_incidente || ""
+            });
+            setShowDetailDialog(true);
+          }}>
+                <CardContent className="pt-4 space-y-2">
+                  <div className="text-sm">
+                    <span className="font-semibold">ID:</span> {garantia.id.slice(0, 8)}
+                  </div>
+                  <div className="text-sm">
+                    <span className="font-semibold">CODIGO CLIENTE:</span><br />
+                    {garantia.codigo_cliente}
+                  </div>
+                  {garantia.profiles && (
+                    <div className="text-sm">
+                      <span className="font-semibold">ASESOR:</span><br />
+                      {garantia.profiles.nombre} {garantia.profiles.apellido}
+                    </div>
+                  )}
+                  <div className="text-sm text-muted-foreground">
+                    {garantia.descripcion_sku}
+                  </div>
                 </CardContent>
               </Card>)}
           </CardContent>
