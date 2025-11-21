@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { importRepuestosZona5 } from "@/scripts/importRepuestosZona5";
+import { PuertaEntradaWidget } from "@/components/dashboard/PuertaEntradaWidget";
 
 type Repuesto = {
   id: string;
@@ -174,7 +175,7 @@ export default function Inventario() {
         </Button>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -213,6 +214,10 @@ export default function Inventario() {
             <p className="text-xs text-muted-foreground">Entradas y salidas</p>
           </CardContent>
         </Card>
+
+        <div className="md:row-span-2">
+          <PuertaEntradaWidget />
+        </div>
       </div>
 
       <Card>

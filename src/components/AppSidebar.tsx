@@ -55,6 +55,7 @@ const menuAreas = {
   ],
   bodega: [
     { title: "Inventario", url: "/bodega/inventario", icon: ClipboardCheck },
+    { title: "Reubicación", url: "/bodega/reubicacion-repuestos", icon: MapPin },
     { title: "Inventario Cíclico", url: "/bodega/inventario-ciclico", icon: Calendar },
     { title: "Consulta Cardex", url: "/bodega/consulta-cardex", icon: FileText },
     { title: "Gestión Ubicaciones", url: "/bodega/ubicaciones", icon: MapPin },

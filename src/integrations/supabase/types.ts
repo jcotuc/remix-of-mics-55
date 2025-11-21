@@ -1605,30 +1605,39 @@ export type Database = {
           cantidad_actual: number
           centro_servicio_id: string
           codigo_repuesto: string
+          fecha_recepcion: string | null
           id: string
+          requiere_reubicacion: boolean | null
           stock_maximo: number | null
           stock_minimo: number | null
           ubicacion: string | null
+          ubicacion_temporal: string | null
           ultima_actualizacion: string
         }
         Insert: {
           cantidad_actual?: number
           centro_servicio_id: string
           codigo_repuesto: string
+          fecha_recepcion?: string | null
           id?: string
+          requiere_reubicacion?: boolean | null
           stock_maximo?: number | null
           stock_minimo?: number | null
           ubicacion?: string | null
+          ubicacion_temporal?: string | null
           ultima_actualizacion?: string
         }
         Update: {
           cantidad_actual?: number
           centro_servicio_id?: string
           codigo_repuesto?: string
+          fecha_recepcion?: string | null
           id?: string
+          requiere_reubicacion?: boolean | null
           stock_maximo?: number | null
           stock_minimo?: number | null
           ubicacion?: string | null
+          ubicacion_temporal?: string | null
           ultima_actualizacion?: string
         }
         Relationships: [
@@ -1883,6 +1892,7 @@ export type Database = {
         | "transferencia"
         | "ajuste"
         | "devolucion"
+        | "reubicacion"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -2047,6 +2057,7 @@ export const Constants = {
         "transferencia",
         "ajuste",
         "devolucion",
+        "reubicacion",
       ],
     },
   },
