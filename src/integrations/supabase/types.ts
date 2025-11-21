@@ -1859,6 +1859,7 @@ export type Database = {
         | "tecnico"
         | "sac"
         | "control_calidad"
+        | "asesor"
       clasificacion_abc: "A" | "B" | "C"
       media_tipo: "foto" | "video"
       status_incidente:
@@ -2020,6 +2021,7 @@ export const Constants = {
         "tecnico",
         "sac",
         "control_calidad",
+        "asesor",
       ],
       clasificacion_abc: ["A", "B", "C"],
       media_tipo: ["foto", "video"],
