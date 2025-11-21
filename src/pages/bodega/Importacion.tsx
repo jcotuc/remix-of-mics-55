@@ -173,11 +173,46 @@ export default function Importacion() {
 
       if (detallesError) throw detallesError;
 
-      // Guardar ubicaciones históricas
+      // Actualizar o crear stock departamental en PUERTA-ENTRADA
       for (const detalle of detalles) {
+        // Buscar si ya existe stock para este repuesto en este centro
+        const { data: stockExistente } = await supabase
+          .from('stock_departamental')
+          .select('*')
+          .eq('codigo_repuesto', detalle.sku)
+          .eq('centro_servicio_id', centroCentral?.id)
+          .maybeSingle();
+
+        if (stockExistente) {
+          // Actualizar stock existente
+          await supabase
+            .from('stock_departamental')
+            .update({
+              cantidad_actual: (stockExistente.cantidad_actual || 0) + detalle.cantidad,
+              ubicacion_temporal: 'PUERTA-ENTRADA',
+              requiere_reubicacion: true,
+              fecha_recepcion: new Date().toISOString()
+            })
+            .eq('id', stockExistente.id);
+        } else {
+          // Crear nuevo registro de stock
+          await supabase
+            .from('stock_departamental')
+            .insert({
+              codigo_repuesto: detalle.sku,
+              centro_servicio_id: centroCentral?.id,
+              cantidad_actual: detalle.cantidad,
+              ubicacion: 'PUERTA-ENTRADA',
+              ubicacion_temporal: 'PUERTA-ENTRADA',
+              requiere_reubicacion: true,
+              fecha_recepcion: new Date().toISOString()
+            });
+        }
+
+        // Guardar ubicación histórica
         await supabase.from('ubicaciones_historicas').insert({
           codigo_repuesto: detalle.sku,
-          ubicacion: detalle.ubicacion_asignada,
+          ubicacion: 'PUERTA-ENTRADA',
           centro_servicio_id: centroCentral?.id,
           cantidad_asignada: detalle.cantidad,
           usuario_asigno: user.id
