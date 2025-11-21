@@ -57,6 +57,7 @@ import ConsultaExistencias from "./pages/sac/ConsultaExistencias";
 import Usuarios from "./pages/admin/Usuarios";
 import RevisionStockCemaco from "./pages/taller/RevisionStockCemaco";
 import AprobacionesStockCemaco from "./pages/taller/AprobacionesStockCemaco";
+import MisGarantias from "./pages/asesor/MisGarantias";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -127,6 +128,9 @@ const App = () => (
               
               {/* Admin Routes */}
               <Route path="/admin/usuarios" element={<Usuarios />} />
+              
+              {/* Asesor Routes */}
+              <Route path="/mis-garantias" element={<MisGarantias />} />
               
               <Route path="*" element={<NotFound />} />
             </Routes>

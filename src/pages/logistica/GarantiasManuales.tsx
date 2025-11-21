@@ -23,6 +23,10 @@ type GarantiaManuaDB = {
   fotos_urls: string[] | null;
   created_at: string;
   created_by: string | null;
+  profiles?: {
+    nombre: string;
+    apellido: string;
+  } | null;
 };
 const ESTATUS_OPTIONS = [{
   value: "pendiente_resolucion",
@@ -71,13 +75,37 @@ export default function GarantiasManuales() {
   const fetchGarantias = async () => {
     try {
       const {
-        data,
+        data: garantiasData,
         error
-      } = await supabase.from("garantias_manuales").select("*").order("created_at", {
-        ascending: false
-      });
+      } = await supabase
+        .from("garantias_manuales")
+        .select("*")
+        .order("created_at", {
+          ascending: false
+        });
+      
       if (error) throw error;
-      setGarantias(data || []);
+      
+      // Fetch profile data for each garantia
+      const garantiasWithProfiles = await Promise.all(
+        (garantiasData || []).map(async (garantia) => {
+          if (garantia.created_by) {
+            const { data: profileData } = await supabase
+              .from("profiles")
+              .select("nombre, apellido")
+              .eq("user_id", garantia.created_by)
+              .single();
+            
+            return {
+              ...garantia,
+              profiles: profileData
+            };
+          }
+          return garantia;
+        })
+      );
+      
+      setGarantias(garantiasWithProfiles);
     } catch (error) {
       console.error("Error fetching garantías:", error);
       toast.error("Error al cargar garantías");
@@ -326,6 +354,12 @@ export default function GarantiasManuales() {
                     <span className="font-semibold">CODIGO CLIENTE:</span><br />
                     {garantia.codigo_cliente}
                   </div>
+                  {garantia.profiles && (
+                    <div className="text-sm">
+                      <span className="font-semibold">ASESOR:</span><br />
+                      {garantia.profiles.nombre} {garantia.profiles.apellido}
+                    </div>
+                  )}
                   <div className="text-sm text-muted-foreground">
                     {garantia.descripcion_sku}
                   </div>
@@ -364,6 +398,12 @@ export default function GarantiasManuales() {
                     <span className="font-semibold">CODIGO CLIENTE:</span><br />
                     {garantia.codigo_cliente}
                   </div>
+                  {garantia.profiles && (
+                    <div className="text-sm">
+                      <span className="font-semibold">ASESOR:</span><br />
+                      {garantia.profiles.nombre} {garantia.profiles.apellido}
+                    </div>
+                  )}
                   {garantia.numero_incidente && <Badge variant="outline" className="text-xs">
                       {garantia.numero_incidente}
                     </Badge>}
@@ -398,6 +438,12 @@ export default function GarantiasManuales() {
                     <span className="font-semibold">CODIGO CLIENTE:</span><br />
                     {garantia.codigo_cliente}
                   </div>
+                  {garantia.profiles && (
+                    <div className="text-sm">
+                      <span className="font-semibold">ASESOR:</span><br />
+                      {garantia.profiles.nombre} {garantia.profiles.apellido}
+                    </div>
+                  )}
                 </CardContent>
               </Card>)}
           </CardContent>
@@ -429,6 +475,18 @@ export default function GarantiasManuales() {
                     <span className="font-semibold">CODIGO CLIENTE:</span><br />
                     {garantia.codigo_cliente}
                   </div>
+                  {garantia.profiles && (
+                    <div className="text-sm">
+                      <span className="font-semibold">ASESOR:</span><br />
+                      {garantia.profiles.nombre} {garantia.profiles.apellido}
+                    </div>
+                  )}
+                  {garantia.profiles && (
+                    <div className="text-sm">
+                      <span className="font-semibold">ASESOR:</span><br />
+                      {garantia.profiles.nombre} {garantia.profiles.apellido}
+                    </div>
+                  )}
                   {garantia.numero_incidente && <Badge variant="outline" className="text-xs">
                       {garantia.numero_incidente}
                     </Badge>}

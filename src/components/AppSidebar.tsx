@@ -79,6 +79,9 @@ const menuAreas = {
   ],
   admin: [
     { title: "Gestión de Usuarios", url: "/admin/usuarios", icon: Settings },
+  ],
+  asesor: [
+    { title: "Mis Garantías", url: "/mis-garantias", icon: Wrench },
   ]
 };
 
@@ -140,6 +143,7 @@ export function AppSidebar() {
                     {userRole === 'bodega' && 'Bodega'}
                     {userRole === 'sac' && 'SAC'}
                     {userRole === 'control_calidad' && 'Control de Calidad'}
+                    {userRole === 'asesor' && 'Asesor'}
                     {userRole === 'admin' && 'Administrador'}
                   </span>
                 </div>
@@ -161,6 +165,7 @@ export function AppSidebar() {
           {renderMenuSection("Bodega", menuAreas.bodega)}
           {renderMenuSection("SAC", menuAreas.sac)}
           {renderMenuSection("Calidad", menuAreas.calidad)}
+          {userRole === "asesor" && renderMenuSection("Asesor", menuAreas.asesor)}
           {userRole === "admin" && renderMenuSection("Administración", menuAreas.admin)}
         </div>
 
