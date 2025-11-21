@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Package, CheckCircle, XCircle, AlertTriangle, MapPin } from "lucide-react";
+import { ArrowLeft, Package, CheckCircle, XCircle, AlertTriangle, MapPin, ArrowRightLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -8,6 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { buscarAlternativaDisponible, registrarSustitucion } from "@/lib/repuestosService";
 
 type DetalleRepuesto = {
   id: string;
@@ -19,6 +20,8 @@ type DetalleRepuesto = {
   descripcion?: string;
   ubicacion_bodega?: string;
   stock_actual?: number;
+  codigo_alternativo?: string | null;
+  tipo_sustitucion?: string | null;
 };
 
 type Solicitud = {
@@ -122,7 +125,14 @@ export default function DetalleSolicitud() {
 
       if (detallesInfoError) throw detallesInfoError;
 
-      // Para cada detalle, buscar la info del repuesto
+      // Obtener centro de servicio ZONA5
+      const { data: centroData } = await supabase
+        .from('centros_servicio')
+        .select('id')
+        .eq('codigo', 'ZONA5')
+        .maybeSingle();
+
+      // Para cada detalle, buscar la info del repuesto y alternativas
       const detallesMapeados = await Promise.all(
         (detallesData || []).map(async (det: any) => {
           const { data: repuestoInfo } = await supabase
@@ -130,6 +140,17 @@ export default function DetalleSolicitud() {
             .select('descripcion, ubicacion_bodega, stock_actual')
             .eq('codigo', det.codigo_repuesto)
             .maybeSingle();
+
+          // Buscar alternativa si no hay stock
+          let alternativa = null;
+          let tipoSustitucion = null;
+          if (centroData && (repuestoInfo?.stock_actual || 0) === 0) {
+            const alt = await buscarAlternativaDisponible(det.codigo_repuesto, centroData.id);
+            if (alt && alt.tipo_coincidencia !== 'solicitado') {
+              alternativa = alt.codigo_encontrado;
+              tipoSustitucion = alt.tipo_coincidencia;
+            }
+          }
 
           return {
             id: det.id,
@@ -140,7 +161,9 @@ export default function DetalleSolicitud() {
             notas: det.notas,
             descripcion: repuestoInfo?.descripcion || det.codigo_repuesto,
             ubicacion_bodega: repuestoInfo?.ubicacion_bodega || 'No especificada',
-            stock_actual: repuestoInfo?.stock_actual || 0
+            stock_actual: repuestoInfo?.stock_actual || 0,
+            codigo_alternativo: alternativa,
+            tipo_sustitucion: tipoSustitucion
           };
         })
       );
@@ -365,14 +388,29 @@ export default function DetalleSolicitud() {
                   
                   <div className="flex-1 space-y-3">
                     <div className="flex items-start justify-between">
-                      <div>
+                      <div className="flex-1">
                         <div className="flex items-center gap-2">
                           {getEstadoIcon(detalle.estado)}
                           <h4 className="font-semibold text-lg">{detalle.descripcion}</h4>
                         </div>
                         <p className="text-sm text-muted-foreground mt-1">
-                          Código: <span className="font-mono font-medium">{detalle.codigo_repuesto}</span>
+                          Código solicitado: <span className="font-mono font-medium">{detalle.codigo_repuesto}</span>
                         </p>
+                        {detalle.codigo_alternativo && (
+                          <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-950/20 rounded-md border border-blue-200">
+                            <div className="flex items-center gap-2 text-sm">
+                              <ArrowRightLeft className="h-4 w-4 text-blue-600" />
+                              <span className="text-blue-700 dark:text-blue-400 font-medium">
+                                Se despachará: <span className="font-mono">{detalle.codigo_alternativo}</span>
+                              </span>
+                              <Badge variant="outline" className="text-xs">
+                                {detalle.tipo_sustitucion === 'padre' && 'Código Padre'}
+                                {detalle.tipo_sustitucion === 'hermano' && 'Código Hermano'}
+                                {detalle.tipo_sustitucion === 'equivalente' && 'Equivalente'}
+                              </Badge>
+                            </div>
+                          </div>
+                        )}
                       </div>
                       <Badge variant={detalle.estado === 'encontrado' ? 'default' : 'secondary'}>
                         Cant: {detalle.cantidad_solicitada}
