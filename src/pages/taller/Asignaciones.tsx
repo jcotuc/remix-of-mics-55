@@ -4,7 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Wrench, Clock, CheckCircle, Search, AlertCircle } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Separator } from "@/components/ui/separator";
+import { WhatsAppStyleMediaCapture, MediaFile } from "@/components/WhatsAppStyleMediaCapture";
+import { uploadMediaToStorage } from "@/lib/uploadMedia";
+import { Wrench, Clock, CheckCircle, Search, AlertCircle, Store, CheckCircle2, XCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
@@ -17,7 +24,8 @@ const FAMILIAS = [
   "Compresores",
   "2 Tiempos",
   "Hidrolavadoras",
-  "Estacionarias"
+  "Estacionarias",
+  "Stock Cemaco"
 ] as const;
 
 export default function Asignaciones() {
@@ -26,6 +34,18 @@ export default function Asignaciones() {
   const [searchTerm, setSearchTerm] = useState("");
   const [searchResults, setSearchResults] = useState<IncidenteDB[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // Estados para modal de revisión Stock Cemaco
+  const [modalRevision, setModalRevision] = useState<{open: boolean, incidente: IncidenteDB | null}>({open: false, incidente: null});
+  const [decision, setDecision] = useState<"aprobado" | "rechazado">("aprobado");
+  const [observaciones, setObservaciones] = useState("");
+  const [justificacion, setJustificacion] = useState("");
+  const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([]);
+  const [submitting, setSubmitting] = useState(false);
+  
+  // Estados para modal de aprobación (Jefe de Taller)
+  const [modalAprobacion, setModalAprobacion] = useState<{open: boolean, incidente: IncidenteDB | null, revision: any | null}>({open: false, incidente: null, revision: null});
+  const [observacionesRechazo, setObservacionesRechazo] = useState("");
 
   useEffect(() => {
     fetchIncidentes();
@@ -34,14 +54,25 @@ export default function Asignaciones() {
   const fetchIncidentes = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      
+      // Incidentes normales (no stock cemaco)
+      const { data: normales, error: error1 } = await supabase
         .from('incidentes')
         .select('*')
         .eq('status', 'Ingresado')
+        .or('es_stock_cemaco.is.null,es_stock_cemaco.eq.false')
         .order('fecha_ingreso', { ascending: true });
 
-      if (error) throw error;
-      setIncidentes(data || []);
+      // Incidentes Stock Cemaco (Ingresado y Pendiente de aprobación NC)
+      const { data: stockCemaco, error: error2 } = await supabase
+        .from('incidentes')
+        .select('*')
+        .eq('es_stock_cemaco', true)
+        .in('status', ['Ingresado', 'Pendiente de aprobación NC'] as any)
+        .order('fecha_ingreso', { ascending: true });
+
+      if (error1 || error2) throw error1 || error2;
+      setIncidentes([...(normales || []), ...(stockCemaco || [])]);
     } catch (error) {
       console.error('Error:', error);
       toast.error('Error al cargar incidentes');
@@ -98,7 +129,13 @@ export default function Asignaciones() {
   };
 
   const getIncidentesPorFamilia = (familia: string) => {
-    return incidentes.filter(inc => inc.familia_producto === familia);
+    if (familia === "Stock Cemaco") {
+      return incidentes.filter(inc => inc.es_stock_cemaco === true);
+    }
+    return incidentes.filter(inc => 
+      inc.familia_producto === familia && 
+      (inc.es_stock_cemaco !== true)
+    );
   };
 
   const getDiasDesdeIngreso = (fechaIngreso: string) => {
@@ -110,6 +147,110 @@ export default function Asignaciones() {
     const incidentesFamilia = getIncidentesPorFamilia(familia);
     if (incidentesFamilia.length === 0) return 0;
     return Math.max(...incidentesFamilia.map(inc => getDiasDesdeIngreso(inc.fecha_ingreso)));
+  };
+
+  // Función para abrir modal de revisión Stock Cemaco
+  const handleRevisar = (incidente: IncidenteDB) => {
+    setModalRevision({ open: true, incidente });
+    setDecision("aprobado");
+    setObservaciones("");
+    setJustificacion("");
+    setMediaFiles([]);
+  };
+
+  // Función para enviar revisión Stock Cemaco
+  const submitRevision = async () => {
+    if (!modalRevision.incidente) return;
+    
+    if (justificacion.length < 20) {
+      toast.error("La justificación debe tener al menos 20 caracteres");
+      return;
+    }
+    if (mediaFiles.length === 0) {
+      toast.error("Debe agregar al menos 1 foto como evidencia");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const uploadedMedia = await uploadMediaToStorage(mediaFiles, modalRevision.incidente.id);
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      await supabase.from("revisiones_stock_cemaco").insert({
+        incidente_id: modalRevision.incidente.id,
+        revisor_id: user?.id,
+        observaciones,
+        fotos_urls: uploadedMedia.map(m => m.url),
+        decision,
+        justificacion,
+      });
+
+      await supabase.from("incidentes")
+        .update({ status: "Pendiente de aprobación NC" as any })
+        .eq("id", modalRevision.incidente.id);
+
+      toast.success("Revisión enviada para aprobación");
+      setModalRevision({ open: false, incidente: null });
+      fetchIncidentes();
+    } catch (error) {
+      console.error(error);
+      toast.error("Error al guardar la revisión");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Función para abrir modal de aprobación (Jefe de Taller)
+  const handleAprobar = async (incidente: IncidenteDB) => {
+    try {
+      const { data: revision } = await supabase
+        .from("revisiones_stock_cemaco")
+        .select("*")
+        .eq("incidente_id", incidente.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single();
+      
+      setModalAprobacion({ open: true, incidente, revision });
+      setObservacionesRechazo("");
+    } catch (error) {
+      console.error(error);
+      toast.error("Error al cargar la revisión");
+    }
+  };
+
+  // Función para aprobar/rechazar la propuesta
+  const submitAprobacion = async (aprobar: boolean) => {
+    if (!modalAprobacion.incidente || !modalAprobacion.revision) return;
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      await supabase
+        .from("revisiones_stock_cemaco")
+        .update({
+          aprobado_por: user?.id,
+          fecha_aprobacion: new Date().toISOString(),
+          observaciones: aprobar ? modalAprobacion.revision.observaciones : observacionesRechazo,
+        })
+        .eq("id", modalAprobacion.revision.id);
+
+      const nuevoStatus = aprobar 
+        ? (modalAprobacion.revision.decision === "aprobado" ? "Nota de credito" : "Rechazado")
+        : "Rechazado";
+
+      await supabase
+        .from("incidentes")
+        .update({ status: nuevoStatus as any })
+        .eq("id", modalAprobacion.incidente.id);
+
+      toast.success(aprobar ? "Revisión aprobada" : "Revisión rechazada");
+      setModalAprobacion({ open: false, incidente: null, revision: null });
+      fetchIncidentes();
+    } catch (error) {
+      console.error(error);
+      toast.error("Error al procesar la aprobación");
+    }
   };
 
   // Métricas adicionales
@@ -257,13 +398,17 @@ export default function Asignaciones() {
               {FAMILIAS.map((familia) => {
                 const incidentesFamilia = getIncidentesPorFamilia(familia);
                 const diaMax = getDiaMaxPorFamilia(familia);
+                const isStockCemaco = familia === "Stock Cemaco";
 
                 return (
                   <div key={familia} className="flex-shrink-0 w-80">
-                    <Card className="h-full flex flex-col">
+                    <Card className={`h-full flex flex-col ${isStockCemaco ? 'border-orange-500/50 bg-orange-50/30 dark:bg-orange-950/20' : ''}`}>
                       <CardHeader className="pb-3 border-b bg-muted/30">
                         <div className="flex items-center justify-between">
-                          <CardTitle className="text-base font-semibold">{familia}</CardTitle>
+                          <CardTitle className="text-base font-semibold flex items-center gap-2">
+                            {isStockCemaco && <Store className="h-4 w-4 text-orange-600" />}
+                            {familia}
+                          </CardTitle>
                           <div className="flex items-center gap-2">
                             <Badge variant="secondary" className="font-bold">
                               {incidentesFamilia.length}
@@ -349,26 +494,46 @@ export default function Asignaciones() {
                                       )}
                                     </div>
 
-                                    {/* Actions */}
-                                    <div className="flex gap-1.5 pt-1">
-                                      <Button
-                                        size="sm"
-                                        variant={esPrimero ? "default" : "outline"}
-                                        className={`flex-1 h-8 text-xs ${esPrimero ? 'hover-scale' : ''}`}
-                                        onClick={() => handleAsignar(inc.id, familia)}
-                                        disabled={!esPrimero}
-                                      >
-                                        {esPrimero ? '✓ Asignarme' : '🔒 Bloqueado'}
-                                      </Button>
-                                      <Button
-                                        size="sm"
-                                        variant="ghost"
-                                        className="h-8 px-2"
-                                        onClick={() => navigate(`/mostrador/seguimiento/${inc.id}`)}
-                                      >
-                                        👁️
-                                      </Button>
-                                    </div>
+                                     {/* Actions */}
+                                     <div className="flex gap-1.5 pt-1">
+                                       {isStockCemaco ? (
+                                         inc.status === 'Ingresado' ? (
+                                           <Button
+                                             size="sm"
+                                             className="flex-1 h-8 text-xs bg-orange-600 hover:bg-orange-700"
+                                             onClick={() => handleRevisar(inc)}
+                                           >
+                                             Revisar
+                                           </Button>
+                                         ) : (inc.status as any) === 'Pendiente de aprobación NC' ? (
+                                           <Button
+                                             size="sm"
+                                             className="flex-1 h-8 text-xs bg-green-600 hover:bg-green-700"
+                                             onClick={() => handleAprobar(inc)}
+                                           >
+                                             Aprobar
+                                           </Button>
+                                         ) : null
+                                       ) : (
+                                         <Button
+                                           size="sm"
+                                           variant={esPrimero ? "default" : "outline"}
+                                           className={`flex-1 h-8 text-xs ${esPrimero ? 'hover-scale' : ''}`}
+                                           onClick={() => handleAsignar(inc.id, familia)}
+                                           disabled={!esPrimero}
+                                         >
+                                           {esPrimero ? '✓ Asignarme' : '🔒 Bloqueado'}
+                                         </Button>
+                                       )}
+                                       <Button
+                                         size="sm"
+                                         variant="ghost"
+                                         className="h-8 px-2"
+                                         onClick={() => navigate(`/mostrador/seguimiento/${inc.id}`)}
+                                       >
+                                         👁️
+                                       </Button>
+                                     </div>
                                   </div>
                                 </div>
                               );
@@ -408,6 +573,157 @@ export default function Asignaciones() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Modal de Revisión Stock Cemaco */}
+      <Dialog open={modalRevision.open} onOpenChange={(open) => !submitting && setModalRevision({ open, incidente: null })}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Revisión Stock Cemaco - {modalRevision.incidente?.codigo}</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div>
+              <Label>Producto</Label>
+              <p className="text-sm text-muted-foreground">{modalRevision.incidente?.codigo_producto}</p>
+            </div>
+
+            <div>
+              <Label htmlFor="decision">Decisión *</Label>
+              <RadioGroup value={decision} onValueChange={(v) => setDecision(v as "aprobado" | "rechazado")}>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="aprobado" id="aprobado" />
+                  <Label htmlFor="aprobado" className="cursor-pointer">Nota de Crédito Autorizado</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="rechazado" id="rechazado" />
+                  <Label htmlFor="rechazado" className="cursor-pointer">Nota de Crédito Rechazado</Label>
+                </div>
+              </RadioGroup>
+            </div>
+
+            <div>
+              <Label htmlFor="justificacion">Justificación * (mínimo 20 caracteres)</Label>
+              <Textarea
+                id="justificacion"
+                value={justificacion}
+                onChange={(e) => setJustificacion(e.target.value)}
+                placeholder="Explique detalladamente la razón de su decisión..."
+                rows={4}
+                className="resize-none"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                {justificacion.length}/20 caracteres mínimos
+              </p>
+            </div>
+
+            <div>
+              <Label htmlFor="observaciones">Observaciones adicionales</Label>
+              <Textarea
+                id="observaciones"
+                value={observaciones}
+                onChange={(e) => setObservaciones(e.target.value)}
+                placeholder="Observaciones opcionales..."
+                rows={3}
+              />
+            </div>
+
+            <div>
+              <Label>Evidencia Fotográfica * (1-10 fotos)</Label>
+              <WhatsAppStyleMediaCapture
+                media={mediaFiles}
+                onMediaChange={setMediaFiles}
+                maxFiles={10}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setModalRevision({ open: false, incidente: null })} disabled={submitting}>
+              Cancelar
+            </Button>
+            <Button onClick={submitRevision} disabled={submitting}>
+              {submitting ? "Guardando..." : "Enviar Revisión"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Aprobación (Jefe de Taller) */}
+      <Dialog open={modalAprobacion.open} onOpenChange={(open) => setModalAprobacion({ open, incidente: null, revision: null })}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Aprobación Final - {modalAprobacion.incidente?.codigo}</DialogTitle>
+          </DialogHeader>
+          
+          {modalAprobacion.revision && (
+            <div className="space-y-4">
+              <div>
+                <Label>Producto</Label>
+                <p className="text-sm text-muted-foreground">{modalAprobacion.incidente?.codigo_producto}</p>
+              </div>
+
+              <div>
+                <Label>Decisión Propuesta</Label>
+                <Badge variant={modalAprobacion.revision.decision === "aprobado" ? "default" : "destructive"} className="text-sm">
+                  {modalAprobacion.revision.decision === "aprobado" ? (
+                    <><CheckCircle2 className="h-4 w-4 mr-1" /> Nota de Crédito Autorizado</>
+                  ) : (
+                    <><XCircle className="h-4 w-4 mr-1" /> Nota de Crédito Rechazado</>
+                  )}
+                </Badge>
+              </div>
+
+              <div>
+                <Label>Justificación del Revisor</Label>
+                <p className="text-sm bg-muted p-3 rounded-lg">{modalAprobacion.revision.justificacion}</p>
+              </div>
+
+              {modalAprobacion.revision.observaciones && (
+                <div>
+                  <Label>Observaciones</Label>
+                  <p className="text-sm bg-muted p-3 rounded-lg">{modalAprobacion.revision.observaciones}</p>
+                </div>
+              )}
+
+              <div>
+                <Label>Evidencia Fotográfica</Label>
+                <div className="grid grid-cols-3 gap-2 mt-2">
+                  {modalAprobacion.revision.fotos_urls?.map((url: string, idx: number) => (
+                    <img key={idx} src={url} alt={`Evidencia ${idx + 1}`} className="w-full h-24 object-cover rounded-lg border" />
+                  ))}
+                </div>
+              </div>
+
+              <Separator />
+
+              <div>
+                <Label htmlFor="observacionesRechazo">Observaciones de Rechazo (si aplica)</Label>
+                <Textarea
+                  id="observacionesRechazo"
+                  value={observacionesRechazo}
+                  onChange={(e) => setObservacionesRechazo(e.target.value)}
+                  placeholder="Solo si va a rechazar la propuesta..."
+                  rows={3}
+                />
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setModalAprobacion({ open: false, incidente: null, revision: null })}>
+              Cancelar
+            </Button>
+            <Button variant="destructive" onClick={() => submitAprobacion(false)}>
+              <XCircle className="h-4 w-4 mr-2" />
+              Rechazar Propuesta
+            </Button>
+            <Button onClick={() => submitAprobacion(true)}>
+              <CheckCircle2 className="h-4 w-4 mr-2" />
+              Aprobar Propuesta
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
     </div>
   );
