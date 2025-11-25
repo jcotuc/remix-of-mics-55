@@ -31,6 +31,7 @@ const menuAreas = {
     { title: "Repuestos", url: "/mostrador/repuestos", icon: Wrench },
     { title: "Consulta Precios", url: "/mostrador/consulta-precios", icon: DollarSign },
     { title: "Incidentes", url: "/mostrador/incidentes", icon: FileText },
+    { title: "Herramientas Manuales", url: "/mostrador/herramientas-manuales", icon: Settings },
     { title: "Entrega de Máquinas", url: "/mostrador/entrega-maquinas", icon: PackageCheck },
   ],
   logistica: [
