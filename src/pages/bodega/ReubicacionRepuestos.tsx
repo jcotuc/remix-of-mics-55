@@ -35,7 +35,7 @@ type CentroServicio = {
 export default function ReubicacionRepuestos() {
   const [repuestosPendientes, setRepuestosPendientes] = useState<RepuestoPendiente[]>([]);
   const [centrosServicio, setCentrosServicio] = useState<CentroServicio[]>([]);
-  const [centroSeleccionado, setCentroSeleccionado] = useState<string>("");
+  const [centroSeleccionado, setCentroSeleccionado] = useState<string>("todos");
   const [busqueda, setBusqueda] = useState("");
   const [loading, setLoading] = useState(true);
   const [showReubicacionDialog, setShowReubicacionDialog] = useState(false);
