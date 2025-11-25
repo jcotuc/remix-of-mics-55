@@ -1,5 +1,4 @@
-import { useState } from "react";
-import { Layout } from "@/components/Layout";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -50,12 +49,18 @@ export default function GestionRelacionesRepuestos() {
   const [prioridad, setPrioridad] = useState("1");
   const [bidireccional, setBidireccional] = useState(true);
   const [equivalencias, setEquivalencias] = useState<Relacion[]>([]);
+  const [loadingEquivalencias, setLoadingEquivalencias] = useState(false);
   
   // Tab 3: Productos
   const [repuestoSeleccionado, setRepuestoSeleccionado] = useState("");
   const [productoSeleccionado, setProductoSeleccionado] = useState("");
   const [productos, setProductos] = useState<Producto[]>([]);
   const [compatibilidades, setCompatibilidades] = useState<any[]>([]);
+  const [loadingCompatibilidades, setLoadingCompatibilidades] = useState(false);
+
+  useEffect(() => {
+    cargarEquivalencias();
+  }, []);
 
   const buscarRepuestoPadre = async () => {
     if (!busquedaPadre.trim()) return;
@@ -173,6 +178,7 @@ export default function GestionRelacionesRepuestos() {
   };
 
   const cargarEquivalencias = async () => {
+    setLoadingEquivalencias(true);
     const { data, error } = await supabase
       .from('repuestos_relaciones')
       .select('*')
@@ -182,6 +188,7 @@ export default function GestionRelacionesRepuestos() {
     if (!error && data) {
       setEquivalencias(data);
     }
+    setLoadingEquivalencias(false);
   };
 
   const desactivarEquivalencia = async (id: string) => {
@@ -234,6 +241,7 @@ export default function GestionRelacionesRepuestos() {
   };
 
   const cargarCompatibilidades = async () => {
+    setLoadingCompatibilidades(true);
     const { data, error } = await supabase
       .from('repuestos_productos')
       .select(`
@@ -248,10 +256,10 @@ export default function GestionRelacionesRepuestos() {
     if (!error && data) {
       setCompatibilidades(data);
     }
+    setLoadingCompatibilidades(false);
   };
 
   return (
-    <Layout>
       <div className="p-6 space-y-6">
         <div>
           <h1 className="text-3xl font-bold">Gestión de Relaciones de Repuestos</h1>
@@ -408,44 +416,50 @@ export default function GestionRelacionesRepuestos() {
 
                 <div>
                   <Label className="text-lg">Equivalencias Activas</Label>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Principal</TableHead>
-                        <TableHead></TableHead>
-                        <TableHead>Equivalente</TableHead>
-                        <TableHead>Prioridad</TableHead>
-                        <TableHead>Bidireccional</TableHead>
-                        <TableHead></TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {equivalencias.map((eq) => (
-                        <TableRow key={eq.id}>
-                          <TableCell className="font-mono">{eq.codigo_principal}</TableCell>
-                          <TableCell>
-                            <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                          </TableCell>
-                          <TableCell className="font-mono">{eq.codigo_relacionado}</TableCell>
-                          <TableCell>
-                            <Badge variant="outline">{eq.prioridad}</Badge>
-                          </TableCell>
-                          <TableCell>
-                            {eq.bidireccional ? "Sí" : "No"}
-                          </TableCell>
-                          <TableCell>
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => desactivarEquivalencia(eq.id)}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </TableCell>
+                  {loadingEquivalencias ? (
+                    <p className="text-center py-8 text-muted-foreground">Cargando...</p>
+                  ) : equivalencias.length === 0 ? (
+                    <p className="text-center py-8 text-muted-foreground">No hay equivalencias registradas</p>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Principal</TableHead>
+                          <TableHead></TableHead>
+                          <TableHead>Equivalente</TableHead>
+                          <TableHead>Prioridad</TableHead>
+                          <TableHead>Bidireccional</TableHead>
+                          <TableHead></TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {equivalencias.map((eq) => (
+                          <TableRow key={eq.id}>
+                            <TableCell className="font-mono">{eq.codigo_principal}</TableCell>
+                            <TableCell>
+                              <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                            </TableCell>
+                            <TableCell className="font-mono">{eq.codigo_relacionado}</TableCell>
+                            <TableCell>
+                              <Badge variant="outline">{eq.prioridad}</Badge>
+                            </TableCell>
+                            <TableCell>
+                              {eq.bidireccional ? "Sí" : "No"}
+                            </TableCell>
+                            <TableCell>
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                onClick={() => desactivarEquivalencia(eq.id)}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -487,38 +501,43 @@ export default function GestionRelacionesRepuestos() {
 
                 <div>
                   <Label className="text-lg">Compatibilidades</Label>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Repuesto</TableHead>
-                        <TableHead>Producto</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {compatibilidades.map((comp: any) => (
-                        <TableRow key={comp.id}>
-                          <TableCell>
-                            <div className="font-mono">{comp.codigo_repuesto}</div>
-                            <div className="text-sm text-muted-foreground">
-                              {comp.repuestos?.descripcion}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <div className="font-mono">{comp.codigo_producto}</div>
-                            <div className="text-sm text-muted-foreground">
-                              {comp.productos?.descripcion}
-                            </div>
-                          </TableCell>
+                  {loadingCompatibilidades ? (
+                    <p className="text-center py-8 text-muted-foreground">Cargando...</p>
+                  ) : compatibilidades.length === 0 ? (
+                    <p className="text-center py-8 text-muted-foreground">No hay compatibilidades registradas</p>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Repuesto</TableHead>
+                          <TableHead>Producto</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {compatibilidades.map((comp: any) => (
+                          <TableRow key={comp.id}>
+                            <TableCell>
+                              <div className="font-mono">{comp.codigo_repuesto}</div>
+                              <div className="text-sm text-muted-foreground">
+                                {comp.repuestos?.descripcion}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="font-mono">{comp.codigo_producto}</div>
+                              <div className="text-sm text-muted-foreground">
+                                {comp.productos?.descripcion}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
         </Tabs>
       </div>
-    </Layout>
   );
 }
