@@ -90,7 +90,7 @@ export default function ReubicacionRepuestos() {
         `)
         .eq("requiere_reubicacion", true);
 
-      if (centroSeleccionado) {
+      if (centroSeleccionado && centroSeleccionado !== "todos") {
         query = query.eq("centro_servicio_id", centroSeleccionado);
       }
 
@@ -208,7 +208,7 @@ export default function ReubicacionRepuestos() {
                   <SelectValue placeholder="Todos los centros" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todos los centros</SelectItem>
+                  <SelectItem value="todos">Todos los centros</SelectItem>
                   {centrosServicio.map((centro) => (
                     <SelectItem key={centro.id} value={centro.id}>
                       {centro.nombre}
