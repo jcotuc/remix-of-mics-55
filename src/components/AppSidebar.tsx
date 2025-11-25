@@ -51,8 +51,6 @@ const menuAreas = {
     { title: "Asignaciones", url: "/taller/asignaciones", icon: Wrench },
     { title: "Mis Asignaciones", url: "/taller/mis-asignaciones", icon: ClipboardList },
     { title: "Búsqueda Incidentes", url: "/taller/busqueda-incidentes", icon: FileText },
-    { title: "Revisión Stock Cemaco", url: "/taller/revision-stock-cemaco", icon: ClipboardCheck },
-    { title: "Aprobaciones Stock Cemaco", url: "/taller/aprobaciones-stock-cemaco", icon: CheckCircle2 },
   ],
   bodega: [
     { title: "Inventario", url: "/bodega/inventario", icon: ClipboardCheck },
