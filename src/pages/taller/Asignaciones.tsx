@@ -55,13 +55,15 @@ export default function Asignaciones() {
     try {
       setLoading(true);
       
-      // Incidentes normales (no stock cemaco)
+      // Incidentes normales (no stock Cemaco)
       const { data: normales, error: error1 } = await supabase
         .from('incidentes')
         .select('*')
         .eq('status', 'Ingresado')
         .or('es_stock_cemaco.is.null,es_stock_cemaco.eq.false')
         .order('fecha_ingreso', { ascending: true });
+
+      if (error1) throw error1;
 
       // Incidentes Stock Cemaco (Ingresado y Pendiente de aprobación NC)
       const { data: stockCemaco, error: error2 } = await supabase
@@ -71,7 +73,11 @@ export default function Asignaciones() {
         .in('status', ['Ingresado', 'Pendiente de aprobación NC'] as any)
         .order('fecha_ingreso', { ascending: true });
 
-      if (error1 || error2) throw error1 || error2;
+      if (error2) {
+        console.error('Error cargando incidentes Stock Cemaco:', error2);
+        toast.error('Error al cargar incidentes de Stock Cemaco');
+      }
+
       setIncidentes([...(normales || []), ...(stockCemaco || [])]);
     } catch (error) {
       console.error('Error:', error);

@@ -380,7 +380,7 @@ export function DiagnosticoTecnico({ incidente, onDiagnosticoCompleto }: Diagnos
       if (diagError) throw diagError;
 
       // Mapear estatus final a los estados del sistema
-      type StatusIncidente = "Ingresado" | "En ruta" | "Pendiente de diagnostico" | "En diagnostico" | "Pendiente por repuestos" | "Presupuesto" | "Porcentaje" | "Reparado" | "Cambio por garantia" | "Nota de credito" | "Bodega pedido" | "Rechazado" | "Pendiente entrega" | "Logistica envio";
+      type StatusIncidente = "Ingresado" | "En ruta" | "Pendiente de diagnostico" | "En diagnostico" | "Pendiente por repuestos" | "Presupuesto" | "Porcentaje" | "Reparado" | "Cambio por garantia" | "Nota de credito" | "Bodega pedido" | "Rechazado" | "Pendiente entrega" | "Logistica envio" | "Pendiente de aprobación NC";
       
       let nuevoEstatus: StatusIncidente = incidente.status;
       
