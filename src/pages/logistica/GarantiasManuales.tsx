@@ -167,17 +167,79 @@ export default function GarantiasManuales() {
   };
   const handleUpdateGarantia = async () => {
     if (!selectedGarantia) return;
+    
+    if (!updateData.estatus) {
+      toast.error("Debe seleccionar un estatus");
+      return;
+    }
+    
+    if (!updateData.comentarios_logistica || updateData.comentarios_logistica.length < 20) {
+      toast.error("Los comentarios deben tener al menos 20 caracteres");
+      return;
+    }
+    
     try {
-      const {
-        error
-      } = await supabase.from("garantias_manuales").update({
-        estatus: updateData.estatus,
-        comentarios_logistica: updateData.comentarios_logistica,
-        numero_incidente: updateData.numero_incidente || null,
-        modified_by: (await supabase.auth.getUser()).data.user?.id
-      }).eq("id", selectedGarantia.id);
+      // Crear incidente automáticamente al resolver garantía
+      let incidenteId: string | null = null;
+      let codigoIncidente: string | null = null;
+
+      // Generar código de incidente
+      const { data: codigoData, error: codigoError } = await supabase
+        .rpc("generar_codigo_incidente");
+      
+      if (codigoError) throw codigoError;
+      codigoIncidente = codigoData;
+
+      // Determinar el status del incidente basado en la decisión
+      let statusIncidente: "Ingresado" | "Cambio por garantia" | "Porcentaje" = "Ingresado";
+      let coberturaGarantia = false;
+
+      if (updateData.estatus === "aplica_nc" || updateData.estatus === "cambio_garantia") {
+        statusIncidente = "Cambio por garantia";
+        coberturaGarantia = true;
+      } else if (updateData.estatus === "no_aplica_nc") {
+        statusIncidente = "Porcentaje"; // Ofrecimiento de canje
+        coberturaGarantia = false;
+      }
+
+      // Crear el incidente
+      const { data: incidenteData, error: incidenteError } = await supabase
+        .from("incidentes")
+        .insert([{
+          codigo: codigoIncidente,
+          codigo_cliente: selectedGarantia.codigo_cliente,
+          codigo_producto: selectedGarantia.sku_reportado,
+          descripcion_problema: selectedGarantia.descripcion_problema,
+          status: statusIncidente,
+          es_herramienta_manual: true,
+          familia_producto: "Herramienta Manual",
+          ingresado_en_mostrador: false,
+          cobertura_garantia: coberturaGarantia,
+          log_observaciones: updateData.comentarios_logistica,
+          garantia_manual_id: selectedGarantia.id
+        }])
+        .select()
+        .single();
+
+      if (incidenteError) throw incidenteError;
+      incidenteId = incidenteData.id;
+
+      // Actualizar la garantía con referencia al incidente
+      const { error } = await supabase
+        .from("garantias_manuales")
+        .update({
+          estatus: updateData.estatus,
+          comentarios_logistica: updateData.comentarios_logistica,
+          numero_incidente: codigoIncidente,
+          incidente_id: incidenteId,
+          origen: 'asesor',
+          modified_by: (await supabase.auth.getUser()).data.user?.id
+        })
+        .eq("id", selectedGarantia.id);
+      
       if (error) throw error;
-      toast.success("Garantía actualizada exitosamente");
+      
+      toast.success(`Garantía actualizada e incidente ${codigoIncidente} creado`);
       setShowDetailDialog(false);
       setSelectedGarantia(null);
       fetchGarantias();

@@ -497,8 +497,10 @@ export type Database = {
           estatus: string
           fotos_urls: string[] | null
           id: string
+          incidente_id: string | null
           modified_by: string | null
           numero_incidente: string | null
+          origen: string | null
           sku_reportado: string
           updated_at: string
         }
@@ -513,8 +515,10 @@ export type Database = {
           estatus?: string
           fotos_urls?: string[] | null
           id?: string
+          incidente_id?: string | null
           modified_by?: string | null
           numero_incidente?: string | null
+          origen?: string | null
           sku_reportado: string
           updated_at?: string
         }
@@ -529,12 +533,22 @@ export type Database = {
           estatus?: string
           fotos_urls?: string[] | null
           id?: string
+          incidente_id?: string | null
           modified_by?: string | null
           numero_incidente?: string | null
+          origen?: string | null
           sku_reportado?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "garantias_manuales_incidente_id_fkey"
+            columns: ["incidente_id"]
+            isOneToOne: false
+            referencedRelation: "incidentes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       guias_envio: {
         Row: {
@@ -753,11 +767,14 @@ export type Database = {
           es_herramienta_manual: boolean | null
           es_reingreso: boolean | null
           es_stock_cemaco: boolean | null
+          estado_fisico_recepcion: string | null
           familia_producto: string | null
           fecha_ingreso: string
+          garantia_manual_id: string | null
           id: string
           ingresado_en_mostrador: boolean | null
           log_observaciones: string | null
+          observaciones_recepcion: string | null
           persona_deja_maquina: string | null
           producto_descontinuado: boolean | null
           producto_sugerido_alternativo: string | null
@@ -784,11 +801,14 @@ export type Database = {
           es_herramienta_manual?: boolean | null
           es_reingreso?: boolean | null
           es_stock_cemaco?: boolean | null
+          estado_fisico_recepcion?: string | null
           familia_producto?: string | null
           fecha_ingreso?: string
+          garantia_manual_id?: string | null
           id?: string
           ingresado_en_mostrador?: boolean | null
           log_observaciones?: string | null
+          observaciones_recepcion?: string | null
           persona_deja_maquina?: string | null
           producto_descontinuado?: boolean | null
           producto_sugerido_alternativo?: string | null
@@ -815,11 +835,14 @@ export type Database = {
           es_herramienta_manual?: boolean | null
           es_reingreso?: boolean | null
           es_stock_cemaco?: boolean | null
+          estado_fisico_recepcion?: string | null
           familia_producto?: string | null
           fecha_ingreso?: string
+          garantia_manual_id?: string | null
           id?: string
           ingresado_en_mostrador?: boolean | null
           log_observaciones?: string | null
+          observaciones_recepcion?: string | null
           persona_deja_maquina?: string | null
           producto_descontinuado?: boolean | null
           producto_sugerido_alternativo?: string | null
@@ -856,6 +879,13 @@ export type Database = {
             columns: ["embarque_id"]
             isOneToOne: false
             referencedRelation: "embarques"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "incidentes_garantia_manual_id_fkey"
+            columns: ["garantia_manual_id"]
+            isOneToOne: false
+            referencedRelation: "garantias_manuales"
             referencedColumns: ["id"]
           },
         ]
