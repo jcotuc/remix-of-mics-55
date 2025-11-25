@@ -1,4 +1,4 @@
-import { Users, Package, Wrench, FileText, Truck, LogOut, Home, ShoppingCart, DollarSign, ClipboardList, BarChart3, ClipboardCheck, FileSpreadsheet, LogIn, LogOut as LogOutIcon, Send, PackageCheck, AlertTriangle, AlertCircle, MapPin, Calendar, Settings, CheckCircle2, Network } from "lucide-react";
+import { Users, Package, Wrench, FileText, Truck, LogOut, Home, ShoppingCart, DollarSign, ClipboardList, BarChart3, ClipboardCheck, FileSpreadsheet, LogIn, LogOut as LogOutIcon, Send, PackageCheck, AlertTriangle, AlertCircle, MapPin, Calendar, Settings, CheckCircle2, Network, RefreshCw } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -77,6 +77,7 @@ const menuAreas = {
   ],
   calidad: [
     { title: "Dashboard", url: "/calidad", icon: BarChart3 },
+    { title: "Reincidencias", url: "/calidad/reincidencias", icon: RefreshCw },
     { title: "Auditorías", url: "/calidad/auditorias", icon: ClipboardCheck },
     { title: "Análisis de Defectos", url: "/calidad/defectos", icon: AlertCircle },
   ],

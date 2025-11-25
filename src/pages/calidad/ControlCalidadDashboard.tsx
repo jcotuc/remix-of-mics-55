@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { CheckCircle, XCircle, AlertCircle, TrendingUp, Package } from "lucide-react";
 
 export default function ControlCalidadDashboard() {
@@ -11,6 +12,7 @@ export default function ControlCalidadDashboard() {
     reingresos: 0,
     defectosTotal: 0,
     defectosCriticos: 0,
+    reincidenciasPendientes: 0,
   });
 
   useEffect(() => {
@@ -27,6 +29,23 @@ export default function ControlCalidadDashboard() {
       const reingresos = auditorias?.filter((a) => a.resultado === "reingreso").length || 0;
       const defectosCriticos = defectos?.filter((d) => d.gravedad === "critica").length || 0;
 
+      // Contar reincidencias pendientes
+      const { data: incidentesPendientes } = await supabase
+        .from("incidentes")
+        .select("id")
+        .eq("es_reingreso", true)
+        .in("status", ["Ingresado", "Pendiente de diagnostico"]);
+
+      let reincidenciasPendientes = 0;
+      for (const inc of incidentesPendientes || []) {
+        const { data: verif } = await supabase
+          .from("verificaciones_reincidencia")
+          .select("id")
+          .eq("incidente_actual_id", inc.id)
+          .single();
+        if (!verif) reincidenciasPendientes++;
+      }
+
       setStats({
         totalAuditorias: auditorias?.length || 0,
         aprobadas,
@@ -34,6 +53,7 @@ export default function ControlCalidadDashboard() {
         reingresos,
         defectosTotal: defectos?.length || 0,
         defectosCriticos,
+        reincidenciasPendientes,
       });
     } catch (error) {
       console.error("Error fetching stats:", error);
@@ -100,6 +120,31 @@ export default function ControlCalidadDashboard() {
         </Card>
       </div>
 
+      {/* Nueva Card: Reincidencias Pendientes */}
+      {stats.reincidenciasPendientes > 0 && (
+        <Card className="border-yellow-200 bg-yellow-50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-yellow-800">
+              <AlertCircle className="h-5 w-5" />
+              Reincidencias Pendientes de Verificación
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-3xl font-bold text-yellow-600">{stats.reincidenciasPendientes}</div>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Incidentes marcados como reingreso que requieren verificación
+                </p>
+              </div>
+              <a href="/calidad/reincidencias">
+                <Button variant="outline">Ver Reincidencias</Button>
+              </a>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
           <CardHeader>
@@ -135,6 +180,15 @@ export default function ControlCalidadDashboard() {
             <CardTitle>Acciones Rápidas</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
+            <a href="/calidad/reincidencias" className="block p-3 rounded-lg border hover:bg-accent transition-colors">
+              <div className="flex items-center gap-3">
+                <AlertCircle className="h-5 w-5" />
+                <div>
+                  <div className="font-medium">Verificar Reincidencias</div>
+                  <div className="text-sm text-muted-foreground">Validar reclamos de clientes</div>
+                </div>
+              </div>
+            </a>
             <a href="/calidad/auditorias" className="block p-3 rounded-lg border hover:bg-accent transition-colors">
               <div className="flex items-center gap-3">
                 <CheckCircle className="h-5 w-5" />

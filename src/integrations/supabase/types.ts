@@ -1979,6 +1979,69 @@ export type Database = {
         }
         Relationships: []
       }
+      verificaciones_reincidencia: {
+        Row: {
+          aplica_reingreso: boolean
+          codigo_falla_actual: string | null
+          codigo_falla_original: string | null
+          created_at: string
+          es_reincidencia_valida: boolean
+          fecha_verificacion: string
+          fotos_urls: string[] | null
+          id: string
+          incidente_actual_id: string
+          incidente_anterior_id: string | null
+          justificacion: string
+          updated_at: string
+          verificador_id: string | null
+        }
+        Insert: {
+          aplica_reingreso?: boolean
+          codigo_falla_actual?: string | null
+          codigo_falla_original?: string | null
+          created_at?: string
+          es_reincidencia_valida: boolean
+          fecha_verificacion?: string
+          fotos_urls?: string[] | null
+          id?: string
+          incidente_actual_id: string
+          incidente_anterior_id?: string | null
+          justificacion: string
+          updated_at?: string
+          verificador_id?: string | null
+        }
+        Update: {
+          aplica_reingreso?: boolean
+          codigo_falla_actual?: string | null
+          codigo_falla_original?: string | null
+          created_at?: string
+          es_reincidencia_valida?: boolean
+          fecha_verificacion?: string
+          fotos_urls?: string[] | null
+          id?: string
+          incidente_actual_id?: string
+          incidente_anterior_id?: string | null
+          justificacion?: string
+          updated_at?: string
+          verificador_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "verificaciones_reincidencia_incidente_actual_id_fkey"
+            columns: ["incidente_actual_id"]
+            isOneToOne: false
+            referencedRelation: "incidentes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "verificaciones_reincidencia_incidente_anterior_id_fkey"
+            columns: ["incidente_anterior_id"]
+            isOneToOne: false
+            referencedRelation: "incidentes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never

@@ -46,6 +46,7 @@ import ConsultaCardex from "./pages/bodega/ConsultaCardex";
 import ControlCalidadDashboard from "./pages/calidad/ControlCalidadDashboard";
 import AuditoriasCalidad from "./pages/calidad/AuditoriasCalidad";
 import AnalisisDefectos from "./pages/calidad/AnalisisDefectos";
+import VerificacionReincidencias from "./pages/calidad/VerificacionReincidencias";
 import GestionUbicaciones from "./pages/bodega/GestionUbicaciones";
 import DocumentosPendientes from "./pages/bodega/DocumentosPendientes";
 import DocumentosUbicacion from "./pages/bodega/DocumentosUbicacion";
@@ -129,6 +130,7 @@ const App = () => (
               
               {/* Calidad Routes */}
               <Route path="/calidad" element={<ControlCalidadDashboard />} />
+              <Route path="/calidad/reincidencias" element={<VerificacionReincidencias />} />
               <Route path="/calidad/auditorias" element={<AuditoriasCalidad />} />
               <Route path="/calidad/defectos" element={<AnalisisDefectos />} />
               
