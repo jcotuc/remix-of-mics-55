@@ -180,8 +180,8 @@ export function AppSidebar() {
           {renderMenuSection("SAC", menuAreas.sac)}
           {renderMenuSection("Calidad", menuAreas.calidad)}
           {userRole === "asesor" && renderMenuSection("Asesor", menuAreas.asesor)}
-          {(userRole === "gerente_centro" || userRole === "supervisor_regional") && renderMenuSection("Gerencia", menuAreas.gerencia)}
-          {["supervisor_sac", "jefe_taller", "jefe_logistica", "jefe_bodega", "supervisor_bodega", "supervisor_calidad"].includes(userRole || "") && renderMenuSection("Supervisores", menuAreas.supervisores)}
+          {(userRole === "gerente_centro" || userRole === "supervisor_regional" || userRole === "admin") && renderMenuSection("Gerencia", menuAreas.gerencia)}
+          {(["supervisor_sac", "jefe_taller", "jefe_logistica", "jefe_bodega", "supervisor_bodega", "supervisor_calidad"].includes(userRole || "") || userRole === "admin") && renderMenuSection("Supervisores", menuAreas.supervisores)}
           {userRole === "admin" && renderMenuSection("Administración", menuAreas.admin)}
         </div>
 
