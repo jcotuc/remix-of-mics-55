@@ -2082,6 +2082,13 @@ export type Database = {
         | "sac"
         | "control_calidad"
         | "asesor"
+        | "gerente_centro"
+        | "supervisor_regional"
+        | "jefe_logistica"
+        | "jefe_bodega"
+        | "supervisor_bodega"
+        | "supervisor_calidad"
+        | "supervisor_sac"
       clasificacion_abc: "A" | "B" | "C"
       media_tipo: "foto" | "video"
       status_incidente:
@@ -2246,6 +2253,13 @@ export const Constants = {
         "sac",
         "control_calidad",
         "asesor",
+        "gerente_centro",
+        "supervisor_regional",
+        "jefe_logistica",
+        "jefe_bodega",
+        "supervisor_bodega",
+        "supervisor_calidad",
+        "supervisor_sac",
       ],
       clasificacion_abc: ["A", "B", "C"],
       media_tipo: ["foto", "video"],
