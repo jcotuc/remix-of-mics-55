@@ -84,6 +84,18 @@ const menuAreas = {
   ],
   asesor: [
     { title: "Mis Garantías", url: "/mis-garantias", icon: Wrench },
+  ],
+  gerencia: [
+    { title: "Dashboard Gerente", url: "/gerencia/dashboard", icon: BarChart3 },
+    { title: "Dashboard Regional", url: "/gerencia/regional", icon: BarChart3 },
+  ],
+  supervisores: [
+    { title: "Supervisor SAC", url: "/sac/dashboard-supervisor", icon: BarChart3 },
+    { title: "Jefe Taller", url: "/taller/dashboard-jefe", icon: BarChart3 },
+    { title: "Jefe Logística", url: "/logistica/dashboard-jefe", icon: BarChart3 },
+    { title: "Jefe Bodega", url: "/bodega/dashboard-jefe", icon: BarChart3 },
+    { title: "Supervisor Bodega", url: "/bodega/dashboard-supervisor", icon: BarChart3 },
+    { title: "Supervisor Calidad", url: "/calidad/dashboard-supervisor", icon: BarChart3 },
   ]
 };
 
@@ -168,6 +180,8 @@ export function AppSidebar() {
           {renderMenuSection("SAC", menuAreas.sac)}
           {renderMenuSection("Calidad", menuAreas.calidad)}
           {userRole === "asesor" && renderMenuSection("Asesor", menuAreas.asesor)}
+          {(userRole === "gerente_centro" || userRole === "supervisor_regional") && renderMenuSection("Gerencia", menuAreas.gerencia)}
+          {["supervisor_sac", "jefe_taller", "jefe_logistica", "jefe_bodega", "supervisor_bodega", "supervisor_calidad"].includes(userRole || "") && renderMenuSection("Supervisores", menuAreas.supervisores)}
           {userRole === "admin" && renderMenuSection("Administración", menuAreas.admin)}
         </div>
 

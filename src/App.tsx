@@ -62,6 +62,14 @@ import AprobacionesStockCemaco from "./pages/taller/AprobacionesStockCemaco";
 import MisGarantias from "./pages/asesor/MisGarantias";
 import ReubicacionRepuestos from "./pages/bodega/ReubicacionRepuestos";
 import GestionRelacionesRepuestos from "./pages/bodega/GestionRelacionesRepuestos";
+import DashboardGerente from "./pages/gerencia/DashboardGerente";
+import DashboardSupervisorRegional from "./pages/gerencia/DashboardSupervisorRegional";
+import DashboardJefeTaller from "./pages/taller/DashboardJefeTaller";
+import DashboardJefeLogistica from "./pages/logistica/DashboardJefeLogistica";
+import DashboardJefeBodega from "./pages/bodega/DashboardJefeBodega";
+import DashboardSupervisorBodega from "./pages/bodega/DashboardSupervisorBodega";
+import DashboardSupervisorCalidad from "./pages/calidad/DashboardSupervisorCalidad";
+import DashboardSupervisorSAC from "./pages/sac/DashboardSupervisorSAC";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -139,6 +147,18 @@ const App = () => (
               
               {/* Asesor Routes */}
               <Route path="/mis-garantias" element={<MisGarantias />} />
+              
+              {/* Gerencia Routes */}
+              <Route path="/gerencia/dashboard" element={<DashboardGerente />} />
+              <Route path="/gerencia/regional" element={<DashboardSupervisorRegional />} />
+              
+              {/* Supervisor Routes */}
+              <Route path="/taller/dashboard-jefe" element={<DashboardJefeTaller />} />
+              <Route path="/logistica/dashboard-jefe" element={<DashboardJefeLogistica />} />
+              <Route path="/bodega/dashboard-jefe" element={<DashboardJefeBodega />} />
+              <Route path="/bodega/dashboard-supervisor" element={<DashboardSupervisorBodega />} />
+              <Route path="/calidad/dashboard-supervisor" element={<DashboardSupervisorCalidad />} />
+              <Route path="/sac/dashboard-supervisor" element={<DashboardSupervisorSAC />} />
               
               <Route path="*" element={<NotFound />} />
             </Routes>
