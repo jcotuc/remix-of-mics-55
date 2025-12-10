@@ -44,32 +44,39 @@ export default function Repuestos() {
     try {
       setLoading(true);
       
-      // Fetch relaciones padre-hijo
+      // Fetch relaciones padre-hijo (usar * para evitar problemas con columnas en mayúsculas)
       const { data: relacionesData, error: relacionesError } = await supabase
         .from('repuestos_relaciones')
-        .select('Padre, Hijo, "Descripción"');
+        .select('*');
 
       if (relacionesError) {
         console.error('Error fetching relaciones:', relacionesError);
       }
+      
+      console.log('Relaciones raw data sample:', relacionesData?.slice(0, 3));
 
       // Crear mapas de relaciones
       const newHijoPadreMap = new Map<string, string>();
       const newPadreHijosMap = new Map<string, string[]>();
       
-      relacionesData?.forEach((r: RelacionPadreHijo) => {
-        if (r.Hijo && r.Padre) {
-          newHijoPadreMap.set(r.Hijo, r.Padre);
+      relacionesData?.forEach((r: any) => {
+        // Las columnas en la BD son Hijo y Padre (con mayúscula)
+        const hijo = r.Hijo;
+        const padre = r.Padre;
+        
+        if (hijo && padre) {
+          newHijoPadreMap.set(hijo, padre);
           
-          const hijos = newPadreHijosMap.get(r.Padre) || [];
-          hijos.push(r.Hijo);
-          newPadreHijosMap.set(r.Padre, hijos);
+          const hijos = newPadreHijosMap.get(padre) || [];
+          hijos.push(hijo);
+          newPadreHijosMap.set(padre, hijos);
         }
       });
       
       setHijoPadreMap(newHijoPadreMap);
       setPadreHijosMap(newPadreHijosMap);
       console.log('Relaciones cargadas:', newHijoPadreMap.size, 'hijos →', newPadreHijosMap.size, 'padres');
+      console.log('Ejemplo - 940375 es hijo de:', newHijoPadreMap.get('940375'));
       
       // Fetch repuestos (sin límite)
       let allRepuestos: any[] = [];
