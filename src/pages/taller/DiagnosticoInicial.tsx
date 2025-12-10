@@ -259,21 +259,37 @@ export default function DiagnosticoInicial() {
     if (!incidente?.codigo_producto) return;
     
     try {
-      // 1. Cargar TODAS las relaciones padre-hijo (más de 14,000 registros)
-      const { data: relacionesData, error: relError } = await supabase
-        .from('repuestos_relaciones')
-        .select('*')
-        .range(0, 20000);
+      // 1. Cargar TODAS las relaciones padre-hijo con paginación (más de 14,000 registros)
+      let allRelaciones: any[] = [];
+      let from = 0;
+      const pageSize = 1000;
       
-      if (relError) {
-        console.error('Error cargando relaciones:', relError);
+      while (true) {
+        const { data: relacionesData, error: relError } = await supabase
+          .from('repuestos_relaciones')
+          .select('*')
+          .range(from, from + pageSize - 1);
+        
+        if (relError) {
+          console.error('Error cargando relaciones:', relError);
+          break;
+        }
+        
+        if (!relacionesData || relacionesData.length === 0) break;
+        
+        allRelaciones = [...allRelaciones, ...relacionesData];
+        
+        if (relacionesData.length < pageSize) break;
+        from += pageSize;
       }
+      
+      console.log('Total relaciones cargadas:', allRelaciones.length);
       
       // Crear mapa hijo→padre y mapa padre→descripción
       const newHijoPadreMap = new Map<string, string>();
       const padreDescripcionMap = new Map<string, string>();
       
-      relacionesData?.forEach((r: any) => {
+      allRelaciones.forEach((r: any) => {
         const hijo = r.Hijo;
         const padre = r.Padre;
         const descripcion = r.Descripción;
@@ -287,7 +303,7 @@ export default function DiagnosticoInicial() {
       });
       
       setHijoPadreMap(newHijoPadreMap);
-      console.log('Relaciones cargadas:', newHijoPadreMap.size, '- Ejemplo 929926→', newHijoPadreMap.get('929926'));
+      console.log('Mapa hijo→padre:', newHijoPadreMap.size, '- Ejemplo 929926→', newHijoPadreMap.get('929926'));
 
       // 2. Cargar repuestos del producto
       const { data, error } = await supabase
