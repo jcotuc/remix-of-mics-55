@@ -1510,54 +1510,24 @@ export type Database = {
       }
       repuestos_relaciones: {
         Row: {
-          activo: boolean | null
-          bidireccional: boolean | null
-          codigo_principal: string
-          codigo_relacionado: string
-          created_at: string | null
+          Descripción: string | null
+          Hijo: string | null
           id: string
-          prioridad: number | null
-          tipo_relacion: string
-          updated_at: string | null
+          Padre: string | null
         }
         Insert: {
-          activo?: boolean | null
-          bidireccional?: boolean | null
-          codigo_principal: string
-          codigo_relacionado: string
-          created_at?: string | null
+          Descripción?: string | null
+          Hijo?: string | null
           id?: string
-          prioridad?: number | null
-          tipo_relacion: string
-          updated_at?: string | null
+          Padre?: string | null
         }
         Update: {
-          activo?: boolean | null
-          bidireccional?: boolean | null
-          codigo_principal?: string
-          codigo_relacionado?: string
-          created_at?: string | null
+          Descripción?: string | null
+          Hijo?: string | null
           id?: string
-          prioridad?: number | null
-          tipo_relacion?: string
-          updated_at?: string | null
+          Padre?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "fk_codigo_principal"
-            columns: ["codigo_principal"]
-            isOneToOne: false
-            referencedRelation: "repuestos"
-            referencedColumns: ["codigo"]
-          },
-          {
-            foreignKeyName: "fk_codigo_relacionado"
-            columns: ["codigo_relacionado"]
-            isOneToOne: false
-            referencedRelation: "repuestos"
-            referencedColumns: ["codigo"]
-          },
-        ]
+        Relationships: []
       }
       repuestos_solicitud_detalle: {
         Row: {
