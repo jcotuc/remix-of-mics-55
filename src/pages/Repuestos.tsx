@@ -1,22 +1,32 @@
 import { useState, useEffect } from "react";
-import { Plus, Search, Edit, Trash2, Package, RefreshCw, Upload } from "lucide-react";
+import { Plus, Search, Edit, Trash2, Package, RefreshCw, Upload, GitBranch } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { Repuesto, Producto } from "@/types";
 import { insertAllRepuestos } from "@/scripts/insertRepuestos";
+import { importSustitutos } from "@/scripts/importSustitutos";
 import { useToast } from "@/components/ui/use-toast";
+
+interface RepuestoExtendido extends Repuesto {
+  codigoPadre?: string | null;
+  esCodigoPadre?: boolean | null;
+}
 
 export default function Repuestos() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedProduct, setSelectedProduct] = useState<string>("all");
-  const [repuestosList, setRepuestosList] = useState<Repuesto[]>([]);
+  const [repuestosList, setRepuestosList] = useState<RepuestoExtendido[]>([]);
   const [productosList, setProductosList] = useState<Producto[]>([]);
   const [loading, setLoading] = useState(true);
   const [importing, setImporting] = useState(false);
+  const [importingSustitutos, setImportingSustitutos] = useState(false);
+  const [mostrarSoloPadres, setMostrarSoloPadres] = useState(true);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -68,13 +78,15 @@ export default function Repuestos() {
       console.log('Productos fetched:', productosData?.length);
 
       // Transform data to match frontend types
-      const transformedRepuestos: Repuesto[] = allRepuestos?.map((r: any) => ({
+      const transformedRepuestos: RepuestoExtendido[] = allRepuestos?.map((r: any) => ({
         numero: r.numero,
         codigo: r.codigo,
         clave: r.clave,
         descripcion: r.descripcion,
         urlFoto: r.url_foto || "/api/placeholder/40/40",
-        codigoProducto: r.codigo_producto
+        codigoProducto: r.codigo_producto,
+        codigoPadre: r.codigo_padre,
+        esCodigoPadre: r.es_codigo_padre
       })) || [];
 
       const transformedProductos: Producto[] = productosData?.map((p: any) => ({
@@ -105,8 +117,42 @@ export default function Repuestos() {
     
     const matchesProduct = selectedProduct === "all" || repuesto.codigoProducto === selectedProduct;
     
-    return matchesSearch && matchesProduct;
+    // Filter to show only parent codes if toggle is enabled
+    const matchesPadreFilter = !mostrarSoloPadres || 
+      repuesto.esCodigoPadre === true || 
+      repuesto.codigoPadre === null;
+    
+    return matchesSearch && matchesProduct && matchesPadreFilter;
   });
+
+  const handleImportSustitutos = async () => {
+    setImportingSustitutos(true);
+    try {
+      const result = await importSustitutos();
+      if (result.success) {
+        toast({
+          title: "Importación de sustitutos exitosa",
+          description: result.message,
+        });
+        await fetchRepuestosAndProductos();
+      } else {
+        toast({
+          title: "Error en la importación",
+          description: result.message,
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Error importing sustitutos:', error);
+      toast({
+        title: "Error",
+        description: "Error al importar los sustitutos",
+        variant: "destructive",
+      });
+    } finally {
+      setImportingSustitutos(false);
+    }
+  };
 
   const getProductDescription = (codigoProducto: string) => {
     const producto = productosList.find(p => p.codigo === codigoProducto);
@@ -161,7 +207,7 @@ export default function Repuestos() {
             Administra los repuestos disponibles para cada producto
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Button 
             variant="outline"
             onClick={handleImportRepuestos}
@@ -169,6 +215,14 @@ export default function Repuestos() {
           >
             <Upload className={`h-4 w-4 mr-2 ${importing ? 'animate-pulse' : ''}`} />
             Importar Repuestos
+          </Button>
+          <Button 
+            variant="outline"
+            onClick={handleImportSustitutos}
+            disabled={importingSustitutos || loading}
+          >
+            <GitBranch className={`h-4 w-4 mr-2 ${importingSustitutos ? 'animate-pulse' : ''}`} />
+            Importar Sustitutos
           </Button>
           <Button 
             variant="outline"
@@ -193,7 +247,7 @@ export default function Repuestos() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center space-x-4 mb-4">
+          <div className="flex items-center flex-wrap gap-4 mb-4">
             <div className="flex items-center space-x-2">
               <Search className="h-4 w-4 text-muted-foreground" />
               <Input
@@ -218,6 +272,17 @@ export default function Repuestos() {
                 ))}
               </SelectContent>
             </Select>
+
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="mostrar-padres"
+                checked={mostrarSoloPadres}
+                onCheckedChange={setMostrarSoloPadres}
+              />
+              <Label htmlFor="mostrar-padres" className="text-sm">
+                Solo códigos padre
+              </Label>
+            </div>
           </div>
 
           <div className="rounded-md border">

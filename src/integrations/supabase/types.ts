@@ -121,6 +121,35 @@ export type Database = {
         }
         Relationships: []
       }
+      CDS_Familias: {
+        Row: {
+          Familia: string | null
+          id: number
+          Padre: number | null
+          Reparable: boolean | null
+        }
+        Insert: {
+          Familia?: string | null
+          id?: number
+          Padre?: number | null
+          Reparable?: boolean | null
+        }
+        Update: {
+          Familia?: string | null
+          id?: number
+          Padre?: number | null
+          Reparable?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "CDS_Familias_Padre_fkey"
+            columns: ["Padre"]
+            isOneToOne: false
+            referencedRelation: "CDS_Familias"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       centros_servicio: {
         Row: {
           activo: boolean | null
