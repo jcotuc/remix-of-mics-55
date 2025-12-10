@@ -96,32 +96,90 @@ export default function FamiliasProductos() {
         const worksheet = workbook.Sheets[sheetName];
         const jsonData = XLSX.utils.sheet_to_json<any>(worksheet);
 
+        console.log("Excel raw data:", jsonData);
+        console.log("Columnas encontradas:", jsonData.length > 0 ? Object.keys(jsonData[0]) : "ninguna");
+
         // Función para capitalizar (primera letra mayúscula, resto minúscula)
         const capitalize = (str: string) => {
           if (!str) return "";
           return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
         };
 
+        // Función para obtener valor de columna (flexible con nombres)
+        const getColumnValue = (row: any, possibleNames: string[]) => {
+          for (const name of possibleNames) {
+            if (row[name] !== undefined && row[name] !== null && row[name] !== "") {
+              return row[name];
+            }
+          }
+          return null;
+        };
+
+        // Get max existing ID for auto-generation
+        const maxExistingId = familias.length > 0 ? Math.max(...familias.map(f => f.id)) : 0;
+        let autoId = maxExistingId;
+
         // Map data to expected format with capitalization
-        const mappedData: ImportRow[] = jsonData.map((row: any) => ({
-          id: Number(row.id || row.ID || row.Id),
-          Categoria: capitalize(String(row.Categoria || row.categoria || row.CATEGORIA || "").trim()),
-          Padre: row.Padre || row.padre || row.PADRE ? Number(row.Padre || row.padre || row.PADRE) : null,
-        }));
+        const mappedData: ImportRow[] = jsonData.map((row: any, index: number) => {
+          // Try to get ID from various column names, or auto-generate
+          let rowId = getColumnValue(row, ['id', 'ID', 'Id', 'iD', 'Numero', 'numero', 'No', 'no', '#']);
+          if (!rowId) {
+            autoId++;
+            rowId = autoId;
+          }
+
+          // Try to get Categoria from various column names
+          const categoria = getColumnValue(row, [
+            'Categoria', 'categoria', 'CATEGORIA', 
+            'Nombre', 'nombre', 'NOMBRE',
+            'Descripcion', 'descripcion', 'DESCRIPCION',
+            'Familia', 'familia', 'FAMILIA',
+            'Category', 'category', 'CATEGORY',
+            'Name', 'name', 'NAME'
+          ]);
+
+          // Try to get Padre from various column names
+          const padre = getColumnValue(row, [
+            'Padre', 'padre', 'PADRE',
+            'Parent', 'parent', 'PARENT',
+            'PadreId', 'padre_id', 'parent_id',
+            'IdPadre', 'id_padre'
+          ]);
+
+          return {
+            id: Number(rowId),
+            Categoria: capitalize(String(categoria || "").trim()),
+            Padre: padre ? Number(padre) : null,
+          };
+        });
+
+        console.log("Mapped data:", mappedData);
 
         // Filter valid rows and remove duplicates by Categoria (case-insensitive)
         const seen = new Set<string>();
         const uniqueData = mappedData.filter(row => {
-          if (!row.id || !row.Categoria) return false;
+          if (!row.Categoria) return false; // Solo requerir Categoria, ID ya se auto-genera
           const key = row.Categoria.toLowerCase();
           if (seen.has(key)) return false;
           seen.add(key);
           return true;
         });
 
+        console.log("Unique data:", uniqueData);
+
+        if (uniqueData.length === 0) {
+          toast({
+            title: "Sin datos válidos",
+            description: "No se encontraron categorías válidas. Asegúrese de tener una columna llamada 'Categoria', 'Nombre' o 'Familia'.",
+            variant: "destructive",
+          });
+          return;
+        }
+
         setImportData(uniqueData);
         setShowImportDialog(true);
       } catch (error: any) {
+        console.error("Error parsing Excel:", error);
         toast({
           title: "Error al leer archivo",
           description: error.message,
