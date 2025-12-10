@@ -259,19 +259,34 @@ export default function DiagnosticoInicial() {
     if (!incidente?.codigo_producto) return;
     
     try {
-      // 1. Cargar relaciones padre-hijo
-      const { data: relacionesData } = await supabase
+      // 1. Cargar relaciones padre-hijo desde repuestos_relaciones
+      const { data: relacionesData, error: relError } = await supabase
         .from('repuestos_relaciones')
         .select('*');
       
+      if (relError) {
+        console.error('Error cargando relaciones:', relError);
+      }
+      
+      // Crear mapa hijo→padre y mapa padre→descripción
       const newHijoPadreMap = new Map<string, string>();
+      const padreDescripcionMap = new Map<string, string>();
+      
       relacionesData?.forEach((r: any) => {
-        if (r.Hijo && r.Padre) {
-          newHijoPadreMap.set(r.Hijo, r.Padre);
+        const hijo = r.Hijo;
+        const padre = r.Padre;
+        const descripcion = r.Descripción;
+        
+        if (hijo && padre) {
+          newHijoPadreMap.set(hijo, padre);
+          if (descripcion) {
+            padreDescripcionMap.set(padre, descripcion);
+          }
         }
       });
+      
       setHijoPadreMap(newHijoPadreMap);
-      console.log('Relaciones cargadas en diagnóstico:', newHijoPadreMap.size);
+      console.log('Relaciones cargadas:', newHijoPadreMap.size, '- Ejemplo 929926→', newHijoPadreMap.get('929926'));
 
       // 2. Cargar repuestos del producto
       const { data, error } = await supabase
@@ -282,7 +297,7 @@ export default function DiagnosticoInicial() {
 
       if (error) throw error;
       
-      // 3. Transformar: reemplazar códigos hijo por padre y eliminar duplicados
+      // 3. Transformar: reemplazar códigos hijo por padre
       const repuestosTransformados: any[] = [];
       const codigosVistos = new Set<string>();
       
@@ -293,12 +308,21 @@ export default function DiagnosticoInicial() {
         // Si ya vimos este código padre, no agregarlo de nuevo
         if (!codigosVistos.has(codigoFinal)) {
           codigosVistos.add(codigoFinal);
+          
+          // Obtener descripción del padre si existe
+          const descripcionPadre = padreDescripcionMap.get(codigoFinal);
+          
           repuestosTransformados.push({
             ...repuesto,
             codigo: codigoFinal,
             codigoOriginal: codigoPadre ? repuesto.codigo : undefined,
+            descripcion: descripcionPadre || repuesto.descripcion,
             esCodigoPadre: !!codigoPadre
           });
+          
+          if (codigoPadre) {
+            console.log(`Transformado: ${repuesto.codigo} → ${codigoFinal}`);
+          }
         }
       });
       
