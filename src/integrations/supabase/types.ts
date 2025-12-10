@@ -123,22 +123,19 @@ export type Database = {
       }
       CDS_Familias: {
         Row: {
-          Familia: string | null
+          Categoria: string | null
           id: number
           Padre: number | null
-          Reparable: boolean | null
         }
         Insert: {
-          Familia?: string | null
+          Categoria?: string | null
           id?: number
           Padre?: number | null
-          Reparable?: boolean | null
         }
         Update: {
-          Familia?: string | null
+          Categoria?: string | null
           id?: number
           Padre?: number | null
-          Reparable?: boolean | null
         }
         Relationships: [
           {
