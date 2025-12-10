@@ -9,6 +9,42 @@ export interface AlternativaRepuesto {
   prioridad: number;
 }
 
+export interface CodigoPadreResult {
+  codigoPadre: string | null;
+  descripcionPadre: string | null;
+}
+
+/**
+ * Obtiene el código padre de un repuesto desde la tabla repuestos_relaciones
+ * Si el código es un "Hijo", devuelve su "Padre"
+ */
+export async function obtenerCodigoPadre(codigoHijo: string): Promise<CodigoPadreResult> {
+  try {
+    const { data, error } = await supabase
+      .from('repuestos_relaciones')
+      .select('Padre, "Descripción"')
+      .eq('Hijo', codigoHijo)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Error al buscar código padre:', error);
+      return { codigoPadre: null, descripcionPadre: null };
+    }
+
+    if (data && data.Padre) {
+      return {
+        codigoPadre: data.Padre,
+        descripcionPadre: data.Descripción || null
+      };
+    }
+
+    return { codigoPadre: null, descripcionPadre: null };
+  } catch (error) {
+    console.error('Error:', error);
+    return { codigoPadre: null, descripcionPadre: null };
+  }
+}
+
 /**
  * Busca alternativas disponibles para un repuesto solicitado
  * Jerarquía de búsqueda: solicitado -> padre -> hermanos -> equivalentes
@@ -85,24 +121,23 @@ export async function obtenerHijosRepuesto(codigoPadre: string) {
  * Verifica si un repuesto tiene alternativas (padre, hermanos o equivalentes)
  */
 export async function tieneAlternativas(codigoRepuesto: string): Promise<boolean> {
-  // Verificar si tiene padre
-  const { data: repuesto } = await supabase
-    .from('repuestos')
-    .select('codigo_padre')
-    .eq('codigo', codigoRepuesto)
-    .maybeSingle();
-
-  if (repuesto?.codigo_padre) return true;
-
-  // Verificar si tiene equivalencias
-  const { data: equivalencias } = await supabase
+  // Verificar si tiene padre en la tabla de relaciones
+  const { data: relacion } = await supabase
     .from('repuestos_relaciones')
     .select('id')
-    .eq('codigo_principal', codigoRepuesto)
-    .eq('activo', true)
+    .eq('Hijo', codigoRepuesto)
     .limit(1);
 
-  return (equivalencias?.length || 0) > 0;
+  if (relacion && relacion.length > 0) return true;
+
+  // Verificar si tiene hijos (es un padre)
+  const { data: hijos } = await supabase
+    .from('repuestos_relaciones')
+    .select('id')
+    .eq('Padre', codigoRepuesto)
+    .limit(1);
+
+  return (hijos?.length || 0) > 0;
 }
 
 /**

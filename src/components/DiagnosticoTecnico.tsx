@@ -26,6 +26,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
 import { PhotoGalleryWithDescriptions, PhotoWithDescription } from "@/components/PhotoGalleryWithDescriptions";
+import { obtenerCodigoPadre } from "@/lib/repuestosService";
 
 type RepuestoDB = Database['public']['Tables']['repuestos']['Row'];
 type IncidenteDB = Database['public']['Tables']['incidentes']['Row'];
@@ -51,7 +52,7 @@ export function DiagnosticoTecnico({ incidente, onDiagnosticoCompleto }: Diagnos
   const [fotos, setFotos] = useState<PhotoWithDescription[]>([]);
   
   // Paso 2: Repuestos
-  const [repuestosSeleccionados, setRepuestosSeleccionados] = useState<{codigo: string, cantidad: number, descripcion: string}[]>([]);
+  const [repuestosSeleccionados, setRepuestosSeleccionados] = useState<{codigo: string, cantidad: number, descripcion: string, codigoOriginal?: string}[]>([]);
   const [notas, setNotas] = useState("");
   
   // Paso 3: Decisión Final
@@ -139,20 +140,35 @@ export function DiagnosticoTecnico({ incidente, onDiagnosticoCompleto }: Diagnos
     setCausas(nuevasCausas);
   };
 
-  const agregarRepuesto = (repuesto: RepuestoDB) => {
-    const existente = repuestosSeleccionados.find(r => r.codigo === repuesto.codigo);
+  const agregarRepuesto = async (repuesto: RepuestoDB) => {
+    // Verificar si el código tiene un padre en la tabla de relaciones
+    const { codigoPadre, descripcionPadre } = await obtenerCodigoPadre(repuesto.codigo);
+    
+    // Determinar qué código usar
+    const codigoFinal = codigoPadre || repuesto.codigo;
+    const descripcionFinal = descripcionPadre || repuesto.descripcion;
+    const fueSustituido = codigoPadre !== null;
+    
+    const existente = repuestosSeleccionados.find(r => r.codigo === codigoFinal);
     if (existente) {
       setRepuestosSeleccionados(prev => 
-        prev.map(r => r.codigo === repuesto.codigo ? {...r, cantidad: r.cantidad + 1} : r)
+        prev.map(r => r.codigo === codigoFinal ? {...r, cantidad: r.cantidad + 1} : r)
       );
     } else {
       setRepuestosSeleccionados(prev => [...prev, {
-        codigo: repuesto.codigo,
+        codigo: codigoFinal,
         cantidad: 1,
-        descripcion: repuesto.descripcion
+        descripcion: descripcionFinal,
+        codigoOriginal: fueSustituido ? repuesto.codigo : undefined
       }]);
     }
-    toast.success(`${repuesto.descripcion} agregado`);
+    
+    // Mensaje informativo
+    if (fueSustituido) {
+      toast.success(`${repuesto.codigo} → ${codigoFinal} (código padre)`);
+    } else {
+      toast.success(`${descripcionFinal} agregado`);
+    }
   };
 
   const eliminarRepuesto = (codigo: string) => {

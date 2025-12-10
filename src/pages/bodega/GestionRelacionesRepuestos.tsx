@@ -21,12 +21,9 @@ interface Repuesto {
 
 interface Relacion {
   id: string;
-  codigo_principal: string;
-  codigo_relacionado: string;
-  tipo_relacion: string;
-  prioridad: number;
-  bidireccional: boolean;
-  activo: boolean;
+  Padre: string | null;
+  Hijo: string | null;
+  Descripción: string | null;
 }
 
 interface Producto {
@@ -155,15 +152,19 @@ export default function GestionRelacionesRepuestos() {
   const crearEquivalencia = async () => {
     if (!codigoPrincipal.trim() || !codigoEquivalente.trim()) return;
     
+    // Obtener descripción del código padre
+    const { data: repuestoData } = await supabase
+      .from('repuestos')
+      .select('descripcion')
+      .eq('codigo', codigoPrincipal.trim())
+      .maybeSingle();
+    
     const { error } = await supabase
       .from('repuestos_relaciones')
       .insert({
-        codigo_principal: codigoPrincipal.trim(),
-        codigo_relacionado: codigoEquivalente.trim(),
-        tipo_relacion: 'equivalente',
-        prioridad: parseInt(prioridad),
-        bidireccional,
-        activo: true
+        Padre: codigoPrincipal.trim(),
+        Hijo: codigoEquivalente.trim(),
+        Descripción: repuestoData?.descripcion || null
       });
     
     if (error) {
@@ -171,7 +172,7 @@ export default function GestionRelacionesRepuestos() {
       return;
     }
     
-    toast({ title: "Éxito", description: "Equivalencia creada" });
+    toast({ title: "Éxito", description: "Relación creada" });
     setCodigoPrincipal("");
     setCodigoEquivalente("");
     await cargarEquivalencias();
@@ -182,8 +183,7 @@ export default function GestionRelacionesRepuestos() {
     const { data, error } = await supabase
       .from('repuestos_relaciones')
       .select('*')
-      .eq('activo', true)
-      .order('codigo_principal');
+      .order('Padre');
     
     if (!error && data) {
       setEquivalencias(data);
@@ -191,10 +191,10 @@ export default function GestionRelacionesRepuestos() {
     setLoadingEquivalencias(false);
   };
 
-  const desactivarEquivalencia = async (id: string) => {
+  const eliminarRelacion = async (id: string) => {
     const { error } = await supabase
       .from('repuestos_relaciones')
-      .update({ activo: false })
+      .delete()
       .eq('id', id);
     
     if (error) {
@@ -202,7 +202,7 @@ export default function GestionRelacionesRepuestos() {
       return;
     }
     
-    toast({ title: "Éxito", description: "Equivalencia eliminada" });
+    toast({ title: "Éxito", description: "Relación eliminada" });
     await cargarEquivalencias();
   };
 
@@ -424,33 +424,29 @@ export default function GestionRelacionesRepuestos() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Principal</TableHead>
+                          <TableHead>Código Padre</TableHead>
                           <TableHead></TableHead>
-                          <TableHead>Equivalente</TableHead>
-                          <TableHead>Prioridad</TableHead>
-                          <TableHead>Bidireccional</TableHead>
+                          <TableHead>Código Hijo</TableHead>
+                          <TableHead>Descripción</TableHead>
                           <TableHead></TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {equivalencias.map((eq) => (
                           <TableRow key={eq.id}>
-                            <TableCell className="font-mono">{eq.codigo_principal}</TableCell>
+                            <TableCell className="font-mono">{eq.Padre}</TableCell>
                             <TableCell>
                               <ArrowRight className="h-4 w-4 text-muted-foreground" />
                             </TableCell>
-                            <TableCell className="font-mono">{eq.codigo_relacionado}</TableCell>
-                            <TableCell>
-                              <Badge variant="outline">{eq.prioridad}</Badge>
-                            </TableCell>
-                            <TableCell>
-                              {eq.bidireccional ? "Sí" : "No"}
+                            <TableCell className="font-mono">{eq.Hijo}</TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {eq.Descripción || '-'}
                             </TableCell>
                             <TableCell>
                               <Button 
                                 variant="ghost" 
                                 size="sm"
-                                onClick={() => desactivarEquivalencia(eq.id)}
+                                onClick={() => eliminarRelacion(eq.id)}
                               >
                                 <X className="h-4 w-4" />
                               </Button>
