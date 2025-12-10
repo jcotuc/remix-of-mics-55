@@ -259,10 +259,11 @@ export default function DiagnosticoInicial() {
     if (!incidente?.codigo_producto) return;
     
     try {
-      // 1. Cargar relaciones padre-hijo desde repuestos_relaciones
+      // 1. Cargar TODAS las relaciones padre-hijo (más de 14,000 registros)
       const { data: relacionesData, error: relError } = await supabase
         .from('repuestos_relaciones')
-        .select('*');
+        .select('*')
+        .range(0, 20000);
       
       if (relError) {
         console.error('Error cargando relaciones:', relError);
