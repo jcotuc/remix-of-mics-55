@@ -1,12 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Plus, Search, Edit, Trash2, Package, RefreshCw, Upload, GitBranch } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { Repuesto, Producto } from "@/types";
 import { insertAllRepuestos } from "@/scripts/insertRepuestos";
@@ -16,6 +15,13 @@ import { useToast } from "@/components/ui/use-toast";
 interface RepuestoExtendido extends Repuesto {
   codigoPadre?: string | null;
   esCodigoPadre?: boolean | null;
+  codigosHijos?: string[]; // Lista de códigos hijo que apuntan a este padre
+}
+
+interface RelacionPadreHijo {
+  Padre: string | null;
+  Hijo: string | null;
+  Descripción: string | null;
 }
 
 export default function Repuestos() {
@@ -26,7 +32,8 @@ export default function Repuestos() {
   const [loading, setLoading] = useState(true);
   const [importing, setImporting] = useState(false);
   const [importingSustitutos, setImportingSustitutos] = useState(false);
-  const [mostrarSoloPadres, setMostrarSoloPadres] = useState(true);
+  const [hijoPadreMap, setHijoPadreMap] = useState<Map<string, string>>(new Map());
+  const [padreHijosMap, setPadreHijosMap] = useState<Map<string, string[]>>(new Map());
   const { toast } = useToast();
 
   useEffect(() => {
@@ -36,6 +43,33 @@ export default function Repuestos() {
   const fetchRepuestosAndProductos = async () => {
     try {
       setLoading(true);
+      
+      // Fetch relaciones padre-hijo
+      const { data: relacionesData, error: relacionesError } = await supabase
+        .from('repuestos_relaciones')
+        .select('Padre, Hijo, "Descripción"');
+
+      if (relacionesError) {
+        console.error('Error fetching relaciones:', relacionesError);
+      }
+
+      // Crear mapas de relaciones
+      const newHijoPadreMap = new Map<string, string>();
+      const newPadreHijosMap = new Map<string, string[]>();
+      
+      relacionesData?.forEach((r: RelacionPadreHijo) => {
+        if (r.Hijo && r.Padre) {
+          newHijoPadreMap.set(r.Hijo, r.Padre);
+          
+          const hijos = newPadreHijosMap.get(r.Padre) || [];
+          hijos.push(r.Hijo);
+          newPadreHijosMap.set(r.Padre, hijos);
+        }
+      });
+      
+      setHijoPadreMap(newHijoPadreMap);
+      setPadreHijosMap(newPadreHijosMap);
+      console.log('Relaciones cargadas:', newHijoPadreMap.size, 'hijos →', newPadreHijosMap.size, 'padres');
       
       // Fetch repuestos (sin límite)
       let allRepuestos: any[] = [];
@@ -75,19 +109,22 @@ export default function Repuestos() {
         return;
       }
 
-      console.log('Productos fetched:', productosData?.length);
-
-      // Transform data to match frontend types
-      const transformedRepuestos: RepuestoExtendido[] = allRepuestos?.map((r: any) => ({
-        numero: r.numero,
-        codigo: r.codigo,
-        clave: r.clave,
-        descripcion: r.descripcion,
-        urlFoto: r.url_foto || "/api/placeholder/40/40",
-        codigoProducto: r.codigo_producto,
-        codigoPadre: r.codigo_padre,
-        esCodigoPadre: r.es_codigo_padre
-      })) || [];
+      // Transform data - excluir códigos hijo (solo mostrar padres)
+      const codigosHijo = new Set(newHijoPadreMap.keys());
+      
+      const transformedRepuestos: RepuestoExtendido[] = allRepuestos
+        .filter((r: any) => !codigosHijo.has(r.codigo)) // Excluir hijos
+        .map((r: any) => ({
+          numero: r.numero,
+          codigo: r.codigo,
+          clave: r.clave,
+          descripcion: r.descripcion,
+          urlFoto: r.url_foto || "/api/placeholder/40/40",
+          codigoProducto: r.codigo_producto,
+          codigoPadre: r.codigo_padre,
+          esCodigoPadre: r.es_codigo_padre,
+          codigosHijos: newPadreHijosMap.get(r.codigo) || []
+        }));
 
       const transformedProductos: Producto[] = productosData?.map((p: any) => ({
         codigo: p.codigo,
@@ -98,8 +135,7 @@ export default function Repuestos() {
         categoria: "Electricas" as const
       })) || [];
 
-      console.log('Repuestos transformados:', transformedRepuestos.length);
-      console.log('Productos transformados:', transformedProductos.length);
+      console.log('Repuestos (solo padres):', transformedRepuestos.length);
 
       setRepuestosList(transformedRepuestos);
       setProductosList(transformedProductos);
@@ -110,20 +146,36 @@ export default function Repuestos() {
     }
   };
 
-  const filteredRepuestos = repuestosList.filter(repuesto => {
-    const matchesSearch = repuesto.descripcion.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      repuesto.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      repuesto.clave.toLowerCase().includes(searchTerm.toLowerCase());
+  // Filtrado con búsqueda inteligente de códigos hijo
+  const filteredRepuestos = useMemo(() => {
+    const search = searchTerm.toLowerCase().trim();
     
-    const matchesProduct = selectedProduct === "all" || repuesto.codigoProducto === selectedProduct;
-    
-    // Filter to show only parent codes if toggle is enabled
-    const matchesPadreFilter = !mostrarSoloPadres || 
-      repuesto.esCodigoPadre === true || 
-      repuesto.codigoPadre === null;
-    
-    return matchesSearch && matchesProduct && matchesPadreFilter;
-  });
+    return repuestosList.filter(repuesto => {
+      // Búsqueda normal en código, descripción, clave
+      let matchesSearch = repuesto.descripcion.toLowerCase().includes(search) ||
+        repuesto.codigo.toLowerCase().includes(search) ||
+        repuesto.clave.toLowerCase().includes(search);
+      
+      // Si el término buscado es un código hijo, buscar su padre
+      if (!matchesSearch && search) {
+        const padreDelBuscado = hijoPadreMap.get(search.toUpperCase());
+        if (padreDelBuscado) {
+          matchesSearch = repuesto.codigo === padreDelBuscado;
+        }
+        
+        // También buscar si algún hijo del repuesto contiene el término
+        if (!matchesSearch && repuesto.codigosHijos && repuesto.codigosHijos.length > 0) {
+          matchesSearch = repuesto.codigosHijos.some(hijo => 
+            hijo.toLowerCase().includes(search)
+          );
+        }
+      }
+      
+      const matchesProduct = selectedProduct === "all" || repuesto.codigoProducto === selectedProduct;
+      
+      return matchesSearch && matchesProduct;
+    });
+  }, [repuestosList, searchTerm, selectedProduct, hijoPadreMap]);
 
   const handleImportSustitutos = async () => {
     setImportingSustitutos(true);
@@ -273,16 +325,6 @@ export default function Repuestos() {
               </SelectContent>
             </Select>
 
-            <div className="flex items-center space-x-2">
-              <Switch
-                id="mostrar-padres"
-                checked={mostrarSoloPadres}
-                onCheckedChange={setMostrarSoloPadres}
-              />
-              <Label htmlFor="mostrar-padres" className="text-sm">
-                Solo códigos padre
-              </Label>
-            </div>
           </div>
 
           <div className="rounded-md border">
@@ -314,7 +356,16 @@ export default function Repuestos() {
                       </div>
                     </TableCell>
                     <TableCell className="font-medium">{repuesto.numero}</TableCell>
-                    <TableCell>{repuesto.codigo}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        {repuesto.codigo}
+                        {repuesto.codigosHijos && repuesto.codigosHijos.length > 0 && (
+                          <Badge variant="secondary" className="text-xs">
+                            {repuesto.codigosHijos.length} hijo{repuesto.codigosHijos.length > 1 ? 's' : ''}
+                          </Badge>
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell>{repuesto.clave}</TableCell>
                     <TableCell>{repuesto.descripcion}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">
