@@ -96,14 +96,30 @@ export default function FamiliasProductos() {
         const worksheet = workbook.Sheets[sheetName];
         const jsonData = XLSX.utils.sheet_to_json<any>(worksheet);
 
-        // Map data to expected format
+        // Función para capitalizar (primera letra mayúscula, resto minúscula)
+        const capitalize = (str: string) => {
+          if (!str) return "";
+          return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+        };
+
+        // Map data to expected format with capitalization
         const mappedData: ImportRow[] = jsonData.map((row: any) => ({
           id: Number(row.id || row.ID || row.Id),
-          Categoria: String(row.Categoria || row.categoria || row.CATEGORIA || ""),
+          Categoria: capitalize(String(row.Categoria || row.categoria || row.CATEGORIA || "").trim()),
           Padre: row.Padre || row.padre || row.PADRE ? Number(row.Padre || row.padre || row.PADRE) : null,
         }));
 
-        setImportData(mappedData.filter(row => row.id && row.Categoria));
+        // Filter valid rows and remove duplicates by Categoria (case-insensitive)
+        const seen = new Set<string>();
+        const uniqueData = mappedData.filter(row => {
+          if (!row.id || !row.Categoria) return false;
+          const key = row.Categoria.toLowerCase();
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+
+        setImportData(uniqueData);
         setShowImportDialog(true);
       } catch (error: any) {
         toast({
@@ -212,6 +228,21 @@ export default function FamiliasProductos() {
       return;
     }
 
+    // Capitalizar: primera letra mayúscula, resto minúscula
+    const capitalize = (str: string) => str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+    const categoriaFormatted = capitalize(newCategoria.trim());
+
+    // Verificar duplicados
+    const exists = familias.some(f => f.Categoria?.toLowerCase() === categoriaFormatted.toLowerCase());
+    if (exists) {
+      toast({
+        title: "Error",
+        description: "Ya existe una categoría con ese nombre",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       // Get max ID
       const maxId = familias.length > 0 ? Math.max(...familias.map(f => f.id)) : 0;
@@ -220,7 +251,7 @@ export default function FamiliasProductos() {
         .from("CDS_Familias")
         .insert({
           id: maxId + 1,
-          Categoria: newCategoria.trim(),
+          Categoria: categoriaFormatted,
           Padre: newPadre === "none" ? null : Number(newPadre),
         });
 
@@ -228,7 +259,7 @@ export default function FamiliasProductos() {
 
       toast({
         title: "Categoría creada",
-        description: `Se creó la categoría "${newCategoria}"`,
+        description: `Se creó la categoría "${categoriaFormatted}"`,
       });
 
       setShowAddDialog(false);
