@@ -721,7 +721,7 @@ export default function FamiliasProductos() {
                       </TableCell>
                       <TableCell>
                         {familia.Padre ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-secondary rounded text-sm">
+                          <span className="inline-flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary rounded text-sm font-medium">
                             <FolderTree className="h-3 w-3" />
                             {getPadreNombre(familia.Padre)}
                           </span>
@@ -935,7 +935,7 @@ export default function FamiliasProductos() {
                     <TableRow key={i}>
                       <TableCell>{row.categoria}</TableCell>
                       <TableCell>
-                        <span className="inline-flex items-center gap-1 px-2 py-1 bg-secondary rounded text-sm">
+                        <span className="inline-flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary rounded text-sm font-medium">
                           <FolderTree className="h-3 w-3" />
                           {row.familia}
                         </span>
