@@ -35,10 +35,13 @@ export default function DiagnosticoInicial() {
   // Paso 2: Solicitud de Repuestos
   const [necesitaRepuestos, setNecesitaRepuestos] = useState(false);
   const [repuestosDisponibles, setRepuestosDisponibles] = useState<any[]>([]);
-  const [repuestosSolicitados, setRepuestosSolicitados] = useState<Array<{codigo: string, descripcion: string, cantidad: number}>>([]);
+  const [repuestosSolicitados, setRepuestosSolicitados] = useState<Array<{codigo: string, codigoOriginal?: string, descripcion: string, cantidad: number}>>([]);
   const [searchRepuesto, setSearchRepuesto] = useState("");
   const [solicitudesAnteriores, setSolicitudesAnteriores] = useState<Array<any>>([]);
   const [solicitudRepuestosId, setSolicitudRepuestosId] = useState<string | null>(null);
+  
+  // Mapa de relaciones hijo→padre
+  const [hijoPadreMap, setHijoPadreMap] = useState<Map<string, string>>(new Map());
   const [estadoSolicitud, setEstadoSolicitud] = useState<string | null>(null);
   
   // Paso 3: Fotos y Observaciones
@@ -256,6 +259,21 @@ export default function DiagnosticoInicial() {
     if (!incidente?.codigo_producto) return;
     
     try {
+      // 1. Cargar relaciones padre-hijo
+      const { data: relacionesData } = await supabase
+        .from('repuestos_relaciones')
+        .select('*');
+      
+      const newHijoPadreMap = new Map<string, string>();
+      relacionesData?.forEach((r: any) => {
+        if (r.Hijo && r.Padre) {
+          newHijoPadreMap.set(r.Hijo, r.Padre);
+        }
+      });
+      setHijoPadreMap(newHijoPadreMap);
+      console.log('Relaciones cargadas en diagnóstico:', newHijoPadreMap.size);
+
+      // 2. Cargar repuestos del producto
       const { data, error } = await supabase
         .from('repuestos')
         .select('*')
@@ -263,7 +281,28 @@ export default function DiagnosticoInicial() {
         .order('descripcion');
 
       if (error) throw error;
-      setRepuestosDisponibles(data || []);
+      
+      // 3. Transformar: reemplazar códigos hijo por padre y eliminar duplicados
+      const repuestosTransformados: any[] = [];
+      const codigosVistos = new Set<string>();
+      
+      (data || []).forEach(repuesto => {
+        const codigoPadre = newHijoPadreMap.get(repuesto.codigo);
+        const codigoFinal = codigoPadre || repuesto.codigo;
+        
+        // Si ya vimos este código padre, no agregarlo de nuevo
+        if (!codigosVistos.has(codigoFinal)) {
+          codigosVistos.add(codigoFinal);
+          repuestosTransformados.push({
+            ...repuesto,
+            codigo: codigoFinal,
+            codigoOriginal: codigoPadre ? repuesto.codigo : undefined,
+            esCodigoPadre: !!codigoPadre
+          });
+        }
+      });
+      
+      setRepuestosDisponibles(repuestosTransformados);
     } catch (error) {
       console.error('Error fetching repuestos:', error);
       toast.error("Error al cargar los repuestos");
@@ -416,19 +455,30 @@ export default function DiagnosticoInicial() {
   );
 
   const agregarRepuesto = (repuesto: any) => {
-    const yaExiste = repuestosSolicitados.find(r => r.codigo === repuesto.codigo);
+    // Siempre usar el código padre si existe
+    const codigoPadre = hijoPadreMap.get(repuesto.codigo);
+    const codigoFinal = codigoPadre || repuesto.codigo;
+    
+    const yaExiste = repuestosSolicitados.find(r => r.codigo === codigoFinal);
     if (yaExiste) {
       setRepuestosSolicitados(repuestosSolicitados.map(r =>
-        r.codigo === repuesto.codigo ? { ...r, cantidad: r.cantidad + 1 } : r
+        r.codigo === codigoFinal ? { ...r, cantidad: r.cantidad + 1 } : r
       ));
     } else {
       setRepuestosSolicitados([...repuestosSolicitados, {
-        codigo: repuesto.codigo,
+        codigo: codigoFinal,
+        codigoOriginal: codigoPadre ? repuesto.codigo : undefined,
         descripcion: repuesto.descripcion,
         cantidad: 1
       }]);
+      
+      // Notificar si hubo sustitución
+      if (codigoPadre) {
+        toast.success(`${repuesto.codigo} → ${codigoFinal} (código padre)`);
+      } else {
+        toast.success("Repuesto agregado");
+      }
     }
-    toast.success("Repuesto agregado");
   };
 
   const actualizarCantidad = (codigo: string, nuevaCantidad: number) => {
