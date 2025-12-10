@@ -44,10 +44,11 @@ export default function Repuestos() {
     try {
       setLoading(true);
       
-      // Fetch relaciones padre-hijo (usar * para evitar problemas con columnas en mayúsculas)
+      // Fetch TODAS las relaciones padre-hijo (más de 14,000 registros)
       const { data: relacionesData, error: relacionesError } = await supabase
         .from('repuestos_relaciones')
-        .select('*');
+        .select('*')
+        .range(0, 20000);
 
       if (relacionesError) {
         console.error('Error fetching relaciones:', relacionesError);
