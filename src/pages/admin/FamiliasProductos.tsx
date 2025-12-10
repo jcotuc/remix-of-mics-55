@@ -26,7 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Upload, Edit, Trash2, FolderTree, Search, Plus, Save, X } from "lucide-react";
+import { Upload, Edit, Trash2, FolderTree, Search, Plus, Save, X, Link } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import * as XLSX from "xlsx";
 
@@ -42,6 +42,11 @@ interface ImportRow {
   Padre?: number | null;
 }
 
+interface RelacionRow {
+  categoria: string;
+  familia: string;
+}
+
 export default function FamiliasProductos() {
   const [familias, setFamilias] = useState<Familia[]>([]);
   const [loading, setLoading] = useState(true);
@@ -55,7 +60,11 @@ export default function FamiliasProductos() {
   const [editPadre, setEditPadre] = useState<string>("");
   const [newCategoria, setNewCategoria] = useState("");
   const [newPadre, setNewPadre] = useState<string>("");
+  const [showRelacionesDialog, setShowRelacionesDialog] = useState(false);
+  const [relacionesData, setRelacionesData] = useState<RelacionRow[]>([]);
+  const [importingRelaciones, setImportingRelaciones] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const relacionesInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -370,6 +379,200 @@ export default function FamiliasProductos() {
     }
   };
 
+  const handleRelacionesFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const data = event.target?.result;
+        const workbook = XLSX.read(data, { type: "binary" });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json<any>(worksheet);
+
+        console.log("Relaciones raw data:", jsonData);
+
+        const capitalize = (str: string) => {
+          if (!str) return "";
+          return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+        };
+
+        const getColumnValue = (row: any, possibleNames: string[]) => {
+          for (const name of possibleNames) {
+            if (row[name] !== undefined && row[name] !== null && row[name] !== "") {
+              return String(row[name]).trim();
+            }
+          }
+          return null;
+        };
+
+        const mappedData: RelacionRow[] = jsonData.map((row: any) => {
+          const categoria = getColumnValue(row, ['Categoria', 'categoria', 'CATEGORIA', 'Subcategoria', 'subcategoria']);
+          const familia = getColumnValue(row, ['Familia', 'familia', 'FAMILIA', 'Padre', 'padre']);
+          
+          return {
+            categoria: capitalize(categoria || ""),
+            familia: capitalize(familia || ""),
+          };
+        }).filter((row: RelacionRow) => row.categoria && row.familia);
+
+        // Remove duplicates by categoria
+        const seen = new Set<string>();
+        const uniqueData = mappedData.filter(row => {
+          const key = row.categoria.toLowerCase();
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        });
+
+        console.log("Relaciones mapped:", uniqueData);
+
+        if (uniqueData.length === 0) {
+          toast({
+            title: "Sin datos válidos",
+            description: "No se encontraron relaciones válidas. Asegúrese de tener columnas 'Categoria' y 'Familia'.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        setRelacionesData(uniqueData);
+        setShowRelacionesDialog(true);
+      } catch (error: any) {
+        console.error("Error parsing Excel:", error);
+        toast({
+          title: "Error al leer archivo",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
+    };
+    reader.readAsBinaryString(file);
+    
+    if (relacionesInputRef.current) {
+      relacionesInputRef.current.value = "";
+    }
+  };
+
+  const handleImportRelaciones = async () => {
+    if (relacionesData.length === 0) return;
+
+    try {
+      setImportingRelaciones(true);
+      
+      // Get current max ID
+      let maxId = familias.length > 0 ? Math.max(...familias.map(f => f.id)) : 0;
+      
+      // Create a map of existing categories (case-insensitive)
+      const existingMap = new Map<string, Familia>();
+      familias.forEach(f => {
+        if (f.Categoria) {
+          existingMap.set(f.Categoria.toLowerCase(), f);
+        }
+      });
+      
+      // First pass: collect all unique familias (parents) and categorias (children)
+      const allFamilias = new Set<string>();
+      const allCategorias = new Set<string>();
+      
+      relacionesData.forEach(row => {
+        allFamilias.add(row.familia.toLowerCase());
+        allCategorias.add(row.categoria.toLowerCase());
+      });
+      
+      // Create families that don't exist (as root categories)
+      const newFamilias: { id: number; Categoria: string; Padre: number | null }[] = [];
+      
+      for (const familiaLower of allFamilias) {
+        if (!existingMap.has(familiaLower)) {
+          maxId++;
+          const familiaCapitalized = relacionesData.find(r => r.familia.toLowerCase() === familiaLower)?.familia || "";
+          newFamilias.push({
+            id: maxId,
+            Categoria: familiaCapitalized,
+            Padre: null
+          });
+          existingMap.set(familiaLower, { id: maxId, Categoria: familiaCapitalized, Padre: null });
+        }
+      }
+      
+      // Create categorias that don't exist
+      const newCategorias: { id: number; Categoria: string; Padre: number | null }[] = [];
+      
+      for (const row of relacionesData) {
+        const categoriaLower = row.categoria.toLowerCase();
+        const familiaLower = row.familia.toLowerCase();
+        const padreId = existingMap.get(familiaLower)?.id || null;
+        
+        if (!existingMap.has(categoriaLower)) {
+          maxId++;
+          newCategorias.push({
+            id: maxId,
+            Categoria: row.categoria,
+            Padre: padreId
+          });
+          existingMap.set(categoriaLower, { id: maxId, Categoria: row.categoria, Padre: padreId });
+        }
+      }
+      
+      // Insert new families first
+      if (newFamilias.length > 0) {
+        const { error } = await supabase.from("CDS_Familias").insert(newFamilias);
+        if (error) throw error;
+      }
+      
+      // Insert new categorias
+      if (newCategorias.length > 0) {
+        const { error } = await supabase.from("CDS_Familias").insert(newCategorias);
+        if (error) throw error;
+      }
+      
+      // Update existing categorias with their parent relationships
+      const updates: { id: number; Padre: number }[] = [];
+      
+      for (const row of relacionesData) {
+        const categoriaLower = row.categoria.toLowerCase();
+        const familiaLower = row.familia.toLowerCase();
+        const categoria = existingMap.get(categoriaLower);
+        const padre = existingMap.get(familiaLower);
+        
+        if (categoria && padre && !newCategorias.find(nc => nc.id === categoria.id)) {
+          // This is an existing categoria that needs its parent updated
+          if (categoria.Padre !== padre.id) {
+            updates.push({ id: categoria.id, Padre: padre.id });
+          }
+        }
+      }
+      
+      // Apply updates
+      for (const update of updates) {
+        await supabase
+          .from("CDS_Familias")
+          .update({ Padre: update.Padre })
+          .eq("id", update.id);
+      }
+
+      toast({
+        title: "Importación exitosa",
+        description: `Se crearon ${newFamilias.length} familias, ${newCategorias.length} subcategorías y se actualizaron ${updates.length} relaciones`,
+      });
+
+      setShowRelacionesDialog(false);
+      setRelacionesData([]);
+      fetchFamilias();
+    } catch (error: any) {
+      toast({
+        title: "Error al importar",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setImportingRelaciones(false);
+    }
+  };
+
   const getPadreNombre = (padreId: number | null) => {
     if (!padreId) return "-";
     const padre = familias.find(f => f.id === padreId);
@@ -397,12 +600,19 @@ export default function FamiliasProductos() {
             Gestión de categorías y jerarquía de productos
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <input
             ref={fileInputRef}
             type="file"
             accept=".xlsx,.xls,.csv"
             onChange={handleFileUpload}
+            className="hidden"
+          />
+          <input
+            ref={relacionesInputRef}
+            type="file"
+            accept=".xlsx,.xls,.csv"
+            onChange={handleRelacionesFileUpload}
             className="hidden"
           />
           <Button
@@ -411,6 +621,13 @@ export default function FamiliasProductos() {
           >
             <Upload className="h-4 w-4 mr-2" />
             Importar
+          </Button>
+          <Button
+            onClick={() => relacionesInputRef.current?.click()}
+            variant="outline"
+          >
+            <Link className="h-4 w-4 mr-2" />
+            Importar Relaciones
           </Button>
           <Button onClick={() => setShowAddDialog(true)}>
             <Plus className="h-4 w-4 mr-2" />
@@ -689,6 +906,69 @@ export default function FamiliasProductos() {
             <Button onClick={handleAddCategoria}>
               <Plus className="h-4 w-4 mr-2" />
               Crear Categoría
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Import Relations Dialog */}
+      <Dialog open={showRelacionesDialog} onOpenChange={setShowRelacionesDialog}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Importar Relaciones Familia-Categoría</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Se encontraron <strong>{relacionesData.length}</strong> relaciones para importar.
+              Se crearán las familias y subcategorías que no existan.
+            </p>
+            <div className="max-h-60 overflow-y-auto border rounded">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Subcategoría</TableHead>
+                    <TableHead>Familia Padre</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {relacionesData.slice(0, 50).map((row, i) => (
+                    <TableRow key={i}>
+                      <TableCell>{row.categoria}</TableCell>
+                      <TableCell>
+                        <span className="inline-flex items-center gap-1 px-2 py-1 bg-secondary rounded text-sm">
+                          <FolderTree className="h-3 w-3" />
+                          {row.familia}
+                        </span>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+            {relacionesData.length > 50 && (
+              <p className="text-sm text-muted-foreground">
+                ...y {relacionesData.length - 50} relaciones más
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowRelacionesDialog(false)}
+              disabled={importingRelaciones}
+            >
+              <X className="h-4 w-4 mr-2" />
+              Cancelar
+            </Button>
+            <Button onClick={handleImportRelaciones} disabled={importingRelaciones}>
+              {importingRelaciones ? (
+                "Importando..."
+              ) : (
+                <>
+                  <Save className="h-4 w-4 mr-2" />
+                  Importar {relacionesData.length} relaciones
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
