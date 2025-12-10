@@ -44,24 +44,37 @@ export default function Repuestos() {
     try {
       setLoading(true);
       
-      // Fetch TODAS las relaciones padre-hijo (más de 14,000 registros)
-      const { data: relacionesData, error: relacionesError } = await supabase
-        .from('repuestos_relaciones')
-        .select('*')
-        .range(0, 20000);
+      // Fetch TODAS las relaciones padre-hijo con paginación (más de 14,000 registros)
+      let allRelaciones: any[] = [];
+      let relFrom = 0;
+      const relPageSize = 1000;
+      
+      while (true) {
+        const { data: relacionesData, error: relacionesError } = await supabase
+          .from('repuestos_relaciones')
+          .select('*')
+          .range(relFrom, relFrom + relPageSize - 1);
 
-      if (relacionesError) {
-        console.error('Error fetching relaciones:', relacionesError);
+        if (relacionesError) {
+          console.error('Error fetching relaciones:', relacionesError);
+          break;
+        }
+
+        if (!relacionesData || relacionesData.length === 0) break;
+        
+        allRelaciones = [...allRelaciones, ...relacionesData];
+        
+        if (relacionesData.length < relPageSize) break;
+        relFrom += relPageSize;
       }
       
-      console.log('Relaciones raw data sample:', relacionesData?.slice(0, 3));
+      console.log('Total relaciones cargadas:', allRelaciones.length);
 
       // Crear mapas de relaciones
       const newHijoPadreMap = new Map<string, string>();
       const newPadreHijosMap = new Map<string, string[]>();
       
-      relacionesData?.forEach((r: any) => {
-        // Las columnas en la BD son Hijo y Padre (con mayúscula)
+      allRelaciones.forEach((r: any) => {
         const hijo = r.Hijo;
         const padre = r.Padre;
         
@@ -76,8 +89,8 @@ export default function Repuestos() {
       
       setHijoPadreMap(newHijoPadreMap);
       setPadreHijosMap(newPadreHijosMap);
-      console.log('Relaciones cargadas:', newHijoPadreMap.size, 'hijos →', newPadreHijosMap.size, 'padres');
-      console.log('Ejemplo - 940375 es hijo de:', newHijoPadreMap.get('940375'));
+      console.log('Relaciones procesadas:', newHijoPadreMap.size, 'hijos →', newPadreHijosMap.size, 'padres');
+      console.log('Ejemplo - 929926 es hijo de:', newHijoPadreMap.get('929926'));
       
       // Fetch repuestos (sin límite)
       let allRepuestos: any[] = [];
