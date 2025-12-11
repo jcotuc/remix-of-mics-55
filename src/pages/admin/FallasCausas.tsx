@@ -28,6 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { 
   Upload, 
   Plus, 
@@ -38,8 +39,47 @@ import {
   Wrench,
   HelpCircle,
   FolderTree,
-  Loader2
+  Loader2,
+  CheckCircle2,
+  XCircle
 } from "lucide-react";
+
+// Función para capitalizar: Primera letra mayúscula, resto minúscula
+const capitalizar = (texto: string): string => {
+  if (!texto) return "";
+  return texto.charAt(0).toUpperCase() + texto.slice(1).toLowerCase();
+};
+
+// Buscar familia con matching flexible (exacto → parcial)
+const buscarFamiliaFlexible = (nombreExcel: string, familias: Familia[]): Familia | null => {
+  if (!nombreExcel) return null;
+  
+  const nombreNormalizado = nombreExcel.toLowerCase().trim();
+  
+  // 1. Búsqueda exacta (case-insensitive)
+  let familia = familias.find(f => 
+    f.Categoria?.toLowerCase().trim() === nombreNormalizado
+  );
+  if (familia) return familia;
+  
+  // 2. Búsqueda parcial: Excel contiene categoría o viceversa
+  familia = familias.find(f => {
+    const categoria = f.Categoria?.toLowerCase().trim() || "";
+    return categoria.includes(nombreNormalizado) || nombreNormalizado.includes(categoria);
+  });
+  if (familia) return familia;
+  
+  // 3. Búsqueda por singlar/plural (agregar/quitar 's' al final)
+  const sinS = nombreNormalizado.endsWith('s') ? nombreNormalizado.slice(0, -1) : nombreNormalizado;
+  const conS = nombreNormalizado + 's';
+  
+  familia = familias.find(f => {
+    const categoria = f.Categoria?.toLowerCase().trim() || "";
+    return categoria === sinS || categoria === conS;
+  });
+  
+  return familia || null;
+};
 import * as XLSX from "xlsx";
 
 interface Familia {
@@ -91,6 +131,7 @@ export default function FallasCausas() {
   // Import state
   const [importData, setImportData] = useState<ImportRow[]>([]);
   const [importing, setImporting] = useState(false);
+  const [createMissingFamilias, setCreateMissingFamilias] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -182,14 +223,12 @@ export default function FallasCausas() {
           }
 
           if (nombre) {
-            // Find familia by name (case-insensitive)
-            const familia = familias.find(
-              f => f.Categoria?.toLowerCase() === familiaName.toLowerCase()
-            );
+            // Buscar familia con matching flexible
+            const familia = buscarFamiliaFlexible(familiaName, familias);
             
             parsed.push({
-              nombre,
-              familiaName: familiaName || "Sin familia",
+              nombre: capitalizar(nombre), // Aplicar capitalización
+              familiaName: familiaName ? capitalizar(familiaName) : "Sin familia",
               familiaId: familia?.id || null
             });
           }
@@ -204,11 +243,15 @@ export default function FallasCausas() {
         );
 
         setImportData(unique);
+        setCreateMissingFamilias(false);
         setShowImportDialog(true);
+        
+        const matched = unique.filter(i => i.familiaId).length;
+        const unmatched = unique.filter(i => !i.familiaId && i.familiaName !== "Sin familia").length;
         
         toast({
           title: "Archivo procesado",
-          description: `Se encontraron ${unique.length} registros únicos para importar.`
+          description: `${unique.length} registros: ${matched} con familia, ${unmatched} sin coincidencia.`
         });
       } catch (error) {
         console.error("Error parsing file:", error);
@@ -234,8 +277,50 @@ export default function FallasCausas() {
     const tableName = activeTab === "fallas" ? "CDS_Fallas" : "CDS_Causas";
     
     try {
-      const records = importData.map(item => ({
-        nombre: item.nombre,
+      // Si está marcada la opción, crear familias faltantes primero
+      let updatedImportData = [...importData];
+      
+      if (createMissingFamilias) {
+        const familiasNuevas = [...new Set(
+          importData
+            .filter(item => !item.familiaId && item.familiaName !== "Sin familia")
+            .map(item => item.familiaName)
+        )];
+        
+        if (familiasNuevas.length > 0) {
+          // Crear las familias faltantes
+          for (const nombreFamilia of familiasNuevas) {
+            const { data: newFamilia, error } = await supabase
+              .from("CDS_Familias")
+              .insert({ Categoria: capitalizar(nombreFamilia) })
+              .select()
+              .single();
+            
+            if (error) {
+              console.error("Error creating familia:", error);
+              continue;
+            }
+            
+            // Actualizar los items que tenían esta familia
+            updatedImportData = updatedImportData.map(item => 
+              item.familiaName.toLowerCase() === nombreFamilia.toLowerCase()
+                ? { ...item, familiaId: newFamilia.id }
+                : item
+            );
+          }
+          
+          toast({
+            title: "Familias creadas",
+            description: `Se crearon ${familiasNuevas.length} familias nuevas.`
+          });
+          
+          // Refrescar lista de familias
+          await fetchFamilias();
+        }
+      }
+      
+      const records = updatedImportData.map(item => ({
+        nombre: capitalizar(item.nombre), // Asegurar capitalización
         familia_id: item.familiaId
       }));
 
@@ -285,7 +370,7 @@ export default function FallasCausas() {
     const { error } = await supabase
       .from(tableName)
       .insert({
-        nombre: newNombre.trim(),
+        nombre: capitalizar(newNombre.trim()), // Aplicar capitalización
         familia_id: newFamiliaId ? parseInt(newFamiliaId) : null
       });
 
@@ -318,7 +403,7 @@ export default function FallasCausas() {
     const { error } = await supabase
       .from(tableName)
       .update({
-        nombre: newNombre.trim(),
+        nombre: capitalizar(newNombre.trim()), // Aplicar capitalización
         familia_id: newFamiliaId ? parseInt(newFamiliaId) : null
       })
       .eq("id", editingItem.id);
@@ -399,7 +484,9 @@ export default function FallasCausas() {
     getFamiliaName(item.familia_id).toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const unmatchedImports = importData.filter(item => !item.familiaId);
+  const unmatchedImports = importData.filter(item => !item.familiaId && item.familiaName !== "Sin familia");
+  const matchedImports = importData.filter(item => item.familiaId);
+  const uniqueUnmatchedFamilias = [...new Set(unmatchedImports.map(i => i.familiaName))];
 
   if (loading) {
     return (
@@ -640,16 +727,51 @@ export default function FallasCausas() {
             </DialogTitle>
           </DialogHeader>
           
-          {unmatchedImports.length > 0 && (
-            <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3 flex items-start gap-2">
-              <AlertTriangle className="h-5 w-5 text-yellow-600 mt-0.5 shrink-0" />
+          {/* Resumen de coincidencias */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-3 flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0" />
               <div className="text-sm">
-                <p className="font-medium text-yellow-600">
-                  {unmatchedImports.length} registros sin familia coincidente
+                <p className="font-medium text-green-600">
+                  {matchedImports.length} con familia
                 </p>
-                <p className="text-muted-foreground">
-                  Estos registros se importarán sin familia asignada.
+                <p className="text-muted-foreground text-xs">
+                  Coincidencia encontrada
                 </p>
+              </div>
+            </div>
+            
+            <div className={`${unmatchedImports.length > 0 ? 'bg-yellow-500/10 border-yellow-500/30' : 'bg-muted border-muted'} border rounded-lg p-3 flex items-center gap-2`}>
+              <XCircle className={`h-5 w-5 ${unmatchedImports.length > 0 ? 'text-yellow-600' : 'text-muted-foreground'} shrink-0`} />
+              <div className="text-sm">
+                <p className={`font-medium ${unmatchedImports.length > 0 ? 'text-yellow-600' : 'text-muted-foreground'}`}>
+                  {unmatchedImports.length} sin familia
+                </p>
+                <p className="text-muted-foreground text-xs">
+                  Sin coincidencia
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Opción para crear familias faltantes */}
+          {unmatchedImports.length > 0 && (
+            <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3 space-y-2">
+              <div className="flex items-center space-x-2">
+                <Checkbox 
+                  id="createFamilias"
+                  checked={createMissingFamilias}
+                  onCheckedChange={(checked) => setCreateMissingFamilias(checked === true)}
+                />
+                <label 
+                  htmlFor="createFamilias" 
+                  className="text-sm font-medium cursor-pointer"
+                >
+                  Crear familias faltantes en CDS_Familias
+                </label>
+              </div>
+              <div className="text-xs text-muted-foreground pl-6">
+                Se crearán {uniqueUnmatchedFamilias.length} familias nuevas: {uniqueUnmatchedFamilias.slice(0, 5).join(", ")}{uniqueUnmatchedFamilias.length > 5 ? "..." : ""}
               </div>
             </div>
           )}
@@ -674,8 +796,13 @@ export default function FallasCausas() {
                           <FolderTree className="h-3 w-3" />
                           {getFamiliaName(item.familiaId)}
                         </span>
+                      ) : item.familiaName !== "Sin familia" ? (
+                        <span className="text-yellow-600 text-sm flex items-center gap-1">
+                          <XCircle className="h-3 w-3" />
+                          No encontrada
+                        </span>
                       ) : (
-                        <span className="text-yellow-600 text-sm">No encontrada</span>
+                        <span className="text-muted-foreground text-sm">-</span>
                       )}
                     </TableCell>
                   </TableRow>
