@@ -282,7 +282,7 @@ export default function MisAsignaciones() {
                       <div className="flex items-center justify-between">
                         <p className="font-bold text-lg">{inc.codigo}</p>
                         <Badge variant="outline" className="bg-blue-50">
-                          {inc.familia_producto || 'Sin familia'}
+                          {inc.codigo_producto}
                         </Badge>
                       </div>
 

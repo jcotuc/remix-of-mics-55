@@ -17,20 +17,22 @@ import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
 
 type IncidenteDB = Database['public']['Tables']['incidentes']['Row'];
+type FamiliaDB = { id: number; Categoria: string | null; Padre: number | null };
 
 const FAMILIAS = [
-  "Electricas",
-  "Hidraulicas", 
-  "Compresores",
-  "2 Tiempos",
-  "Hidrolavadoras",
-  "Estacionarias",
-  "Stock Cemaco"
+  { nombre: "Eléctrica", id: 4 },
+  { nombre: "Bomba", id: 33 },
+  { nombre: "Compresor", id: 1 },
+  { nombre: "2 tiempos", id: 27 },
+  { nombre: "Hidrolavadoras", id: 20 },
+  { nombre: "4 tiempos", id: 23 },
+  { nombre: "Stock Cemaco", id: null }
 ] as const;
 
 export default function Asignaciones() {
   const navigate = useNavigate();
   const [incidentes, setIncidentes] = useState<IncidenteDB[]>([]);
+  const [familias, setFamilias] = useState<FamiliaDB[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [searchResults, setSearchResults] = useState<IncidenteDB[]>([]);
   const [loading, setLoading] = useState(true);
@@ -49,7 +51,20 @@ export default function Asignaciones() {
 
   useEffect(() => {
     fetchIncidentes();
+    fetchFamilias();
   }, []);
+
+  const fetchFamilias = async () => {
+    const { data } = await supabase.from('CDS_Familias').select('id, Categoria, Padre');
+    if (data) setFamilias(data);
+  };
+
+  // Obtener el ID del abuelo (categoría general) desde familia_padre_id
+  const getAbueloId = (familiaPadreId: number | null): number | null => {
+    if (!familiaPadreId) return null;
+    const familia = familias.find(f => f.id === familiaPadreId);
+    return familia?.Padre || null;
+  };
 
   const fetchIncidentes = async () => {
     try {
@@ -109,8 +124,8 @@ export default function Asignaciones() {
     }
   };
 
-  const handleAsignar = async (incidenteId: string, familia: string) => {
-    const incidentesFamilia = getIncidentesPorFamilia(familia);
+  const handleAsignar = async (incidenteId: string, familiaConfig: typeof FAMILIAS[number]) => {
+    const incidentesFamilia = getIncidentesPorFamilia(familiaConfig);
     const primerIncidente = incidentesFamilia[0];
 
     if (primerIncidente?.id !== incidenteId) {
@@ -134,14 +149,14 @@ export default function Asignaciones() {
     }
   };
 
-  const getIncidentesPorFamilia = (familia: string) => {
-    if (familia === "Stock Cemaco") {
+  const getIncidentesPorFamilia = (familiaConfig: typeof FAMILIAS[number]) => {
+    if (familiaConfig.nombre === "Stock Cemaco") {
       return incidentes.filter(inc => inc.es_stock_cemaco === true);
     }
-    return incidentes.filter(inc => 
-      inc.familia_producto === familia && 
-      (inc.es_stock_cemaco !== true)
-    );
+    return incidentes.filter(inc => {
+      const abueloId = getAbueloId(inc.familia_padre_id);
+      return abueloId === familiaConfig.id && (inc.es_stock_cemaco !== true);
+    });
   };
 
   const getDiasDesdeIngreso = (fechaIngreso: string) => {
@@ -149,8 +164,8 @@ export default function Asignaciones() {
     return dias;
   };
 
-  const getDiaMaxPorFamilia = (familia: string) => {
-    const incidentesFamilia = getIncidentesPorFamilia(familia);
+  const getDiaMaxPorFamilia = (familiaConfig: typeof FAMILIAS[number]) => {
+    const incidentesFamilia = getIncidentesPorFamilia(familiaConfig);
     if (incidentesFamilia.length === 0) return 0;
     return Math.max(...incidentesFamilia.map(inc => getDiasDesdeIngreso(inc.fecha_ingreso)));
   };
@@ -404,16 +419,16 @@ export default function Asignaciones() {
               {FAMILIAS.map((familia) => {
                 const incidentesFamilia = getIncidentesPorFamilia(familia);
                 const diaMax = getDiaMaxPorFamilia(familia);
-                const isStockCemaco = familia === "Stock Cemaco";
+                const isStockCemaco = familia.nombre === "Stock Cemaco";
 
                 return (
-                  <div key={familia} className="flex-shrink-0 w-80">
+                  <div key={familia.nombre} className="flex-shrink-0 w-80">
                     <Card className={`h-full flex flex-col ${isStockCemaco ? 'border-orange-500/50 bg-orange-50/30 dark:bg-orange-950/20' : ''}`}>
                       <CardHeader className="pb-3 border-b bg-muted/30">
                         <div className="flex items-center justify-between">
                           <CardTitle className="text-base font-semibold flex items-center gap-2">
                             {isStockCemaco && <Store className="h-4 w-4 text-orange-600" />}
-                            {familia}
+                            {familia.nombre}
                           </CardTitle>
                           <div className="flex items-center gap-2">
                             <Badge variant="secondary" className="font-bold">

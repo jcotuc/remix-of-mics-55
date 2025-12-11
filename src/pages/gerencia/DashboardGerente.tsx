@@ -93,8 +93,8 @@ export default function DashboardGerente() {
       // Incidentes por área (familia de producto)
       const areaMap = new Map<string, number>();
       todosIncidentes?.forEach(i => {
-        const familia = i.familia_producto || 'Sin clasificar';
-        areaMap.set(familia, (areaMap.get(familia) || 0) + 1);
+        const producto = i.codigo_producto || 'Sin clasificar';
+        areaMap.set(producto, (areaMap.get(producto) || 0) + 1);
       });
 
       const incidentesPorArea: AreaStats[] = Array.from(areaMap.entries())

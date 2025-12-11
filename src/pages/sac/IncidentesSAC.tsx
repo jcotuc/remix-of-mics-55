@@ -20,7 +20,7 @@ type IncidenteDB = {
   codigo_tecnico: string | null;
   descripcion_problema: string;
   fecha_ingreso: string;
-  familia_producto: string | null;
+  familia_padre_id: number | null;
   cobertura_garantia: boolean;
 };
 

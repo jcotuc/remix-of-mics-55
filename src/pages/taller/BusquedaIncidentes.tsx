@@ -24,7 +24,7 @@ interface Incidente {
   codigo_producto: string;
   codigo_tecnico: string | null;
   descripcion_problema: string;
-  familia_producto: string | null;
+  familia_padre_id: number | null;
   tipologia: string | null;
   confirmacion_cliente: any;
 }
@@ -566,7 +566,7 @@ export default function BusquedaIncidentes() {
                           {format(new Date(incidente.fecha_ingreso), "dd/MM/yyyy", { locale: es })}
                         </TableCell>
                         <TableCell>
-                          {incidente.familia_producto || "-"}
+                          {incidente.codigo_producto || "-"}
                         </TableCell>
                         <TableCell className="text-right">
                           <Button
@@ -640,8 +640,8 @@ export default function BusquedaIncidentes() {
                       <p className="text-sm mt-1">{selectedIncidente?.codigo_tecnico || "Sin asignar"}</p>
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-muted-foreground">Familia Producto</p>
-                      <p className="text-sm mt-1">{selectedIncidente?.familia_producto || "-"}</p>
+                      <p className="text-sm font-medium text-muted-foreground">Código Producto</p>
+                      <p className="text-sm mt-1">{selectedIncidente?.codigo_producto || "-"}</p>
                     </div>
                     {selectedIncidente?.tipologia && (
                       <div className="col-span-2">

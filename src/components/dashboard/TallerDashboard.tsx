@@ -16,15 +16,15 @@ export function TallerDashboard({ incidentes }: TallerDashboardProps) {
   const enReparacion = incidentes.filter(i => i.status === "Reparado").length;
   const pendienteRepuestos = incidentes.filter(i => i.status === "Pendiente por repuestos").length;
 
-  // Distribución por familia de producto
-  const familiaDistribution = incidentes.reduce((acc, inc) => {
-    const familia = inc.familia_producto || 'Sin clasificar';
-    acc[familia] = (acc[familia] || 0) + 1;
+  // Distribución por código de producto
+  const productoDistribution = incidentes.reduce((acc, inc) => {
+    const producto = inc.codigo_producto || 'Sin clasificar';
+    acc[producto] = (acc[producto] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
 
-  const familiaData = Object.entries(familiaDistribution)
-    .map(([familia, cantidad]) => ({ familia, cantidad }))
+  const familiaData = Object.entries(productoDistribution)
+    .map(([producto, cantidad]) => ({ familia: producto, cantidad }))
     .sort((a, b) => b.cantidad - a.cantidad)
     .slice(0, 5);
 

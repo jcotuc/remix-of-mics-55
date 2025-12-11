@@ -500,8 +500,8 @@ export function DiagnosticoTecnico({ incidente, onDiagnosticoCompleto }: Diagnos
                   </div>
                   
                   <div>
-                    <p className="text-xs text-muted-foreground mb-1">Familia</p>
-                    <p className="font-semibold">{productoInfo.familia_producto || 'N/A'}</p>
+                    <p className="text-xs text-muted-foreground mb-1">Familia ID</p>
+                    <p className="font-semibold">{productoInfo.familia_padre_id || 'N/A'}</p>
                   </div>
                   
                   <div>
