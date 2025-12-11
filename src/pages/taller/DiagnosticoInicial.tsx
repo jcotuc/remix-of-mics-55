@@ -47,7 +47,7 @@ export default function DiagnosticoInicial() {
   // Fallas y Causas desde base de datos
   const [fallasDB, setFallasDB] = useState<Array<{id: number, nombre: string, familia_id: number | null}>>([]);
   const [causasDB, setCausasDB] = useState<Array<{id: number, nombre: string, familia_id: number | null}>>([]);
-  const [familiasDB, setFamiliasDB] = useState<Array<{id: number, Categoria: string | null}>>([]);
+  const [familiasDB, setFamiliasDB] = useState<Array<{id: number, Categoria: string | null, Padre: number | null}>>([]);
   
   // Paso 3: Fotos y Observaciones
   const [fotos, setFotos] = useState<File[]>([]);
@@ -66,6 +66,13 @@ export default function DiagnosticoInicial() {
   const [showTipoTrabajoDialog, setShowTipoTrabajoDialog] = useState(false);
   const [tipoTrabajo, setTipoTrabajo] = useState<"mantenimiento" | "reparacion" | null>(null);
 
+  // Obtener el ID del abuelo desde CDS_Familias.Padre usando familia_padre_id
+  const familiaAbueloId = useMemo(() => {
+    if (!productoInfo?.familia_padre_id) return null;
+    const familia = familiasDB.find(f => f.id === productoInfo.familia_padre_id);
+    return familia?.Padre || null;
+  }, [productoInfo?.familia_padre_id, familiasDB]);
+
   // Obtener fallas según jerarquía: del PADRE (subcategoría) + del ABUELO (categoría general)
   const fallasDisponibles = useMemo(() => {
     const fallasSet = new Set<string>();
@@ -76,9 +83,9 @@ export default function DiagnosticoInicial() {
         .forEach(f => fallasSet.add(f.nombre));
     }
     
-    // 2. Fallas del ABUELO (categoría general, ej: Electrica)
-    if (productoInfo?.familia_abuelo_id) {
-      fallasDB.filter(f => f.familia_id === productoInfo.familia_abuelo_id)
+    // 2. Fallas del ABUELO (categoría general, ej: Electrica) - obtenido de CDS_Familias.Padre
+    if (familiaAbueloId) {
+      fallasDB.filter(f => f.familia_id === familiaAbueloId)
         .forEach(f => fallasSet.add(f.nombre));
     }
     
@@ -88,20 +95,20 @@ export default function DiagnosticoInicial() {
     }
     
     return Array.from(fallasSet).sort();
-  }, [productoInfo?.familia_padre_id, productoInfo?.familia_abuelo_id, fallasDB]);
+  }, [productoInfo?.familia_padre_id, familiaAbueloId, fallasDB]);
 
   // Obtener causas solo del ABUELO (categoría general)
   const causasDisponibles = useMemo(() => {
-    // Causas solo del ABUELO (ej: Electrica, 2 tiempos)
-    if (productoInfo?.familia_abuelo_id) {
-      const causasAbuelo = causasDB.filter(c => c.familia_id === productoInfo.familia_abuelo_id)
+    // Causas solo del ABUELO (ej: Electrica, 2 tiempos) - obtenido de CDS_Familias.Padre
+    if (familiaAbueloId) {
+      const causasAbuelo = causasDB.filter(c => c.familia_id === familiaAbueloId)
         .map(c => c.nombre);
       if (causasAbuelo.length > 0) return causasAbuelo.sort();
     }
     
     // Fallback: causas sin familia asignada
     return causasDB.filter(c => !c.familia_id).map(c => c.nombre).sort();
-  }, [productoInfo?.familia_abuelo_id, causasDB]);
+  }, [familiaAbueloId, causasDB]);
 
   useEffect(() => {
     const initDiagnostico = async () => {
@@ -121,7 +128,7 @@ export default function DiagnosticoInicial() {
       const [fallasRes, causasRes, familiasRes] = await Promise.all([
         supabase.from('CDS_Fallas').select('id, nombre, familia_id').order('nombre'),
         supabase.from('CDS_Causas').select('id, nombre, familia_id').order('nombre'),
-        supabase.from('CDS_Familias').select('id, Categoria')
+        supabase.from('CDS_Familias').select('id, Categoria, Padre')
       ]);
       
       if (fallasRes.data) setFallasDB(fallasRes.data);
@@ -876,10 +883,10 @@ export default function DiagnosticoInicial() {
                   <p className="text-base font-medium">{incidente.codigo_producto}</p>
                 </div>
                 
-                {incidente.familia_producto && (
+                {incidente.familia_padre_id && (
                   <div>
-                    <Label className="text-sm text-muted-foreground">Familia del Producto</Label>
-                    <p className="text-base font-medium">{incidente.familia_producto}</p>
+                    <Label className="text-sm text-muted-foreground">Familia ID</Label>
+                    <p className="text-base font-medium">{incidente.familia_padre_id}</p>
                   </div>
                 )}
                 
@@ -925,7 +932,6 @@ export default function DiagnosticoInicial() {
                   <Label className="text-lg font-semibold">Fallas Encontradas</Label>
                   <p className="text-sm text-muted-foreground">
                     Selecciona todas las fallas que apliquen
-                    {incidente.familia_producto && ` - ${incidente.familia_producto}`}
                   </p>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -971,7 +977,6 @@ export default function DiagnosticoInicial() {
                   <Label className="text-lg font-semibold">Causas Identificadas</Label>
                   <p className="text-sm text-muted-foreground">
                     Selecciona todas las causas que apliquen
-                    {incidente.familia_producto && ` - ${incidente.familia_producto}`}
                   </p>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -1172,11 +1177,6 @@ export default function DiagnosticoInicial() {
                             <span>Clave: {producto.clave}</span>
                           </div>
                           <div className="flex gap-2 mt-2 flex-wrap">
-                            {producto.familia_producto && (
-                              <Badge variant="outline" className="text-xs">
-                                {producto.familia_producto}
-                              </Badge>
-                            )}
                             <Badge className="bg-green-500 text-white text-xs">
                               <Package className="w-3 h-3 mr-1" />
                               Disponible para despacho

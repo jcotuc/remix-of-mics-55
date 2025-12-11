@@ -123,7 +123,6 @@ export default function HerramientasManuales() {
           descripcion_problema: formData.descripcion_problema,
           status: "Ingresado",
           es_herramienta_manual: true,
-          familia_producto: "Herramienta Manual",
           ingresado_en_mostrador: true,
           estado_fisico_recepcion: formData.estado_fisico,
           observaciones_recepcion: formData.observaciones,

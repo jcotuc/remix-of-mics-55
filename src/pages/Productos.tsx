@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Plus, Search, Edit, Trash2, AlertTriangle, Save, X } from "lucide-react";
+import { Plus, Search, Edit, AlertTriangle, Save, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,7 +17,6 @@ interface ProductoExtended {
   descripcion: string;
   descontinuado: boolean;
   urlFoto: string;
-  familia_abuelo_id: number | null;
   familia_padre_id: number | null;
 }
 
@@ -65,7 +64,6 @@ export default function Productos() {
         descripcion: item.descripcion,
         descontinuado: item.descontinuado,
         urlFoto: item.url_foto || "/placeholder.svg",
-        familia_abuelo_id: item.familia_abuelo_id,
         familia_padre_id: item.familia_padre_id
       }));
 
@@ -84,9 +82,19 @@ export default function Productos() {
     return familias.find(f => f.id === id)?.Categoria || "-";
   };
 
+  // Obtener el nombre del abuelo desde CDS_Familias.Padre
+  const getAbueloName = (familiaPadreId: number | null) => {
+    if (!familiaPadreId) return "-";
+    const familia = familias.find(f => f.id === familiaPadreId);
+    if (!familia?.Padre) return "-";
+    return getFamiliaName(familia.Padre);
+  };
+
   const handleEditClick = (producto: ProductoExtended) => {
     setEditingProducto(producto);
-    setSelectedAbuelo(producto.familia_abuelo_id?.toString() || "");
+    // Obtener el abuelo desde la familia padre
+    const familiaPadre = familias.find(f => f.id === producto.familia_padre_id);
+    setSelectedAbuelo(familiaPadre?.Padre?.toString() || "");
     setSelectedPadre(producto.familia_padre_id?.toString() || "");
   };
 
@@ -98,7 +106,6 @@ export default function Productos() {
       const { error } = await supabase
         .from('productos')
         .update({
-          familia_abuelo_id: selectedAbuelo ? parseInt(selectedAbuelo) : null,
           familia_padre_id: selectedPadre ? parseInt(selectedPadre) : null
         })
         .eq('codigo', editingProducto.codigo);
@@ -108,15 +115,15 @@ export default function Productos() {
       // Actualizar lista local
       setProductosList(prev => prev.map(p => 
         p.codigo === editingProducto.codigo 
-          ? { ...p, familia_abuelo_id: selectedAbuelo ? parseInt(selectedAbuelo) : null, familia_padre_id: selectedPadre ? parseInt(selectedPadre) : null }
+          ? { ...p, familia_padre_id: selectedPadre ? parseInt(selectedPadre) : null }
           : p
       ));
 
-      toast.success("Familias actualizadas correctamente");
+      toast.success("Familia actualizada correctamente");
       setEditingProducto(null);
     } catch (error) {
       console.error('Error:', error);
-      toast.error("Error al actualizar familias");
+      toast.error("Error al actualizar familia");
     } finally {
       setSaving(false);
     }
@@ -169,8 +176,8 @@ export default function Productos() {
                   <TableHead>Código</TableHead>
                   <TableHead>Clave</TableHead>
                   <TableHead>Descripción</TableHead>
-                  <TableHead>Familia (Abuelo)</TableHead>
-                  <TableHead>Subfamilia (Padre)</TableHead>
+                  <TableHead>Categoría</TableHead>
+                  <TableHead>Subcategoría</TableHead>
                   <TableHead>Estado</TableHead>
                   <TableHead className="text-right">Acciones</TableHead>
                 </TableRow>
@@ -195,7 +202,7 @@ export default function Productos() {
                     <TableCell className="max-w-[200px] truncate">{producto.descripcion}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className="whitespace-nowrap">
-                        {getFamiliaName(producto.familia_abuelo_id)}
+                        {getAbueloName(producto.familia_padre_id)}
                       </Badge>
                     </TableCell>
                     <TableCell>
@@ -228,11 +235,11 @@ export default function Productos() {
         </CardContent>
       </Card>
 
-      {/* Dialog para editar familias */}
+      {/* Dialog para editar familia */}
       <Dialog open={!!editingProducto} onOpenChange={() => setEditingProducto(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Editar Familias del Producto</DialogTitle>
+            <DialogTitle>Editar Familia del Producto</DialogTitle>
           </DialogHeader>
           
           {editingProducto && (
@@ -243,13 +250,13 @@ export default function Productos() {
               </div>
 
               <div className="space-y-2">
-                <Label>Familia (Abuelo) - Categoría General</Label>
+                <Label>Categoría General</Label>
                 <Select value={selectedAbuelo} onValueChange={(val) => {
                   setSelectedAbuelo(val);
                   setSelectedPadre(""); // Reset padre when abuelo changes
                 }}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar familia..." />
+                    <SelectValue placeholder="Seleccionar categoría..." />
                   </SelectTrigger>
                   <SelectContent>
                     {familiasAbuelo.map(f => (
@@ -262,14 +269,14 @@ export default function Productos() {
               </div>
 
               <div className="space-y-2">
-                <Label>Subfamilia (Padre) - Subcategoría</Label>
+                <Label>Subcategoría (se guarda en producto)</Label>
                 <Select 
                   value={selectedPadre} 
                   onValueChange={setSelectedPadre}
                   disabled={!selectedAbuelo}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder={selectedAbuelo ? "Seleccionar subfamilia..." : "Primero selecciona familia"} />
+                    <SelectValue placeholder={selectedAbuelo ? "Seleccionar subcategoría..." : "Primero selecciona categoría"} />
                   </SelectTrigger>
                   <SelectContent>
                     {familiasPadre.map(f => (
@@ -280,7 +287,7 @@ export default function Productos() {
                   </SelectContent>
                 </Select>
                 {selectedAbuelo && familiasPadre.length === 0 && (
-                  <p className="text-xs text-muted-foreground">No hay subcategorías para esta familia</p>
+                  <p className="text-xs text-muted-foreground">No hay subcategorías para esta categoría</p>
                 )}
               </div>
             </div>

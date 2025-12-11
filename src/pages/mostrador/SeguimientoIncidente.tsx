@@ -284,9 +284,9 @@ export default function SeguimientoIncidente() {
                   <p className="text-sm text-muted-foreground">Descripción</p>
                   <p className="font-medium">{producto.descripcion}</p>
                 </div>
-                {producto.familia_producto && <div>
+                {producto.familia_padre_id && <div>
                     <p className="text-sm text-muted-foreground">Familia</p>
-                    <Badge variant="outline">{producto.familia_producto}</Badge>
+                    <Badge variant="outline">ID: {producto.familia_padre_id}</Badge>
                   </div>}
                 {producto.descontinuado && <Badge variant="destructive">
                     <AlertTriangle className="w-3 h-3 mr-1" />

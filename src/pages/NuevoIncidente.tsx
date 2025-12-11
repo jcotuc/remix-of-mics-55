@@ -494,10 +494,10 @@ export default function NuevoIncidente() {
       
       if (codigoError) throw codigoError;
 
-      // Obtener la familia del producto seleccionado
+      // Obtener la familia_padre_id del producto seleccionado
       const { data: productoData, error: productoError } = await supabase
         .from('productos')
-        .select('familia_producto')
+        .select('familia_padre_id')
         .eq('codigo', productoSeleccionado!.codigo)
         .single();
 
@@ -510,7 +510,7 @@ export default function NuevoIncidente() {
           codigo: codigoIncidente,
           codigo_cliente: codigoCliente,
           codigo_producto: productoSeleccionado!.codigo,
-          familia_producto: productoData?.familia_producto || null,
+          familia_padre_id: productoData?.familia_padre_id || null,
           sku_maquina: skuMaquina,
           descripcion_problema: descripcionProblema,
           persona_deja_maquina: personaDejaMaquina,

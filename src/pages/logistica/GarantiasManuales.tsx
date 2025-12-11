@@ -212,7 +212,6 @@ export default function GarantiasManuales() {
           descripcion_problema: selectedGarantia.descripcion_problema,
           status: statusIncidente,
           es_herramienta_manual: true,
-          familia_producto: "Herramienta Manual",
           ingresado_en_mostrador: false,
           cobertura_garantia: coberturaGarantia,
           log_observaciones: updateData.comentarios_logistica,
