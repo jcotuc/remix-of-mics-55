@@ -17,6 +17,9 @@ import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
 
 type IncidenteDB = Database['public']['Tables']['incidentes']['Row'];
+type IncidenteConProducto = IncidenteDB & {
+  producto: { familia_padre_id: number | null } | null;
+};
 type FamiliaDB = { id: number; Categoria: string | null; Padre: number | null };
 
 const FAMILIAS = [
@@ -31,7 +34,7 @@ const FAMILIAS = [
 
 export default function Asignaciones() {
   const navigate = useNavigate();
-  const [incidentes, setIncidentes] = useState<IncidenteDB[]>([]);
+  const [incidentes, setIncidentes] = useState<IncidenteConProducto[]>([]);
   const [familias, setFamilias] = useState<FamiliaDB[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [searchResults, setSearchResults] = useState<IncidenteDB[]>([]);
@@ -70,10 +73,13 @@ export default function Asignaciones() {
     try {
       setLoading(true);
       
-      // Incidentes normales (no stock Cemaco)
+      // Incidentes normales (no stock Cemaco) - con JOIN a productos
       const { data: normales, error: error1 } = await supabase
         .from('incidentes')
-        .select('*')
+        .select(`
+          *,
+          producto:productos!codigo_producto(familia_padre_id)
+        `)
         .eq('status', 'Ingresado')
         .or('es_stock_cemaco.is.null,es_stock_cemaco.eq.false')
         .order('fecha_ingreso', { ascending: true });
@@ -83,7 +89,10 @@ export default function Asignaciones() {
       // Incidentes Stock Cemaco (Ingresado y Pendiente de aprobación NC)
       const { data: stockCemaco, error: error2 } = await supabase
         .from('incidentes')
-        .select('*')
+        .select(`
+          *,
+          producto:productos!codigo_producto(familia_padre_id)
+        `)
         .eq('es_stock_cemaco', true)
         .in('status', ['Ingresado', 'Pendiente de aprobación NC'] as any)
         .order('fecha_ingreso', { ascending: true });
@@ -93,7 +102,7 @@ export default function Asignaciones() {
         toast.error('Error al cargar incidentes de Stock Cemaco');
       }
 
-      setIncidentes([...(normales || []), ...(stockCemaco || [])]);
+      setIncidentes([...(normales || []), ...(stockCemaco || [])] as IncidenteConProducto[]);
     } catch (error) {
       console.error('Error:', error);
       toast.error('Error al cargar incidentes');
@@ -154,7 +163,10 @@ export default function Asignaciones() {
       return incidentes.filter(inc => inc.es_stock_cemaco === true);
     }
     return incidentes.filter(inc => {
-      const abueloId = getAbueloId(inc.familia_padre_id);
+      // Obtener familia_padre_id desde el PRODUCTO asociado
+      const familiaPadreId = inc.producto?.familia_padre_id;
+      // Obtener el abuelo (categoría general) desde CDS_Familias
+      const abueloId = getAbueloId(familiaPadreId);
       return abueloId === familiaConfig.id && (inc.es_stock_cemaco !== true);
     });
   };
