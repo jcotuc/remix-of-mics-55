@@ -69,23 +69,25 @@ export default function DiagnosticoInicial() {
   // Obtener el ID del abuelo desde CDS_Familias.Padre usando familia_padre_id
   const familiaAbueloId = useMemo(() => {
     if (!productoInfo?.familia_padre_id) return null;
-    const familia = familiasDB.find(f => f.id === productoInfo.familia_padre_id);
-    return familia?.Padre || null;
+    const familiaPadreId = Number(productoInfo.familia_padre_id);
+    const familia = familiasDB.find(f => Number(f.id) === familiaPadreId);
+    return familia?.Padre ? Number(familia.Padre) : null;
   }, [productoInfo?.familia_padre_id, familiasDB]);
 
   // Obtener fallas según jerarquía: del PADRE (subcategoría) + del ABUELO (categoría general)
   const fallasDisponibles = useMemo(() => {
     const fallasSet = new Set<string>();
+    const familiaPadreId = productoInfo?.familia_padre_id ? Number(productoInfo.familia_padre_id) : null;
     
     // 1. Fallas del PADRE (subcategoría específica, ej: Rotomartillos)
-    if (productoInfo?.familia_padre_id) {
-      fallasDB.filter(f => f.familia_id === productoInfo.familia_padre_id)
+    if (familiaPadreId) {
+      fallasDB.filter(f => Number(f.familia_id) === familiaPadreId)
         .forEach(f => fallasSet.add(f.nombre));
     }
     
     // 2. Fallas del ABUELO (categoría general, ej: Electrica) - obtenido de CDS_Familias.Padre
     if (familiaAbueloId) {
-      fallasDB.filter(f => f.familia_id === familiaAbueloId)
+      fallasDB.filter(f => Number(f.familia_id) === familiaAbueloId)
         .forEach(f => fallasSet.add(f.nombre));
     }
     
@@ -97,16 +99,31 @@ export default function DiagnosticoInicial() {
     return Array.from(fallasSet).sort();
   }, [productoInfo?.familia_padre_id, familiaAbueloId, fallasDB]);
 
-  // Obtener causas solo del ABUELO (categoría general)
+  // Obtener causas del ABUELO con fallback a Eléctrica para Compresores y Soldadoras
   const causasDisponibles = useMemo(() => {
-    // Causas solo del ABUELO (ej: Electrica, 2 tiempos) - obtenido de CDS_Familias.Padre
+    const ID_ELECTRICA = 4;
+    const ID_COMPRESOR = 1;
+    const ID_SOLDADORAS = 60;
+    
+    // 1. Intentar con causas del ABUELO
     if (familiaAbueloId) {
-      const causasAbuelo = causasDB.filter(c => c.familia_id === familiaAbueloId)
+      const causasAbuelo = causasDB
+        .filter(c => Number(c.familia_id) === familiaAbueloId)
         .map(c => c.nombre);
+      
       if (causasAbuelo.length > 0) return causasAbuelo.sort();
+      
+      // 2. FALLBACK: Si es Compresor o Soldadora, usar causas de Eléctrica
+      if (familiaAbueloId === ID_COMPRESOR || familiaAbueloId === ID_SOLDADORAS) {
+        const causasElectrica = causasDB
+          .filter(c => Number(c.familia_id) === ID_ELECTRICA)
+          .map(c => c.nombre);
+        
+        if (causasElectrica.length > 0) return causasElectrica.sort();
+      }
     }
     
-    // Fallback: causas sin familia asignada
+    // 3. Fallback final: causas sin familia asignada
     return causasDB.filter(c => !c.familia_id).map(c => c.nombre).sort();
   }, [familiaAbueloId, causasDB]);
 
