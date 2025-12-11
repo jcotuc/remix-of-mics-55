@@ -121,6 +121,64 @@ export type Database = {
         }
         Relationships: []
       }
+      CDS_Causas: {
+        Row: {
+          created_at: string
+          familia_id: number | null
+          id: number
+          nombre: string
+        }
+        Insert: {
+          created_at?: string
+          familia_id?: number | null
+          id?: number
+          nombre: string
+        }
+        Update: {
+          created_at?: string
+          familia_id?: number | null
+          id?: number
+          nombre?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "CDS_Causas_familia_id_fkey"
+            columns: ["familia_id"]
+            isOneToOne: false
+            referencedRelation: "CDS_Familias"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      CDS_Fallas: {
+        Row: {
+          created_at: string
+          familia_id: number | null
+          id: number
+          nombre: string
+        }
+        Insert: {
+          created_at?: string
+          familia_id?: number | null
+          id?: number
+          nombre: string
+        }
+        Update: {
+          created_at?: string
+          familia_id?: number | null
+          id?: number
+          nombre?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "CDS_Fallas_familia_id_fkey"
+            columns: ["familia_id"]
+            isOneToOne: false
+            referencedRelation: "CDS_Familias"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       CDS_Familias: {
         Row: {
           Categoria: string | null

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, Camera, CheckCircle2, Package, Plus, Minus, Search, ShoppingCart, X, Clock, Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { FALLAS_POR_FAMILIA, CAUSAS_POR_FAMILIA, FALLAS_GENERICAS, CAUSAS_GENERICAS } from "@/data/diagnosticoOptions";
+// Fallas y Causas ahora se cargan desde la base de datos
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -44,6 +44,11 @@ export default function DiagnosticoInicial() {
   const [hijoPadreMap, setHijoPadreMap] = useState<Map<string, string>>(new Map());
   const [estadoSolicitud, setEstadoSolicitud] = useState<string | null>(null);
   
+  // Fallas y Causas desde base de datos
+  const [fallasDB, setFallasDB] = useState<Array<{id: number, nombre: string, familia_id: number | null}>>([]);
+  const [causasDB, setCausasDB] = useState<Array<{id: number, nombre: string, familia_id: number | null}>>([]);
+  const [familiasDB, setFamiliasDB] = useState<Array<{id: number, Categoria: string | null}>>([]);
+  
   // Paso 3: Fotos y Observaciones
   const [fotos, setFotos] = useState<File[]>([]);
   const [observaciones, setObservaciones] = useState("");
@@ -61,23 +66,72 @@ export default function DiagnosticoInicial() {
   const [showTipoTrabajoDialog, setShowTipoTrabajoDialog] = useState(false);
   const [tipoTrabajo, setTipoTrabajo] = useState<"mantenimiento" | "reparacion" | null>(null);
 
-  // Obtener fallas y causas según la familia del producto
-  const fallasDisponibles = incidente?.familia_producto && FALLAS_POR_FAMILIA[incidente.familia_producto]
-    ? FALLAS_POR_FAMILIA[incidente.familia_producto]
-    : FALLAS_GENERICAS;
+  // Obtener fallas y causas según la familia del producto (desde DB)
+  const fallasDisponibles = useMemo(() => {
+    if (!incidente?.familia_producto || familiasDB.length === 0) {
+      // Sin familia: mostrar todas las fallas sin familia asignada o genéricas
+      return fallasDB.filter(f => !f.familia_id).map(f => f.nombre);
+    }
+    
+    // Buscar el ID de la familia por nombre
+    const familia = familiasDB.find(
+      f => f.Categoria?.toLowerCase() === incidente.familia_producto?.toLowerCase()
+    );
+    
+    if (familia) {
+      const fallasFamilia = fallasDB.filter(f => f.familia_id === familia.id).map(f => f.nombre);
+      if (fallasFamilia.length > 0) return fallasFamilia;
+    }
+    
+    // Fallback: fallas sin familia
+    return fallasDB.filter(f => !f.familia_id).map(f => f.nombre);
+  }, [incidente?.familia_producto, fallasDB, familiasDB]);
 
-  const causasDisponibles = incidente?.familia_producto && CAUSAS_POR_FAMILIA[incidente.familia_producto]
-    ? CAUSAS_POR_FAMILIA[incidente.familia_producto]
-    : CAUSAS_GENERICAS;
+  const causasDisponibles = useMemo(() => {
+    if (!incidente?.familia_producto || familiasDB.length === 0) {
+      return causasDB.filter(c => !c.familia_id).map(c => c.nombre);
+    }
+    
+    const familia = familiasDB.find(
+      f => f.Categoria?.toLowerCase() === incidente.familia_producto?.toLowerCase()
+    );
+    
+    if (familia) {
+      const causasFamilia = causasDB.filter(c => c.familia_id === familia.id).map(c => c.nombre);
+      if (causasFamilia.length > 0) return causasFamilia;
+    }
+    
+    return causasDB.filter(c => !c.familia_id).map(c => c.nombre);
+  }, [incidente?.familia_producto, causasDB, familiasDB]);
 
   useEffect(() => {
     const initDiagnostico = async () => {
-      await fetchIncidente();
-      await verificarSolicitudRepuestos();
+      await Promise.all([
+        fetchIncidente(),
+        fetchFallasYCausas(),
+        verificarSolicitudRepuestos(),
+      ]);
       await cargarBorradorDiagnostico();
     };
     initDiagnostico();
   }, [id]);
+
+  // Cargar fallas y causas desde la base de datos
+  const fetchFallasYCausas = async () => {
+    try {
+      const [fallasRes, causasRes, familiasRes] = await Promise.all([
+        supabase.from('CDS_Fallas').select('id, nombre, familia_id').order('nombre'),
+        supabase.from('CDS_Causas').select('id, nombre, familia_id').order('nombre'),
+        supabase.from('CDS_Familias').select('id, Categoria')
+      ]);
+      
+      if (fallasRes.data) setFallasDB(fallasRes.data);
+      if (causasRes.data) setCausasDB(causasRes.data);
+      if (familiasRes.data) setFamiliasDB(familiasRes.data);
+    } catch (error) {
+      console.error('Error cargando fallas y causas:', error);
+    }
+  };
 
   useEffect(() => {
     if (incidente?.codigo_producto) {

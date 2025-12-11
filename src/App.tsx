@@ -58,6 +58,7 @@ import DetalleIncidenteSAC from "./pages/sac/DetalleIncidenteSAC";
 import ConsultaExistencias from "./pages/sac/ConsultaExistencias";
 import Usuarios from "./pages/admin/Usuarios";
 import FamiliasProductos from "./pages/admin/FamiliasProductos";
+import FallasCausas from "./pages/admin/FallasCausas";
 import RevisionStockCemaco from "./pages/taller/RevisionStockCemaco";
 import AprobacionesStockCemaco from "./pages/taller/AprobacionesStockCemaco";
 import MisGarantias from "./pages/asesor/MisGarantias";
@@ -145,6 +146,7 @@ const App = () => (
               
               {/* Admin Routes */}
               <Route path="/admin/usuarios" element={<Usuarios />} />
+              <Route path="/admin/fallas-causas" element={<FallasCausas />} />
               <Route path="/admin/familias-productos" element={<FamiliasProductos />} />
               
               {/* Asesor Routes */}

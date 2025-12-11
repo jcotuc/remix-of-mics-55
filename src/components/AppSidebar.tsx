@@ -1,4 +1,4 @@
-import { Users, Package, Wrench, FileText, Truck, LogOut, Home, ShoppingCart, DollarSign, ClipboardList, BarChart3, ClipboardCheck, FileSpreadsheet, LogIn, LogOut as LogOutIcon, Send, PackageCheck, AlertTriangle, AlertCircle, MapPin, Calendar, Settings, CheckCircle2, Network, RefreshCw, FolderTree } from "lucide-react";
+import { Users, Package, Wrench, FileText, Truck, LogOut, Home, ShoppingCart, DollarSign, ClipboardList, BarChart3, ClipboardCheck, FileSpreadsheet, LogIn, LogOut as LogOutIcon, Send, PackageCheck, AlertTriangle, AlertCircle, MapPin, Calendar, Settings, CheckCircle2, Network, RefreshCw, FolderTree, ListChecks } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -82,6 +82,7 @@ const menuAreas = {
   admin: [
     { title: "Gestión de Usuarios", url: "/admin/usuarios", icon: Settings },
     { title: "Familias Productos", url: "/admin/familias-productos", icon: FolderTree },
+    { title: "Fallas y Causas", url: "/admin/fallas-causas", icon: ListChecks },
   ],
   asesor: [
     { title: "Mis Garantías", url: "/mis-garantias", icon: Wrench },
