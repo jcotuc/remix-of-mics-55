@@ -66,43 +66,42 @@ export default function DiagnosticoInicial() {
   const [showTipoTrabajoDialog, setShowTipoTrabajoDialog] = useState(false);
   const [tipoTrabajo, setTipoTrabajo] = useState<"mantenimiento" | "reparacion" | null>(null);
 
-  // Obtener fallas y causas según la familia del producto (desde DB)
+  // Obtener fallas según jerarquía: del PADRE (subcategoría) + del ABUELO (categoría general)
   const fallasDisponibles = useMemo(() => {
-    if (!incidente?.familia_producto || familiasDB.length === 0) {
-      // Sin familia: mostrar todas las fallas sin familia asignada o genéricas
-      return fallasDB.filter(f => !f.familia_id).map(f => f.nombre);
+    const fallasSet = new Set<string>();
+    
+    // 1. Fallas del PADRE (subcategoría específica, ej: Rotomartillos)
+    if (productoInfo?.familia_padre_id) {
+      fallasDB.filter(f => f.familia_id === productoInfo.familia_padre_id)
+        .forEach(f => fallasSet.add(f.nombre));
     }
     
-    // Buscar el ID de la familia por nombre
-    const familia = familiasDB.find(
-      f => f.Categoria?.toLowerCase() === incidente.familia_producto?.toLowerCase()
-    );
-    
-    if (familia) {
-      const fallasFamilia = fallasDB.filter(f => f.familia_id === familia.id).map(f => f.nombre);
-      if (fallasFamilia.length > 0) return fallasFamilia;
+    // 2. Fallas del ABUELO (categoría general, ej: Electrica)
+    if (productoInfo?.familia_abuelo_id) {
+      fallasDB.filter(f => f.familia_id === productoInfo.familia_abuelo_id)
+        .forEach(f => fallasSet.add(f.nombre));
     }
     
-    // Fallback: fallas sin familia
-    return fallasDB.filter(f => !f.familia_id).map(f => f.nombre);
-  }, [incidente?.familia_producto, fallasDB, familiasDB]);
+    // 3. Si no hay nada, mostrar fallas sin familia asignada
+    if (fallasSet.size === 0) {
+      fallasDB.filter(f => !f.familia_id).forEach(f => fallasSet.add(f.nombre));
+    }
+    
+    return Array.from(fallasSet).sort();
+  }, [productoInfo?.familia_padre_id, productoInfo?.familia_abuelo_id, fallasDB]);
 
+  // Obtener causas solo del ABUELO (categoría general)
   const causasDisponibles = useMemo(() => {
-    if (!incidente?.familia_producto || familiasDB.length === 0) {
-      return causasDB.filter(c => !c.familia_id).map(c => c.nombre);
+    // Causas solo del ABUELO (ej: Electrica, 2 tiempos)
+    if (productoInfo?.familia_abuelo_id) {
+      const causasAbuelo = causasDB.filter(c => c.familia_id === productoInfo.familia_abuelo_id)
+        .map(c => c.nombre);
+      if (causasAbuelo.length > 0) return causasAbuelo.sort();
     }
     
-    const familia = familiasDB.find(
-      f => f.Categoria?.toLowerCase() === incidente.familia_producto?.toLowerCase()
-    );
-    
-    if (familia) {
-      const causasFamilia = causasDB.filter(c => c.familia_id === familia.id).map(c => c.nombre);
-      if (causasFamilia.length > 0) return causasFamilia;
-    }
-    
-    return causasDB.filter(c => !c.familia_id).map(c => c.nombre);
-  }, [incidente?.familia_producto, causasDB, familiasDB]);
+    // Fallback: causas sin familia asignada
+    return causasDB.filter(c => !c.familia_id).map(c => c.nombre).sort();
+  }, [productoInfo?.familia_abuelo_id, causasDB]);
 
   useEffect(() => {
     const initDiagnostico = async () => {

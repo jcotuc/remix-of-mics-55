@@ -852,6 +852,8 @@ export type Database = {
           es_reingreso: boolean | null
           es_stock_cemaco: boolean | null
           estado_fisico_recepcion: string | null
+          familia_abuelo_id: number | null
+          familia_padre_id: number | null
           familia_producto: string | null
           fecha_ingreso: string
           garantia_manual_id: string | null
@@ -886,6 +888,8 @@ export type Database = {
           es_reingreso?: boolean | null
           es_stock_cemaco?: boolean | null
           estado_fisico_recepcion?: string | null
+          familia_abuelo_id?: number | null
+          familia_padre_id?: number | null
           familia_producto?: string | null
           fecha_ingreso?: string
           garantia_manual_id?: string | null
@@ -920,6 +924,8 @@ export type Database = {
           es_reingreso?: boolean | null
           es_stock_cemaco?: boolean | null
           estado_fisico_recepcion?: string | null
+          familia_abuelo_id?: number | null
+          familia_padre_id?: number | null
           familia_producto?: string | null
           fecha_ingreso?: string
           garantia_manual_id?: string | null
@@ -963,6 +969,20 @@ export type Database = {
             columns: ["embarque_id"]
             isOneToOne: false
             referencedRelation: "embarques"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "incidentes_familia_abuelo_id_fkey"
+            columns: ["familia_abuelo_id"]
+            isOneToOne: false
+            referencedRelation: "CDS_Familias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "incidentes_familia_padre_id_fkey"
+            columns: ["familia_padre_id"]
+            isOneToOne: false
+            referencedRelation: "CDS_Familias"
             referencedColumns: ["id"]
           },
           {
@@ -1307,6 +1327,8 @@ export type Database = {
           created_at: string
           descontinuado: boolean
           descripcion: string
+          familia_abuelo_id: number | null
+          familia_padre_id: number | null
           familia_producto: string | null
           id: string
           updated_at: string
@@ -1318,6 +1340,8 @@ export type Database = {
           created_at?: string
           descontinuado?: boolean
           descripcion: string
+          familia_abuelo_id?: number | null
+          familia_padre_id?: number | null
           familia_producto?: string | null
           id?: string
           updated_at?: string
@@ -1329,12 +1353,29 @@ export type Database = {
           created_at?: string
           descontinuado?: boolean
           descripcion?: string
+          familia_abuelo_id?: number | null
+          familia_padre_id?: number | null
           familia_producto?: string | null
           id?: string
           updated_at?: string
           url_foto?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "productos_familia_abuelo_id_fkey"
+            columns: ["familia_abuelo_id"]
+            isOneToOne: false
+            referencedRelation: "CDS_Familias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "productos_familia_padre_id_fkey"
+            columns: ["familia_padre_id"]
+            isOneToOne: false
+            referencedRelation: "CDS_Familias"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
