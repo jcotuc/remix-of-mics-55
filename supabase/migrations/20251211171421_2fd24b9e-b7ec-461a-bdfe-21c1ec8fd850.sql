@@ -1,0 +1,20 @@
+-- Crear las 18 causas para "4 tiempos" (familia_id = 23)
+INSERT INTO "CDS_Causas" (nombre, familia_id) VALUES
+('mala calibracion', 23),
+('mal ciclo de combustion interna', 23),
+('desgaste', 23),
+('mal uso', 23),
+('falta de lubricacion', 23),
+('carga atrancada', 23),
+('golpe', 23),
+('exceso de oxido', 23),
+('falta de mantenimiento', 23),
+('sellos cristalizados', 23),
+('exceso de polvo', 23),
+('sobrecalentamiento', 23),
+('corto circuito', 23),
+('sobrecarga de capacidad', 23),
+('sobrecarga electrica', 23),
+('falata de limpieza', 23),
+('uso sin agua', 23),
+('piedras o basura en interior', 23);
