@@ -1329,7 +1329,6 @@ export type Database = {
           descripcion: string
           familia_abuelo_id: number | null
           familia_padre_id: number | null
-          familia_producto: string | null
           id: string
           updated_at: string
           url_foto: string | null
@@ -1342,7 +1341,6 @@ export type Database = {
           descripcion: string
           familia_abuelo_id?: number | null
           familia_padre_id?: number | null
-          familia_producto?: string | null
           id?: string
           updated_at?: string
           url_foto?: string | null
@@ -1355,7 +1353,6 @@ export type Database = {
           descripcion?: string
           familia_abuelo_id?: number | null
           familia_padre_id?: number | null
-          familia_producto?: string | null
           id?: string
           updated_at?: string
           url_foto?: string | null
