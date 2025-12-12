@@ -149,19 +149,35 @@ export default function SustitutosRepuestos() {
         const worksheet = workbook.Sheets[sheetName];
         const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
-        // Get column keys from first row (take first 2 columns automatically)
+        // Get column keys from first row
         const keys = Object.keys(jsonData[0] || {});
-        const codigoKey = keys[0]; // Primera columna = código
-        const descripcionKey = keys[1]; // Segunda columna = descripción
+        console.log("Columnas detectadas:", keys);
+        
+        // Section 1: columns 0,1,2 -> padre en columna 2
+        const padreKey1 = keys[2];
+        const descKey1 = keys[1];
+        
+        // Section 2: columns 4,5,6 -> padre en columna 6
+        const padreKey2 = keys[6];
+        const descKey2 = keys[5];
 
-        // Map and deduplicate by codigo
+        // Map and deduplicate by codigo - extracting from BOTH sections
         const padresMap = new Map<string, string>();
         jsonData.forEach((row: any) => {
-          const codigo = String(row[codigoKey] || "").trim();
-          const descripcion = String(row[descripcionKey] || "").trim();
+          // Section 1: padre en columna 2
+          const padre1 = String(row[padreKey1] || "").trim();
+          const desc1 = String(row[descKey1] || "").trim();
+          if (padre1 && !padresMap.has(padre1)) {
+            padresMap.set(padre1, desc1);
+          }
           
-          if (codigo && !padresMap.has(codigo)) {
-            padresMap.set(codigo, descripcion);
+          // Section 2: padre en columna 6
+          if (padreKey2) {
+            const padre2 = String(row[padreKey2] || "").trim();
+            const desc2 = String(row[descKey2] || "").trim();
+            if (padre2 && !padresMap.has(padre2)) {
+              padresMap.set(padre2, desc2);
+            }
           }
         });
 
@@ -175,7 +191,7 @@ export default function SustitutosRepuestos() {
         
         toast({
           title: `${padresUnicos.length} códigos padre únicos encontrados`,
-          description: `Se eliminaron ${jsonData.length - padresUnicos.length} duplicados`
+          description: `Procesadas ambas secciones del Excel`
         });
       } catch (error) {
         console.error("Error parsing Excel:", error);
@@ -243,19 +259,41 @@ export default function SustitutosRepuestos() {
         const worksheet = workbook.Sheets[sheetName];
         const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
-        // Automatic column detection - use first 3 columns
+        // Get column keys from first row
         const keys = Object.keys(jsonData[0] || {});
-        const hijoKey = keys[0];        // First column = child code
-        const descripcionKey = keys[1]; // Second column = description
-        const padreKey = keys[2];       // Third column = parent code
+        console.log("Columnas detectadas para hijos:", keys);
+        
+        // Section 1: columns 0,1,2 (hijo, desc, padre)
+        const hijoKey1 = keys[0];
+        const descKey1 = keys[1];
+        const padreKey1 = keys[2];
+        
+        // Section 2: columns 4,5,6 (hijo, desc, padre)
+        const hijoKey2 = keys[4];
+        const descKey2 = keys[5];
+        const padreKey2 = keys[6];
 
-        console.log("Columnas detectadas para hijos:", { hijoKey, descripcionKey, padreKey });
-
-        const hijos: ImportHijoRow[] = jsonData.map((row: any) => ({
-          hijo: String(row[hijoKey] || "").trim(),
-          descripcion: String(row[descripcionKey] || "").trim(),
-          padre: String(row[padreKey] || "").trim()
-        })).filter(h => h.hijo && h.padre);
+        // Extract children from BOTH sections
+        const hijos: ImportHijoRow[] = [];
+        jsonData.forEach((row: any) => {
+          // Section 1
+          const hijo1 = String(row[hijoKey1] || "").trim();
+          const desc1 = String(row[descKey1] || "").trim();
+          const padre1 = String(row[padreKey1] || "").trim();
+          if (hijo1 && padre1) {
+            hijos.push({ hijo: hijo1, descripcion: desc1, padre: padre1 });
+          }
+          
+          // Section 2
+          if (hijoKey2) {
+            const hijo2 = String(row[hijoKey2] || "").trim();
+            const desc2 = String(row[descKey2] || "").trim();
+            const padre2 = String(row[padreKey2] || "").trim();
+            if (hijo2 && padre2) {
+              hijos.push({ hijo: hijo2, descripcion: desc2, padre: padre2 });
+            }
+          }
+        });
 
         // Validate which parents exist
         const padresCodigos = [...new Set(hijos.map(h => h.padre))];
@@ -273,7 +311,7 @@ export default function SustitutosRepuestos() {
         setShowImportHijosDialog(true);
         
         toast({
-          title: `${hijos.length} hijos encontrados`,
+          title: `${hijos.length} hijos encontrados (ambas secciones)`,
           description: errors.length > 0 
             ? `${errors.length} padres no encontrados en la base de datos`
             : "Todos los padres existen"
