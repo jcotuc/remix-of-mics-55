@@ -191,30 +191,23 @@ export default function SustitutosRepuestos() {
     
     setImporting(true);
     try {
-      // Get max ID to continue sequence
-      const { data: maxIdData } = await supabase
-        .from("repuestos_relaciones")
-        .select("id")
-        .order("id", { ascending: false })
-        .limit(1);
-      
-      let nextId = (maxIdData?.[0]?.id || 0) + 1;
-      
-      // Prepare records
+      // Prepare records - let DB auto-generate IDs
       const records = importPadresData.map(p => ({
-        id: nextId++,
         "Código": p.codigo,
         "Descripción": p.descripcion,
         Padre: null
       }));
       
-      // Insert in batches
+      // Insert in batches using upsert (updates existing, inserts new)
       const batchSize = 500;
       for (let i = 0; i < records.length; i += batchSize) {
         const batch = records.slice(i, i + batchSize);
         const { error } = await supabase
           .from("repuestos_relaciones")
-          .upsert(batch, { onConflict: "Código" });
+          .upsert(batch, { 
+            onConflict: "Código",
+            ignoreDuplicates: false 
+          });
         
         if (error) throw error;
       }
