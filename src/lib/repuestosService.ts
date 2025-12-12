@@ -16,29 +16,36 @@ export interface CodigoPadreResult {
 
 /**
  * Obtiene el código padre de un repuesto desde la tabla repuestos_relaciones
- * Si el código es un "Hijo", devuelve su "Padre"
+ * Si el código tiene un Padre, devuelve ese código padre
  */
 export async function obtenerCodigoPadre(codigoHijo: string): Promise<CodigoPadreResult> {
   try {
-    const { data, error } = await supabase
+    // First find the record for this code
+    const { data: childRecord, error: childError } = await supabase
       .from('repuestos_relaciones')
-      .select('Padre, "Descripción"')
-      .eq('Hijo', codigoHijo)
+      .select('*')
+      .eq('Código', codigoHijo)
       .maybeSingle();
 
-    if (error) {
-      console.error('Error al buscar código padre:', error);
+    if (childError || !childRecord || !childRecord.Padre) {
       return { codigoPadre: null, descripcionPadre: null };
     }
 
-    if (data && data.Padre) {
-      return {
-        codigoPadre: data.Padre,
-        descripcionPadre: data.Descripción || null
-      };
+    // Now get the parent record by its ID
+    const { data: parentRecord, error: parentError } = await supabase
+      .from('repuestos_relaciones')
+      .select('*')
+      .eq('id', childRecord.Padre)
+      .maybeSingle();
+
+    if (parentError || !parentRecord) {
+      return { codigoPadre: null, descripcionPadre: null };
     }
 
-    return { codigoPadre: null, descripcionPadre: null };
+    return {
+      codigoPadre: parentRecord["Código"] || null,
+      descripcionPadre: parentRecord["Descripción"] || null
+    };
   } catch (error) {
     console.error('Error:', error);
     return { codigoPadre: null, descripcionPadre: null };
@@ -121,23 +128,26 @@ export async function obtenerHijosRepuesto(codigoPadre: string) {
  * Verifica si un repuesto tiene alternativas (padre, hermanos o equivalentes)
  */
 export async function tieneAlternativas(codigoRepuesto: string): Promise<boolean> {
-  // Verificar si tiene padre en la tabla de relaciones
-  const { data: relacion } = await supabase
+  // Find the record for this code
+  const { data: record } = await supabase
+    .from('repuestos_relaciones')
+    .select('*')
+    .eq('Código', codigoRepuesto)
+    .maybeSingle();
+
+  if (!record) return false;
+
+  // If it has a parent, it has alternatives (siblings via parent)
+  if (record.Padre) return true;
+
+  // Check if it's a parent (has children)
+  const { data: children } = await supabase
     .from('repuestos_relaciones')
     .select('id')
-    .eq('Hijo', codigoRepuesto)
+    .eq('Padre', record.id)
     .limit(1);
 
-  if (relacion && relacion.length > 0) return true;
-
-  // Verificar si tiene hijos (es un padre)
-  const { data: hijos } = await supabase
-    .from('repuestos_relaciones')
-    .select('id')
-    .eq('Padre', codigoRepuesto)
-    .limit(1);
-
-  return (hijos?.length || 0) > 0;
+  return (children?.length || 0) > 0;
 }
 
 /**

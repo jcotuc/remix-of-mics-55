@@ -20,9 +20,9 @@ interface Repuesto {
 }
 
 interface Relacion {
-  id: string;
-  Padre: string | null;
-  Hijo: string | null;
+  id: number;
+  Padre: number | null;
+  Código: string | null;
   Descripción: string | null;
 }
 
@@ -159,12 +159,22 @@ export default function GestionRelacionesRepuestos() {
       .eq('codigo', codigoPrincipal.trim())
       .maybeSingle();
     
+    // Get max ID
+    const { data: maxIdData } = await supabase
+      .from('repuestos_relaciones')
+      .select('id')
+      .order('id', { ascending: false })
+      .limit(1);
+    
+    const nextId = (maxIdData?.[0]?.id || 0) + 1;
+    
     const { error } = await supabase
       .from('repuestos_relaciones')
       .insert({
-        Padre: codigoPrincipal.trim(),
-        Hijo: codigoEquivalente.trim(),
-        Descripción: repuestoData?.descripcion || null
+        id: nextId,
+        Código: codigoEquivalente.trim(),
+        Descripción: repuestoData?.descripcion || null,
+        Padre: null // Will need parent ID lookup if relating
       });
     
     if (error) {
@@ -191,7 +201,7 @@ export default function GestionRelacionesRepuestos() {
     setLoadingEquivalencias(false);
   };
 
-  const eliminarRelacion = async (id: string) => {
+  const eliminarRelacion = async (id: number) => {
     const { error } = await supabase
       .from('repuestos_relaciones')
       .delete()
@@ -434,11 +444,11 @@ export default function GestionRelacionesRepuestos() {
                       <TableBody>
                         {equivalencias.map((eq) => (
                           <TableRow key={eq.id}>
-                            <TableCell className="font-mono">{eq.Padre}</TableCell>
+                            <TableCell className="font-mono">{eq.Padre || '-'}</TableCell>
                             <TableCell>
                               <ArrowRight className="h-4 w-4 text-muted-foreground" />
                             </TableCell>
-                            <TableCell className="font-mono">{eq.Hijo}</TableCell>
+                            <TableCell className="font-mono">{eq.Código}</TableCell>
                             <TableCell className="text-sm text-muted-foreground">
                               {eq.Descripción || '-'}
                             </TableCell>

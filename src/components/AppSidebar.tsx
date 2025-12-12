@@ -83,6 +83,7 @@ const menuAreas = {
     { title: "Gestión de Usuarios", url: "/admin/usuarios", icon: Settings },
     { title: "Familias Productos", url: "/admin/familias-productos", icon: FolderTree },
     { title: "Fallas y Causas", url: "/admin/fallas-causas", icon: ListChecks },
+    { title: "Sustitutos Repuestos", url: "/admin/sustitutos-repuestos", icon: Network },
   ],
   asesor: [
     { title: "Mis Garantías", url: "/mis-garantias", icon: Wrench },
