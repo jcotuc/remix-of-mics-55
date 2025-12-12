@@ -113,7 +113,7 @@ export default function SustitutosRepuestos() {
     }
   };
 
-  // Importar Padres: extrae códigos únicos de PADRE y les asigna la descripción del primer hijo
+  // Importar Padres: lee archivo con columnas Código y Descripción directamente
   const handlePadresFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -129,18 +129,17 @@ export default function SustitutosRepuestos() {
 
         console.log("Excel raw data (Padres):", jsonData);
 
-        // Map to collect unique parents with their first child's description
+        // Map to collect unique parents - first column is Código, second is Descripción
         const padresMap = new Map<string, string>();
 
         jsonData.forEach((row: any) => {
-          // Get columns: HIJO (first), DESCRIPCIÓN (second), PADRE (third)
           const keys = Object.keys(row);
+          // First column = Código, Second column = Descripción
+          const codigo = keys[0] ? String(row[keys[0]] || "").trim() : "";
           const descripcion = keys[1] ? String(row[keys[1]] || "").trim() : "";
-          const padre = keys[2] ? String(row[keys[2]] || "").trim() : "";
 
-          if (padre && !padresMap.has(padre)) {
-            // Assign description from first child
-            padresMap.set(padre, descripcion);
+          if (codigo && !padresMap.has(codigo)) {
+            padresMap.set(codigo, descripcion);
           }
         });
 
