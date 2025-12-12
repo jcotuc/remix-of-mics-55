@@ -335,16 +335,11 @@ export default function SustitutosRepuestos() {
       
       console.log(`Mapa cargado con ${existingMap.size} registros existentes`);
       
-      // 3. Get max ID for new records
-      let nextId = allExisting?.length 
-        ? Math.max(...allExisting.map(r => r.id)) + 1 
-        : 1;
-      
+      // 3. Get max ID for new records - NO asignar ID manualmente, dejar que la BD lo genere
       // 4. Preparar registros de hijos usando el mapa para obtener ID del padre
       const records = importHijosData
         .filter(h => existingMap.has(h.padre))
         .map(h => ({
-          id: nextId++,
           "Código": h.hijo,
           "Descripción": h.descripcion,
           Padre: existingMap.get(h.padre)
