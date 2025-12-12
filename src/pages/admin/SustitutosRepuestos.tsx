@@ -337,15 +337,14 @@ export default function SustitutosRepuestos() {
       
       // 3. Get max ID for new records - NO asignar ID manualmente, dejar que la BD lo genere
       // 4. Preparar registros de hijos usando el mapa para obtener ID del padre
-      const records = importHijosData
-        .filter(h => existingMap.has(h.padre))
-        .map(h => ({
-          "Código": h.hijo,
-          "Descripción": h.descripcion,
-          Padre: existingMap.get(h.padre)
-        }));
+      const records = importHijosData.map(h => ({
+        "Código": h.hijo,
+        "Descripción": h.descripcion,
+        // Si el padre existe en el mapa, usamos su id; si no, queda null (sin relación aún)
+        Padre: existingMap.get(h.padre) ?? null
+      }));
       
-      const skipped = importHijosData.filter(h => !existingMap.has(h.padre)).length;
+      const padresSinRelacion = importHijosData.filter(h => !existingMap.has(h.padre)).length;
       
       // 5. Insertar en batches
       const batchSize = 500;
@@ -360,8 +359,8 @@ export default function SustitutosRepuestos() {
       
       toast({
         title: "Hijos importados correctamente",
-        description: `${records.length} registros creados` + 
-          (skipped > 0 ? `, ${skipped} omitidos por padre no encontrado` : "")
+        description: `${records.length} registros creados` +
+          (padresSinRelacion > 0 ? `, ${padresSinRelacion} sin padre encontrado (Padre NULL)` : "")
       });
       
       setShowImportHijosDialog(false);
