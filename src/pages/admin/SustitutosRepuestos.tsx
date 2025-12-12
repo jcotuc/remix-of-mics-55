@@ -295,32 +295,16 @@ export default function SustitutosRepuestos() {
           }
         });
 
-        // Cargar TODOS los registros existentes a un mapa (igual que FamiliasProductos)
-        const { data: allExisting } = await supabase
-          .from("repuestos_relaciones")
-          .select("*");
-        
-        const existingMap = new Map<string, number>();
-        allExisting?.forEach(r => {
-          if (r["Código"]) {
-            existingMap.set(r["Código"], r.id);
-          }
-        });
-        
-        // Validar qué padres existen en el mapa
+        // Solo previsualizar hijos; la validación real se hará en handleImportHijos usando el mapa en memoria
         const padresCodigos = [...new Set(hijos.map(h => h.padre))];
-        const existingSet = new Set(padresCodigos.filter(p => existingMap.has(p)));
-        const errors = padresCodigos.filter(p => !existingSet.has(p));
-        
-        setHijosErrors(errors);
+
+        setHijosErrors([]);
         setImportHijosData(hijos);
         setShowImportHijosDialog(true);
         
         toast({
           title: `${hijos.length} hijos encontrados (ambas secciones)`,
-          description: errors.length > 0 
-            ? `${errors.length} padres no encontrados en la base de datos`
-            : "Todos los padres existen"
+          description: `Se detectaron ${padresCodigos.length} códigos padre en el archivo`
         });
       } catch (error) {
         console.error("Error parsing Excel:", error);
