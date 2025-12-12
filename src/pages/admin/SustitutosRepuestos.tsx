@@ -1,13 +1,33 @@
 import { useState, useEffect, useRef } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Upload, Edit, Trash2, Search, Plus, Link, GitBranch, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
-import { Upload, Trash2, Plus, Search, FileUp, Users, GitBranch, Loader2, AlertTriangle } from "lucide-react";
 import * as XLSX from "xlsx";
 
 interface Relacion {
@@ -15,16 +35,17 @@ interface Relacion {
   Código: string | null;
   Descripción: string | null;
   Padre: number | null;
-  padre_codigo?: string | null;
 }
 
-interface ImportPadreRow {
+interface ImportRow {
+  id: number;
+  Código: string;
+  Descripción: string;
+  Padre?: number | null;
+}
+
+interface RelacionRow {
   codigo: string;
-  descripcion: string;
-}
-
-interface ImportHijoRow {
-  hijo: string;
   descripcion: string;
   padre: string;
 }
@@ -33,588 +54,683 @@ export default function SustitutosRepuestos() {
   const [relaciones, setRelaciones] = useState<Relacion[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [page, setPage] = useState(1);
-  const [totalCount, setTotalCount] = useState(0);
-  const [stats, setStats] = useState({ total: 0, padres: 0, hijos: 0 });
-  const pageSize = 50;
-  
-  // Import states
-  const [showImportPadresDialog, setShowImportPadresDialog] = useState(false);
-  const [showImportHijosDialog, setShowImportHijosDialog] = useState(false);
-  const [showVaciarDialog, setShowVaciarDialog] = useState(false);
+  const [showImportDialog, setShowImportDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
   const [showAddDialog, setShowAddDialog] = useState(false);
-  const [importPadresData, setImportPadresData] = useState<ImportPadreRow[]>([]);
-  const [importHijosData, setImportHijosData] = useState<ImportHijoRow[]>([]);
-  const [hijosErrors, setHijosErrors] = useState<string[]>([]);
+  const [importData, setImportData] = useState<ImportRow[]>([]);
   const [importing, setImporting] = useState(false);
-  
-  // Manual add form
+  const [selectedRelacion, setSelectedRelacion] = useState<Relacion | null>(null);
+  const [editPadre, setEditPadre] = useState<string>("");
   const [newCodigo, setNewCodigo] = useState("");
   const [newDescripcion, setNewDescripcion] = useState("");
-  const [newPadreCodigo, setNewPadreCodigo] = useState("");
-  
-  const fileInputPadresRef = useRef<HTMLInputElement>(null);
-  const fileInputHijosRef = useRef<HTMLInputElement>(null);
+  const [newPadre, setNewPadre] = useState<string>("");
+  const [showRelacionesDialog, setShowRelacionesDialog] = useState(false);
+  const [relacionesData, setRelacionesData] = useState<RelacionRow[]>([]);
+  const [importingRelaciones, setImportingRelaciones] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const relacionesInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+
+  // Pagination
+  const [page, setPage] = useState(1);
+  const pageSize = 50;
 
   useEffect(() => {
     fetchRelaciones();
-    fetchStats();
-  }, [page, searchTerm]);
-
-  const fetchStats = async () => {
-    const { count: total } = await supabase
-      .from("repuestos_relaciones")
-      .select("*", { count: "exact", head: true });
-    
-    const { count: padres } = await supabase
-      .from("repuestos_relaciones")
-      .select("*", { count: "exact", head: true })
-      .is("Padre", null);
-    
-    const { count: hijos } = await supabase
-      .from("repuestos_relaciones")
-      .select("*", { count: "exact", head: true })
-      .not("Padre", "is", null);
-    
-    setStats({
-      total: total || 0,
-      padres: padres || 0,
-      hijos: hijos || 0
-    });
-  };
+  }, []);
 
   const fetchRelaciones = async () => {
-    setLoading(true);
     try {
-      let query = supabase
+      setLoading(true);
+      const { data, error } = await supabase
         .from("repuestos_relaciones")
-        .select("*", { count: "exact" });
-      
-      if (searchTerm) {
-        query = query.or(`Código.ilike.%${searchTerm}%,Descripción.ilike.%${searchTerm}%`);
-      }
-      
-      const { data, count, error } = await query
-        .order("id", { ascending: true })
-        .range((page - 1) * pageSize, page * pageSize - 1);
-      
+        .select("*")
+        .order("id", { ascending: true });
+
       if (error) throw error;
-      
-      // Get parent codes for display
-      const dataWithParents: Relacion[] = (data || []).map(d => ({
-        id: d.id,
-        Código: d["Código"],
-        Descripción: d["Descripción"],
-        Padre: d.Padre,
-        padre_codigo: null
-      }));
-      
-      if (dataWithParents.length > 0) {
-        const parentIds = dataWithParents.filter(r => r.Padre).map(r => r.Padre) as number[];
-        if (parentIds.length > 0) {
-          const { data: parents } = await supabase
-            .from("repuestos_relaciones")
-            .select("*")
-            .in("id", parentIds);
-          
-          const parentMap = new Map(parents?.map(p => [p.id, p["Código"]]) || []);
-          dataWithParents.forEach((r) => {
-            r.padre_codigo = r.Padre ? parentMap.get(r.Padre) || null : null;
-          });
-        }
-      }
-      
-      setRelaciones(dataWithParents);
-      setTotalCount(count || 0);
-    } catch (error) {
-      console.error("Error fetching relaciones:", error);
-      toast({ title: "Error al cargar relaciones", variant: "destructive" });
+      setRelaciones(data || []);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
   };
 
-  // ========== IMPORTAR PADRES ==========
-  const handlePadresFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // ========== IMPORTAR PADRES (códigos principales) ==========
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     const reader = new FileReader();
     reader.onload = (event) => {
       try {
-        const data = new Uint8Array(event.target?.result as ArrayBuffer);
-        const workbook = XLSX.read(data, { type: "array" });
+        const data = event.target?.result;
+        const workbook = XLSX.read(data, { type: "binary" });
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
-        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+        const jsonData = XLSX.utils.sheet_to_json<any>(worksheet);
 
-        // Get column keys from first row
-        const keys = Object.keys(jsonData[0] || {});
-        console.log("Columnas detectadas:", keys);
-        
-        // Section 1: columns 0,1,2 -> padre en columna 2
-        const padreKey1 = keys[2];
-        const descKey1 = keys[1];
-        
-        // Section 2: columns 4,5,6 -> padre en columna 6
-        const padreKey2 = keys[6];
-        const descKey2 = keys[5];
+        console.log("Excel raw data:", jsonData);
+        console.log("Columnas encontradas:", jsonData.length > 0 ? Object.keys(jsonData[0]) : "ninguna");
 
-        // Map and deduplicate by codigo - extracting from BOTH sections
-        const padresMap = new Map<string, string>();
-        jsonData.forEach((row: any) => {
-          // Section 1: padre en columna 2
-          const padre1 = String(row[padreKey1] || "").trim();
-          const desc1 = String(row[descKey1] || "").trim();
-          if (padre1 && !padresMap.has(padre1)) {
-            padresMap.set(padre1, desc1);
-          }
-          
-          // Section 2: padre en columna 6
-          if (padreKey2) {
-            const padre2 = String(row[padreKey2] || "").trim();
-            const desc2 = String(row[descKey2] || "").trim();
-            if (padre2 && !padresMap.has(padre2)) {
-              padresMap.set(padre2, desc2);
+        // Función para obtener valor de columna (flexible con nombres)
+        const getColumnValue = (row: any, possibleNames: string[]) => {
+          for (const name of possibleNames) {
+            if (row[name] !== undefined && row[name] !== null && row[name] !== "") {
+              return row[name];
             }
           }
+          return null;
+        };
+
+        // Get max existing ID for auto-generation
+        const maxExistingId = relaciones.length > 0 ? Math.max(...relaciones.map(r => r.id)) : 0;
+        let autoId = maxExistingId;
+
+        // Map data to expected format
+        const mappedData: ImportRow[] = jsonData.map((row: any) => {
+          // Try to get ID from various column names, or auto-generate
+          let rowId = getColumnValue(row, ['id', 'ID', 'Id', 'Numero', 'numero', 'No', '#']);
+          if (!rowId) {
+            autoId++;
+            rowId = autoId;
+          }
+
+          // Try to get Código from various column names
+          const codigo = getColumnValue(row, [
+            'Código', 'codigo', 'CODIGO', 'Codigo',
+            'Code', 'code', 'CODE',
+            'SKU', 'sku', 'Sku'
+          ]);
+
+          // Try to get Descripción from various column names
+          const descripcion = getColumnValue(row, [
+            'Descripción', 'descripcion', 'DESCRIPCION', 'Descripcion',
+            'Description', 'description', 'DESCRIPTION',
+            'Nombre', 'nombre', 'NOMBRE'
+          ]);
+
+          return {
+            id: Number(rowId),
+            Código: String(codigo || "").trim(),
+            Descripción: String(descripcion || "").trim(),
+            Padre: null, // Padres no tienen padre
+          };
         });
 
-        const padresUnicos: ImportPadreRow[] = Array.from(padresMap.entries()).map(([codigo, descripcion]) => ({
-          codigo,
-          descripcion
-        }));
+        console.log("Mapped data:", mappedData);
 
-        setImportPadresData(padresUnicos);
-        setShowImportPadresDialog(true);
-        
-        toast({
-          title: `${padresUnicos.length} códigos padre únicos encontrados`,
-          description: `Procesadas ambas secciones del Excel`
+        // Filter valid rows and remove duplicates by Código (case-insensitive)
+        const seen = new Set<string>();
+        const uniqueData = mappedData.filter(row => {
+          if (!row.Código) return false;
+          const key = row.Código.toLowerCase();
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
         });
-      } catch (error) {
+
+        console.log("Unique data:", uniqueData);
+
+        if (uniqueData.length === 0) {
+          toast({
+            title: "Sin datos válidos",
+            description: "No se encontraron códigos válidos. Asegúrese de tener una columna llamada 'Código' o 'codigo'.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        setImportData(uniqueData);
+        setShowImportDialog(true);
+      } catch (error: any) {
         console.error("Error parsing Excel:", error);
-        toast({ title: "Error al leer el archivo", variant: "destructive" });
+        toast({
+          title: "Error al leer archivo",
+          description: error.message,
+          variant: "destructive",
+        });
       }
     };
-    reader.readAsArrayBuffer(file);
-    if (fileInputPadresRef.current) fileInputPadresRef.current.value = "";
+    reader.readAsBinaryString(file);
+    
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   };
 
-  const handleImportPadres = async () => {
-    if (importPadresData.length === 0) return;
-    
-    setImporting(true);
+  const handleImport = async () => {
+    if (importData.length === 0) return;
+
     try {
-      // Prepare records - let DB auto-generate IDs
-      const records = importPadresData.map(p => ({
-        "Código": p.codigo,
-        "Descripción": p.descripcion,
-        Padre: null
-      }));
-      
-      // Insert in batches using upsert (updates existing, inserts new)
+      setImporting(true);
+
+      // Insert in batches of 500
       const batchSize = 500;
-      for (let i = 0; i < records.length; i += batchSize) {
-        const batch = records.slice(i, i + batchSize);
+      for (let i = 0; i < importData.length; i += batchSize) {
+        const batch = importData.slice(i, i + batchSize);
         const { error } = await supabase
           .from("repuestos_relaciones")
-          .upsert(batch, { 
-            onConflict: "Código",
-            ignoreDuplicates: false 
-          });
-        
+          .upsert(batch, { onConflict: "id" });
+
         if (error) throw error;
       }
-      
+
       toast({
-        title: "Padres importados correctamente",
-        description: `${records.length} registros creados`
+        title: "Importación exitosa",
+        description: `Se importaron ${importData.length} códigos padre`,
       });
-      
-      setShowImportPadresDialog(false);
-      setImportPadresData([]);
+
+      setShowImportDialog(false);
+      setImportData([]);
       fetchRelaciones();
-      fetchStats();
-    } catch (error) {
-      console.error("Error importing padres:", error);
-      toast({ title: "Error al importar padres", variant: "destructive" });
+    } catch (error: any) {
+      toast({
+        title: "Error al importar",
+        description: error.message,
+        variant: "destructive",
+      });
     } finally {
       setImporting(false);
     }
   };
 
-  // ========== IMPORTAR HIJOS ==========
-  const handleHijosFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  // ========== IMPORTAR RELACIONES (hijos con padres) ==========
+  const handleRelacionesFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = async (event) => {
+    reader.onload = (event) => {
       try {
-        const data = new Uint8Array(event.target?.result as ArrayBuffer);
-        const workbook = XLSX.read(data, { type: "array" });
+        const data = event.target?.result;
+        const workbook = XLSX.read(data, { type: "binary" });
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
-        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+        const jsonData = XLSX.utils.sheet_to_json<any>(worksheet);
 
-        // Get column keys from first row
-        const keys = Object.keys(jsonData[0] || {});
-        console.log("Columnas detectadas para hijos:", keys);
-        
-        // Section 1: columns 0,1,2 (hijo, desc, padre)
-        const hijoKey1 = keys[0];
-        const descKey1 = keys[1];
-        const padreKey1 = keys[2];
-        
-        // Section 2: columns 4,5,6 (hijo, desc, padre)
-        const hijoKey2 = keys[4];
-        const descKey2 = keys[5];
-        const padreKey2 = keys[6];
+        console.log("Relaciones raw data:", jsonData);
 
-        // Extract children from BOTH sections
-        const hijos: ImportHijoRow[] = [];
-        jsonData.forEach((row: any) => {
-          // Section 1
-          const hijo1 = String(row[hijoKey1] || "").trim();
-          const desc1 = String(row[descKey1] || "").trim();
-          const padre1 = String(row[padreKey1] || "").trim();
-          if (hijo1 && padre1) {
-            hijos.push({ hijo: hijo1, descripcion: desc1, padre: padre1 });
-          }
-          
-          // Section 2
-          if (hijoKey2) {
-            const hijo2 = String(row[hijoKey2] || "").trim();
-            const desc2 = String(row[descKey2] || "").trim();
-            const padre2 = String(row[padreKey2] || "").trim();
-            if (hijo2 && padre2) {
-              hijos.push({ hijo: hijo2, descripcion: desc2, padre: padre2 });
+        const getColumnValue = (row: any, possibleNames: string[]) => {
+          for (const name of possibleNames) {
+            if (row[name] !== undefined && row[name] !== null && row[name] !== "") {
+              return String(row[name]).trim();
             }
           }
+          return null;
+        };
+
+        const mappedData: RelacionRow[] = jsonData.map((row: any) => {
+          const codigo = getColumnValue(row, [
+            'Código', 'codigo', 'CODIGO', 'Codigo',
+            'Hijo', 'hijo', 'HIJO',
+            'Code', 'code', 'CODE',
+            'Sustituto', 'sustituto', 'SUSTITUTO'
+          ]);
+          const descripcion = getColumnValue(row, [
+            'Descripción', 'descripcion', 'DESCRIPCION', 'Descripcion',
+            'Description', 'description',
+            'Nombre', 'nombre'
+          ]);
+          const padre = getColumnValue(row, [
+            'Padre', 'padre', 'PADRE',
+            'Parent', 'parent',
+            'Código Padre', 'codigo_padre',
+            'Principal', 'principal'
+          ]);
+          
+          return {
+            codigo: codigo || "",
+            descripcion: descripcion || "",
+            padre: padre || "",
+          };
+        }).filter((row: RelacionRow) => row.codigo && row.padre);
+
+        // Remove duplicates by codigo
+        const seen = new Set<string>();
+        const uniqueData = mappedData.filter(row => {
+          const key = row.codigo.toLowerCase();
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
         });
 
-        // Solo previsualizar hijos; la validación real se hará en handleImportHijos usando el mapa en memoria
-        const padresCodigos = [...new Set(hijos.map(h => h.padre))];
+        console.log("Relaciones mapped:", uniqueData);
 
-        setHijosErrors([]);
-        setImportHijosData(hijos);
-        setShowImportHijosDialog(true);
-        
-        toast({
-          title: `${hijos.length} hijos encontrados (ambas secciones)`,
-          description: `Se detectaron ${padresCodigos.length} códigos padre en el archivo`
-        });
-      } catch (error) {
+        if (uniqueData.length === 0) {
+          toast({
+            title: "Sin datos válidos",
+            description: "No se encontraron relaciones válidas. Asegúrese de tener columnas 'Código' (o 'Hijo') y 'Padre'.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        setRelacionesData(uniqueData);
+        setShowRelacionesDialog(true);
+      } catch (error: any) {
         console.error("Error parsing Excel:", error);
-        toast({ title: "Error al leer el archivo", variant: "destructive" });
+        toast({
+          title: "Error al leer archivo",
+          description: error.message,
+          variant: "destructive",
+        });
       }
     };
-    reader.readAsArrayBuffer(file);
-    if (fileInputHijosRef.current) fileInputHijosRef.current.value = "";
-  };
-
-  const handleImportHijos = async () => {
-    if (importHijosData.length === 0) return;
+    reader.readAsBinaryString(file);
     
-    setImporting(true);
-    try {
-      // 1. Cargar TODOS los registros existentes a un mapa en memoria (igual que FamiliasProductos)
-      const { data: allExisting } = await supabase
-        .from("repuestos_relaciones")
-        .select("*");
-      
-      // 2. Crear mapa: código -> id
-      const existingMap = new Map<string, number>();
-      allExisting?.forEach(r => {
-        if (r["Código"]) {
-          existingMap.set(r["Código"], r.id);
-        }
-      });
-      
-      console.log(`Mapa cargado con ${existingMap.size} registros existentes`);
-      
-      // 3. Get max ID for new records - NO asignar ID manualmente, dejar que la BD lo genere
-      // 4. Preparar registros de hijos usando el mapa para obtener ID del padre
-      const records = importHijosData.map(h => ({
-        "Código": h.hijo,
-        "Descripción": h.descripcion,
-        // Si el padre existe en el mapa, usamos su id; si no, queda null (sin relación aún)
-        Padre: existingMap.get(h.padre) ?? null
-      }));
-      
-      const padresSinRelacion = importHijosData.filter(h => !existingMap.has(h.padre)).length;
-      
-      // 5. Insertar en batches
-      const batchSize = 500;
-      for (let i = 0; i < records.length; i += batchSize) {
-        const batch = records.slice(i, i + batchSize);
-        const { error } = await supabase
-          .from("repuestos_relaciones")
-          .insert(batch);
-        
-        if (error) throw error;
-      }
-      
-      toast({
-        title: "Hijos importados correctamente",
-        description: `${records.length} registros creados` +
-          (padresSinRelacion > 0 ? `, ${padresSinRelacion} sin padre encontrado (Padre NULL)` : "")
-      });
-      
-      setShowImportHijosDialog(false);
-      setImportHijosData([]);
-      setHijosErrors([]);
-      fetchRelaciones();
-      fetchStats();
-    } catch (error) {
-      console.error("Error importing hijos:", error);
-      toast({ title: "Error al importar hijos", variant: "destructive" });
-    } finally {
-      setImporting(false);
+    if (relacionesInputRef.current) {
+      relacionesInputRef.current.value = "";
     }
   };
 
-  // ========== VACIAR TABLA ==========
-  const handleVaciarTabla = async () => {
-    setImporting(true);
+  const handleImportRelaciones = async () => {
+    if (relacionesData.length === 0) return;
+
     try {
+      setImportingRelaciones(true);
+      
+      // Get current max ID
+      let maxId = relaciones.length > 0 ? Math.max(...relaciones.map(r => r.id)) : 0;
+      
+      // Create a map of existing codes (case-insensitive)
+      const existingMap = new Map<string, Relacion>();
+      relaciones.forEach(r => {
+        if (r.Código) {
+          existingMap.set(r.Código.toLowerCase(), r);
+        }
+      });
+      
+      // First pass: collect all unique padres and códigos
+      const allPadres = new Set<string>();
+      const allCodigos = new Set<string>();
+      
+      relacionesData.forEach(row => {
+        allPadres.add(row.padre.toLowerCase());
+        allCodigos.add(row.codigo.toLowerCase());
+      });
+      
+      // Create padres that don't exist (as root codes with Padre = null)
+      const newPadres: { id: number; Código: string; Descripción: string; Padre: number | null }[] = [];
+      
+      for (const padreLower of allPadres) {
+        if (!existingMap.has(padreLower)) {
+          maxId++;
+          const padreOriginal = relacionesData.find(r => r.padre.toLowerCase() === padreLower)?.padre || "";
+          newPadres.push({
+            id: maxId,
+            Código: padreOriginal,
+            Descripción: `Padre: ${padreOriginal}`,
+            Padre: null
+          });
+          existingMap.set(padreLower, { id: maxId, Código: padreOriginal, Descripción: `Padre: ${padreOriginal}`, Padre: null });
+        }
+      }
+      
+      // Create códigos (hijos) that don't exist
+      const newCodigos: { id: number; Código: string; Descripción: string; Padre: number | null }[] = [];
+      
+      for (const row of relacionesData) {
+        const codigoLower = row.codigo.toLowerCase();
+        const padreLower = row.padre.toLowerCase();
+        const padreId = existingMap.get(padreLower)?.id || null;
+        
+        if (!existingMap.has(codigoLower)) {
+          maxId++;
+          newCodigos.push({
+            id: maxId,
+            Código: row.codigo,
+            Descripción: row.descripcion,
+            Padre: padreId
+          });
+          existingMap.set(codigoLower, { id: maxId, Código: row.codigo, Descripción: row.descripcion, Padre: padreId });
+        }
+      }
+      
+      // Insert new padres first
+      if (newPadres.length > 0) {
+        const batchSize = 500;
+        for (let i = 0; i < newPadres.length; i += batchSize) {
+          const batch = newPadres.slice(i, i + batchSize);
+          const { error } = await supabase.from("repuestos_relaciones").insert(batch);
+          if (error) throw error;
+        }
+      }
+      
+      // Insert new códigos (hijos)
+      if (newCodigos.length > 0) {
+        const batchSize = 500;
+        for (let i = 0; i < newCodigos.length; i += batchSize) {
+          const batch = newCodigos.slice(i, i + batchSize);
+          const { error } = await supabase.from("repuestos_relaciones").insert(batch);
+          if (error) throw error;
+        }
+      }
+      
+      // Update existing códigos with their parent relationships
+      const updates: { id: number; Padre: number }[] = [];
+      
+      for (const row of relacionesData) {
+        const codigoLower = row.codigo.toLowerCase();
+        const padreLower = row.padre.toLowerCase();
+        const codigo = existingMap.get(codigoLower);
+        const padre = existingMap.get(padreLower);
+        
+        if (codigo && padre && !newCodigos.find(nc => nc.id === codigo.id)) {
+          // This is an existing código that needs its parent updated
+          if (codigo.Padre !== padre.id) {
+            updates.push({ id: codigo.id, Padre: padre.id });
+          }
+        }
+      }
+      
+      // Apply updates
+      for (const update of updates) {
+        await supabase
+          .from("repuestos_relaciones")
+          .update({ Padre: update.Padre })
+          .eq("id", update.id);
+      }
+
+      toast({
+        title: "Importación exitosa",
+        description: `Se crearon ${newPadres.length} padres, ${newCodigos.length} hijos y se actualizaron ${updates.length} relaciones`,
+      });
+
+      setShowRelacionesDialog(false);
+      setRelacionesData([]);
+      fetchRelaciones();
+    } catch (error: any) {
+      toast({
+        title: "Error al importar",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setImportingRelaciones(false);
+    }
+  };
+
+  // ========== EDITAR ==========
+  const handleEditClick = (relacion: Relacion) => {
+    setSelectedRelacion(relacion);
+    setEditPadre(relacion.Padre?.toString() || "none");
+    setShowEditDialog(true);
+  };
+
+  const handleUpdatePadre = async () => {
+    if (!selectedRelacion) return;
+
+    try {
+      const newPadreValue = editPadre === "none" ? null : Number(editPadre);
+      
+      // Prevent circular reference
+      if (newPadreValue === selectedRelacion.id) {
+        toast({
+          title: "Error",
+          description: "Un código no puede ser su propio padre",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const { error } = await supabase
         .from("repuestos_relaciones")
-        .delete()
-        .neq("id", 0); // Delete all
-      
+        .update({ Padre: newPadreValue })
+        .eq("id", selectedRelacion.id);
+
       if (error) throw error;
-      
-      toast({ title: "Tabla vaciada correctamente" });
-      setShowVaciarDialog(false);
+
+      toast({
+        title: "Actualizado",
+        description: "Relación padre actualizada correctamente",
+      });
+
+      setShowEditDialog(false);
       fetchRelaciones();
-      fetchStats();
-    } catch (error) {
-      console.error("Error vaciando tabla:", error);
-      toast({ title: "Error al vaciar tabla", variant: "destructive" });
-    } finally {
-      setImporting(false);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
     }
   };
 
   // ========== AGREGAR MANUAL ==========
-  const handleAddManual = async () => {
-    if (!newCodigo || !newDescripcion) {
-      toast({ title: "Código y descripción son requeridos", variant: "destructive" });
+  const handleAddCodigo = async () => {
+    if (!newCodigo.trim()) {
+      toast({
+        title: "Error",
+        description: "El código es requerido",
+        variant: "destructive",
+      });
       return;
     }
-    
-    setImporting(true);
+
+    // Verificar duplicados
+    const exists = relaciones.some(r => r.Código?.toLowerCase() === newCodigo.trim().toLowerCase());
+    if (exists) {
+      toast({
+        title: "Error",
+        description: "Ya existe un registro con ese código",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
-      let padreId = null;
-      
-      if (newPadreCodigo) {
-        const { data: padreData } = await supabase
-          .from("repuestos_relaciones")
-          .select("id")
-          .eq("Código", newPadreCodigo)
-          .is("Padre", null)
-          .single();
-        
-        if (!padreData) {
-          toast({ title: "Código padre no encontrado", variant: "destructive" });
-          setImporting(false);
-          return;
-        }
-        padreId = padreData.id;
-      }
-      
-      // Get next ID
-      const { data: maxIdData } = await supabase
-        .from("repuestos_relaciones")
-        .select("id")
-        .order("id", { ascending: false })
-        .limit(1);
-      
-      const nextId = (maxIdData?.[0]?.id || 0) + 1;
+      // Get max ID
+      const maxId = relaciones.length > 0 ? Math.max(...relaciones.map(r => r.id)) : 0;
       
       const { error } = await supabase
         .from("repuestos_relaciones")
         .insert({
-          id: nextId,
-          "Código": newCodigo,
-          "Descripción": newDescripcion,
-          Padre: padreId
+          id: maxId + 1,
+          "Código": newCodigo.trim(),
+          "Descripción": newDescripcion.trim(),
+          Padre: newPadre === "none" ? null : Number(newPadre),
         });
-      
+
       if (error) throw error;
-      
-      toast({ title: "Registro agregado correctamente" });
+
+      toast({
+        title: "Código creado",
+        description: `Se creó el código "${newCodigo}"`,
+      });
+
       setShowAddDialog(false);
       setNewCodigo("");
       setNewDescripcion("");
-      setNewPadreCodigo("");
+      setNewPadre("");
       fetchRelaciones();
-      fetchStats();
-    } catch (error) {
-      console.error("Error adding record:", error);
-      toast({ title: "Error al agregar registro", variant: "destructive" });
-    } finally {
-      setImporting(false);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
     }
   };
 
   // ========== ELIMINAR ==========
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (relacion: Relacion) => {
+    // Check if this has children
+    const hasChildren = relaciones.some(r => r.Padre === relacion.id);
+    if (hasChildren) {
+      toast({
+        title: "No se puede eliminar",
+        description: "Este código tiene hijos asociados. Elimine primero los hijos.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!confirm(`¿Está seguro de eliminar el código "${relacion.Código}"?`)) return;
+
     try {
-      // Check if has children
-      const { count } = await supabase
-        .from("repuestos_relaciones")
-        .select("*", { count: "exact", head: true })
-        .eq("Padre", id);
-      
-      if (count && count > 0) {
-        toast({
-          title: "No se puede eliminar",
-          description: "Este código tiene hijos asociados",
-          variant: "destructive"
-        });
-        return;
-      }
-      
       const { error } = await supabase
         .from("repuestos_relaciones")
         .delete()
-        .eq("id", id);
-      
+        .eq("id", relacion.id);
+
       if (error) throw error;
-      
-      toast({ title: "Registro eliminado" });
+
+      toast({
+        title: "Eliminado",
+        description: "Registro eliminado correctamente",
+      });
+
       fetchRelaciones();
-      fetchStats();
-    } catch (error) {
-      console.error("Error deleting:", error);
-      toast({ title: "Error al eliminar", variant: "destructive" });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
     }
   };
 
-  const totalPages = Math.ceil(totalCount / pageSize);
+  const getPadreNombre = (padreId: number | null) => {
+    if (!padreId) return "-";
+    const padre = relaciones.find(r => r.id === padreId);
+    return padre?.Código || `ID: ${padreId}`;
+  };
+
+  const getHijosCount = (relacionId: number) => {
+    return relaciones.filter(r => r.Padre === relacionId).length;
+  };
+
+  // Get root codes (padres) for select options
+  const padreOptions = relaciones.filter(r => !r.Padre);
+
+  const filteredRelaciones = relaciones.filter(r =>
+    r.Código?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    r.Descripción?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    r.id.toString().includes(searchTerm)
+  );
+
+  // Pagination
+  const totalPages = Math.ceil(filteredRelaciones.length / pageSize);
+  const paginatedRelaciones = filteredRelaciones.slice((page - 1) * pageSize, page * pageSize);
 
   return (
     <div className="container mx-auto p-4 md:p-6 space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-foreground">Sustitutos de Repuestos</h1>
-          <p className="text-muted-foreground">Gestión de relaciones padre-hijo entre códigos de repuestos</p>
+          <h1 className="text-2xl md:text-3xl font-bold text-foreground flex items-center gap-2">
+            <GitBranch className="h-7 w-7 text-primary" />
+            Sustitutos de Repuestos
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            Gestión de códigos padre-hijo y sustitutos
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx,.xls,.csv"
+            onChange={handleFileUpload}
+            className="hidden"
+          />
+          <input
+            ref={relacionesInputRef}
+            type="file"
+            accept=".xlsx,.xls,.csv"
+            onChange={handleRelacionesFileUpload}
+            className="hidden"
+          />
+          <Button
+            onClick={() => fileInputRef.current?.click()}
+            variant="outline"
+          >
+            <Upload className="h-4 w-4 mr-2" />
+            Importar Padres
+          </Button>
+          <Button
+            onClick={() => relacionesInputRef.current?.click()}
+            variant="outline"
+          >
+            <Link className="h-4 w-4 mr-2" />
+            Importar Relaciones
+          </Button>
+          <Button onClick={() => setShowAddDialog(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Nuevo Código
+          </Button>
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {/* Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-primary/10 rounded-lg">
-                <GitBranch className="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Total Registros</p>
-                <p className="text-2xl font-bold">{stats.total.toLocaleString()}</p>
-              </div>
-            </div>
+          <CardContent className="p-4">
+            <div className="text-2xl font-bold text-primary">{relaciones.length}</div>
+            <div className="text-sm text-muted-foreground">Total Códigos</div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-500/10 rounded-lg">
-                <Users className="h-6 w-6 text-blue-500" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Códigos Padre</p>
-                <p className="text-2xl font-bold">{stats.padres.toLocaleString()}</p>
-              </div>
+          <CardContent className="p-4">
+            <div className="text-2xl font-bold text-chart-2">
+              {relaciones.filter(r => !r.Padre).length}
             </div>
+            <div className="text-sm text-muted-foreground">Códigos Padre</div>
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-green-500/10 rounded-lg">
-                <GitBranch className="h-6 w-6 text-green-500" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Códigos Hijo</p>
-                <p className="text-2xl font-bold">{stats.hijos.toLocaleString()}</p>
-              </div>
+          <CardContent className="p-4">
+            <div className="text-2xl font-bold text-chart-3">
+              {relaciones.filter(r => r.Padre).length}
             </div>
+            <div className="text-sm text-muted-foreground">Códigos Hijo</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="text-2xl font-bold text-chart-4">
+              {new Set(relaciones.filter(r => r.Padre).map(r => r.Padre)).size}
+            </div>
+            <div className="text-sm text-muted-foreground">Con Hijos</div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Action Buttons */}
+      {/* Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Acciones de Importación</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-3">
-            <input
-              type="file"
-              ref={fileInputPadresRef}
-              onChange={handlePadresFileUpload}
-              accept=".xlsx,.xls"
-              className="hidden"
-            />
-            <Button onClick={() => fileInputPadresRef.current?.click()}>
-              <FileUp className="h-4 w-4 mr-2" />
-              1. Importar Padres
-            </Button>
-            
-            <input
-              type="file"
-              ref={fileInputHijosRef}
-              onChange={handleHijosFileUpload}
-              accept=".xlsx,.xls"
-              className="hidden"
-            />
-            <Button onClick={() => fileInputHijosRef.current?.click()} variant="secondary">
-              <Upload className="h-4 w-4 mr-2" />
-              2. Importar Sustitutos (Hijos)
-            </Button>
-            
-            <Button onClick={() => setShowAddDialog(true)} variant="outline">
-              <Plus className="h-4 w-4 mr-2" />
-              Agregar Manual
-            </Button>
-            
-            <Button onClick={() => setShowVaciarDialog(true)} variant="destructive">
-              <Trash2 className="h-4 w-4 mr-2" />
-              Vaciar Tabla
-            </Button>
-          </div>
-          <p className="text-sm text-muted-foreground mt-3">
-            <strong>Formato Padres:</strong> columnas <code>codigo</code>, <code>descripcion</code><br />
-            <strong>Formato Hijos:</strong> columnas <code>hijo</code>, <code>descripcion</code>, <code>padre</code>
-          </p>
-        </CardContent>
-      </Card>
-
-      {/* Search and Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Relaciones de Repuestos</CardTitle>
-          <div className="relative max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <CardTitle>Códigos</CardTitle>
+          <CardDescription>
+            Lista de todos los códigos de repuestos y sus relaciones padre-hijo
+          </CardDescription>
+          <div className="flex items-center gap-2 mt-4">
+            <Search className="h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Buscar por código o descripción..."
+              placeholder="Buscar por código, descripción o ID..."
               value={searchTerm}
-              onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
-              className="pl-10"
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setPage(1);
+              }}
+              className="max-w-sm"
             />
           </div>
         </CardHeader>
         <CardContent>
           {loading ? (
-            <div className="flex items-center justify-center py-10">
-              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <div className="text-center py-8 text-muted-foreground flex items-center justify-center gap-2">
+              <Loader2 className="h-5 w-5 animate-spin" />
+              Cargando códigos...
+            </div>
+          ) : paginatedRelaciones.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              {relaciones.length === 0 
+                ? "No hay códigos. Importe un archivo para comenzar."
+                : "No se encontraron códigos con ese criterio."}
             </div>
           ) : (
             <>
@@ -622,221 +738,242 @@ export default function SustitutosRepuestos() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-20">ID</TableHead>
+                      <TableHead className="w-16">ID</TableHead>
                       <TableHead>Código</TableHead>
                       <TableHead>Descripción</TableHead>
-                      <TableHead>Código Padre</TableHead>
-                      <TableHead className="w-20">Acciones</TableHead>
+                      <TableHead>Padre</TableHead>
+                      <TableHead className="text-center">Hijos</TableHead>
+                      <TableHead className="text-right">Acciones</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {relaciones.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={5} className="text-center py-10 text-muted-foreground">
-                          No hay registros
+                    {paginatedRelaciones.map((relacion) => (
+                      <TableRow key={relacion.id}>
+                        <TableCell className="font-mono text-sm">{relacion.id}</TableCell>
+                        <TableCell className="font-medium">{relacion.Código}</TableCell>
+                        <TableCell className="max-w-xs truncate">{relacion.Descripción}</TableCell>
+                        <TableCell>
+                          {relacion.Padre ? (
+                            <span className="text-primary">{getPadreNombre(relacion.Padre)}</span>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
                         </TableCell>
-                      </TableRow>
-                    ) : (
-                      relaciones.map((rel) => (
-                        <TableRow key={rel.id}>
-                          <TableCell className="font-mono text-sm">{rel.id}</TableCell>
-                          <TableCell className="font-medium">{rel.Código}</TableCell>
-                          <TableCell>{rel.Descripción}</TableCell>
-                          <TableCell>
-                            {rel.padre_codigo ? (
-                              <span className="text-primary">{rel.padre_codigo}</span>
-                            ) : (
-                              <span className="text-muted-foreground">—</span>
-                            )}
-                          </TableCell>
-                          <TableCell>
+                        <TableCell className="text-center">
+                          {getHijosCount(relacion.id) > 0 && (
+                            <span className="bg-primary/10 text-primary px-2 py-1 rounded text-sm">
+                              {getHijosCount(relacion.id)}
+                            </span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-1">
                             <Button
-                              variant="ghost"
                               size="icon"
-                              onClick={() => handleDelete(rel.id)}
+                              variant="ghost"
+                              onClick={() => handleEditClick(relacion)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => handleDelete(relacion)}
                             >
                               <Trash2 className="h-4 w-4 text-destructive" />
                             </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
                   </TableBody>
                 </Table>
               </div>
-              
+
               {/* Pagination */}
-              <div className="flex items-center justify-between mt-4">
-                <p className="text-sm text-muted-foreground">
-                  Mostrando {((page - 1) * pageSize) + 1} - {Math.min(page * pageSize, totalCount)} de {totalCount}
-                </p>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setPage(p => Math.max(1, p - 1))}
-                    disabled={page === 1}
-                  >
-                    Anterior
-                  </Button>
-                  <span className="px-3 py-1 text-sm">
-                    Página {page} de {totalPages || 1}
-                  </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                    disabled={page >= totalPages}
-                  >
-                    Siguiente
-                  </Button>
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between mt-4">
+                  <p className="text-sm text-muted-foreground">
+                    Mostrando {(page - 1) * pageSize + 1} - {Math.min(page * pageSize, filteredRelaciones.length)} de {filteredRelaciones.length}
+                  </p>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage(p => Math.max(1, p - 1))}
+                      disabled={page === 1}
+                    >
+                      Anterior
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                      disabled={page === totalPages}
+                    >
+                      Siguiente
+                    </Button>
+                  </div>
                 </div>
-              </div>
+              )}
             </>
           )}
         </CardContent>
       </Card>
 
-      {/* Dialog: Import Padres Preview */}
-      <Dialog open={showImportPadresDialog} onOpenChange={setShowImportPadresDialog}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Importar Códigos Padre</DialogTitle>
-            <DialogDescription>
-              Se importarán {importPadresData.length} códigos padre únicos (sin duplicados)
-            </DialogDescription>
-          </DialogHeader>
-          <div className="rounded-md border max-h-80 overflow-y-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Código</TableHead>
-                  <TableHead>Descripción</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {importPadresData.slice(0, 100).map((row, idx) => (
-                  <TableRow key={idx}>
-                    <TableCell className="font-mono">{row.codigo}</TableCell>
-                    <TableCell>{row.descripcion}</TableCell>
-                  </TableRow>
-                ))}
-                {importPadresData.length > 100 && (
-                  <TableRow>
-                    <TableCell colSpan={2} className="text-center text-muted-foreground">
-                      ... y {importPadresData.length - 100} más
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowImportPadresDialog(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleImportPadres} disabled={importing}>
-              {importing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Importar {importPadresData.length} Padres
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Dialog: Import Hijos Preview */}
-      <Dialog open={showImportHijosDialog} onOpenChange={setShowImportHijosDialog}>
+      {/* Dialog: Importar Padres */}
+      <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
         <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Importar Sustitutos (Hijos)</DialogTitle>
-            <DialogDescription>
-              Se importarán {importHijosData.length} códigos hijo
-            </DialogDescription>
+            <DialogTitle>Importar Códigos Padre</DialogTitle>
           </DialogHeader>
-          
-          {hijosErrors.length > 0 && (
-            <div className="p-3 bg-destructive/10 border border-destructive/30 rounded-lg">
-              <div className="flex items-center gap-2 text-destructive font-medium mb-2">
-                <AlertTriangle className="h-4 w-4" />
-                {hijosErrors.length} códigos padre no encontrados:
-              </div>
-              <p className="text-sm text-destructive/80 font-mono">
-                {hijosErrors.slice(0, 10).join(", ")}
-                {hijosErrors.length > 10 && ` ... y ${hijosErrors.length - 10} más`}
-              </p>
-              <p className="text-sm text-muted-foreground mt-1">
-                Los hijos de estos padres no se importarán
-              </p>
-            </div>
-          )}
-          
-          <div className="rounded-md border max-h-60 overflow-y-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Hijo</TableHead>
-                  <TableHead>Descripción</TableHead>
-                  <TableHead>Padre</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {importHijosData.slice(0, 100).map((row, idx) => (
-                  <TableRow key={idx} className={hijosErrors.includes(row.padre) ? "bg-destructive/5" : ""}>
-                    <TableCell className="font-mono">{row.hijo}</TableCell>
-                    <TableCell>{row.descripcion}</TableCell>
-                    <TableCell className={hijosErrors.includes(row.padre) ? "text-destructive" : ""}>
-                      {row.padre}
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {importHijosData.length > 100 && (
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Se importarán {importData.length} códigos padre (sin relación a otro código).
+            </p>
+            <div className="rounded-md border max-h-64 overflow-y-auto">
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={3} className="text-center text-muted-foreground">
-                      ... y {importHijosData.length - 100} más
-                    </TableCell>
+                    <TableHead>ID</TableHead>
+                    <TableHead>Código</TableHead>
+                    <TableHead>Descripción</TableHead>
                   </TableRow>
-                )}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {importData.slice(0, 20).map((row, idx) => (
+                    <TableRow key={idx}>
+                      <TableCell>{row.id}</TableCell>
+                      <TableCell>{row.Código}</TableCell>
+                      <TableCell className="max-w-xs truncate">{row.Descripción}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              {importData.length > 20 && (
+                <p className="p-2 text-center text-sm text-muted-foreground">
+                  ... y {importData.length - 20} más
+                </p>
+              )}
+            </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowImportHijosDialog(false)}>
+            <Button variant="outline" onClick={() => setShowImportDialog(false)}>
               Cancelar
             </Button>
-            <Button onClick={handleImportHijos} disabled={importing}>
-              {importing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Importar Hijos Válidos
+            <Button onClick={handleImport} disabled={importing}>
+              {importing ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Importando...
+                </>
+              ) : (
+                `Importar ${importData.length} códigos`
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Dialog: Vaciar Tabla */}
-      <Dialog open={showVaciarDialog} onOpenChange={setShowVaciarDialog}>
+      {/* Dialog: Importar Relaciones */}
+      <Dialog open={showRelacionesDialog} onOpenChange={setShowRelacionesDialog}>
+        <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Importar Relaciones (Hijos)</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Se importarán {relacionesData.length} relaciones. 
+              Los códigos padre que no existan serán creados automáticamente.
+            </p>
+            <div className="rounded-md border max-h-64 overflow-y-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Código (Hijo)</TableHead>
+                    <TableHead>Descripción</TableHead>
+                    <TableHead>Padre</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {relacionesData.slice(0, 20).map((row, idx) => (
+                    <TableRow key={idx}>
+                      <TableCell>{row.codigo}</TableCell>
+                      <TableCell className="max-w-xs truncate">{row.descripcion}</TableCell>
+                      <TableCell>{row.padre}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              {relacionesData.length > 20 && (
+                <p className="p-2 text-center text-sm text-muted-foreground">
+                  ... y {relacionesData.length - 20} más
+                </p>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowRelacionesDialog(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleImportRelaciones} disabled={importingRelaciones}>
+              {importingRelaciones ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Importando...
+                </>
+              ) : (
+                `Importar ${relacionesData.length} relaciones`
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog: Editar Padre */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>¿Vaciar toda la tabla?</DialogTitle>
-            <DialogDescription>
-              Esta acción eliminará todos los {stats.total.toLocaleString()} registros de relaciones.
-              Esta acción no se puede deshacer.
-            </DialogDescription>
+            <DialogTitle>Editar Relación</DialogTitle>
           </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Código</Label>
+              <Input value={selectedRelacion?.Código || ""} disabled />
+            </div>
+            <div>
+              <Label>Código Padre</Label>
+              <Select value={editPadre} onValueChange={setEditPadre}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar padre" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Sin padre (es código principal)</SelectItem>
+                  {padreOptions
+                    .filter(p => p.id !== selectedRelacion?.id)
+                    .map((padre) => (
+                      <SelectItem key={padre.id} value={padre.id.toString()}>
+                        {padre.Código} - {padre.Descripción?.substring(0, 30)}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowVaciarDialog(false)}>
+            <Button variant="outline" onClick={() => setShowEditDialog(false)}>
               Cancelar
             </Button>
-            <Button variant="destructive" onClick={handleVaciarTabla} disabled={importing}>
-              {importing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Vaciar Tabla
-            </Button>
+            <Button onClick={handleUpdatePadre}>Guardar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Dialog: Agregar Manual */}
+      {/* Dialog: Agregar nuevo */}
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Agregar Registro Manual</DialogTitle>
+            <DialogTitle>Agregar Nuevo Código</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
@@ -844,37 +981,39 @@ export default function SustitutosRepuestos() {
               <Input
                 value={newCodigo}
                 onChange={(e) => setNewCodigo(e.target.value)}
-                placeholder="Ej: 90179"
+                placeholder="Ej: 929926"
               />
             </div>
             <div>
-              <Label>Descripción *</Label>
+              <Label>Descripción</Label>
               <Input
                 value={newDescripcion}
                 onChange={(e) => setNewDescripcion(e.target.value)}
-                placeholder="Ej: Tornillo principal"
+                placeholder="Descripción del repuesto"
               />
             </div>
             <div>
-              <Label>Código Padre (opcional)</Label>
-              <Input
-                value={newPadreCodigo}
-                onChange={(e) => setNewPadreCodigo(e.target.value)}
-                placeholder="Dejar vacío para crear como padre"
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Si se especifica, debe ser un código padre existente
-              </p>
+              <Label>Código Padre</Label>
+              <Select value={newPadre} onValueChange={setNewPadre}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Sin padre (es código principal)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Sin padre (es código principal)</SelectItem>
+                  {padreOptions.map((padre) => (
+                    <SelectItem key={padre.id} value={padre.id.toString()}>
+                      {padre.Código} - {padre.Descripción?.substring(0, 30)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAddDialog(false)}>
               Cancelar
             </Button>
-            <Button onClick={handleAddManual} disabled={importing}>
-              {importing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Agregar
-            </Button>
+            <Button onClick={handleAddCodigo}>Crear Código</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
