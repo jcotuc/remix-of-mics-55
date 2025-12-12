@@ -59,6 +59,7 @@ import ConsultaExistencias from "./pages/sac/ConsultaExistencias";
 import Usuarios from "./pages/admin/Usuarios";
 import FamiliasProductos from "./pages/admin/FamiliasProductos";
 import FallasCausas from "./pages/admin/FallasCausas";
+import SustitutosRepuestos from "./pages/admin/SustitutosRepuestos";
 import RevisionStockCemaco from "./pages/taller/RevisionStockCemaco";
 import AprobacionesStockCemaco from "./pages/taller/AprobacionesStockCemaco";
 import MisGarantias from "./pages/asesor/MisGarantias";
@@ -148,6 +149,7 @@ const App = () => (
               <Route path="/admin/usuarios" element={<Usuarios />} />
               <Route path="/admin/fallas-causas" element={<FallasCausas />} />
               <Route path="/admin/familias-productos" element={<FamiliasProductos />} />
+              <Route path="/admin/sustitutos-repuestos" element={<SustitutosRepuestos />} />
               
               {/* Asesor Routes */}
               <Route path="/mis-garantias" element={<MisGarantias />} />

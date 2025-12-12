@@ -1580,24 +1580,32 @@ export type Database = {
       }
       repuestos_relaciones: {
         Row: {
+          Código: string | null
           Descripción: string | null
-          Hijo: string | null
-          id: string
-          Padre: string | null
+          id: number
+          Padre: number | null
         }
         Insert: {
+          Código?: string | null
           Descripción?: string | null
-          Hijo?: string | null
-          id?: string
-          Padre?: string | null
+          id?: number
+          Padre?: number | null
         }
         Update: {
+          Código?: string | null
           Descripción?: string | null
-          Hijo?: string | null
-          id?: string
-          Padre?: string | null
+          id?: number
+          Padre?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "repuestos_relaciones_Padre_fkey"
+            columns: ["Padre"]
+            isOneToOne: false
+            referencedRelation: "repuestos_relaciones"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       repuestos_solicitud_detalle: {
         Row: {
