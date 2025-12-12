@@ -333,20 +333,40 @@ export default function SustitutosRepuestos() {
 
     try {
       setImportingRelaciones(true);
-      
-      // Siempre leer el estado real de la BD para evitar colisiones de IDs
+
+      // Recolectar todos los códigos involucrados en la importación
+      const allPadres = new Set<string>();
+      const allCodigos = new Set<string>();
+
+      relacionesData.forEach((row) => {
+        if (row.padre) allPadres.add(row.padre);
+        if (row.codigo) allCodigos.add(row.codigo);
+      });
+
+      const allCodes = Array.from(new Set<string>([...allPadres, ...allCodigos]));
+
+      // 1) Obtener el ID máximo actual usando solo el último registro (evita límite de 1000 filas)
+      const { data: maxRows, error: maxError } = await supabase
+        .from("repuestos_relaciones")
+        .select("id")
+        .order("id", { ascending: false })
+        .limit(1);
+
+      if (maxError) throw maxError;
+
+      const maxId = maxRows && maxRows.length > 0 ? (maxRows[0].id as number) : 0;
+      let nextId = maxId;
+
+      // 2) Cargar solo los códigos relevantes (padres e hijos) desde la BD
       const { data: existingRows, error: existingError } = await supabase
         .from("repuestos_relaciones")
-        .select("*");
+        .select("id, \"Código\", \"Descripción\", \"Padre\"")
+        .in("Código", allCodes);
 
       if (existingError) throw existingError;
 
       const existing = existingRows || [];
 
-      // Obtener el ID máximo actual directamente de la BD
-      const maxId = existing.length > 0 ? Math.max(...existing.map((r: any) => r.id as number)) : 0;
-      let nextId = maxId;
-      
       // Crear mapa de códigos existentes (case-insensitive)
       const existingMap = new Map<string, Relacion>();
       existing.forEach((r: any) => {
@@ -359,34 +379,24 @@ export default function SustitutosRepuestos() {
           });
         }
       });
-      
-      // Recolectar todos los padres y códigos hijos
-      const allPadres = new Set<string>();
-      const allCodigos = new Set<string>();
-      
-      relacionesData.forEach((row) => {
-        allPadres.add(row.padre.toLowerCase());
-        allCodigos.add(row.codigo.toLowerCase());
-      });
-      
+
       // Crear padres que no existan (como códigos raíz Padre = null)
       const newPadres: { id: number; Código: string; Descripción: string; Padre: number | null }[] = [];
-      
-      for (const padreLower of allPadres) {
+
+      for (const padreCode of allPadres) {
+        const padreLower = padreCode.toLowerCase();
         if (!existingMap.has(padreLower)) {
           nextId++;
-          const padreOriginal =
-            relacionesData.find((r) => r.padre.toLowerCase() === padreLower)?.padre || "";
           newPadres.push({
             id: nextId,
-            Código: padreOriginal,
-            Descripción: `Padre: ${padreOriginal}`,
+            Código: padreCode,
+            Descripción: `Padre: ${padreCode}`,
             Padre: null,
           });
           existingMap.set(padreLower, {
             id: nextId,
-            Código: padreOriginal,
-            Descripción: `Padre: ${padreOriginal}`,
+            Código: padreCode,
+            Descripción: `Padre: ${padreCode}`,
             Padre: null,
           });
         }
