@@ -149,11 +149,16 @@ export default function SustitutosRepuestos() {
         const worksheet = workbook.Sheets[sheetName];
         const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
+        // Get column keys from first row (take first 2 columns automatically)
+        const keys = Object.keys(jsonData[0] || {});
+        const codigoKey = keys[0]; // Primera columna = código
+        const descripcionKey = keys[1]; // Segunda columna = descripción
+
         // Map and deduplicate by codigo
         const padresMap = new Map<string, string>();
         jsonData.forEach((row: any) => {
-          const codigo = String(row.codigo || row.Codigo || row.CODIGO || "").trim();
-          const descripcion = String(row.descripcion || row.Descripcion || row.DESCRIPCION || "").trim();
+          const codigo = String(row[codigoKey] || "").trim();
+          const descripcion = String(row[descripcionKey] || "").trim();
           
           if (codigo && !padresMap.has(codigo)) {
             padresMap.set(codigo, descripcion);
