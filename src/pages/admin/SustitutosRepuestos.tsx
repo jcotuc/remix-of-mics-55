@@ -334,64 +334,91 @@ export default function SustitutosRepuestos() {
     try {
       setImportingRelaciones(true);
       
-      // Get current max ID
-      let maxId = relaciones.length > 0 ? Math.max(...relaciones.map(r => r.id)) : 0;
+      // Siempre leer el estado real de la BD para evitar colisiones de IDs
+      const { data: existingRows, error: existingError } = await supabase
+        .from("repuestos_relaciones")
+        .select("*");
+
+      if (existingError) throw existingError;
+
+      const existing = existingRows || [];
+
+      // Obtener el ID máximo actual directamente de la BD
+      const maxId = existing.length > 0 ? Math.max(...existing.map((r: any) => r.id as number)) : 0;
+      let nextId = maxId;
       
-      // Create a map of existing codes (case-insensitive)
+      // Crear mapa de códigos existentes (case-insensitive)
       const existingMap = new Map<string, Relacion>();
-      relaciones.forEach(r => {
-        if (r.Código) {
-          existingMap.set(r.Código.toLowerCase(), r);
+      existing.forEach((r: any) => {
+        if (r["Código"]) {
+          existingMap.set(String(r["Código"]).toLowerCase(), {
+            id: r.id,
+            Código: r["Código"],
+            Descripción: r["Descripción"],
+            Padre: r.Padre,
+          });
         }
       });
       
-      // First pass: collect all unique padres and códigos
+      // Recolectar todos los padres y códigos hijos
       const allPadres = new Set<string>();
       const allCodigos = new Set<string>();
       
-      relacionesData.forEach(row => {
+      relacionesData.forEach((row) => {
         allPadres.add(row.padre.toLowerCase());
         allCodigos.add(row.codigo.toLowerCase());
       });
       
-      // Create padres that don't exist (as root codes with Padre = null)
+      // Crear padres que no existan (como códigos raíz Padre = null)
       const newPadres: { id: number; Código: string; Descripción: string; Padre: number | null }[] = [];
       
       for (const padreLower of allPadres) {
         if (!existingMap.has(padreLower)) {
-          maxId++;
-          const padreOriginal = relacionesData.find(r => r.padre.toLowerCase() === padreLower)?.padre || "";
+          nextId++;
+          const padreOriginal =
+            relacionesData.find((r) => r.padre.toLowerCase() === padreLower)?.padre || "";
           newPadres.push({
-            id: maxId,
+            id: nextId,
             Código: padreOriginal,
             Descripción: `Padre: ${padreOriginal}`,
-            Padre: null
+            Padre: null,
           });
-          existingMap.set(padreLower, { id: maxId, Código: padreOriginal, Descripción: `Padre: ${padreOriginal}`, Padre: null });
+          existingMap.set(padreLower, {
+            id: nextId,
+            Código: padreOriginal,
+            Descripción: `Padre: ${padreOriginal}`,
+            Padre: null,
+          });
         }
       }
       
-      // Create códigos (hijos) that don't exist
+      // Crear códigos (hijos) que no existan
       const newCodigos: { id: number; Código: string; Descripción: string; Padre: number | null }[] = [];
       
       for (const row of relacionesData) {
         const codigoLower = row.codigo.toLowerCase();
         const padreLower = row.padre.toLowerCase();
-        const padreId = existingMap.get(padreLower)?.id || null;
+        const padre = existingMap.get(padreLower);
+        const padreId = padre?.id || null;
         
         if (!existingMap.has(codigoLower)) {
-          maxId++;
+          nextId++;
           newCodigos.push({
-            id: maxId,
+            id: nextId,
             Código: row.codigo,
             Descripción: row.descripcion,
-            Padre: padreId
+            Padre: padreId,
           });
-          existingMap.set(codigoLower, { id: maxId, Código: row.codigo, Descripción: row.descripcion, Padre: padreId });
+          existingMap.set(codigoLower, {
+            id: nextId,
+            Código: row.codigo,
+            Descripción: row.descripcion,
+            Padre: padreId,
+          });
         }
       }
       
-      // Insert new padres first
+      // Insertar nuevos padres primero
       if (newPadres.length > 0) {
         const batchSize = 500;
         for (let i = 0; i < newPadres.length; i += batchSize) {
@@ -401,7 +428,7 @@ export default function SustitutosRepuestos() {
         }
       }
       
-      // Insert new códigos (hijos)
+      // Insertar nuevos códigos (hijos)
       if (newCodigos.length > 0) {
         const batchSize = 500;
         for (let i = 0; i < newCodigos.length; i += batchSize) {
@@ -411,7 +438,7 @@ export default function SustitutosRepuestos() {
         }
       }
       
-      // Update existing códigos with their parent relationships
+      // Actualizar códigos existentes con su relación Padre correcta
       const updates: { id: number; Padre: number }[] = [];
       
       for (const row of relacionesData) {
@@ -420,15 +447,13 @@ export default function SustitutosRepuestos() {
         const codigo = existingMap.get(codigoLower);
         const padre = existingMap.get(padreLower);
         
-        if (codigo && padre && !newCodigos.find(nc => nc.id === codigo.id)) {
-          // This is an existing código that needs its parent updated
+        if (codigo && padre && !newCodigos.find((nc) => nc.id === codigo.id)) {
           if (codigo.Padre !== padre.id) {
             updates.push({ id: codigo.id, Padre: padre.id });
           }
         }
       }
       
-      // Apply updates
       for (const update of updates) {
         await supabase
           .from("repuestos_relaciones")
