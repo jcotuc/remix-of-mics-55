@@ -334,7 +334,7 @@ export default function SustitutosRepuestos() {
     try {
       setImportingRelaciones(true);
 
-      // Recolectar todos los códigos involucrados en la importación
+      // Recolectar todos los códigos involucrados en la importación (tal como vienen en el Excel)
       const allPadres = new Set<string>();
       const allCodigos = new Set<string>();
 
@@ -342,8 +342,6 @@ export default function SustitutosRepuestos() {
         if (row.padre) allPadres.add(row.padre);
         if (row.codigo) allCodigos.add(row.codigo);
       });
-
-      const allCodes = Array.from(new Set<string>([...allPadres, ...allCodigos]));
 
       // 1) Obtener el ID máximo actual usando solo el último registro (evita límite de 1000 filas)
       const { data: maxRows, error: maxError } = await supabase
@@ -357,15 +355,37 @@ export default function SustitutosRepuestos() {
       const maxId = maxRows && maxRows.length > 0 ? (maxRows[0].id as number) : 0;
       let nextId = maxId;
 
-      // 2) Cargar solo los códigos relevantes (padres e hijos) desde la BD
-      const { data: existingRows, error: existingError } = await supabase
-        .from("repuestos_relaciones")
-        .select("id, \"Código\", \"Descripción\", \"Padre\"")
-        .in("Código", allCodes);
+      // 2) Cargar TODAS las filas existentes en páginas de 1000 para evitar URLs enormes con IN(...)
+      let existing: any[] = [];
+      const pageSize = 1000;
+      let from = 0;
 
-      if (existingError) throw existingError;
+      // Usamos un bucle por páginas para no depender del límite por defecto de 1000 registros
+      // ni construir un query string gigante con muchos valores en el operador IN
+      // (eso era lo que provocaba el "TypeError: Failed to fetch").
+      //
+      // Nota: la tabla tiene ~14k registros, por lo que en unas pocas iteraciones
+      // cargamos todo el catálogo de relaciones en memoria.
+      /* eslint-disable no-constant-condition */
+      while (true) {
+        const { data: page, error: pageError } = await supabase
+          .from("repuestos_relaciones")
+          .select('id, "Código", "Descripción", "Padre"')
+          .range(from, from + pageSize - 1);
 
-      const existing = existingRows || [];
+        if (pageError) throw pageError;
+        if (!page || page.length === 0) break;
+
+        existing = existing.concat(page);
+
+        if (page.length < pageSize) {
+          // Última página
+          break;
+        }
+
+        from += pageSize;
+      }
+      /* eslint-enable no-constant-condition */
 
       // Crear mapa de códigos existentes (case-insensitive)
       const existingMap = new Map<string, Relacion>();
