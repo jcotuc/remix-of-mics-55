@@ -295,15 +295,21 @@ export default function SustitutosRepuestos() {
           }
         });
 
-        // Validate which parents exist
-        const padresCodigos = [...new Set(hijos.map(h => h.padre))];
-        const { data: existingPadres } = await supabase
+        // Cargar TODOS los registros existentes a un mapa (igual que FamiliasProductos)
+        const { data: allExisting } = await supabase
           .from("repuestos_relaciones")
-          .select("*")
-          .in("Código", padresCodigos)
-          .is("Padre", null);
+          .select("*");
         
-        const existingSet = new Set(existingPadres?.map(p => p["Código"]) || []);
+        const existingMap = new Map<string, number>();
+        allExisting?.forEach(r => {
+          if (r["Código"]) {
+            existingMap.set(r["Código"], r.id);
+          }
+        });
+        
+        // Validar qué padres existen en el mapa
+        const padresCodigos = [...new Set(hijos.map(h => h.padre))];
+        const existingSet = new Set(padresCodigos.filter(p => existingMap.has(p)));
         const errors = padresCodigos.filter(p => !existingSet.has(p));
         
         setHijosErrors(errors);
@@ -330,36 +336,39 @@ export default function SustitutosRepuestos() {
     
     setImporting(true);
     try {
-      // Get all parent IDs
-      const padresCodigos = [...new Set(importHijosData.map(h => h.padre))];
-      const { data: padresData } = await supabase
+      // 1. Cargar TODOS los registros existentes a un mapa en memoria (igual que FamiliasProductos)
+      const { data: allExisting } = await supabase
         .from("repuestos_relaciones")
-        .select("*")
-        .in("Código", padresCodigos)
-        .is("Padre", null);
+        .select("*");
       
-      const padreMap = new Map(padresData?.map(p => [p["Código"], p.id]) || []);
+      // 2. Crear mapa: código -> id
+      const existingMap = new Map<string, number>();
+      allExisting?.forEach(r => {
+        if (r["Código"]) {
+          existingMap.set(r["Código"], r.id);
+        }
+      });
       
-      // Get max ID
-      const { data: maxIdData } = await supabase
-        .from("repuestos_relaciones")
-        .select("id")
-        .order("id", { ascending: false })
-        .limit(1);
+      console.log(`Mapa cargado con ${existingMap.size} registros existentes`);
       
-      let nextId = (maxIdData?.[0]?.id || 0) + 1;
+      // 3. Get max ID for new records
+      let nextId = allExisting?.length 
+        ? Math.max(...allExisting.map(r => r.id)) + 1 
+        : 1;
       
-      // Prepare records (only for valid parents)
+      // 4. Preparar registros de hijos usando el mapa para obtener ID del padre
       const records = importHijosData
-        .filter(h => padreMap.has(h.padre))
+        .filter(h => existingMap.has(h.padre))
         .map(h => ({
           id: nextId++,
           "Código": h.hijo,
           "Descripción": h.descripcion,
-          Padre: padreMap.get(h.padre)
+          Padre: existingMap.get(h.padre)
         }));
       
-      // Insert in batches
+      const skipped = importHijosData.filter(h => !existingMap.has(h.padre)).length;
+      
+      // 5. Insertar en batches
       const batchSize = 500;
       for (let i = 0; i < records.length; i += batchSize) {
         const batch = records.slice(i, i + batchSize);
@@ -372,7 +381,8 @@ export default function SustitutosRepuestos() {
       
       toast({
         title: "Hijos importados correctamente",
-        description: `${records.length} registros creados`
+        description: `${records.length} registros creados` + 
+          (skipped > 0 ? `, ${skipped} omitidos por padre no encontrado` : "")
       });
       
       setShowImportHijosDialog(false);
