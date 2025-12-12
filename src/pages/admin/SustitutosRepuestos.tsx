@@ -243,10 +243,18 @@ export default function SustitutosRepuestos() {
         const worksheet = workbook.Sheets[sheetName];
         const jsonData = XLSX.utils.sheet_to_json(worksheet);
 
+        // Automatic column detection - use first 3 columns
+        const keys = Object.keys(jsonData[0] || {});
+        const hijoKey = keys[0];        // First column = child code
+        const descripcionKey = keys[1]; // Second column = description
+        const padreKey = keys[2];       // Third column = parent code
+
+        console.log("Columnas detectadas para hijos:", { hijoKey, descripcionKey, padreKey });
+
         const hijos: ImportHijoRow[] = jsonData.map((row: any) => ({
-          hijo: String(row.hijo || row.Hijo || row.HIJO || "").trim(),
-          descripcion: String(row.descripcion || row.Descripcion || row.DESCRIPCION || "").trim(),
-          padre: String(row.padre || row.Padre || row.PADRE || "").trim()
+          hijo: String(row[hijoKey] || "").trim(),
+          descripcion: String(row[descripcionKey] || "").trim(),
+          padre: String(row[padreKey] || "").trim()
         })).filter(h => h.hijo && h.padre);
 
         // Validate which parents exist
