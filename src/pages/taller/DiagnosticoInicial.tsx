@@ -1549,11 +1549,13 @@ export default function DiagnosticoInicial() {
               } else if (paso === 1.5) {
                 handleContinuarDesdeCanje();
               } else if (paso === 2) {
-                // En paso 2, solo verificar si hay al menos una solicitud entregada
-                const hayRepuestosDespachados = solicitudesAnteriores.some(s => s.estado === 'entregado');
-                if (necesitaRepuestos && !hayRepuestosDespachados) {
-                  toast.error("Debes esperar a que se despachen los repuestos solicitados");
-                  return;
+                // En garantía, los repuestos son opcionales
+                if (!aplicaGarantia && necesitaRepuestos) {
+                  const hayRepuestosDespachados = solicitudesAnteriores.some(s => s.estado === 'entregado');
+                  if (!hayRepuestosDespachados) {
+                    toast.error("Debes esperar a que se despachen los repuestos solicitados");
+                    return;
+                  }
                 }
                 setPaso(3);
               } else {
