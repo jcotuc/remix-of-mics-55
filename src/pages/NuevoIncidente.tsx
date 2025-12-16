@@ -15,33 +15,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { Producto } from "@/types";
 import { WhatsAppStyleMediaCapture, MediaFile } from "@/components/WhatsAppStyleMediaCapture";
 import { uploadMediaToStorage, saveIncidentePhotos } from "@/lib/uploadMedia";
-
-const centrosServicio = [
-  'Zona 5 (Principal)',
-  'Zona 4',
-  'Chimaltenango', 
-  'Río Hondo',
-  'Escuintla',
-  'Xela',
-  'Jutiapa',
-  'Huehuetenango'
-];
-
-const tipologias = [
-  'Mantenimiento',
-  'Reparación',
-  'Daños por transporte',
-  'Venta de repuestos'
-];
+const centrosServicio = ['Zona 5 (Principal)', 'Zona 4', 'Chimaltenango', 'Río Hondo', 'Escuintla', 'Xela', 'Jutiapa', 'Huehuetenango'];
+const tipologias = ['Mantenimiento', 'Reparación', 'Daños por transporte', 'Venta de repuestos'];
 
 // Departamentos de Guatemala
-const DEPARTAMENTOS = [
-  "Guatemala", "Alta Verapaz", "Baja Verapaz", "Chimaltenango", "Chiquimula",
-  "El Progreso", "Escuintla", "Huehuetenango", "Izabal", "Jalapa",
-  "Jutiapa", "Petén", "Quetzaltenango", "Quiché", "Retalhuleu",
-  "Sacatepéquez", "San Marcos", "Santa Rosa", "Sololá", "Suchitepéquez",
-  "Totonicapán", "Zacapa"
-];
+const DEPARTAMENTOS = ["Guatemala", "Alta Verapaz", "Baja Verapaz", "Chimaltenango", "Chiquimula", "El Progreso", "Escuintla", "Huehuetenango", "Izabal", "Jalapa", "Jutiapa", "Petén", "Quetzaltenango", "Quiché", "Retalhuleu", "Sacatepéquez", "San Marcos", "Santa Rosa", "Sololá", "Suchitepéquez", "Totonicapán", "Zacapa"];
 
 // Municipios por departamento
 const MUNICIPIOS: Record<string, string[]> = {
@@ -68,7 +46,6 @@ const MUNICIPIOS: Record<string, string[]> = {
   "Totonicapán": ["Totonicapán", "San Cristóbal Totonicapán", "San Francisco El Alto", "San Andrés Xecul", "Momostenango", "Santa María Chiquimula", "Santa Lucía La Reforma", "San Bartolo"],
   "Zacapa": ["Zacapa", "Estanzuela", "Río Hondo", "Gualán", "Teculután", "Usumatlán", "Cabañas", "San Diego", "La Unión", "Huité", "San Jorge"]
 };
-
 interface Cliente {
   codigo: string;
   nombre: string;
@@ -83,17 +60,16 @@ interface Cliente {
   departamento?: string;
   municipio?: string;
 }
-
 export default function NuevoIncidente() {
   const navigate = useNavigate();
   const [paso, setPaso] = useState(1);
-  
+
   // Paso 1: Cliente
   const [busquedaCliente, setBusquedaCliente] = useState("");
   const [clientesEncontrados, setClientesEncontrados] = useState<Cliente[]>([]);
   const [clienteSeleccionado, setClienteSeleccionado] = useState<Cliente | null>(null);
   const [mostrarFormNuevoCliente, setMostrarFormNuevoCliente] = useState(false);
-  
+
   // Datos del nuevo cliente
   const [nuevoCliente, setNuevoCliente] = useState({
     nombre: "",
@@ -107,7 +83,6 @@ export default function NuevoIncidente() {
     departamento: "",
     municipio: ""
   });
-
   const [municipiosDisponibles, setMunicipiosDisponibles] = useState<string[]>([]);
 
   // Datos del cliente existente
@@ -118,7 +93,7 @@ export default function NuevoIncidente() {
     telefono_principal: "",
     telefono_secundario: ""
   });
-  
+
   // Paso 2: Incidente
   const [skuMaquina, setSkuMaquina] = useState("");
   const [productoSeleccionado, setProductoSeleccionado] = useState<Producto | null>(null);
@@ -140,10 +115,10 @@ export default function NuevoIncidente() {
   const [tipologia, setTipologia] = useState("");
   const [esStockCemaco, setEsStockCemaco] = useState(false);
   const [guardando, setGuardando] = useState(false);
-  
+
   // Media (fotos y videos)
   const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([]);
-  
+
   // Dialog for adding another machine
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
 
@@ -151,7 +126,10 @@ export default function NuevoIncidente() {
   useEffect(() => {
     if (nuevoCliente.departamento) {
       setMunicipiosDisponibles(MUNICIPIOS[nuevoCliente.departamento] || []);
-      setNuevoCliente(prev => ({ ...prev, municipio: "" }));
+      setNuevoCliente(prev => ({
+        ...prev,
+        municipio: ""
+      }));
     }
   }, [nuevoCliente.departamento]);
 
@@ -159,18 +137,16 @@ export default function NuevoIncidente() {
   useEffect(() => {
     const fetchAccesorios = async () => {
       try {
-        const { data, error } = await supabase
-          .from('productos')
-          .select('*')
-          .eq('clave', 'ACC');
-        
+        const {
+          data,
+          error
+        } = await supabase.from('productos').select('*').eq('clave', 'ACC');
         if (error) throw error;
         setAccesoriosDisponibles(data || []);
       } catch (error) {
         console.error('Error fetching accesorios:', error);
       }
     };
-    
     fetchAccesorios();
   }, []);
 
@@ -178,21 +154,20 @@ export default function NuevoIncidente() {
   useEffect(() => {
     const fetchDirecciones = async () => {
       if (!clienteSeleccionado) return;
-      
       try {
         // Primero intentar cargar direcciones de envío guardadas
-        const { data: direccionesData, error: direccionesError } = await supabase
-          .from('direcciones_envio')
-          .select('*')
-          .eq('codigo_cliente', clienteSeleccionado.codigo)
-          .order('es_principal', { ascending: false });
-        
+        const {
+          data: direccionesData,
+          error: direccionesError
+        } = await supabase.from('direcciones_envio').select('*').eq('codigo_cliente', clienteSeleccionado.codigo).order('es_principal', {
+          ascending: false
+        });
         if (direccionesError) throw direccionesError;
-        
+
         // Si hay direcciones guardadas, usarlas
         if (direccionesData && direccionesData.length > 0) {
           setDireccionesEnvio(direccionesData);
-          
+
           // Auto-seleccionar dirección principal si existe
           const principal = direccionesData.find(d => d.es_principal);
           if (principal) {
@@ -221,7 +196,6 @@ export default function NuevoIncidente() {
         setDireccionesEnvio([]);
       }
     };
-    
     fetchDirecciones();
   }, [clienteSeleccionado]);
 
@@ -230,12 +204,10 @@ export default function NuevoIncidente() {
     if (busquedaCliente.length >= 2) {
       const fetchClientes = async () => {
         try {
-          const { data, error } = await supabase
-            .from('clientes')
-            .select('*')
-            .or(`nombre.ilike.%${busquedaCliente}%,nit.ilike.%${busquedaCliente}%,celular.ilike.%${busquedaCliente}%,codigo.ilike.%${busquedaCliente}%`)
-            .limit(10);
-          
+          const {
+            data,
+            error
+          } = await supabase.from('clientes').select('*').or(`nombre.ilike.%${busquedaCliente}%,nit.ilike.%${busquedaCliente}%,celular.ilike.%${busquedaCliente}%,codigo.ilike.%${busquedaCliente}%`).limit(10);
           if (error) throw error;
           setClientesEncontrados(data || []);
         } catch (error) {
@@ -253,13 +225,11 @@ export default function NuevoIncidente() {
     if (skuMaquina.length >= 3) {
       const fetchProductos = async () => {
         try {
-          const { data, error } = await supabase
-            .from('productos')
-            .select('*')
-            .or(`codigo.ilike.%${skuMaquina}%,clave.ilike.%${skuMaquina}%`);
-          
+          const {
+            data,
+            error
+          } = await supabase.from('productos').select('*').or(`codigo.ilike.%${skuMaquina}%,clave.ilike.%${skuMaquina}%`);
           if (error) throw error;
-
           const transformedData: Producto[] = (data || []).map(item => ({
             codigo: item.codigo.trim(),
             clave: item.clave.trim(),
@@ -268,7 +238,6 @@ export default function NuevoIncidente() {
             urlFoto: item.url_foto || "/api/placeholder/200/200",
             categoria: "Electricas" as const
           }));
-
           setProductosEncontrados(transformedData);
           if (transformedData.length === 1) {
             setProductoSeleccionado(transformedData[0]);
@@ -280,7 +249,6 @@ export default function NuevoIncidente() {
       fetchProductos();
     }
   }, [skuMaquina]);
-
   const seleccionarCliente = (cliente: Cliente) => {
     setClienteSeleccionado(cliente);
     setDatosClienteExistente({
@@ -293,7 +261,6 @@ export default function NuevoIncidente() {
     setBusquedaCliente("");
     setClientesEncontrados([]);
   };
-
   const resetForm = () => {
     // Reset incident data
     setSkuMaquina("");
@@ -312,76 +279,117 @@ export default function NuevoIncidente() {
     setLogObservaciones("");
     setTipologia("");
     setMediaFiles([]);
-    
+
     // Go back to step 2 (keeping the same client)
     setPaso(2);
   };
-
   const validarPaso1 = () => {
     if (mostrarFormNuevoCliente) {
-      if (!nuevoCliente.nombre || !nuevoCliente.nit || !nuevoCliente.direccion || 
-          !nuevoCliente.telefono_principal || !nuevoCliente.nombre_facturacion ||
-          !nuevoCliente.departamento || !nuevoCliente.municipio) {
-        toast({ title: "Error", description: "Complete todos los campos obligatorios del cliente", variant: "destructive" });
+      if (!nuevoCliente.nombre || !nuevoCliente.nit || !nuevoCliente.direccion || !nuevoCliente.telefono_principal || !nuevoCliente.nombre_facturacion || !nuevoCliente.departamento || !nuevoCliente.municipio) {
+        toast({
+          title: "Error",
+          description: "Complete todos los campos obligatorios del cliente",
+          variant: "destructive"
+        });
         return false;
       }
     } else {
       if (!clienteSeleccionado) {
-        toast({ title: "Error", description: "Seleccione un cliente existente", variant: "destructive" });
+        toast({
+          title: "Error",
+          description: "Seleccione un cliente existente",
+          variant: "destructive"
+        });
         return false;
       }
-      if (!datosClienteExistente.nombre || !datosClienteExistente.nit || 
-          !datosClienteExistente.telefono_principal) {
-        toast({ title: "Error", description: "Complete todos los campos obligatorios del cliente", variant: "destructive" });
+      if (!datosClienteExistente.nombre || !datosClienteExistente.nit || !datosClienteExistente.telefono_principal) {
+        toast({
+          title: "Error",
+          description: "Complete todos los campos obligatorios del cliente",
+          variant: "destructive"
+        });
         return false;
       }
     }
     return true;
   };
-
   const validarPaso2 = () => {
     if (!productoSeleccionado) {
-      toast({ title: "Error", description: "Seleccione un producto (SKU de la máquina)", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "Seleccione un producto (SKU de la máquina)",
+        variant: "destructive"
+      });
       return false;
     }
     if (!descripcionProblema.trim()) {
-      toast({ title: "Error", description: "Ingrese la descripción del problema", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "Ingrese la descripción del problema",
+        variant: "destructive"
+      });
       return false;
     }
     if (!personaDejaMaquina.trim()) {
-      toast({ title: "Error", description: "Ingrese quién deja la máquina", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "Ingrese quién deja la máquina",
+        variant: "destructive"
+      });
       return false;
     }
     if (!dpiPersonaDeja.trim()) {
-      toast({ title: "Error", description: "Ingrese el DPI de quien deja la máquina", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "Ingrese el DPI de quien deja la máquina",
+        variant: "destructive"
+      });
       return false;
     }
     if (!centroServicio) {
-      toast({ title: "Error", description: "Seleccione un centro de servicio", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "Seleccione un centro de servicio",
+        variant: "destructive"
+      });
       return false;
     }
     if (!opcionEnvio) {
-      toast({ title: "Error", description: "Seleccione una opción de entrega", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "Seleccione una opción de entrega",
+        variant: "destructive"
+      });
       return false;
     }
     if (opcionEnvio === 'directo' && !direccionSeleccionada && !nuevaDireccion.trim()) {
-      toast({ title: "Error", description: "Seleccione o agregue una dirección de envío", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "Seleccione o agregue una dirección de envío",
+        variant: "destructive"
+      });
       return false;
     }
     if (!tipologia) {
-      toast({ title: "Error", description: "Seleccione la tipología", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "Seleccione la tipología",
+        variant: "destructive"
+      });
       return false;
     }
     if (mediaFiles.length === 0) {
-      toast({ title: "Error", description: "Debe agregar al menos 1 foto del ingreso de la máquina", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "Debe agregar al menos 1 foto del ingreso de la máquina",
+        variant: "destructive"
+      });
       return false;
     }
     return true;
   };
-
   const guardarIncidente = async () => {
     if (!validarPaso2()) return;
-
     setGuardando(true);
     try {
       let codigoCliente = clienteSeleccionado?.codigo;
@@ -390,55 +398,50 @@ export default function NuevoIncidente() {
       // Si es nuevo cliente, crearlo primero
       if (mostrarFormNuevoCliente) {
         // Generar código HPC
-        const { data: codigoData, error: codigoError } = await supabase
-          .rpc('generar_codigo_hpc');
-        
+        const {
+          data: codigoData,
+          error: codigoError
+        } = await supabase.rpc('generar_codigo_hpc');
         if (codigoError) throw codigoError;
-        
         const nuevoCodigoHPC = codigoData;
 
         // Insertar nuevo cliente
-        const { data: clienteData, error: clienteError } = await supabase
-          .from('clientes')
-          .insert({
-            codigo: nuevoCodigoHPC,
-            nombre: nuevoCliente.nombre,
-            nit: nuevoCliente.nit,
-            direccion: nuevoCliente.direccion,
-            correo: nuevoCliente.correo,
-            telefono_principal: nuevoCliente.telefono_principal,
-            telefono_secundario: nuevoCliente.telefono_secundario,
-            nombre_facturacion: nuevoCliente.nombre_facturacion,
-            pais: nuevoCliente.pais,
-            departamento: nuevoCliente.departamento,
-            municipio: nuevoCliente.municipio,
-            celular: nuevoCliente.telefono_principal
-          })
-          .select()
-          .single();
-
+        const {
+          data: clienteData,
+          error: clienteError
+        } = await supabase.from('clientes').insert({
+          codigo: nuevoCodigoHPC,
+          nombre: nuevoCliente.nombre,
+          nit: nuevoCliente.nit,
+          direccion: nuevoCliente.direccion,
+          correo: nuevoCliente.correo,
+          telefono_principal: nuevoCliente.telefono_principal,
+          telefono_secundario: nuevoCliente.telefono_secundario,
+          nombre_facturacion: nuevoCliente.nombre_facturacion,
+          pais: nuevoCliente.pais,
+          departamento: nuevoCliente.departamento,
+          municipio: nuevoCliente.municipio,
+          celular: nuevoCliente.telefono_principal
+        }).select().single();
         if (clienteError) throw clienteError;
         codigoCliente = clienteData.codigo;
-        
+
         // Crear dirección principal del nuevo cliente en la tabla direcciones_envio
         if (nuevoCliente.direccion && nuevoCliente.direccion.trim()) {
-          const { data: dirData, error: dirError } = await supabase
-            .from('direcciones_envio')
-            .insert({
-              codigo_cliente: nuevoCodigoHPC,
-              direccion: nuevoCliente.direccion,
-              nombre_referencia: 'Dirección Principal',
-              es_principal: true
-            })
-            .select()
-            .single();
-
+          const {
+            data: dirData,
+            error: dirError
+          } = await supabase.from('direcciones_envio').insert({
+            codigo_cliente: nuevoCodigoHPC,
+            direccion: nuevoCliente.direccion,
+            nombre_referencia: 'Dirección Principal',
+            es_principal: true
+          }).select().single();
           if (dirError) {
             console.error('Error creando dirección principal:', dirError);
           } else {
             // Actualizar el estado local de direcciones para que aparezca en el selector
             setDireccionesEnvio([dirData]);
-            
             if (opcionEnvio !== 'recoger') {
               // Auto-seleccionar la dirección recién creada
               setDireccionSeleccionada(dirData.id);
@@ -446,92 +449,91 @@ export default function NuevoIncidente() {
             }
           }
         }
-        
+
         // Actualizar clienteSeleccionado para que el resto del flujo funcione
         setClienteSeleccionado(clienteData);
-        
-        toast({ title: "Cliente creado", description: `Código HPC: ${nuevoCodigoHPC}` });
+        toast({
+          title: "Cliente creado",
+          description: `Código HPC: ${nuevoCodigoHPC}`
+        });
       } else {
         // Actualizar datos del cliente existente
-        const { error: updateError } = await supabase
-          .from('clientes')
-          .update({
-            nombre: datosClienteExistente.nombre,
-            nit: datosClienteExistente.nit,
-            correo: datosClienteExistente.correo,
-            telefono_principal: datosClienteExistente.telefono_principal,
-            telefono_secundario: datosClienteExistente.telefono_secundario,
-            celular: datosClienteExistente.telefono_principal
-          })
-          .eq('codigo', clienteSeleccionado!.codigo);
-
+        const {
+          error: updateError
+        } = await supabase.from('clientes').update({
+          nombre: datosClienteExistente.nombre,
+          nit: datosClienteExistente.nit,
+          correo: datosClienteExistente.correo,
+          telefono_principal: datosClienteExistente.telefono_principal,
+          telefono_secundario: datosClienteExistente.telefono_secundario,
+          celular: datosClienteExistente.telefono_principal
+        }).eq('codigo', clienteSeleccionado!.codigo);
         if (updateError) throw updateError;
       }
 
       // Si hay nueva dirección adicional, crearla
       if (nuevaDireccion.trim() && opcionEnvio !== 'recoger') {
-        const { data: dirData, error: dirError } = await supabase
-          .from('direcciones_envio')
-          .insert({
-            codigo_cliente: codigoCliente,
-            direccion: nuevaDireccion,
-            nombre_referencia: `Dirección ${new Date().toLocaleDateString()}`,
-            es_principal: direccionesEnvio.length === 0
-          })
-          .select()
-          .single();
-
+        const {
+          data: dirData,
+          error: dirError
+        } = await supabase.from('direcciones_envio').insert({
+          codigo_cliente: codigoCliente,
+          direccion: nuevaDireccion,
+          nombre_referencia: `Dirección ${new Date().toLocaleDateString()}`,
+          es_principal: direccionesEnvio.length === 0
+        }).select().single();
         if (dirError) throw dirError;
         direccionEnvioId = dirData.id;
       }
 
       // Get current user
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: {
+          user
+        }
+      } = await supabase.auth.getUser();
 
       // Generar código de incidente
-      const { data: codigoIncidente, error: codigoError } = await supabase
-        .rpc('generar_codigo_incidente');
-      
+      const {
+        data: codigoIncidente,
+        error: codigoError
+      } = await supabase.rpc('generar_codigo_incidente');
       if (codigoError) throw codigoError;
 
       // Obtener la familia_padre_id del producto seleccionado
-      const { data: productoData, error: productoError } = await supabase
-        .from('productos')
-        .select('familia_padre_id')
-        .eq('codigo', productoSeleccionado!.codigo)
-        .single();
-
+      const {
+        data: productoData,
+        error: productoError
+      } = await supabase.from('productos').select('familia_padre_id').eq('codigo', productoSeleccionado!.codigo).single();
       if (productoError) throw productoError;
 
       // Crear el incidente
-      const { data: incidenteData, error: incidenteError } = await supabase
-        .from('incidentes')
-        .insert({
-          codigo: codigoIncidente,
-          codigo_cliente: codigoCliente,
-          codigo_producto: productoSeleccionado!.codigo,
-          familia_padre_id: productoData?.familia_padre_id || null,
-          sku_maquina: skuMaquina,
-          descripcion_problema: descripcionProblema,
-          persona_deja_maquina: personaDejaMaquina,
-          accesorios: accesoriosSeleccionados.join(", ") || null,
-          centro_servicio: centroServicio,
-          quiere_envio: opcionEnvio !== 'recoger',
-          direccion_envio_id: direccionEnvioId || null,
-          ingresado_en_mostrador: ingresadoMostrador,
-          es_reingreso: esReingreso,
-          es_stock_cemaco: esStockCemaco,
-          log_observaciones: logObservaciones || null,
-          tipologia: tipologia,
-          status: ingresadoMostrador ? 'Ingresado' : 'En ruta',
-          cobertura_garantia: false,
-          producto_descontinuado: productoSeleccionado!.descontinuado,
-          codigo_tecnico: 'TEC-001',
-          created_by: user?.id || null
-        })
-        .select()
-        .single();
-
+      const {
+        data: incidenteData,
+        error: incidenteError
+      } = await supabase.from('incidentes').insert({
+        codigo: codigoIncidente,
+        codigo_cliente: codigoCliente,
+        codigo_producto: productoSeleccionado!.codigo,
+        familia_padre_id: productoData?.familia_padre_id || null,
+        sku_maquina: skuMaquina,
+        descripcion_problema: descripcionProblema,
+        persona_deja_maquina: personaDejaMaquina,
+        accesorios: accesoriosSeleccionados.join(", ") || null,
+        centro_servicio: centroServicio,
+        quiere_envio: opcionEnvio !== 'recoger',
+        direccion_envio_id: direccionEnvioId || null,
+        ingresado_en_mostrador: ingresadoMostrador,
+        es_reingreso: esReingreso,
+        es_stock_cemaco: esStockCemaco,
+        log_observaciones: logObservaciones || null,
+        tipologia: tipologia,
+        status: ingresadoMostrador ? 'Ingresado' : 'En ruta',
+        cobertura_garantia: false,
+        producto_descontinuado: productoSeleccionado!.descontinuado,
+        codigo_tecnico: 'TEC-001',
+        created_by: user?.id || null
+      }).select().single();
       if (incidenteError) throw incidenteError;
 
       // Subir fotos/videos de ingreso
@@ -539,36 +541,32 @@ export default function NuevoIncidente() {
         try {
           const uploadedMedia = await uploadMediaToStorage(mediaFiles, incidenteData.id);
           await saveIncidentePhotos(incidenteData.id, uploadedMedia, 'ingreso');
-          
-          toast({ 
-            title: "Fotos subidas", 
-            description: `${uploadedMedia.length} archivo(s) subido(s) correctamente` 
+          toast({
+            title: "Fotos subidas",
+            description: `${uploadedMedia.length} archivo(s) subido(s) correctamente`
           });
         } catch (uploadError) {
           console.error('Error uploading media:', uploadError);
-          toast({ 
-            title: "Advertencia", 
-            description: "El incidente se creó pero hubo un error al subir algunas fotos", 
-            variant: "destructive" 
+          toast({
+            title: "Advertencia",
+            description: "El incidente se creó pero hubo un error al subir algunas fotos",
+            variant: "destructive"
           });
         }
       }
-
       setShowSuccessDialog(true);
     } catch (error) {
       console.error('Error al guardar:', error);
-      toast({ 
-        title: "Error", 
-        description: "No se pudo guardar el incidente. Intente nuevamente.", 
-        variant: "destructive" 
+      toast({
+        title: "Error",
+        description: "No se pudo guardar el incidente. Intente nuevamente.",
+        variant: "destructive"
       });
     } finally {
       setGuardando(false);
     }
   };
-
-  return (
-    <div className="container mx-auto p-6 max-w-4xl">
+  return <div className="container mx-auto p-6 max-w-4xl">
       <div className="flex items-center gap-4 mb-6">
         <Button variant="ghost" onClick={() => navigate("/mostrador/incidentes")}>
           <ArrowLeft className="w-4 h-4 mr-2" />
@@ -581,9 +579,7 @@ export default function NuevoIncidente() {
       <div className="mb-8">
         <div className="flex items-center justify-center gap-4">
           <div className="flex items-center gap-2">
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-              paso >= 1 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
-            }`}>
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${paso >= 1 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
               {paso > 1 ? <CheckCircle2 className="w-5 h-5" /> : <User className="w-5 h-5" />}
             </div>
             <span className={`font-medium ${paso >= 1 ? 'text-foreground' : 'text-muted-foreground'}`}>
@@ -592,9 +588,7 @@ export default function NuevoIncidente() {
           </div>
           <div className={`w-20 h-1 ${paso >= 2 ? 'bg-primary' : 'bg-muted'}`} />
           <div className="flex items-center gap-2">
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-              paso >= 2 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
-            }`}>
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${paso >= 2 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
               <Package className="w-5 h-5" />
             </div>
             <span className={`font-medium ${paso >= 2 ? 'text-foreground' : 'text-muted-foreground'}`}>
@@ -605,8 +599,7 @@ export default function NuevoIncidente() {
       </div>
 
       {/* Paso 1: Cliente */}
-      {paso === 1 && (
-        <Card>
+      {paso === 1 && <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <User className="w-5 h-5" />
@@ -617,34 +610,22 @@ export default function NuevoIncidente() {
           <CardContent className="space-y-6">
             {/* Botón fijo para crear cliente */}
             <div className="flex justify-end">
-              <Button
-                type="button"
-                onClick={() => {
-                  setMostrarFormNuevoCliente(true);
-                  setClienteSeleccionado(null);
-                  setBusquedaCliente("");
-                }}
-                variant="default"
-                className="gap-2"
-              >
+              <Button type="button" onClick={() => {
+            setMostrarFormNuevoCliente(true);
+            setClienteSeleccionado(null);
+            setBusquedaCliente("");
+          }} variant="default" className="gap-2">
                 <User className="w-4 h-4" />
                 Crear Cliente Nuevo
               </Button>
             </div>
 
-            {!mostrarFormNuevoCliente && !clienteSeleccionado && (
-              <div className="space-y-4">
+            {!mostrarFormNuevoCliente && !clienteSeleccionado && <div className="space-y-4">
                 <div>
                   <Label htmlFor="busqueda-cliente">Buscar Cliente</Label>
                   <div className="relative">
                     <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="busqueda-cliente"
-                      value={busquedaCliente}
-                      onChange={(e) => setBusquedaCliente(e.target.value)}
-                      placeholder="Buscar por celular, código, NIT o nombre..."
-                      className="pl-10"
-                    />
+                    <Input id="busqueda-cliente" value={busquedaCliente} onChange={e => setBusquedaCliente(e.target.value)} placeholder="Buscar por celular, código, NIT o nombre..." className="pl-10" />
                   </div>
                   <p className="text-sm text-muted-foreground mt-1">
                     Ingrese al menos 2 caracteres para buscar
@@ -652,15 +633,8 @@ export default function NuevoIncidente() {
                 </div>
 
                 {/* Resultados de búsqueda en tiempo real */}
-                {busquedaCliente.length >= 2 && (
-                  <div className="border rounded-lg divide-y max-h-96 overflow-y-auto">
-                    {clientesEncontrados.length > 0 ? (
-                      clientesEncontrados.map((cliente) => (
-                        <div
-                          key={cliente.codigo}
-                          onClick={() => seleccionarCliente(cliente)}
-                          className="p-3 sm:p-4 hover:bg-accent cursor-pointer transition-colors"
-                        >
+                {busquedaCliente.length >= 2 && <div className="border rounded-lg divide-y max-h-96 overflow-y-auto">
+                    {clientesEncontrados.length > 0 ? clientesEncontrados.map(cliente => <div key={cliente.codigo} onClick={() => seleccionarCliente(cliente)} className="p-3 sm:p-4 hover:bg-accent cursor-pointer transition-colors">
                           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">
                             <div className="space-y-1 flex-1">
                               <p className="font-semibold text-sm sm:text-base text-foreground">{cliente.nombre}</p>
@@ -674,10 +648,7 @@ export default function NuevoIncidente() {
                               Seleccionar
                             </Button>
                           </div>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="p-8 text-center space-y-4">
+                        </div>) : <div className="p-8 text-center space-y-4">
                         <AlertCircle className="w-12 h-12 mx-auto text-muted-foreground" />
                         <div>
                           <p className="font-medium text-foreground">Cliente no encontrado</p>
@@ -685,139 +656,109 @@ export default function NuevoIncidente() {
                             ¿Desea crear uno nuevo?
                           </p>
                         </div>
-                        <Button
-                          onClick={() => {
-                            setMostrarFormNuevoCliente(true);
-                            setBusquedaCliente("");
-                          }}
-                          variant="default"
-                        >
+                        <Button onClick={() => {
+                setMostrarFormNuevoCliente(true);
+                setBusquedaCliente("");
+              }} variant="default">
                           Crear Cliente
                         </Button>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
+                      </div>}
+                  </div>}
+              </div>}
 
             {/* Cliente seleccionado */}
-            {clienteSeleccionado && !mostrarFormNuevoCliente && (
-              <div className="space-y-4 p-4 border rounded-lg bg-accent/50">
+            {clienteSeleccionado && !mostrarFormNuevoCliente && <div className="space-y-4 p-4 border rounded-lg bg-accent/50">
                 <div className="flex justify-between items-center">
                   <h3 className="text-lg font-semibold flex items-center gap-2">
                     <CheckCircle2 className="w-5 h-5 text-primary" />
                     Cliente Seleccionado
                   </h3>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      setClienteSeleccionado(null);
-                      setBusquedaCliente("");
-                      setDireccionesEnvio([]);
-                      setDireccionSeleccionada("");
-                    }}
-                  >
+                  <Button size="sm" variant="outline" onClick={() => {
+              setClienteSeleccionado(null);
+              setBusquedaCliente("");
+              setDireccionesEnvio([]);
+              setDireccionSeleccionada("");
+            }}>
                     Cambiar
                   </Button>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div>
                     <Label htmlFor="nombre-existente">Nombre Completo *</Label>
-                    <Input
-                      id="nombre-existente"
-                      value={datosClienteExistente.nombre}
-                      onChange={(e) => setDatosClienteExistente({ ...datosClienteExistente, nombre: e.target.value })}
-                    />
+                    <Input id="nombre-existente" value={datosClienteExistente.nombre} onChange={e => setDatosClienteExistente({
+                ...datosClienteExistente,
+                nombre: e.target.value
+              })} />
                   </div>
                   <div>
                     <Label htmlFor="nit-existente">NIT *</Label>
-                    <Input
-                      id="nit-existente"
-                      value={datosClienteExistente.nit}
-                      onChange={(e) => setDatosClienteExistente({ ...datosClienteExistente, nit: e.target.value })}
-                    />
+                    <Input id="nit-existente" value={datosClienteExistente.nit} onChange={e => setDatosClienteExistente({
+                ...datosClienteExistente,
+                nit: e.target.value
+              })} />
                   </div>
                   <div>
                     <Label htmlFor="correo-existente">Correo Electrónico</Label>
-                    <Input
-                      id="correo-existente"
-                      type="email"
-                      value={datosClienteExistente.correo}
-                      onChange={(e) => setDatosClienteExistente({ ...datosClienteExistente, correo: e.target.value })}
-                    />
+                    <Input id="correo-existente" type="email" value={datosClienteExistente.correo} onChange={e => setDatosClienteExistente({
+                ...datosClienteExistente,
+                correo: e.target.value
+              })} />
                   </div>
                   <div>
                     <Label htmlFor="telefono-principal-existente">Teléfono Principal *</Label>
-                    <Input
-                      id="telefono-principal-existente"
-                      value={datosClienteExistente.telefono_principal}
-                      onChange={(e) => setDatosClienteExistente({ ...datosClienteExistente, telefono_principal: e.target.value })}
-                    />
+                    <Input id="telefono-principal-existente" value={datosClienteExistente.telefono_principal} onChange={e => setDatosClienteExistente({
+                ...datosClienteExistente,
+                telefono_principal: e.target.value
+              })} />
                   </div>
                   <div>
                     <Label htmlFor="telefono-secundario-existente">Teléfono Secundario</Label>
-                    <Input
-                      id="telefono-secundario-existente"
-                      value={datosClienteExistente.telefono_secundario}
-                      onChange={(e) => setDatosClienteExistente({ ...datosClienteExistente, telefono_secundario: e.target.value })}
-                    />
+                    <Input id="telefono-secundario-existente" value={datosClienteExistente.telefono_secundario} onChange={e => setDatosClienteExistente({
+                ...datosClienteExistente,
+                telefono_secundario: e.target.value
+              })} />
                   </div>
                 </div>
                 
                 {/* Mostrar dirección del cliente */}
-                {clienteSeleccionado.direccion && (
-                  <div className="mt-4 p-3 bg-background rounded-md border">
+                {clienteSeleccionado.direccion && <div className="mt-4 p-3 bg-background rounded-md border">
                     <Label className="text-sm font-medium">Dirección Registrada</Label>
                     <p className="text-sm text-muted-foreground mt-1">{clienteSeleccionado.direccion}</p>
-                  </div>
-                )}
+                  </div>}
                 
                 {/* Mostrar direcciones de envío cargadas */}
-                {direccionesEnvio.length > 0 && (
-                  <div className="mt-4 p-3 bg-background rounded-md border">
+                {direccionesEnvio.length > 0 && <div className="mt-4 p-3 bg-background rounded-md border">
                     <Label className="text-sm font-medium">Direcciones de Envío Guardadas ({direccionesEnvio.length})</Label>
                     <div className="mt-2 space-y-2">
-                      {direccionesEnvio.map((dir) => (
-                        <p key={dir.id} className="text-sm text-muted-foreground">
+                      {direccionesEnvio.map(dir => <p key={dir.id} className="text-sm text-muted-foreground">
                           • {dir.direccion} {dir.es_principal && <span className="text-primary font-medium">(Principal)</span>}
-                        </p>
-                      ))}
+                        </p>)}
                     </div>
-                  </div>
-                )}
-              </div>
-            )}
+                  </div>}
+              </div>}
 
             {/* Formulario nuevo cliente */}
-            {mostrarFormNuevoCliente && (
-              <div className="space-y-4 sm:space-y-6 p-3 sm:p-4 border rounded-lg bg-muted/30">
+            {mostrarFormNuevoCliente && <div className="space-y-4 sm:space-y-6 p-3 sm:p-4 border rounded-lg bg-muted/30">
                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
                   <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground">
                     <AlertCircle className="w-3 h-3 sm:w-4 sm:h-4" />
                     <span>Se generará automáticamente un código HPC para este cliente</span>
                   </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      setMostrarFormNuevoCliente(false);
-                      setNuevoCliente({
-                        nombre: "",
-                        nit: "",
-                        direccion: "",
-                        correo: "",
-                        telefono_principal: "",
-                        telefono_secundario: "",
-                        nombre_facturacion: "",
-                        pais: "Guatemala",
-                        departamento: "",
-                        municipio: ""
-                      });
-                    }}
-                    className="text-xs"
-                  >
+                  <Button size="sm" variant="outline" onClick={() => {
+              setMostrarFormNuevoCliente(false);
+              setNuevoCliente({
+                nombre: "",
+                nit: "",
+                direccion: "",
+                correo: "",
+                telefono_principal: "",
+                telefono_secundario: "",
+                nombre_facturacion: "",
+                pais: "Guatemala",
+                departamento: "",
+                municipio: ""
+              });
+            }} className="text-xs">
                     Cancelar
                   </Button>
                 </div>
@@ -828,100 +769,82 @@ export default function NuevoIncidente() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                     <div className="col-span-2">
                       <Label htmlFor="nombre">Nombre Completo *</Label>
-                      <Input
-                        id="nombre"
-                        value={nuevoCliente.nombre}
-                        onChange={(e) => setNuevoCliente({ ...nuevoCliente, nombre: e.target.value })}
-                        placeholder="Nombre completo del cliente"
-                      />
+                      <Input id="nombre" value={nuevoCliente.nombre} onChange={e => setNuevoCliente({
+                  ...nuevoCliente,
+                  nombre: e.target.value
+                })} placeholder="Nombre completo del cliente" />
                     </div>
                     
                     <div>
                       <Label htmlFor="correo">Correo Electrónico</Label>
-                      <Input
-                        id="correo"
-                        type="email"
-                        value={nuevoCliente.correo}
-                        onChange={(e) => setNuevoCliente({ ...nuevoCliente, correo: e.target.value })}
-                        placeholder="correo@ejemplo.com"
-                      />
+                      <Input id="correo" type="email" value={nuevoCliente.correo} onChange={e => setNuevoCliente({
+                  ...nuevoCliente,
+                  correo: e.target.value
+                })} placeholder="correo@ejemplo.com" />
                     </div>
 
                     <div>
                       <Label htmlFor="telefono-principal">Teléfono Principal *</Label>
-                      <Input
-                        id="telefono-principal"
-                        value={nuevoCliente.telefono_principal}
-                        onChange={(e) => setNuevoCliente({ ...nuevoCliente, telefono_principal: e.target.value })}
-                        placeholder="1234-5678"
-                      />
+                      <Input id="telefono-principal" value={nuevoCliente.telefono_principal} onChange={e => setNuevoCliente({
+                  ...nuevoCliente,
+                  telefono_principal: e.target.value
+                })} placeholder="1234-5678" />
                     </div>
 
                     <div>
                       <Label htmlFor="telefono-secundario">Teléfono Secundario</Label>
-                      <Input
-                        id="telefono-secundario"
-                        value={nuevoCliente.telefono_secundario}
-                        onChange={(e) => setNuevoCliente({ ...nuevoCliente, telefono_secundario: e.target.value })}
-                        placeholder="1234-5678"
-                      />
+                      <Input id="telefono-secundario" value={nuevoCliente.telefono_secundario} onChange={e => setNuevoCliente({
+                  ...nuevoCliente,
+                  telefono_secundario: e.target.value
+                })} placeholder="1234-5678" />
                     </div>
 
                     <div className="col-span-2">
                       <Label htmlFor="direccion">Dirección *</Label>
-                      <Input
-                        id="direccion"
-                        value={nuevoCliente.direccion}
-                        onChange={(e) => setNuevoCliente({ ...nuevoCliente, direccion: e.target.value })}
-                        placeholder="Dirección completa"
-                      />
+                      <Input id="direccion" value={nuevoCliente.direccion} onChange={e => setNuevoCliente({
+                  ...nuevoCliente,
+                  direccion: e.target.value
+                })} placeholder="Dirección completa" />
                     </div>
 
                     <div>
                       <Label htmlFor="pais">País *</Label>
-                      <Input
-                        id="pais"
-                        value={nuevoCliente.pais}
-                        onChange={(e) => setNuevoCliente({ ...nuevoCliente, pais: e.target.value })}
-                        placeholder="Guatemala"
-                      />
+                      <Input id="pais" value={nuevoCliente.pais} onChange={e => setNuevoCliente({
+                  ...nuevoCliente,
+                  pais: e.target.value
+                })} placeholder="Guatemala" />
                     </div>
 
                     <div>
                       <Label htmlFor="departamento">Departamento *</Label>
-                      <Select
-                        value={nuevoCliente.departamento}
-                        onValueChange={(value) => setNuevoCliente({ ...nuevoCliente, departamento: value })}
-                      >
+                      <Select value={nuevoCliente.departamento} onValueChange={value => setNuevoCliente({
+                  ...nuevoCliente,
+                  departamento: value
+                })}>
                         <SelectTrigger>
                           <SelectValue placeholder="Seleccione un departamento" />
                         </SelectTrigger>
                         <SelectContent>
-                          {DEPARTAMENTOS.map((dept) => (
-                            <SelectItem key={dept} value={dept}>
+                          {DEPARTAMENTOS.map(dept => <SelectItem key={dept} value={dept}>
                               {dept}
-                            </SelectItem>
-                          ))}
+                            </SelectItem>)}
                         </SelectContent>
                       </Select>
                     </div>
 
                     <div>
                       <Label htmlFor="municipio">Municipio *</Label>
-                      <Select
-                        value={nuevoCliente.municipio}
-                        onValueChange={(value) => setNuevoCliente({ ...nuevoCliente, municipio: value })}
-                        disabled={!nuevoCliente.departamento}
-                      >
+                      <Select value={nuevoCliente.municipio} onValueChange={value => setNuevoCliente({
+                  ...nuevoCliente,
+                  municipio: value
+                })} disabled={!nuevoCliente.departamento}>
                         <SelectTrigger>
                           <SelectValue placeholder="Seleccione un municipio" />
                         </SelectTrigger>
                         <SelectContent>
-                          {municipiosDisponibles.map((muni) => (
-                            <SelectItem key={muni} value={muni}>
+                          {municipiosDisponibles.map(muni => <SelectItem key={muni} value={muni}>
                               {muni}
-                            </SelectItem>
-                          ))}
+                            </SelectItem>)}
                         </SelectContent>
                       </Select>
                     </div>
@@ -934,45 +857,35 @@ export default function NuevoIncidente() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                     <div>
                       <Label htmlFor="nit">NIT *</Label>
-                      <Input
-                        id="nit"
-                        value={nuevoCliente.nit}
-                        onChange={(e) => setNuevoCliente({ ...nuevoCliente, nit: e.target.value })}
-                        placeholder="NIT o CF"
-                      />
+                      <Input id="nit" value={nuevoCliente.nit} onChange={e => setNuevoCliente({
+                  ...nuevoCliente,
+                  nit: e.target.value
+                })} placeholder="NIT o CF" />
                     </div>
 
                     <div>
                       <Label htmlFor="nombre-facturacion">Nombre de Facturación *</Label>
-                      <Input
-                        id="nombre-facturacion"
-                        value={nuevoCliente.nombre_facturacion}
-                        onChange={(e) => setNuevoCliente({ ...nuevoCliente, nombre_facturacion: e.target.value })}
-                        placeholder="Nombre para facturar"
-                      />
+                      <Input id="nombre-facturacion" value={nuevoCliente.nombre_facturacion} onChange={e => setNuevoCliente({
+                  ...nuevoCliente,
+                  nombre_facturacion: e.target.value
+                })} placeholder="Nombre para facturar" />
                     </div>
                   </div>
                 </div>
-              </div>
-            )}
+              </div>}
 
             <div className="flex justify-end">
-              <Button 
-                onClick={() => {
-                  if (validarPaso1()) setPaso(2);
-                }}
-                className="w-full sm:w-auto"
-              >
+              <Button onClick={() => {
+            if (validarPaso1()) setPaso(2);
+          }} className="w-full sm:w-auto">
                 Siguiente
               </Button>
             </div>
           </CardContent>
-        </Card>
-      )}
+        </Card>}
 
       {/* Paso 2: Incidente */}
-      {paso === 2 && (
-        <Card>
+      {paso === 2 && <Card>
           <CardHeader className="p-4 sm:p-6">
             <CardTitle className="text-base sm:text-lg">Información del Incidente</CardTitle>
             <CardDescription className="text-xs sm:text-sm">Datos del equipo y problema reportado</CardDescription>
@@ -980,50 +893,30 @@ export default function NuevoIncidente() {
           <CardContent className="space-y-4 sm:space-y-6 p-4 sm:p-6">
             <div>
               <Label htmlFor="sku">SKU de la Máquina *</Label>
-              <Input
-                id="sku"
-                value={skuMaquina}
-                onChange={(e) => {
-                  setSkuMaquina(e.target.value);
-                  if (!e.target.value) {
-                    setProductoSeleccionado(null);
-                  }
-                }}
-                placeholder="Ingrese código o clave del producto (mín. 3 caracteres)"
-              />
+              <Input id="sku" value={skuMaquina} onChange={e => {
+            setSkuMaquina(e.target.value);
+            if (!e.target.value) {
+              setProductoSeleccionado(null);
+            }
+          }} placeholder="Ingrese código o clave del producto (mín. 3 caracteres)" />
               
-              {productosEncontrados.length > 1 && (
-                <div className="mt-2 border rounded-lg max-h-48 overflow-y-auto bg-background">
-                  {productosEncontrados.map((producto) => (
-                    <div 
-                      key={producto.codigo}
-                      className="p-3 hover:bg-muted cursor-pointer border-b last:border-b-0"
-                      onClick={() => {
-                        setProductoSeleccionado(producto);
-                        setSkuMaquina(producto.codigo);
-                      }}
-                    >
+              {productosEncontrados.length > 1 && <div className="mt-2 border rounded-lg max-h-48 overflow-y-auto bg-background">
+                  {productosEncontrados.map(producto => <div key={producto.codigo} className="p-3 hover:bg-muted cursor-pointer border-b last:border-b-0" onClick={() => {
+              setProductoSeleccionado(producto);
+              setSkuMaquina(producto.codigo);
+            }}>
                       <div className="font-medium">{producto.descripcion}</div>
                       <div className="text-sm text-muted-foreground">
                         Código: {producto.codigo} | Clave: {producto.clave}
                       </div>
-                    </div>
-                  ))}
-                </div>
-              )}
+                    </div>)}
+                </div>}
 
-              {productoSeleccionado && (
-                <div className="mt-4 p-4 border rounded-lg bg-muted/30">
+              {productoSeleccionado && <div className="mt-4 p-4 border rounded-lg bg-muted/30">
                   <div className="flex gap-4">
-                    {productoSeleccionado.urlFoto && (
-                      <div className="flex-shrink-0">
-                        <img 
-                          src={productoSeleccionado.urlFoto} 
-                          alt={productoSeleccionado.descripcion}
-                          className="w-32 h-32 object-cover rounded-lg border"
-                        />
-                      </div>
-                    )}
+                    {productoSeleccionado.urlFoto && <div className="flex-shrink-0">
+                        <img src={productoSeleccionado.urlFoto} alt={productoSeleccionado.descripcion} className="w-32 h-32 object-cover rounded-lg border" />
+                      </div>}
                     <div className="flex-1">
                       <div className="flex items-start justify-between gap-2">
                         <div>
@@ -1031,55 +924,32 @@ export default function NuevoIncidente() {
                           <p className="text-sm text-muted-foreground mt-1">Código: {productoSeleccionado.codigo}</p>
                           <p className="text-sm text-muted-foreground">Clave: {productoSeleccionado.clave}</p>
                         </div>
-                        {productoSeleccionado.descontinuado ? (
-                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
+                        {productoSeleccionado.descontinuado ? <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">
                             Descontinuado
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
+                          </span> : <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
                             Vigente
-                          </span>
-                        )}
+                          </span>}
                       </div>
                     </div>
                   </div>
-                </div>
-              )}
+                </div>}
             </div>
 
             <div className="space-y-3 sm:space-y-4 p-3 sm:p-4 border rounded-lg bg-muted/30">
               <h4 className="font-medium text-sm sm:text-base">Reporte de Fallas</h4>
               <div>
                 <Label htmlFor="descripcion">Comentario del cliente (o fallas de la máquina) *</Label>
-                <Textarea
-                  id="descripcion"
-                  value={descripcionProblema}
-                  onChange={(e) => setDescripcionProblema(e.target.value)}
-                  placeholder="Describa las fallas o problema reportado por el cliente"
-                  rows={4}
-                  className="text-sm"
-                />
+                <Textarea id="descripcion" value={descripcionProblema} onChange={e => setDescripcionProblema(e.target.value)} placeholder="Describa las fallas o problema reportado por el cliente" rows={4} className="text-sm" />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                 <div>
                   <Label htmlFor="persona-deja">Persona quien deja la máquina *</Label>
-                  <Input
-                    id="persona-deja"
-                    value={personaDejaMaquina}
-                    onChange={(e) => setPersonaDejaMaquina(e.target.value)}
-                    placeholder="Nombre de quien entrega el equipo"
-                  />
+                  <Input id="persona-deja" value={personaDejaMaquina} onChange={e => setPersonaDejaMaquina(e.target.value)} placeholder="Nombre de quien entrega el equipo" />
                 </div>
                 <div>
                   <Label htmlFor="dpi-persona">DPI *</Label>
-                  <Input
-                    id="dpi-persona"
-                    value={dpiPersonaDeja}
-                    onChange={(e) => setDpiPersonaDeja(e.target.value)}
-                    placeholder="Número de DPI"
-                    maxLength={13}
-                  />
+                  <Input id="dpi-persona" value={dpiPersonaDeja} onChange={e => setDpiPersonaDeja(e.target.value)} placeholder="Número de DPI" maxLength={13} />
                 </div>
               </div>
             </div>
@@ -1087,61 +957,26 @@ export default function NuevoIncidente() {
             <div>
               <Label>Accesorios con los que ingresa</Label>
               <div className="mt-2 border rounded-lg p-4 max-h-60 overflow-y-auto space-y-3">
-                {accesoriosDisponibles.length > 0 ? (
-                  accesoriosDisponibles.map((accesorio) => (
-                    <div key={accesorio.id} className="flex items-center space-x-3">
-                      <Checkbox
-                        id={accesorio.id}
-                        checked={accesoriosSeleccionados.includes(accesorio.descripcion)}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            setAccesoriosSeleccionados([...accesoriosSeleccionados, accesorio.descripcion]);
-                          } else {
-                            setAccesoriosSeleccionados(accesoriosSeleccionados.filter(a => a !== accesorio.descripcion));
-                          }
-                        }}
-                      />
-                      <Label
-                        htmlFor={accesorio.id}
-                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-                      >
+                {accesoriosDisponibles.length > 0 ? accesoriosDisponibles.map(accesorio => <div key={accesorio.id} className="flex items-center space-x-3">
+                      <Checkbox id={accesorio.id} checked={accesoriosSeleccionados.includes(accesorio.descripcion)} onCheckedChange={checked => {
+                if (checked) {
+                  setAccesoriosSeleccionados([...accesoriosSeleccionados, accesorio.descripcion]);
+                } else {
+                  setAccesoriosSeleccionados(accesoriosSeleccionados.filter(a => a !== accesorio.descripcion));
+                }
+              }} />
+                      <Label htmlFor={accesorio.id} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer">
                         {accesorio.descripcion}
                       </Label>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-sm text-muted-foreground">No hay accesorios disponibles</p>
-                )}
+                    </div>) : <p className="text-sm text-muted-foreground">No hay accesorios disponibles</p>}
               </div>
-              {accesoriosSeleccionados.length > 0 && (
-                <p className="text-sm text-muted-foreground mt-2">
+              {accesoriosSeleccionados.length > 0 && <p className="text-sm text-muted-foreground mt-2">
                   Seleccionados: {accesoriosSeleccionados.join(", ")}
-                </p>
-              )}
+                </p>}
             </div>
 
             {/* Checkbox Stock Cemaco */}
-            <div className="flex items-center space-x-2 p-4 border rounded-lg bg-accent/30">
-              <Checkbox
-                id="stock-cemaco"
-                checked={esStockCemaco}
-                onCheckedChange={(checked) => setEsStockCemaco(checked as boolean)}
-              />
-              <div className="flex flex-col gap-1">
-                <Label
-                  htmlFor="stock-cemaco"
-                  className="font-medium cursor-pointer"
-                >
-                  ¿Es stock de Cemaco?
-                </Label>
-                {esStockCemaco && (
-                  <p className="text-xs text-muted-foreground">
-                    <AlertCircle className="h-3 w-3 inline mr-1" />
-                    Esta máquina seguirá un flujo de revisión simplificado sin reparación
-                  </p>
-                )}
-              </div>
-            </div>
+            
 
             <div>
               <Label htmlFor="centro">Centro de Servicio *</Label>
@@ -1150,29 +985,23 @@ export default function NuevoIncidente() {
                   <SelectValue placeholder="Seleccione un centro" />
                 </SelectTrigger>
                 <SelectContent>
-                  {centrosServicio.map((centro) => (
-                    <SelectItem key={centro} value={centro}>
+                  {centrosServicio.map(centro => <SelectItem key={centro} value={centro}>
                       {centro}
-                    </SelectItem>
-                  ))}
+                    </SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-4">
               <Label>Opciones de Entrega *</Label>
-              <RadioGroup 
-                value={opcionEnvio} 
-                onValueChange={(value) => {
-                  setOpcionEnvio(value);
-                  if (value === 'recoger') {
-                    setDireccionSeleccionada("");
-                    setNuevaDireccion("");
-                    setMostrarNuevaDireccion(false);
-                  }
-                }} 
-                className="flex flex-col gap-3 mt-2"
-              >
+              <RadioGroup value={opcionEnvio} onValueChange={value => {
+            setOpcionEnvio(value);
+            if (value === 'recoger') {
+              setDireccionSeleccionada("");
+              setNuevaDireccion("");
+              setMostrarNuevaDireccion(false);
+            }
+          }} className="flex flex-col gap-3 mt-2">
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="recoger" id="recoger" />
                   <Label htmlFor="recoger" className="cursor-pointer font-normal">
@@ -1187,97 +1016,61 @@ export default function NuevoIncidente() {
                 </div>
               </RadioGroup>
 
-              {opcionEnvio !== 'recoger' && opcionEnvio && (
-                <div className="pl-6 space-y-4 border-l-2 border-primary/20">
+              {opcionEnvio !== 'recoger' && opcionEnvio && <div className="pl-6 space-y-4 border-l-2 border-primary/20">
                   <div>
                     <Label htmlFor="direccion-envio">
                       Dirección de Envío {opcionEnvio === 'directo' && '*'}
                     </Label>
                     
                     {/* Si es nuevo cliente, mostrar su dirección directamente */}
-                    {mostrarFormNuevoCliente ? (
-                      <div className="mt-2">
-                        {nuevoCliente.direccion ? (
-                          <div className="p-3 border rounded-md bg-accent/50">
+                    {mostrarFormNuevoCliente ? <div className="mt-2">
+                        {nuevoCliente.direccion ? <div className="p-3 border rounded-md bg-accent/50">
                             <p className="text-sm font-medium">Dirección del nuevo cliente:</p>
                             <p className="text-sm text-muted-foreground mt-1">{nuevoCliente.direccion}</p>
-                          </div>
-                        ) : (
-                          <p className="text-sm text-destructive">
+                          </div> : <p className="text-sm text-destructive">
                             Complete la dirección del cliente en el paso anterior
-                          </p>
-                        )}
-                      </div>
-                    ) : direccionesEnvio.length > 0 ? (
-                      <Select value={direccionSeleccionada} onValueChange={setDireccionSeleccionada}>
+                          </p>}
+                      </div> : direccionesEnvio.length > 0 ? <Select value={direccionSeleccionada} onValueChange={setDireccionSeleccionada}>
                         <SelectTrigger>
                           <SelectValue placeholder="Seleccione una dirección" />
                         </SelectTrigger>
                         <SelectContent>
-                          {direccionesEnvio.map((dir) => (
-                            <SelectItem key={dir.id} value={dir.id}>
+                          {direccionesEnvio.map(dir => <SelectItem key={dir.id} value={dir.id}>
                               {dir.direccion} {dir.es_principal && '(Principal)'}
-                            </SelectItem>
-                          ))}
+                            </SelectItem>)}
                         </SelectContent>
-                      </Select>
-                    ) : (
-                      <p className="text-sm text-muted-foreground">No hay direcciones guardadas</p>
-                    )}
+                      </Select> : <p className="text-sm text-muted-foreground">No hay direcciones guardadas</p>}
                   </div>
 
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <Label className="text-sm">Agregar nueva dirección</Label>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setMostrarNuevaDireccion(!mostrarNuevaDireccion)}
-                      >
+                      <Button type="button" variant="ghost" size="sm" onClick={() => setMostrarNuevaDireccion(!mostrarNuevaDireccion)}>
                         {mostrarNuevaDireccion ? 'Cancelar' : 'Agregar'}
                       </Button>
                     </div>
                     
-                    {mostrarNuevaDireccion && (
-                      <Textarea
-                        value={nuevaDireccion}
-                        onChange={(e) => setNuevaDireccion(e.target.value)}
-                        placeholder="Ingrese la nueva dirección de envío"
-                        rows={3}
-                      />
-                    )}
+                    {mostrarNuevaDireccion && <Textarea value={nuevaDireccion} onChange={e => setNuevaDireccion(e.target.value)} placeholder="Ingrese la nueva dirección de envío" rows={3} />}
                   </div>
 
-                  {direccionSeleccionada && !mostrarNuevaDireccion && (
-                    <div className="p-3 bg-muted/30 rounded-lg">
+                  {direccionSeleccionada && !mostrarNuevaDireccion && <div className="p-3 bg-muted/30 rounded-lg">
                       <p className="text-sm font-medium">Dirección seleccionada:</p>
                       <p className="text-sm text-muted-foreground mt-1">
                         {direccionesEnvio.find(d => d.id === direccionSeleccionada)?.direccion}
                       </p>
-                    </div>
-                  )}
-                </div>
-              )}
+                    </div>}
+                </div>}
             </div>
 
             <div className="flex items-center space-x-2">
-              <Checkbox
-                id="mostrador"
-                checked={ingresadoMostrador}
-                onCheckedChange={(checked) => setIngresadoMostrador(checked as boolean)}
-              />
+              <Checkbox id="mostrador" checked={ingresadoMostrador} onCheckedChange={checked => setIngresadoMostrador(checked as boolean)} />
               <Label htmlFor="mostrador" className="cursor-pointer">
                 Ingresado en mostrador
               </Label>
             </div>
 
             <div className="flex items-center space-x-2">
-              <Checkbox
-                id="reingreso"
-                checked={esReingreso}
-                onCheckedChange={(checked) => setEsReingreso(checked as boolean)}
-              />
+              <Checkbox id="reingreso" checked={esReingreso} onCheckedChange={checked => setEsReingreso(checked as boolean)} />
               <Label htmlFor="reingreso" className="cursor-pointer">
                 Es un reingreso
               </Label>
@@ -1290,34 +1083,22 @@ export default function NuevoIncidente() {
                   <SelectValue placeholder="Seleccione la tipología" />
                 </SelectTrigger>
                 <SelectContent>
-                  {tipologias.map((tipo) => (
-                    <SelectItem key={tipo} value={tipo}>
+                  {tipologias.map(tipo => <SelectItem key={tipo} value={tipo}>
                       {tipo}
-                    </SelectItem>
-                  ))}
+                    </SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
 
             <div>
               <Label htmlFor="log">Observaciones (LOG)</Label>
-              <Textarea
-                id="log"
-                value={logObservaciones}
-                onChange={(e) => setLogObservaciones(e.target.value)}
-                placeholder="Cualquier observación adicional"
-                rows={3}
-              />
+              <Textarea id="log" value={logObservaciones} onChange={e => setLogObservaciones(e.target.value)} placeholder="Cualquier observación adicional" rows={3} />
             </div>
 
             {/* Sección de fotos/videos estilo WhatsApp */}
             <div className="space-y-4 border-t pt-6">
               <Label>Fotos y Videos del Ingreso</Label>
-              <WhatsAppStyleMediaCapture
-                media={mediaFiles}
-                onMediaChange={setMediaFiles}
-                maxFiles={10}
-              />
+              <WhatsAppStyleMediaCapture media={mediaFiles} onMediaChange={setMediaFiles} maxFiles={10} />
             </div>
 
             <div className="flex flex-col sm:flex-row justify-between gap-2 sm:gap-0">
@@ -1329,8 +1110,7 @@ export default function NuevoIncidente() {
               </Button>
             </div>
           </CardContent>
-        </Card>
-      )}
+        </Card>}
 
       {/* Success Dialog - Add Another Machine */}
       <AlertDialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
@@ -1346,15 +1126,17 @@ export default function NuevoIncidente() {
               No, Finalizar
             </AlertDialogCancel>
             <AlertDialogAction onClick={() => {
-              setShowSuccessDialog(false);
-              resetForm();
-              toast({ title: "Listo para nuevo ingreso", description: "Complete los datos de la nueva máquina" });
-            }}>
+            setShowSuccessDialog(false);
+            resetForm();
+            toast({
+              title: "Listo para nuevo ingreso",
+              description: "Complete los datos de la nueva máquina"
+            });
+          }}>
               Sí, Ingresar Otra Máquina
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
-  );
+    </div>;
 }
