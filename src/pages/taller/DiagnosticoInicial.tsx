@@ -362,25 +362,43 @@ export default function DiagnosticoInicial() {
       
       console.log('Total relaciones cargadas:', allRelaciones.length);
       
-      // Crear mapa hijo→padre y mapa padre→descripción
+      // Crear mapa id→código para resolver referencias de Padre (que es un ID, no código)
+      const idToCodigoMap = new Map<number, string>();
+      const idToDescripcionMap = new Map<number, string>();
+      
+      allRelaciones.forEach((r: any) => {
+        if (r.id && r.Código) {
+          idToCodigoMap.set(r.id, r.Código);
+          if (r.Descripción) {
+            idToDescripcionMap.set(r.id, r.Descripción);
+          }
+        }
+      });
+      
+      // Crear mapa hijo→padre resolviendo el ID del padre a su código
       const newHijoPadreMap = new Map<string, string>();
       const padreDescripcionMap = new Map<string, string>();
       
       allRelaciones.forEach((r: any) => {
-        const hijo = r.Hijo;
-        const padre = r.Padre;
-        const descripcion = r.Descripción;
+        const codigoHijo = r.Código;
+        const padreId = r.Padre; // Este es un ID numérico, no el código
         
-        if (hijo && padre) {
-          newHijoPadreMap.set(hijo, padre);
-          if (descripcion) {
-            padreDescripcionMap.set(padre, descripcion);
+        if (codigoHijo && padreId) {
+          // Resolver el ID del padre a su código real
+          const codigoPadre = idToCodigoMap.get(padreId);
+          if (codigoPadre) {
+            newHijoPadreMap.set(codigoHijo, codigoPadre);
+            // Guardar descripción del padre
+            const descripcionPadre = idToDescripcionMap.get(padreId);
+            if (descripcionPadre) {
+              padreDescripcionMap.set(codigoPadre, descripcionPadre);
+            }
           }
         }
       });
       
       setHijoPadreMap(newHijoPadreMap);
-      console.log('Mapa hijo→padre:', newHijoPadreMap.size, '- Ejemplo 929926→', newHijoPadreMap.get('929926'));
+      console.log('Mapa hijo→padre:', newHijoPadreMap.size, 'registros');
 
       // 2. Cargar repuestos del producto
       const { data, error } = await supabase
