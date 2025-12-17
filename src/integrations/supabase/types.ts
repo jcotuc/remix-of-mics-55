@@ -247,6 +247,35 @@ export type Database = {
         }
         Relationships: []
       }
+      centros_supervisor: {
+        Row: {
+          centro_servicio_id: string
+          created_at: string | null
+          id: string
+          supervisor_id: string
+        }
+        Insert: {
+          centro_servicio_id: string
+          created_at?: string | null
+          id?: string
+          supervisor_id: string
+        }
+        Update: {
+          centro_servicio_id?: string
+          created_at?: string | null
+          id?: string
+          supervisor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "centros_supervisor_centro_servicio_id_fkey"
+            columns: ["centro_servicio_id"]
+            isOneToOne: false
+            referencedRelation: "centros_servicio"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clientes: {
         Row: {
           celular: string
@@ -309,6 +338,51 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      configuracion_fifo_centro: {
+        Row: {
+          activo: boolean | null
+          centro_servicio_id: string
+          familia_abuelo_id: number
+          id: string
+          orden: number
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          activo?: boolean | null
+          centro_servicio_id: string
+          familia_abuelo_id: number
+          id?: string
+          orden?: number
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          activo?: boolean | null
+          centro_servicio_id?: string
+          familia_abuelo_id?: number
+          id?: string
+          orden?: number
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "configuracion_fifo_centro_centro_servicio_id_fkey"
+            columns: ["centro_servicio_id"]
+            isOneToOne: false
+            referencedRelation: "centros_servicio"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "configuracion_fifo_centro_familia_abuelo_id_fkey"
+            columns: ["familia_abuelo_id"]
+            isOneToOne: false
+            referencedRelation: "CDS_Familias"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       cotizaciones: {
         Row: {
@@ -1816,6 +1890,73 @@ export type Database = {
           },
         ]
       }
+      solicitudes_transferencia_maquinas: {
+        Row: {
+          aprobado_por: string | null
+          centro_destino_id: string
+          centro_origen_id: string
+          created_at: string | null
+          estado: string | null
+          fecha_aprobacion: string | null
+          id: string
+          incidente_id: string
+          motivo: string
+          notas_aprobacion: string | null
+          solicitado_por: string
+          updated_at: string | null
+        }
+        Insert: {
+          aprobado_por?: string | null
+          centro_destino_id: string
+          centro_origen_id: string
+          created_at?: string | null
+          estado?: string | null
+          fecha_aprobacion?: string | null
+          id?: string
+          incidente_id: string
+          motivo: string
+          notas_aprobacion?: string | null
+          solicitado_por: string
+          updated_at?: string | null
+        }
+        Update: {
+          aprobado_por?: string | null
+          centro_destino_id?: string
+          centro_origen_id?: string
+          created_at?: string | null
+          estado?: string | null
+          fecha_aprobacion?: string | null
+          id?: string
+          incidente_id?: string
+          motivo?: string
+          notas_aprobacion?: string | null
+          solicitado_por?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "solicitudes_transferencia_maquinas_centro_destino_id_fkey"
+            columns: ["centro_destino_id"]
+            isOneToOne: false
+            referencedRelation: "centros_servicio"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitudes_transferencia_maquinas_centro_origen_id_fkey"
+            columns: ["centro_origen_id"]
+            isOneToOne: false
+            referencedRelation: "centros_servicio"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitudes_transferencia_maquinas_incidente_id_fkey"
+            columns: ["incidente_id"]
+            isOneToOne: false
+            referencedRelation: "incidentes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       stock_departamental: {
         Row: {
           cantidad_actual: number
@@ -1895,6 +2036,51 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      tecnicos_familias: {
+        Row: {
+          activo: boolean | null
+          centro_servicio_id: string | null
+          created_at: string | null
+          familia_abuelo_id: number | null
+          id: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          activo?: boolean | null
+          centro_servicio_id?: string | null
+          created_at?: string | null
+          familia_abuelo_id?: number | null
+          id?: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          activo?: boolean | null
+          centro_servicio_id?: string | null
+          created_at?: string | null
+          familia_abuelo_id?: number | null
+          id?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tecnicos_familias_centro_servicio_id_fkey"
+            columns: ["centro_servicio_id"]
+            isOneToOne: false
+            referencedRelation: "centros_servicio"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tecnicos_familias_familia_abuelo_id_fkey"
+            columns: ["familia_abuelo_id"]
+            isOneToOne: false
+            referencedRelation: "CDS_Familias"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       transitos_bodega: {
         Row: {

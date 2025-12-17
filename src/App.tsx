@@ -33,6 +33,12 @@ import ConsultaUbicaciones from "./pages/logistica/ConsultaUbicaciones";
 import Asignaciones from "./pages/taller/Asignaciones";
 import MisAsignaciones from "./pages/taller/MisAsignaciones";
 import BusquedaIncidentes from "./pages/taller/BusquedaIncidentes";
+import PendientesRepuestos from "./pages/taller/PendientesRepuestos";
+import AsignacionTecnicos from "./pages/taller/AsignacionTecnicos";
+import ConfiguracionColas from "./pages/taller/ConfiguracionColas";
+import Transferencias from "./pages/taller/Transferencias";
+import Reasignaciones from "./pages/taller/Reasignaciones";
+import AprobacionesGarantia from "./pages/gerencia/AprobacionesGarantia";
 
 import DiagnosticoInicial from "./pages/taller/DiagnosticoInicial";
 import InventarioNuevo from "./pages/bodega/InventarioNuevo";
@@ -117,6 +123,11 @@ const App = () => (
               <Route path="/taller/busqueda-incidentes" element={<BusquedaIncidentes />} />
               <Route path="/taller/revision-stock-cemaco" element={<RevisionStockCemaco />} />
               <Route path="/taller/aprobaciones-stock-cemaco" element={<AprobacionesStockCemaco />} />
+              <Route path="/taller/pendientes-repuestos" element={<PendientesRepuestos />} />
+              <Route path="/taller/asignacion-tecnicos" element={<AsignacionTecnicos />} />
+              <Route path="/taller/configuracion-colas" element={<ConfiguracionColas />} />
+              <Route path="/taller/transferencias" element={<Transferencias />} />
+              <Route path="/taller/reasignaciones" element={<Reasignaciones />} />
               
               <Route path="/taller/diagnostico/:id" element={<DiagnosticoInicial />} />
               <Route path="/bodega/inventario" element={<InventarioNuevo />} />
@@ -157,6 +168,7 @@ const App = () => (
               {/* Gerencia Routes */}
               <Route path="/gerencia/dashboard" element={<DashboardGerente />} />
               <Route path="/gerencia/regional" element={<DashboardSupervisorRegional />} />
+              <Route path="/gerencia/aprobaciones-garantia" element={<AprobacionesGarantia />} />
               
               {/* Supervisor Routes */}
               <Route path="/taller/dashboard-jefe" element={<DashboardJefeTaller />} />

@@ -52,6 +52,14 @@ const menuAreas = {
     { title: "Mis Asignaciones", url: "/taller/mis-asignaciones", icon: ClipboardList },
     { title: "Búsqueda Incidentes", url: "/taller/busqueda-incidentes", icon: FileText },
   ],
+  jefeTaller: [
+    { title: "Dashboard Jefe", url: "/taller/dashboard-jefe", icon: BarChart3 },
+    { title: "Pendientes Repuestos", url: "/taller/pendientes-repuestos", icon: AlertTriangle },
+    { title: "Asignación Técnicos", url: "/taller/asignacion-tecnicos", icon: Users },
+    { title: "Config. Colas FIFO", url: "/taller/configuracion-colas", icon: Settings },
+    { title: "Reasignaciones", url: "/taller/reasignaciones", icon: RefreshCw },
+    { title: "Transferencias", url: "/taller/transferencias", icon: Truck },
+  ],
   bodega: [
     { title: "Inventario", url: "/bodega/inventario", icon: ClipboardCheck },
     { title: "Reubicación", url: "/bodega/reubicacion-repuestos", icon: MapPin },
@@ -91,6 +99,7 @@ const menuAreas = {
   gerencia: [
     { title: "Dashboard Gerente", url: "/gerencia/dashboard", icon: BarChart3 },
     { title: "Dashboard Regional", url: "/gerencia/regional", icon: BarChart3 },
+    { title: "Aprobaciones Garantía", url: "/gerencia/aprobaciones-garantia", icon: CheckCircle2 },
   ],
   supervisores: [
     { title: "Supervisor SAC", url: "/sac/dashboard-supervisor", icon: BarChart3 },
@@ -179,6 +188,7 @@ export function AppSidebar() {
           {renderMenuSection("Mostrador", menuAreas.mostrador)}
           {renderMenuSection("Logística", menuAreas.logistica)}
           {renderMenuSection("Taller", menuAreas.taller)}
+          {(userRole === "jefe_taller" || userRole === "admin") && renderMenuSection("Jefe Taller", menuAreas.jefeTaller)}
           {renderMenuSection("Bodega", menuAreas.bodega)}
           {renderMenuSection("SAC", menuAreas.sac)}
           {renderMenuSection("Calidad", menuAreas.calidad)}
