@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -26,6 +27,14 @@ interface Familia {
   Padre: number | null;
 }
 
+interface NewProducto {
+  codigo: string;
+  clave: string;
+  descripcion: string;
+  url_foto: string;
+  descontinuado: boolean;
+}
+
 export default function Productos() {
   const [searchTerm, setSearchTerm] = useState("");
   const [productosList, setProductosList] = useState<ProductoExtended[]>([]);
@@ -36,12 +45,30 @@ export default function Productos() {
   const [selectedPadre, setSelectedPadre] = useState<string>("");
   const [saving, setSaving] = useState(false);
 
+  // Estados para crear nuevo producto
+  const [isCreating, setIsCreating] = useState(false);
+  const [newProducto, setNewProducto] = useState<NewProducto>({
+    codigo: "",
+    clave: "",
+    descripcion: "",
+    url_foto: "",
+    descontinuado: false
+  });
+  const [createAbuelo, setCreateAbuelo] = useState<string>("");
+  const [createPadre, setCreatePadre] = useState<string>("");
+  const [creating, setCreating] = useState(false);
+
   // Familias "abuelo" (top-level, sin padre)
   const familiasAbuelo = familias.filter(f => f.Padre === null);
   
-  // Familias "padre" (subcategorías del abuelo seleccionado)
+  // Familias "padre" para edición
   const familiasPadre = familias.filter(f => 
     selectedAbuelo && f.Padre === parseInt(selectedAbuelo)
+  );
+
+  // Familias "padre" para creación
+  const familiasPadreCreate = familias.filter(f => 
+    createAbuelo && f.Padre === parseInt(createAbuelo)
   );
 
   useEffect(() => {
@@ -82,7 +109,6 @@ export default function Productos() {
     return familias.find(f => f.id === id)?.Categoria || "-";
   };
 
-  // Obtener el nombre del abuelo desde CDS_Familias.Padre
   const getAbueloName = (familiaPadreId: number | null) => {
     if (!familiaPadreId) return "-";
     const familia = familias.find(f => f.id === familiaPadreId);
@@ -92,7 +118,6 @@ export default function Productos() {
 
   const handleEditClick = (producto: ProductoExtended) => {
     setEditingProducto(producto);
-    // Obtener el abuelo desde la familia padre
     const familiaPadre = familias.find(f => f.id === producto.familia_padre_id);
     setSelectedAbuelo(familiaPadre?.Padre?.toString() || "");
     setSelectedPadre(producto.familia_padre_id?.toString() || "");
@@ -112,7 +137,6 @@ export default function Productos() {
 
       if (error) throw error;
 
-      // Actualizar lista local
       setProductosList(prev => prev.map(p => 
         p.codigo === editingProducto.codigo 
           ? { ...p, familia_padre_id: selectedPadre ? parseInt(selectedPadre) : null }
@@ -126,6 +150,89 @@ export default function Productos() {
       toast.error("Error al actualizar familia");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const resetCreateForm = () => {
+    setNewProducto({
+      codigo: "",
+      clave: "",
+      descripcion: "",
+      url_foto: "",
+      descontinuado: false
+    });
+    setCreateAbuelo("");
+    setCreatePadre("");
+  };
+
+  const handleOpenCreate = () => {
+    resetCreateForm();
+    setIsCreating(true);
+  };
+
+  const handleCreate = async () => {
+    // Validar campos requeridos
+    if (!newProducto.codigo.trim()) {
+      toast.error("El código es requerido");
+      return;
+    }
+    if (!newProducto.clave.trim()) {
+      toast.error("La clave es requerida");
+      return;
+    }
+    if (!newProducto.descripcion.trim()) {
+      toast.error("La descripción es requerida");
+      return;
+    }
+
+    setCreating(true);
+
+    try {
+      // Verificar código único
+      const { data: existing } = await supabase
+        .from('productos')
+        .select('codigo')
+        .eq('codigo', newProducto.codigo.trim())
+        .maybeSingle();
+
+      if (existing) {
+        toast.error("Ya existe un producto con este código");
+        setCreating(false);
+        return;
+      }
+
+      // Insertar producto
+      const { error } = await supabase
+        .from('productos')
+        .insert({
+          codigo: newProducto.codigo.trim(),
+          clave: newProducto.clave.trim(),
+          descripcion: newProducto.descripcion.trim(),
+          url_foto: newProducto.url_foto.trim() || null,
+          descontinuado: newProducto.descontinuado,
+          familia_padre_id: createPadre ? parseInt(createPadre) : null
+        });
+
+      if (error) throw error;
+
+      // Agregar a lista local
+      setProductosList(prev => [...prev, {
+        codigo: newProducto.codigo.trim(),
+        clave: newProducto.clave.trim(),
+        descripcion: newProducto.descripcion.trim(),
+        urlFoto: newProducto.url_foto.trim() || "/placeholder.svg",
+        descontinuado: newProducto.descontinuado,
+        familia_padre_id: createPadre ? parseInt(createPadre) : null
+      }]);
+
+      toast.success("Producto creado correctamente");
+      setIsCreating(false);
+      resetCreateForm();
+    } catch (error) {
+      console.error('Error:', error);
+      toast.error("Error al crear producto");
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -144,7 +251,7 @@ export default function Productos() {
             Gestiona el inventario de herramientas eléctricas
           </p>
         </div>
-        <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
+        <Button onClick={handleOpenCreate} className="bg-primary text-primary-foreground hover:bg-primary/90">
           <Plus className="h-4 w-4 mr-2" />
           Nuevo Producto
         </Button>
@@ -253,7 +360,7 @@ export default function Productos() {
                 <Label>Categoría General</Label>
                 <Select value={selectedAbuelo} onValueChange={(val) => {
                   setSelectedAbuelo(val);
-                  setSelectedPadre(""); // Reset padre when abuelo changes
+                  setSelectedPadre("");
                 }}>
                   <SelectTrigger>
                     <SelectValue placeholder="Seleccionar categoría..." />
@@ -301,6 +408,119 @@ export default function Productos() {
             <Button onClick={handleSave} disabled={saving}>
               <Save className="h-4 w-4 mr-2" />
               {saving ? "Guardando..." : "Guardar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog para crear producto */}
+      <Dialog open={isCreating} onOpenChange={setIsCreating}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Nuevo Producto</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="codigo">Código *</Label>
+                <Input
+                  id="codigo"
+                  value={newProducto.codigo}
+                  onChange={(e) => setNewProducto(prev => ({ ...prev, codigo: e.target.value }))}
+                  placeholder="Ej: 12345"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="clave">Clave *</Label>
+                <Input
+                  id="clave"
+                  value={newProducto.clave}
+                  onChange={(e) => setNewProducto(prev => ({ ...prev, clave: e.target.value }))}
+                  placeholder="Ej: COMP-001"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="descripcion">Descripción *</Label>
+              <Input
+                id="descripcion"
+                value={newProducto.descripcion}
+                onChange={(e) => setNewProducto(prev => ({ ...prev, descripcion: e.target.value }))}
+                placeholder="Descripción del producto"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="url_foto">URL de Foto (opcional)</Label>
+              <Input
+                id="url_foto"
+                value={newProducto.url_foto}
+                onChange={(e) => setNewProducto(prev => ({ ...prev, url_foto: e.target.value }))}
+                placeholder="https://..."
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Categoría General</Label>
+                <Select value={createAbuelo} onValueChange={(val) => {
+                  setCreateAbuelo(val);
+                  setCreatePadre("");
+                }}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {familiasAbuelo.map(f => (
+                      <SelectItem key={f.id} value={f.id.toString()}>
+                        {f.Categoria}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Subcategoría</Label>
+                <Select 
+                  value={createPadre} 
+                  onValueChange={setCreatePadre}
+                  disabled={!createAbuelo}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={createAbuelo ? "Seleccionar..." : "Primero categoría"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {familiasPadreCreate.map(f => (
+                      <SelectItem key={f.id} value={f.id.toString()}>
+                        {f.Categoria}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="descontinuado"
+                checked={newProducto.descontinuado}
+                onCheckedChange={(checked) => setNewProducto(prev => ({ ...prev, descontinuado: checked }))}
+              />
+              <Label htmlFor="descontinuado">Marcar como descontinuado</Label>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsCreating(false)}>
+              <X className="h-4 w-4 mr-2" />
+              Cancelar
+            </Button>
+            <Button onClick={handleCreate} disabled={creating}>
+              <Save className="h-4 w-4 mr-2" />
+              {creating ? "Creando..." : "Crear Producto"}
             </Button>
           </DialogFooter>
         </DialogContent>
