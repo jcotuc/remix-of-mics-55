@@ -89,6 +89,7 @@ const menuAreas = {
   ],
   admin: [
     { title: "Gestión de Usuarios", url: "/admin/usuarios", icon: Settings },
+    { title: "Gestión de Productos", url: "/admin/productos", icon: Package },
     { title: "Familias Productos", url: "/admin/familias-productos", icon: FolderTree },
     { title: "Fallas y Causas", url: "/admin/fallas-causas", icon: ListChecks },
     { title: "Sustitutos Repuestos", url: "/admin/sustitutos-repuestos", icon: Network },
