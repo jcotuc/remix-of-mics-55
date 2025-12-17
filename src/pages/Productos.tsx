@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Plus, Search, Edit, AlertTriangle, Save, X } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Plus, Search, Edit, AlertTriangle, Save, X, Upload, FileSpreadsheet, CheckCircle, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,8 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import * as XLSX from "xlsx";
 
 interface ProductoExtended {
   codigo: string;
@@ -35,6 +37,18 @@ interface NewProducto {
   descontinuado: boolean;
 }
 
+interface ImportProducto {
+  codigo: string;
+  clave: string;
+  descripcion: string;
+  url_foto?: string;
+  descontinuado: boolean;
+  familia_nombre?: string;
+  familia_padre_id?: number;
+  isValid: boolean;
+  errorMsg?: string;
+}
+
 export default function Productos() {
   const [searchTerm, setSearchTerm] = useState("");
   const [productosList, setProductosList] = useState<ProductoExtended[]>([]);
@@ -57,6 +71,12 @@ export default function Productos() {
   const [createAbuelo, setCreateAbuelo] = useState<string>("");
   const [createPadre, setCreatePadre] = useState<string>("");
   const [creating, setCreating] = useState(false);
+
+  // Estados para importar
+  const [showImportDialog, setShowImportDialog] = useState(false);
+  const [importData, setImportData] = useState<ImportProducto[]>([]);
+  const [importing, setImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Familias "abuelo" (top-level, sin padre)
   const familiasAbuelo = familias.filter(f => f.Padre === null);
@@ -236,6 +256,136 @@ export default function Productos() {
     }
   };
 
+  // Función para manejar carga de archivo Excel
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data);
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet) as Record<string, unknown>[];
+
+      if (jsonData.length === 0) {
+        toast.error("El archivo está vacío");
+        return;
+      }
+
+      // Obtener códigos existentes
+      const existingCodes = new Set(productosList.map(p => p.codigo.toLowerCase()));
+      const seenCodes = new Set<string>();
+
+      // Procesar cada fila
+      const processedData: ImportProducto[] = jsonData.map((row) => {
+        // Buscar columnas con nombres flexibles
+        const codigo = String(row['Codigo'] || row['codigo'] || row['CODIGO'] || row['Código'] || '').trim();
+        const clave = String(row['Clave'] || row['clave'] || row['CLAVE'] || codigo || '').trim();
+        const descripcion = String(row['Descripcion'] || row['descripcion'] || row['DESCRIPCION'] || row['Descripción'] || '').trim();
+        const urlFoto = String(row['URL_Foto'] || row['url_foto'] || row['URL'] || row['Foto'] || '').trim();
+        const descontinuadoRaw = row['Descontinuado'] || row['descontinuado'] || row['DESCONTINUADO'] || false;
+        const familiaNombre = String(row['Categoria'] || row['categoria'] || row['Familia'] || row['familia'] || row['Subcategoria'] || '').trim();
+
+        // Convertir descontinuado a boolean
+        const descontinuado = descontinuadoRaw === true || 
+          descontinuadoRaw === 'true' || 
+          descontinuadoRaw === 'TRUE' || 
+          descontinuadoRaw === '1' || 
+          descontinuadoRaw === 1;
+
+        // Validaciones
+        const errors: string[] = [];
+        if (!codigo) errors.push("Código requerido");
+        if (!descripcion) errors.push("Descripción requerida");
+        if (existingCodes.has(codigo.toLowerCase())) errors.push("Código ya existe");
+        if (seenCodes.has(codigo.toLowerCase())) errors.push("Código duplicado en archivo");
+
+        seenCodes.add(codigo.toLowerCase());
+
+        // Buscar familia por nombre (case-insensitive)
+        let familiaId: number | undefined;
+        if (familiaNombre) {
+          const familiaMatch = familias.find(f => 
+            f.Categoria?.toLowerCase() === familiaNombre.toLowerCase()
+          );
+          familiaId = familiaMatch?.id;
+        }
+
+        return {
+          codigo,
+          clave: clave || codigo,
+          descripcion,
+          url_foto: urlFoto || undefined,
+          descontinuado,
+          familia_nombre: familiaNombre || undefined,
+          familia_padre_id: familiaId,
+          isValid: errors.length === 0,
+          errorMsg: errors.length > 0 ? errors.join(", ") : undefined
+        };
+      });
+
+      setImportData(processedData);
+      setShowImportDialog(true);
+    } catch (error) {
+      console.error('Error parsing file:', error);
+      toast.error("Error al leer el archivo");
+    } finally {
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  // Función para importar productos válidos
+  const handleImport = async () => {
+    const validProducts = importData.filter(p => p.isValid);
+    if (validProducts.length === 0) {
+      toast.error("No hay productos válidos para importar");
+      return;
+    }
+
+    setImporting(true);
+    try {
+      // Insertar en lotes de 100
+      const batchSize = 100;
+      let imported = 0;
+
+      for (let i = 0; i < validProducts.length; i += batchSize) {
+        const batch = validProducts.slice(i, i + batchSize);
+        const insertData = batch.map(p => ({
+          codigo: p.codigo,
+          clave: p.clave,
+          descripcion: p.descripcion,
+          url_foto: p.url_foto || null,
+          descontinuado: p.descontinuado,
+          familia_padre_id: p.familia_padre_id || null
+        }));
+
+        const { error } = await supabase
+          .from('productos')
+          .upsert(insertData, { onConflict: 'codigo' });
+
+        if (error) throw error;
+        imported += batch.length;
+      }
+
+      toast.success(`${imported} productos importados correctamente`);
+      setShowImportDialog(false);
+      setImportData([]);
+      fetchData(); // Recargar lista
+    } catch (error) {
+      console.error('Error importing:', error);
+      toast.error("Error al importar productos");
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const validCount = importData.filter(p => p.isValid).length;
+  const invalidCount = importData.filter(p => !p.isValid).length;
+
   const filteredProductos = productosList.filter(producto =>
     producto.descripcion.toLowerCase().includes(searchTerm.toLowerCase()) ||
     producto.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -244,17 +394,30 @@ export default function Productos() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Catálogo de Productos</h1>
           <p className="text-muted-foreground">
             Gestiona el inventario de herramientas eléctricas
           </p>
         </div>
-        <Button onClick={handleOpenCreate} className="bg-primary text-primary-foreground hover:bg-primary/90">
-          <Plus className="h-4 w-4 mr-2" />
-          Nuevo Producto
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
+            <Upload className="h-4 w-4 mr-2" />
+            Importar Excel
+          </Button>
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileUpload}
+            accept=".xlsx,.xls,.csv"
+            className="hidden"
+          />
+          <Button onClick={handleOpenCreate} className="bg-primary text-primary-foreground hover:bg-primary/90">
+            <Plus className="h-4 w-4 mr-2" />
+            Nuevo Producto
+          </Button>
+        </div>
       </div>
 
       <Card>
@@ -521,6 +684,101 @@ export default function Productos() {
             <Button onClick={handleCreate} disabled={creating}>
               <Save className="h-4 w-4 mr-2" />
               {creating ? "Creando..." : "Crear Producto"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog para importar productos */}
+      <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
+        <DialogContent className="sm:max-w-4xl max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileSpreadsheet className="h-5 w-5" />
+              Importar Productos desde Excel
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {/* Resumen */}
+            <div className="flex gap-4">
+              <div className="flex items-center gap-2 text-sm">
+                <CheckCircle className="h-4 w-4 text-green-600" />
+                <span className="text-green-600 font-medium">{validCount} válidos</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm">
+                <XCircle className="h-4 w-4 text-destructive" />
+                <span className="text-destructive font-medium">{invalidCount} con errores</span>
+              </div>
+            </div>
+
+            {/* Tabla de preview */}
+            <ScrollArea className="h-[400px] border rounded-md">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[50px]">Estado</TableHead>
+                    <TableHead>Código</TableHead>
+                    <TableHead>Clave</TableHead>
+                    <TableHead>Descripción</TableHead>
+                    <TableHead>Familia</TableHead>
+                    <TableHead>Descontinuado</TableHead>
+                    <TableHead>Error</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {importData.map((item, idx) => (
+                    <TableRow key={idx} className={!item.isValid ? "bg-destructive/10" : ""}>
+                      <TableCell>
+                        {item.isValid ? (
+                          <CheckCircle className="h-4 w-4 text-green-600" />
+                        ) : (
+                          <XCircle className="h-4 w-4 text-destructive" />
+                        )}
+                      </TableCell>
+                      <TableCell className="font-mono text-sm">{item.codigo || "-"}</TableCell>
+                      <TableCell>{item.clave || "-"}</TableCell>
+                      <TableCell className="max-w-[200px] truncate">{item.descripcion || "-"}</TableCell>
+                      <TableCell>
+                        {item.familia_padre_id ? (
+                          <Badge variant="secondary">{item.familia_nombre}</Badge>
+                        ) : item.familia_nombre ? (
+                          <Badge variant="outline" className="text-amber-600">{item.familia_nombre} (no encontrada)</Badge>
+                        ) : (
+                          <span className="text-muted-foreground text-sm">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {item.descontinuado ? (
+                          <Badge variant="destructive">Sí</Badge>
+                        ) : (
+                          <Badge variant="outline">No</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-destructive text-sm">{item.errorMsg || "-"}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </ScrollArea>
+
+            {/* Ayuda de formato */}
+            <div className="text-xs text-muted-foreground p-3 bg-muted rounded-md">
+              <p className="font-medium mb-1">Formato esperado del archivo:</p>
+              <p>Columnas: Codigo*, Clave, Descripcion*, URL_Foto, Descontinuado, Categoria/Familia</p>
+              <p>* Campos requeridos. La columna Categoria/Familia debe coincidir con una subcategoría existente.</p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowImportDialog(false)}>
+              Cancelar
+            </Button>
+            <Button 
+              onClick={handleImport} 
+              disabled={importing || validCount === 0}
+            >
+              {importing ? "Importando..." : `Importar ${validCount} productos`}
             </Button>
           </DialogFooter>
         </DialogContent>
