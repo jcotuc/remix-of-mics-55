@@ -303,6 +303,12 @@ export function DiagnosticoTecnico({ incidente, onDiagnosticoCompleto }: Diagnos
       return;
     }
 
+    // Fotos obligatorias para cambio por garantía
+    if (tipoCambio === 'garantia' && fotos.length === 0) {
+      toast.error("Debes agregar al menos una foto de evidencia para cambio por garantía");
+      return;
+    }
+
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('No user');
@@ -322,7 +328,7 @@ export function DiagnosticoTecnico({ incidente, onDiagnosticoCompleto }: Diagnos
 
       if (error) throw error;
 
-      toast.success("Solicitud enviada al jefe de taller");
+      toast.success("Solicitud enviada al supervisor regional para aprobación");
       setShowSolicitudCambioDialog(false);
       onDiagnosticoCompleto();
     } catch (error) {

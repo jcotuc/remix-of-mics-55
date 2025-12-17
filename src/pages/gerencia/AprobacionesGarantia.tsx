@@ -25,6 +25,7 @@ interface SolicitudCambio {
   observaciones_aprobacion: string | null;
   created_at: string;
   incidente?: {
+    id: string;
     codigo: string;
     codigo_producto: string;
     centro_servicio: string;
@@ -50,22 +51,41 @@ export default function AprobacionesGarantia() {
 
   const fetchSolicitudes = async () => {
     try {
+      // Obtener centros asignados al supervisor actual
+      let centroIds: string[] = [];
+      if (user) {
+        const { data: centrosAsignados } = await supabase
+          .from("centros_supervisor")
+          .select("centro_servicio_id")
+          .eq("supervisor_id", user.id);
+        
+        centroIds = centrosAsignados?.map(c => c.centro_servicio_id) || [];
+      }
+
       const { data, error } = await supabase
         .from("solicitudes_cambio")
         .select(`
           *,
-          incidentes!solicitudes_cambio_incidente_id_fkey(codigo, codigo_producto, centro_servicio)
+          incidentes!solicitudes_cambio_incidente_id_fkey(id, codigo, codigo_producto, centro_servicio)
         `)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
 
-      const formatted = (data || []).map(s => ({
+      // Filtrar por centros asignados si el supervisor tiene centros
+      let filtered = (data || []).map(s => ({
         ...s,
         incidente: s.incidentes,
       }));
 
-      setSolicitudes(formatted);
+      // Si el supervisor tiene centros asignados, filtrar solo esos
+      if (centroIds.length > 0) {
+        filtered = filtered.filter(s => 
+          s.incidente?.centro_servicio && centroIds.includes(s.incidente.centro_servicio)
+        );
+      }
+
+      setSolicitudes(filtered);
     } catch (error) {
       console.error("Error:", error);
       toast.error("Error al cargar solicitudes");
@@ -83,6 +103,12 @@ export default function AprobacionesGarantia() {
   const handleDecision = async (aprobado: boolean) => {
     if (!selectedSolicitud || !user) return;
 
+    // Observaciones obligatorias al rechazar
+    if (!aprobado && !observaciones.trim()) {
+      toast.error("Debes indicar el motivo del rechazo");
+      return;
+    }
+
     setSubmitting(true);
     try {
       const { error } = await supabase
@@ -97,15 +123,16 @@ export default function AprobacionesGarantia() {
 
       if (error) throw error;
 
-      // If approved, update incident status
-      if (aprobado && selectedSolicitud.incidente_id) {
+      // Actualizar status del incidente según decisión
+      if (selectedSolicitud.incidente_id) {
+        const nuevoStatus = aprobado ? "Bodega pedido" : "En diagnostico";
         await supabase
           .from("incidentes")
-          .update({ status: "Cambio por garantia" })
+          .update({ status: nuevoStatus })
           .eq("id", selectedSolicitud.incidente_id);
       }
 
-      toast.success(aprobado ? "Solicitud aprobada" : "Solicitud rechazada");
+      toast.success(aprobado ? "Solicitud aprobada - Máquina lista para cambio" : "Solicitud rechazada - Regresa a diagnóstico");
       setIsDialogOpen(false);
       fetchSolicitudes();
     } catch (error: any) {
@@ -449,11 +476,13 @@ export default function AprobacionesGarantia() {
 
               {/* Observaciones */}
               <div>
-                <label className="text-sm font-medium">Observaciones (opcional):</label>
+                <label className="text-sm font-medium">
+                  Observaciones <span className="text-destructive">(obligatorio al rechazar)</span>:
+                </label>
                 <Textarea
                   value={observaciones}
                   onChange={(e) => setObservaciones(e.target.value)}
-                  placeholder="Agrega comentarios sobre tu decisión..."
+                  placeholder="Agrega comentarios sobre tu decisión (obligatorio si rechazas)..."
                   rows={2}
                   className="mt-2"
                 />
