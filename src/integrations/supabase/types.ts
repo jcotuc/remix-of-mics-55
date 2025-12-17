@@ -49,6 +49,54 @@ export type Database = {
           },
         ]
       }
+      audit_logs: {
+        Row: {
+          accion: Database["public"]["Enums"]["audit_action"]
+          campos_modificados: string[] | null
+          created_at: string
+          id: string
+          ip_address: string | null
+          motivo: string | null
+          registro_id: string
+          tabla_afectada: string
+          user_agent: string | null
+          usuario_email: string | null
+          usuario_id: string | null
+          valores_anteriores: Json | null
+          valores_nuevos: Json | null
+        }
+        Insert: {
+          accion: Database["public"]["Enums"]["audit_action"]
+          campos_modificados?: string[] | null
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          motivo?: string | null
+          registro_id: string
+          tabla_afectada: string
+          user_agent?: string | null
+          usuario_email?: string | null
+          usuario_id?: string | null
+          valores_anteriores?: Json | null
+          valores_nuevos?: Json | null
+        }
+        Update: {
+          accion?: Database["public"]["Enums"]["audit_action"]
+          campos_modificados?: string[] | null
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          motivo?: string | null
+          registro_id?: string
+          tabla_afectada?: string
+          user_agent?: string | null
+          usuario_email?: string | null
+          usuario_id?: string | null
+          valores_anteriores?: Json | null
+          valores_nuevos?: Json | null
+        }
+        Relationships: []
+      }
       auditorias_calidad: {
         Row: {
           auditor_id: string | null
@@ -2352,6 +2400,7 @@ export type Database = {
         | "supervisor_bodega"
         | "supervisor_calidad"
         | "supervisor_sac"
+      audit_action: "INSERT" | "UPDATE" | "DELETE"
       clasificacion_abc: "A" | "B" | "C"
       media_tipo: "foto" | "video"
       status_incidente:
@@ -2524,6 +2573,7 @@ export const Constants = {
         "supervisor_calidad",
         "supervisor_sac",
       ],
+      audit_action: ["INSERT", "UPDATE", "DELETE"],
       clasificacion_abc: ["A", "B", "C"],
       media_tipo: ["foto", "video"],
       status_incidente: [
