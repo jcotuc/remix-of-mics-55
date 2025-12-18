@@ -47,7 +47,7 @@ export default function DashboardSupervisorRegional() {
         .select('centro_servicio_id, cantidad_actual');
 
       const centroStats: CentroStats[] = centros?.map(centro => {
-        const incidentesCentro = incidentes?.filter(i => i.centro_servicio === centro.codigo).length || 0;
+        const incidentesCentro = incidentes?.filter(i => i.centro_servicio === centro.nombre).length || 0;
         const stockCentro = stockDept?.filter(s => s.centro_servicio_id === centro.id)
           .reduce((sum, s) => sum + s.cantidad_actual, 0) || 0;
 

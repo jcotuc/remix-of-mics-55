@@ -34,7 +34,6 @@ interface Transferencia {
 interface CentroServicio {
   id: string;
   nombre: string;
-  codigo: string;
 }
 
 interface Incidente {
@@ -77,7 +76,7 @@ export default function Transferencias() {
       // Fetch centros
       const { data: centrosData } = await supabase
         .from("centros_servicio")
-        .select("id, nombre, codigo")
+        .select("id, nombre")
         .eq("activo", true)
         .order("nombre");
 

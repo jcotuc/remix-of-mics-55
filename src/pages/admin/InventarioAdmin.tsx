@@ -14,7 +14,6 @@ import { TablePagination } from "@/components/TablePagination";
 
 interface CentroServicio {
   id: string;
-  codigo: string;
   nombre: string;
 }
 
@@ -57,7 +56,7 @@ export default function InventarioAdmin() {
   const fetchCentros = async () => {
     const { data, error } = await supabase
       .from("centros_servicio")
-      .select("id, codigo, nombre")
+      .select("id, nombre")
       .eq("activo", true)
       .order("nombre");
 
@@ -139,8 +138,8 @@ export default function InventarioAdmin() {
         return;
       }
 
-      // Obtener mapeo de códigos de centro a IDs
-      const centrosMap = new Map(centros.map((c) => [c.codigo.toLowerCase(), c.id]));
+      // Obtener mapeo de nombres de centro a IDs
+      const centrosMap = new Map(centros.map((c) => [c.nombre.toLowerCase(), c.id]));
 
       let imported = 0;
       let errors = 0;
@@ -220,7 +219,7 @@ export default function InventarioAdmin() {
                 <SelectContent>
                   {centros.map((centro) => (
                     <SelectItem key={centro.id} value={centro.id}>
-                      {centro.codigo} - {centro.nombre}
+                      {centro.nombre}
                     </SelectItem>
                   ))}
                 </SelectContent>

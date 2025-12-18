@@ -31,7 +31,6 @@ interface AsignacionTecnico {
 interface CentroServicio {
   id: string;
   nombre: string;
-  codigo: string;
 }
 
 export default function AsignacionTecnicos() {
@@ -76,7 +75,7 @@ export default function AsignacionTecnicos() {
       // Fetch centros de servicio
       const { data: centrosData } = await supabase
         .from("centros_servicio")
-        .select("id, nombre, codigo")
+        .select("id, nombre")
         .eq("activo", true)
         .order("nombre");
 

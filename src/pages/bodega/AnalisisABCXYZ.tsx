@@ -16,7 +16,6 @@ type ClasificacionABC = 'A' | 'B' | 'C';
 
 interface CentroServicio {
   id: string;
-  codigo: string;
   nombre: string;
   es_central: boolean;
 }
@@ -38,7 +37,6 @@ interface StockDepartamental {
 
 interface NecesidadReabastecimiento {
   centro_servicio: string;
-  codigo_centro: string;
   codigo_repuesto: string;
   descripcion_repuesto: string;
   stock_actual: number;
@@ -97,7 +95,7 @@ export default function AnalisisABCXYZ() {
         .from("stock_departamental")
         .select(`
           *,
-          centros_servicio:centros_servicio(id, codigo, nombre, es_central)
+          centros_servicio:centros_servicio(id, nombre, es_central)
         `);
 
       if (stockError) throw stockError;
@@ -181,7 +179,6 @@ export default function AnalisisABCXYZ() {
 
         necesidadesCalculadas.push({
           centro_servicio: stock.centros_servicio?.nombre || '',
-          codigo_centro: stock.centros_servicio?.codigo || '',
           codigo_repuesto: stock.codigo_repuesto,
           descripcion_repuesto: stock.repuestos?.descripcion || stock.codigo_repuesto,
           stock_actual: stockActual,
@@ -206,7 +203,7 @@ export default function AnalisisABCXYZ() {
   };
 
   const necesidadesFiltradas = necesidades.filter((n) => {
-    if (centroSeleccionado !== "all" && n.codigo_centro !== centroSeleccionado) return false;
+    if (centroSeleccionado !== "all" && n.centro_servicio !== centroSeleccionado) return false;
     if (clasificacionFiltro !== "all" && n.clasificacion_abc !== clasificacionFiltro) return false;
     if (prioridadFiltro !== "all" && n.prioridad !== prioridadFiltro) return false;
     return true;
@@ -260,8 +257,8 @@ export default function AnalisisABCXYZ() {
 
   // Agrupar necesidades por centro
   const necesidadesPorCentro = necesidadesFiltradas.reduce((acc, nec) => {
-    if (!acc[nec.codigo_centro]) {
-      acc[nec.codigo_centro] = {
+    if (!acc[nec.centro_servicio]) {
+      acc[nec.centro_servicio] = {
         centro: nec.centro_servicio,
         total: 0,
         alta: 0,
@@ -270,11 +267,11 @@ export default function AnalisisABCXYZ() {
         repuestos: [],
       };
     }
-    acc[nec.codigo_centro].total += nec.cantidad_sugerida;
-    acc[nec.codigo_centro].repuestos.push(nec);
-    if (nec.prioridad === 'Alta') acc[nec.codigo_centro].alta++;
-    else if (nec.prioridad === 'Media') acc[nec.codigo_centro].media++;
-    else acc[nec.codigo_centro].baja++;
+    acc[nec.centro_servicio].total += nec.cantidad_sugerida;
+    acc[nec.centro_servicio].repuestos.push(nec);
+    if (nec.prioridad === 'Alta') acc[nec.centro_servicio].alta++;
+    else if (nec.prioridad === 'Media') acc[nec.centro_servicio].media++;
+    else acc[nec.centro_servicio].baja++;
     return acc;
   }, {} as Record<string, any>);
 
@@ -552,7 +549,7 @@ export default function AnalisisABCXYZ() {
                       {centros
                         .filter((c) => !c.es_central)
                         .map((centro) => (
-                          <SelectItem key={centro.id} value={centro.codigo}>
+                          <SelectItem key={centro.id} value={centro.nombre}>
                             {centro.nombre}
                           </SelectItem>
                         ))}
@@ -639,7 +636,7 @@ export default function AnalisisABCXYZ() {
                     </TableHeader>
                     <TableBody>
                       {necesidadesFiltradas.map((necesidad, idx) => (
-                        <TableRow key={`${necesidad.codigo_centro}-${necesidad.codigo_repuesto}-${idx}`}>
+                        <TableRow key={`${necesidad.centro_servicio}-${necesidad.codigo_repuesto}-${idx}`}>
                           <TableCell>
                             <input
                               type="checkbox"
