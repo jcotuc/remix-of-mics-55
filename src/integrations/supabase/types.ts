@@ -263,7 +263,9 @@ export type Database = {
           es_central: boolean | null
           id: string
           nombre: string
+          numero_bodega: string | null
           responsable: string | null
+          supervisor_id: string | null
           telefono: string | null
           updated_at: string
         }
@@ -276,7 +278,9 @@ export type Database = {
           es_central?: boolean | null
           id?: string
           nombre: string
+          numero_bodega?: string | null
           responsable?: string | null
+          supervisor_id?: string | null
           telefono?: string | null
           updated_at?: string
         }
@@ -289,11 +293,21 @@ export type Database = {
           es_central?: boolean | null
           id?: string
           nombre?: string
+          numero_bodega?: string | null
           responsable?: string | null
+          supervisor_id?: string | null
           telefono?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "centros_servicio_supervisor_id_fkey"
+            columns: ["supervisor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       centros_supervisor: {
         Row: {
