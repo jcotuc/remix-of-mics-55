@@ -2469,6 +2469,10 @@ export type Database = {
         | "supervisor_bodega"
         | "supervisor_calidad"
         | "supervisor_sac"
+        | "auxiliar_bodega"
+        | "auxiliar_logistica"
+        | "supervisor_inventarios"
+        | "capacitador"
       audit_action: "INSERT" | "UPDATE" | "DELETE"
       clasificacion_abc: "A" | "B" | "C"
       media_tipo: "foto" | "video"
@@ -2641,6 +2645,10 @@ export const Constants = {
         "supervisor_bodega",
         "supervisor_calidad",
         "supervisor_sac",
+        "auxiliar_bodega",
+        "auxiliar_logistica",
+        "supervisor_inventarios",
+        "capacitador",
       ],
       audit_action: ["INSERT", "UPDATE", "DELETE"],
       clasificacion_abc: ["A", "B", "C"],
