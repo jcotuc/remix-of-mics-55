@@ -93,6 +93,9 @@ const menuAreas = {
     { title: "Familias Productos", url: "/admin/familias-productos", icon: FolderTree },
     { title: "Fallas y Causas", url: "/admin/fallas-causas", icon: ListChecks },
     { title: "Sustitutos Repuestos", url: "/admin/sustitutos-repuestos", icon: Network },
+    { title: "Inventario Admin", url: "/admin/inventario", icon: ClipboardCheck },
+    { title: "Centros de Servicio", url: "/admin/centros-servicio", icon: MapPin },
+    { title: "Recomendaciones", url: "/admin/recomendaciones-familias", icon: FileText },
     { title: "Historial de Cambios", url: "/admin/audit-logs", icon: History },
   ],
   asesor: [

@@ -67,6 +67,9 @@ import FamiliasProductos from "./pages/admin/FamiliasProductos";
 import FallasCausas from "./pages/admin/FallasCausas";
 import SustitutosRepuestos from "./pages/admin/SustitutosRepuestos";
 import AuditLogs from "./pages/admin/AuditLogs";
+import InventarioAdmin from "./pages/admin/InventarioAdmin";
+import CentrosServicio from "./pages/admin/CentrosServicio";
+import RecomendacionesFamilias from "./pages/admin/RecomendacionesFamilias";
 import RevisionStockCemaco from "./pages/taller/RevisionStockCemaco";
 import AprobacionesStockCemaco from "./pages/taller/AprobacionesStockCemaco";
 import MisGarantias from "./pages/asesor/MisGarantias";
@@ -164,6 +167,9 @@ const App = () => (
               <Route path="/admin/familias-productos" element={<FamiliasProductos />} />
               <Route path="/admin/sustitutos-repuestos" element={<SustitutosRepuestos />} />
               <Route path="/admin/audit-logs" element={<AuditLogs />} />
+              <Route path="/admin/inventario" element={<InventarioAdmin />} />
+              <Route path="/admin/centros-servicio" element={<CentrosServicio />} />
+              <Route path="/admin/recomendaciones-familias" element={<RecomendacionesFamilias />} />
               
               {/* Asesor Routes */}
               <Route path="/mis-garantias" element={<MisGarantias />} />

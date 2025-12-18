@@ -1476,6 +1476,7 @@ export type Database = {
       profiles: {
         Row: {
           apellido: string
+          centro_servicio_id: string | null
           created_at: string
           email: string
           id: string
@@ -1485,6 +1486,7 @@ export type Database = {
         }
         Insert: {
           apellido: string
+          centro_servicio_id?: string | null
           created_at?: string
           email: string
           id?: string
@@ -1494,6 +1496,7 @@ export type Database = {
         }
         Update: {
           apellido?: string
+          centro_servicio_id?: string | null
           created_at?: string
           email?: string
           id?: string
@@ -1501,7 +1504,15 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_centro_servicio_id_fkey"
+            columns: ["centro_servicio_id"]
+            isOneToOne: false
+            referencedRelation: "centros_servicio"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       reclamos_faltantes: {
         Row: {
@@ -1549,6 +1560,47 @@ export type Database = {
             columns: ["transito_id"]
             isOneToOne: false
             referencedRelation: "transitos_bodega"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      recomendaciones: {
+        Row: {
+          activo: boolean | null
+          created_at: string | null
+          descripcion: string | null
+          familia_hija_id: number
+          id: string
+          tipo: string | null
+          titulo: string
+          updated_at: string | null
+        }
+        Insert: {
+          activo?: boolean | null
+          created_at?: string | null
+          descripcion?: string | null
+          familia_hija_id: number
+          id?: string
+          tipo?: string | null
+          titulo: string
+          updated_at?: string | null
+        }
+        Update: {
+          activo?: boolean | null
+          created_at?: string | null
+          descripcion?: string | null
+          familia_hija_id?: number
+          id?: string
+          tipo?: string | null
+          titulo?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recomendaciones_familia_hija_id_fkey"
+            columns: ["familia_hija_id"]
+            isOneToOne: false
+            referencedRelation: "CDS_Familias"
             referencedColumns: ["id"]
           },
         ]
@@ -2007,9 +2059,11 @@ export type Database = {
       }
       stock_departamental: {
         Row: {
+          bodega: string | null
           cantidad_actual: number
           centro_servicio_id: string
           codigo_repuesto: string
+          costo_unitario: number | null
           fecha_recepcion: string | null
           id: string
           requiere_reubicacion: boolean | null
@@ -2020,9 +2074,11 @@ export type Database = {
           ultima_actualizacion: string
         }
         Insert: {
+          bodega?: string | null
           cantidad_actual?: number
           centro_servicio_id: string
           codigo_repuesto: string
+          costo_unitario?: number | null
           fecha_recepcion?: string | null
           id?: string
           requiere_reubicacion?: boolean | null
@@ -2033,9 +2089,11 @@ export type Database = {
           ultima_actualizacion?: string
         }
         Update: {
+          bodega?: string | null
           cantidad_actual?: number
           centro_servicio_id?: string
           codigo_repuesto?: string
+          costo_unitario?: number | null
           fecha_recepcion?: string | null
           id?: string
           requiere_reubicacion?: boolean | null
