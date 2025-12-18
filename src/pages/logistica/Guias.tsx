@@ -178,7 +178,7 @@ export default function Guias() {
       const { data: centro, error } = await supabase
         .from('centros_servicio')
         .select('*')
-        .eq('codigo', 'GUA')
+        .eq('nombre', 'GUA')
         .single();
 
       if (error) throw error;
