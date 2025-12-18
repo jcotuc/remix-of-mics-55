@@ -283,10 +283,13 @@ export default function Usuarios() {
     if (!selectedUser) return;
 
     try {
-      // Delete user from auth (this will cascade to profiles and user_roles)
-      const { error } = await supabase.auth.admin.deleteUser(selectedUser.id);
+      // Call edge function to delete user (requires service_role key)
+      const { data, error } = await supabase.functions.invoke("admin-delete-user", {
+        body: { userId: selectedUser.id },
+      });
 
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
       toast.success("Usuario eliminado exitosamente");
       setIsDeleteDialogOpen(false);
@@ -294,7 +297,7 @@ export default function Usuarios() {
       fetchUsers();
     } catch (error: any) {
       console.error("Error deleting user:", error);
-      toast.error("Error al eliminar usuario. Se requieren permisos de administrador.");
+      toast.error(error.message || "Error al eliminar usuario");
     }
   };
 
