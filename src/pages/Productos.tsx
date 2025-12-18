@@ -1,5 +1,8 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { Plus, Search, Edit, AlertTriangle, Save, X, Upload, FileSpreadsheet, CheckCircle, XCircle, SkipForward, Trash2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
+
+// ID de la familia "Herramienta manual" - DEBE estar al inicio para usarse en importación
+const HERRAMIENTA_MANUAL_ID = 130;
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
