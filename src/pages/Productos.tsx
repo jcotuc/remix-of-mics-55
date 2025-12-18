@@ -52,6 +52,61 @@ interface ImportProducto {
   skipReason?: string;
 }
 
+// Función para normalizar texto (remover acentos y convertir a minúsculas)
+const normalizarTexto = (texto: string): string => {
+  return texto
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // Remover acentos
+    .trim();
+};
+
+// Mapeo de nombres alternativos del Excel → nombre normalizado en base de datos
+const FAMILIA_ALIASES: Record<string, string> = {
+  // Bombas
+  'bombas de agua': 'bomba',
+  'bombas': 'bomba',
+  'bomba de agua': 'bomba',
+  
+  // Eléctrica (con y sin acento)
+  'electrica': 'electrica',
+  'electricas': 'electrica',
+  'herramientas electricas': 'electrica',
+  
+  // Compresores
+  'compresores': 'compresor',
+  'compresores de aire': 'compresor',
+  
+  // Soldadoras
+  'soldadora': 'soldadoras',
+  'soldadura': 'soldadoras',
+  
+  // Hidrolavadoras
+  'hidrolavadora': 'hidrolavadoras',
+  'hydro lavadoras': 'hidrolavadoras',
+  'hidrolavadora a gasolina': 'hidrolavadoras',
+  
+  // Hidráulica
+  'hidraulica': 'hidraulica',
+  'hidraulicas': 'hidraulica',
+  'herramientas hidraulicas': 'hidraulica',
+  
+  // Neumática
+  'neumatica': 'neumatica',
+  'neumaticas': 'neumatica',
+  'herramientas neumaticas': 'neumatica',
+  
+  // 2 y 4 tiempos
+  'dos tiempos': '2 tiempos',
+  'cuatro tiempos': '4 tiempos',
+  'gasolina 2t': '2 tiempos',
+  'gasolina 4t': '4 tiempos',
+  
+  // Estacionaria
+  'estacionarias': 'estacionaria',
+  'herramientas estacionarias': 'estacionaria',
+};
+
 // Mapeo de palabras clave por familia abuelo → familia padre (subcategoría)
 // IMPORTANTE: Las reglas más específicas van PRIMERO en cada array
 const SUBCATEGORIA_KEYWORDS: Record<number, { keywords: string[], padreId: number, nombre: string }[]> = {
@@ -472,9 +527,17 @@ export default function Productos() {
         let asignacionInfo: string | undefined;
         
         if (familiaNombre) {
-          const familiaMatch = familias.find(f => 
-            f.Categoria?.toLowerCase() === familiaNombre.toLowerCase()
-          );
+          // Normalizar nombre del Excel (remover acentos, minúsculas)
+          const nombreNormalizado = normalizarTexto(familiaNombre);
+          
+          // Buscar en aliases primero, luego usar el nombre normalizado
+          const nombreMapeado = FAMILIA_ALIASES[nombreNormalizado] || nombreNormalizado;
+          
+          // Buscar familia con coincidencia normalizada
+          const familiaMatch = familias.find(f => {
+            const categoriaNormalizada = normalizarTexto(f.Categoria || '');
+            return categoriaNormalizada === nombreMapeado;
+          });
           
           if (familiaMatch) {
             // Verificar si es un "abuelo" (categoría principal, Padre = NULL)
