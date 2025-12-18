@@ -290,12 +290,23 @@ export default function Usuarios() {
     if (!role) return "secondary";
     const variants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
       admin: "destructive",
+      jefe_taller: "destructive",
+      jefe_logistica: "destructive",
+      jefe_bodega: "destructive",
+      gerente_centro: "destructive",
+      supervisor_regional: "outline",
+      supervisor_bodega: "outline",
+      supervisor_calidad: "outline",
+      supervisor_sac: "outline",
       mostrador: "default",
       logistica: "default",
       taller: "default",
       bodega: "default",
       sac: "default",
       control_calidad: "default",
+      tecnico: "secondary",
+      digitador: "secondary",
+      asesor: "secondary",
     };
     return variants[role] || "secondary";
   };
@@ -314,6 +325,13 @@ export default function Usuarios() {
       sac: "SAC",
       control_calidad: "Control de Calidad",
       asesor: "Asesor",
+      gerente_centro: "Gerente de Centro",
+      supervisor_regional: "Supervisor Regional",
+      jefe_logistica: "Jefe de Logística",
+      jefe_bodega: "Jefe de Bodega",
+      supervisor_bodega: "Supervisor de Bodega",
+      supervisor_calidad: "Supervisor de Calidad",
+      supervisor_sac: "Supervisor SAC",
     };
     return labels[role] || role;
   };
@@ -378,18 +396,28 @@ export default function Usuarios() {
               </div>
             </div>
             <Select value={roleFilter} onValueChange={setRoleFilter}>
-              <SelectTrigger className="w-[200px]">
+              <SelectTrigger className="w-[220px]">
                 <SelectValue placeholder="Filtrar por rol" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos los roles</SelectItem>
                 <SelectItem value="admin">Administrador</SelectItem>
+                <SelectItem value="gerente_centro">Gerente de Centro</SelectItem>
+                <SelectItem value="supervisor_regional">Supervisor Regional</SelectItem>
+                <SelectItem value="jefe_taller">Jefe de Taller</SelectItem>
+                <SelectItem value="jefe_logistica">Jefe de Logística</SelectItem>
+                <SelectItem value="jefe_bodega">Jefe de Bodega</SelectItem>
+                <SelectItem value="supervisor_bodega">Supervisor de Bodega</SelectItem>
+                <SelectItem value="supervisor_calidad">Supervisor de Calidad</SelectItem>
+                <SelectItem value="supervisor_sac">Supervisor SAC</SelectItem>
                 <SelectItem value="mostrador">Mostrador</SelectItem>
                 <SelectItem value="logistica">Logística</SelectItem>
                 <SelectItem value="taller">Taller</SelectItem>
                 <SelectItem value="bodega">Bodega</SelectItem>
                 <SelectItem value="sac">SAC</SelectItem>
                 <SelectItem value="control_calidad">Control de Calidad</SelectItem>
+                <SelectItem value="tecnico">Técnico</SelectItem>
+                <SelectItem value="digitador">Digitador</SelectItem>
                 <SelectItem value="asesor">Asesor</SelectItem>
               </SelectContent>
             </Select>
@@ -516,15 +544,22 @@ export default function Usuarios() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="admin">Administrador</SelectItem>
+                  <SelectItem value="gerente_centro">Gerente de Centro</SelectItem>
+                  <SelectItem value="supervisor_regional">Supervisor Regional</SelectItem>
+                  <SelectItem value="jefe_taller">Jefe de Taller</SelectItem>
+                  <SelectItem value="jefe_logistica">Jefe de Logística</SelectItem>
+                  <SelectItem value="jefe_bodega">Jefe de Bodega</SelectItem>
+                  <SelectItem value="supervisor_bodega">Supervisor de Bodega</SelectItem>
+                  <SelectItem value="supervisor_calidad">Supervisor de Calidad</SelectItem>
+                  <SelectItem value="supervisor_sac">Supervisor SAC</SelectItem>
                   <SelectItem value="mostrador">Mostrador</SelectItem>
                   <SelectItem value="logistica">Logística</SelectItem>
                   <SelectItem value="taller">Taller</SelectItem>
                   <SelectItem value="bodega">Bodega</SelectItem>
-                  <SelectItem value="tecnico">Técnico</SelectItem>
-                  <SelectItem value="digitador">Digitador</SelectItem>
-                  <SelectItem value="jefe_taller">Jefe de Taller</SelectItem>
                   <SelectItem value="sac">SAC</SelectItem>
                   <SelectItem value="control_calidad">Control de Calidad</SelectItem>
+                  <SelectItem value="tecnico">Técnico</SelectItem>
+                  <SelectItem value="digitador">Digitador</SelectItem>
                   <SelectItem value="asesor">Asesor</SelectItem>
                 </SelectContent>
               </Select>
@@ -577,15 +612,22 @@ export default function Usuarios() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="admin">Administrador</SelectItem>
+                  <SelectItem value="gerente_centro">Gerente de Centro</SelectItem>
+                  <SelectItem value="supervisor_regional">Supervisor Regional</SelectItem>
+                  <SelectItem value="jefe_taller">Jefe de Taller</SelectItem>
+                  <SelectItem value="jefe_logistica">Jefe de Logística</SelectItem>
+                  <SelectItem value="jefe_bodega">Jefe de Bodega</SelectItem>
+                  <SelectItem value="supervisor_bodega">Supervisor de Bodega</SelectItem>
+                  <SelectItem value="supervisor_calidad">Supervisor de Calidad</SelectItem>
+                  <SelectItem value="supervisor_sac">Supervisor SAC</SelectItem>
                   <SelectItem value="mostrador">Mostrador</SelectItem>
                   <SelectItem value="logistica">Logística</SelectItem>
                   <SelectItem value="taller">Taller</SelectItem>
                   <SelectItem value="bodega">Bodega</SelectItem>
-                  <SelectItem value="tecnico">Técnico</SelectItem>
-                  <SelectItem value="digitador">Digitador</SelectItem>
-                  <SelectItem value="jefe_taller">Jefe de Taller</SelectItem>
                   <SelectItem value="sac">SAC</SelectItem>
                   <SelectItem value="control_calidad">Control de Calidad</SelectItem>
+                  <SelectItem value="tecnico">Técnico</SelectItem>
+                  <SelectItem value="digitador">Digitador</SelectItem>
                   <SelectItem value="asesor">Asesor</SelectItem>
                 </SelectContent>
               </Select>
