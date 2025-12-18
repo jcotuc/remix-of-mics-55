@@ -393,52 +393,21 @@ export default function Productos() {
   const asignarCategoriaHerramientaManual = async () => {
     setAssigningCategory(true);
     try {
-      // Contar productos sin categoría
-      const { count, error: countError } = await supabase
-        .from('productos')
-        .select('*', { count: 'exact', head: true })
-        .is('familia_padre_id', null);
+      const { data, error } = await supabase.functions.invoke(
+        'admin-assign-herramienta-manual',
+        { body: {} }
+      );
 
-      if (countError) throw countError;
+      if (error) throw error;
 
-      if (!count || count === 0) {
+      const updated = (data as any)?.updated ?? 0;
+      if (updated === 0) {
         toast.info("No hay productos sin categoría");
-        return;
+      } else {
+        toast.success(`Se asignaron ${updated} productos a "Herramienta manual"`);
       }
 
-      // Obtener productos sin categoría en lotes y actualizarlos
-      const batchSize = 1000;
-      let updated = 0;
-      let offset = 0;
-
-      while (true) {
-        const { data: productos, error: fetchError } = await supabase
-          .from('productos')
-          .select('id')
-          .is('familia_padre_id', null)
-          .range(offset, offset + batchSize - 1);
-
-        if (fetchError) throw fetchError;
-        if (!productos || productos.length === 0) break;
-
-        const ids = productos.map(p => p.id);
-        
-        const { error: updateError } = await supabase
-          .from('productos')
-          .update({ familia_padre_id: 130 })
-          .in('id', ids);
-
-        if (updateError) throw updateError;
-        
-        updated += productos.length;
-        offset += batchSize;
-
-        // Si obtuvimos menos que el batch size, terminamos
-        if (productos.length < batchSize) break;
-      }
-
-      toast.success(`Se asignaron ${updated} productos a "Herramienta manual"`);
-      fetchData();
+      await fetchData();
     } catch (error) {
       console.error('Error asignando categoría:', error);
       toast.error("Error al asignar categoría");
@@ -746,18 +715,25 @@ export default function Productos() {
           
           if (familiaMatch) {
             // Verificar si es un "abuelo" (categoría principal, Padre = NULL)
-            if (familiaMatch.Padre === null) {
-              // Es una categoría principal → buscar subcategoría por descripción
-              const subcategoria = findSubcategoriaByDescription(familiaMatch.id, descripcion);
-              
-              if (subcategoria) {
-                familiaId = subcategoria.padreId;
-                asignacionInfo = `✅ Auto: ${familiaMatch.Categoria} → ${subcategoria.nombre}`;
+              if (familiaMatch.Padre === null) {
+                // Es una categoría principal
+                if (familiaMatch.id === HERRAMIENTA_MANUAL_ID) {
+                  // Herramienta manual no requiere subcategoría
+                  familiaId = familiaMatch.id;
+                  asignacionInfo = `📌 Directa: ${familiaMatch.Categoria}`;
+                } else {
+                  // Buscar subcategoría por descripción
+                  const subcategoria = findSubcategoriaByDescription(familiaMatch.id, descripcion);
+                  
+                  if (subcategoria) {
+                    familiaId = subcategoria.padreId;
+                    asignacionInfo = `✅ Auto: ${familiaMatch.Categoria} → ${subcategoria.nombre}`;
+                  } else {
+                    // No se encontró subcategoría, dejar sin asignar
+                    asignacionInfo = `⚠️ ${familiaMatch.Categoria} (sin subcategoría detectada)`;
+                  }
+                }
               } else {
-                // No se encontró subcategoría, dejar sin asignar
-                asignacionInfo = `⚠️ ${familiaMatch.Categoria} (sin subcategoría detectada)`;
-              }
-            } else {
               // Ya es una subcategoría, asignar directamente
               familiaId = familiaMatch.id;
               asignacionInfo = `📌 Directa: ${familiaMatch.Categoria}`;
@@ -844,24 +820,17 @@ export default function Productos() {
   const errorCount = importData.filter(p => !p.isValid && !p.skipped).length;
   const warningCount = importData.filter(p => p.isValid && p.asignacion_info?.includes('⚠️')).length;
 
-  // Contador de productos sin subcategoría
+  // Contador de productos sin asignación de familia
   const sinAsignarCount = productosList.filter(p => p.familia_padre_id === null).length;
-  
-  // ID de la categoría "Herramienta manual" que no requiere categoría padre
+
+  // ID de la categoría "Herramienta manual" que no requiere subcategoría
   const HERRAMIENTA_MANUAL_ID = 130;
-  
-  // Contador de productos sin categoría (abuelo) - excluyendo herramientas manuales
+
+  // Contador de productos sin categoría (sin familia o familia inexistente)
   const sinCategoriaCount = productosList.filter(p => {
     if (p.familia_padre_id === null) return true;
     const familia = familias.find(f => f.id === p.familia_padre_id);
-    if (!familia) return true;
-    
-    // Si pertenece a "Herramienta manual" o es hijo de ella, NO contar como "sin categoría"
-    if (familia.id === HERRAMIENTA_MANUAL_ID || familia.Padre === HERRAMIENTA_MANUAL_ID) {
-      return false;
-    }
-    
-    return familia.Padre === null;
+    return !familia;
   }).length;
 
   const filteredProductos = productosList.filter(producto => {
@@ -870,27 +839,33 @@ export default function Productos() {
       producto.descripcion.toLowerCase().includes(searchTerm.toLowerCase()) ||
       producto.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
       producto.clave.toLowerCase().includes(searchTerm.toLowerCase());
-    
+
     // Filtro por estado
     const matchesEstado = filterEstado === 'all' ||
       (filterEstado === 'vigente' && !producto.descontinuado) ||
       (filterEstado === 'descontinuado' && producto.descontinuado);
-    
+
     // Filtro por sin subcategoría asignada
     const matchesSinAsignar = !filterSinAsignar || producto.familia_padre_id === null;
-    
-    // Filtro por categoría (abuelo)
+
+    // Familia asignada
     const familia = producto.familia_padre_id ? familias.find(f => f.id === producto.familia_padre_id) : null;
-    const abueloId = familia?.Padre;
-    const matchesCategoria = filterCategoria === 'all' || String(abueloId) === filterCategoria;
-    
+
+    // Categoría real: si la familia es top-level (Padre = null), la categoría es ella misma
+    const categoriaId = familia ? (familia.Padre ?? familia.id) : null;
+
+    // Subcategoría real: solo existe si la familia tiene padre
+    const subcategoriaId = familia && familia.Padre !== null ? familia.id : null;
+
+    // Filtro por categoría
+    const matchesCategoria = filterCategoria === 'all' || String(categoriaId) === filterCategoria;
+
     // Filtro por subcategoría
-    const matchesSubcategoria = filterSubcategoria === 'all' || 
-      String(producto.familia_padre_id) === filterSubcategoria;
-    
+    const matchesSubcategoria = filterSubcategoria === 'all' || String(subcategoriaId) === filterSubcategoria;
+
     // Filtro por sin categoría asignada
-    const matchesSinCategoria = !filterSinCategoria || abueloId === null || abueloId === undefined;
-    
+    const matchesSinCategoria = !filterSinCategoria || producto.familia_padre_id === null || !familia;
+
     return matchesSearch && matchesEstado && matchesSinAsignar && matchesSinCategoria && matchesCategoria && matchesSubcategoria;
   });
 
