@@ -8,7 +8,7 @@ export async function importRepuestosZona5() {
     const { data: centroData, error: centroError } = await supabase
       .from('centros_servicio')
       .select('id')
-      .eq('codigo', 'ZONA5')
+      .eq('nombre', 'ZONA5')
       .maybeSingle();
 
     if (centroError) throw centroError;

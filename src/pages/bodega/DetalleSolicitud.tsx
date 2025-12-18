@@ -129,7 +129,7 @@ export default function DetalleSolicitud() {
       const { data: centroData } = await supabase
         .from('centros_servicio')
         .select('id')
-        .eq('codigo', 'ZONA5')
+        .eq('nombre', 'ZONA5')
         .maybeSingle();
 
       // Para cada detalle, buscar la info del repuesto y alternativas
