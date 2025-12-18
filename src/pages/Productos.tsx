@@ -80,6 +80,13 @@ const FAMILIA_ALIASES: Record<string, string> = {
   // Soldadoras
   'soldadora': 'soldadoras',
   'soldadura': 'soldadoras',
+  'soldadora inversora': 'soldadoras',
+  'soldadoras inversoras': 'soldadoras',
+  'mini soldadora inversora': 'soldadoras',
+  
+  // Hidroneumáticas (viene como categoría, mapear a bomba)
+  'hidroneumaticas': 'bomba',
+  'hidroneumatica': 'bomba',
   
   // Hidrolavadoras
   'hidrolavadora': 'hidrolavadoras',
@@ -130,7 +137,7 @@ const SUBCATEGORIA_KEYWORDS: Record<number, { keywords: string[], padreId: numbe
     { keywords: ['sumergible'], padreId: 92, nombre: 'Sumergible' },
     { keywords: ['periférica', 'periferica'], padreId: 98, nombre: 'Periférica' },
     { keywords: ['centrifuga', 'centrífuga'], padreId: 93, nombre: 'Centrífuga' },
-    { keywords: ['hidroneumática', 'hidroneumatica'], padreId: 97, nombre: 'Hidroneumática' },
+    { keywords: ['hidroneumática', 'hidroneumatica', 'hidroneumaticas'], padreId: 97, nombre: 'Hidroneumática' },
     { keywords: ['presurizada'], padreId: 96, nombre: 'Presurizada' },
     { keywords: ['bala'], padreId: 94, nombre: 'Bala' },
   ],
@@ -197,6 +204,7 @@ const SUBCATEGORIA_KEYWORDS: Record<number, { keywords: string[], padreId: numbe
   ],
   // Soldadoras (60)
   60: [
+    { keywords: ['inversora', 'mini soldadora inversora'], padreId: 118, nombre: 'Soldadora inversora' },
     { keywords: ['plasma'], padreId: 120, nombre: 'Plasma' },
     { keywords: ['arco'], padreId: 119, nombre: 'Arco' },
     { keywords: ['mig', 'mag', 'microalambre'], padreId: 121, nombre: 'MIG/MAG' },
