@@ -256,7 +256,6 @@ export type Database = {
       centros_servicio: {
         Row: {
           activo: boolean | null
-          codigo: string
           created_at: string
           direccion: string | null
           email: string | null
@@ -271,7 +270,6 @@ export type Database = {
         }
         Insert: {
           activo?: boolean | null
-          codigo: string
           created_at?: string
           direccion?: string | null
           email?: string | null
@@ -286,7 +284,6 @@ export type Database = {
         }
         Update: {
           activo?: boolean | null
-          codigo?: string
           created_at?: string
           direccion?: string | null
           email?: string | null

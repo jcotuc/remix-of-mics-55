@@ -22,14 +22,12 @@ type RepuestoPendiente = {
   fecha_recepcion: string | null;
   centros_servicio: {
     nombre: string;
-    codigo: string;
   } | null;
 };
 
 type CentroServicio = {
   id: string;
   nombre: string;
-  codigo: string;
 };
 
 export default function ReubicacionRepuestos() {
@@ -59,7 +57,7 @@ export default function ReubicacionRepuestos() {
     try {
       const { data, error } = await supabase
         .from("centros_servicio")
-        .select("id, nombre, codigo")
+        .select("id, nombre")
         .eq("activo", true)
         .order("nombre");
 
@@ -84,8 +82,7 @@ export default function ReubicacionRepuestos() {
           ubicacion_temporal,
           fecha_recepcion,
           centros_servicio (
-            nombre,
-            codigo
+            nombre
           )
         `)
         .eq("requiere_reubicacion", true);

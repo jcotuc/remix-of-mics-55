@@ -15,7 +15,6 @@ import { Plus, Edit, Users, Building2, Loader2, UserCog } from "lucide-react";
 
 interface CentroServicio {
   id: string;
-  codigo: string;
   nombre: string;
   direccion: string | null;
   telefono: string | null;
@@ -57,7 +56,6 @@ export default function CentrosServicio() {
   const [saving, setSaving] = useState(false);
 
   const [formData, setFormData] = useState({
-    codigo: "",
     nombre: "",
     direccion: "",
     telefono: "",
@@ -104,7 +102,6 @@ export default function CentrosServicio() {
   const handleOpenCreate = () => {
     setEditingCentro(null);
     setFormData({
-      codigo: "",
       nombre: "",
       direccion: "",
       telefono: "",
@@ -120,7 +117,6 @@ export default function CentrosServicio() {
   const handleOpenEdit = (centro: CentroServicio) => {
     setEditingCentro(centro);
     setFormData({
-      codigo: centro.codigo,
       nombre: centro.nombre,
       direccion: centro.direccion || "",
       telefono: centro.telefono || "",
@@ -134,8 +130,8 @@ export default function CentrosServicio() {
   };
 
   const handleSaveCentro = async () => {
-    if (!formData.codigo || !formData.nombre) {
-      toast.error("Código y nombre son requeridos");
+    if (!formData.nombre) {
+      toast.error("El nombre es requerido");
       return;
     }
 
@@ -145,7 +141,6 @@ export default function CentrosServicio() {
       const { error } = await supabase
         .from("centros_servicio")
         .update({
-          codigo: formData.codigo,
           nombre: formData.nombre,
           direccion: formData.direccion || null,
           telefono: formData.telefono || null,
@@ -166,7 +161,6 @@ export default function CentrosServicio() {
       }
     } else {
       const { error } = await supabase.from("centros_servicio").insert({
-        codigo: formData.codigo,
         nombre: formData.nombre,
         direccion: formData.direccion || null,
         telefono: formData.telefono || null,
@@ -284,7 +278,6 @@ export default function CentrosServicio() {
                             <Badge variant="outline">Central</Badge>
                           )}
                         </div>
-                        <p className="text-sm text-muted-foreground">Código: {centro.codigo}</p>
                         {centro.numero_bodega && (
                           <p className="text-sm text-muted-foreground">Bodega: {centro.numero_bodega}</p>
                         )}
@@ -377,23 +370,13 @@ export default function CentrosServicio() {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Código *</Label>
-                <Input
-                  value={formData.codigo}
-                  onChange={(e) => setFormData({ ...formData, codigo: e.target.value })}
-                  placeholder="CS-001"
-                />
-              </div>
-              <div>
-                <Label>Nombre *</Label>
-                <Input
-                  value={formData.nombre}
-                  onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
-                  placeholder="Centro Principal"
-                />
-              </div>
+            <div>
+              <Label>Nombre *</Label>
+              <Input
+                value={formData.nombre}
+                onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+                placeholder="Centro Principal"
+              />
             </div>
             <div>
               <Label>Dirección</Label>
@@ -510,7 +493,7 @@ export default function CentrosServicio() {
                   <SelectItem value="">Sin asignar</SelectItem>
                   {centros.filter((c) => c.activo).map((c) => (
                     <SelectItem key={c.id} value={c.id}>
-                      {c.codigo} - {c.nombre}
+                      {c.nombre}
                     </SelectItem>
                   ))}
                 </SelectContent>
