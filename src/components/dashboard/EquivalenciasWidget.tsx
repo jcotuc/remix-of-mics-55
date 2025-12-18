@@ -26,66 +26,60 @@ export function EquivalenciasWidget() {
     const { data: centroData } = await supabase
       .from('centros_servicio')
       .select('id')
-      .eq('codigo', 'ZONA5')
+      .ilike('nombre', '%zona 5%')
       .maybeSingle();
 
     if (!centroData) return;
 
     // 1. Repuestos sin stock pero con padre que sí tiene stock
-    const { data: sinStockConPadre } = await supabase
+    const { data: repuestosConPadre } = await supabase
       .from('repuestos')
-      .select(`
-        codigo,
-        codigo_padre,
-        stock_departamental!inner(cantidad_actual)
-      `)
-      .eq('stock_departamental.centro_servicio_id', centroData.id)
-      .lte('stock_departamental.cantidad_actual', 0)
+      .select('codigo, codigo_padre')
       .not('codigo_padre', 'is', null);
 
-    // Verificar cuántos tienen padre con stock
     let conPadreDisponible = 0;
-    if (sinStockConPadre) {
-      for (const repuesto of sinStockConPadre) {
-        const { data: padreStock } = await supabase
+    if (repuestosConPadre) {
+      for (const repuesto of repuestosConPadre.slice(0, 50)) {
+        // Verificar stock del código actual
+        const { data: stockActual } = await supabase
           .from('stock_departamental')
           .select('cantidad_actual')
-          .eq('codigo_repuesto', repuesto.codigo_padre)
+          .eq('codigo_repuesto', repuesto.codigo)
           .eq('centro_servicio_id', centroData.id)
           .maybeSingle();
 
-        if (padreStock && padreStock.cantidad_actual > 0) {
-          conPadreDisponible++;
+        if (!stockActual || stockActual.cantidad_actual <= 0) {
+          // Verificar stock del padre
+          const { data: padreStock } = await supabase
+            .from('stock_departamental')
+            .select('cantidad_actual')
+            .eq('codigo_repuesto', repuesto.codigo_padre!)
+            .eq('centro_servicio_id', centroData.id)
+            .maybeSingle();
+
+          if (padreStock && padreStock.cantidad_actual > 0) {
+            conPadreDisponible++;
+          }
         }
       }
     }
 
-    // 2. Repuestos con hermanos disponibles
-    const { data: repuestosConHermanos } = await supabase
-      .from('repuestos')
-      .select(`
-        codigo,
-        codigo_padre
-      `)
-      .not('codigo_padre', 'is', null);
+    // 2. Contar familias con hermanos disponibles
+    const padresUnicos = repuestosConPadre 
+      ? [...new Set(repuestosConPadre.map(r => r.codigo_padre).filter(Boolean))]
+      : [];
 
     let conHermanosDisp = 0;
-    if (repuestosConHermanos) {
-      const padresUnicos = [...new Set(repuestosConHermanos.map(r => r.codigo_padre))];
-      
-      for (const padre of padresUnicos) {
-        const { data: hermanos } = await supabase
-          .from('repuestos')
-          .select(`
-            codigo,
-            stock_departamental(cantidad_actual)
-          `)
-          .eq('codigo_padre', padre)
-          .eq('stock_departamental.centro_servicio_id', centroData.id);
+    for (const padre of padresUnicos.slice(0, 30)) {
+      const { data: stockPadre } = await supabase
+        .from('stock_departamental')
+        .select('cantidad_actual')
+        .eq('codigo_repuesto', padre!)
+        .eq('centro_servicio_id', centroData.id)
+        .maybeSingle();
 
-        if (hermanos && hermanos.some((h: any) => h.stock_departamental?.[0]?.cantidad_actual > 0)) {
-          conHermanosDisp++;
-        }
+      if (stockPadre && stockPadre.cantidad_actual > 0) {
+        conHermanosDisp++;
       }
     }
 
@@ -95,7 +89,7 @@ export function EquivalenciasWidget() {
       .from('movimientos_inventario')
       .select('motivo')
       .gte('created_at', `${hoy}T00:00:00`)
-      .like('motivo', '%solicitado%');
+      .ilike('motivo', '%solicitado%');
 
     setStats({
       sinStockConAlternativas: conPadreDisponible,
