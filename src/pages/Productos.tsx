@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Plus, Search, Edit, AlertTriangle, Save, X, Upload, FileSpreadsheet, CheckCircle, XCircle } from "lucide-react";
+import { Plus, Search, Edit, AlertTriangle, Save, X, Upload, FileSpreadsheet, CheckCircle, XCircle, SkipForward } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -48,6 +48,8 @@ interface ImportProducto {
   asignacion_info?: string;
   isValid: boolean;
   errorMsg?: string;
+  skipped?: boolean;
+  skipReason?: string;
 }
 
 // Mapeo de palabras clave por familia abuelo → familia padre (subcategoría)
@@ -421,14 +423,31 @@ export default function Productos() {
           descontinuadoRaw === '1' || 
           descontinuadoRaw === 1;
 
-        // Validaciones
+        // Verificar si ya existe en BD (marcar como skipped, no error)
+        const yaExisteEnBD = existingCodes.has(codigo.toLowerCase());
+        
+        // Validaciones reales (errores)
         const errors: string[] = [];
         if (!codigo) errors.push("Código requerido");
         if (!descripcion) errors.push("Descripción requerida");
-        if (existingCodes.has(codigo.toLowerCase())) errors.push("Código ya existe");
         if (seenCodes.has(codigo.toLowerCase())) errors.push("Código duplicado en archivo");
 
         seenCodes.add(codigo.toLowerCase());
+        
+        // Si ya existe en BD, marcarlo como skipped (no como error)
+        if (yaExisteEnBD && errors.length === 0) {
+          return {
+            codigo,
+            clave: clave || codigo,
+            descripcion,
+            url_foto: urlFoto || undefined,
+            descontinuado,
+            familia_nombre: familiaNombre || undefined,
+            isValid: false,
+            skipped: true,
+            skipReason: "Ya existe en BD"
+          };
+        }
 
         // Buscar familia por nombre (case-insensitive) y auto-asignar subcategoría
         let familiaId: number | undefined;
@@ -535,7 +554,8 @@ export default function Productos() {
   };
 
   const validCount = importData.filter(p => p.isValid).length;
-  const invalidCount = importData.filter(p => !p.isValid).length;
+  const skippedCount = importData.filter(p => p.skipped).length;
+  const errorCount = importData.filter(p => !p.isValid && !p.skipped).length;
 
   const filteredProductos = productosList.filter(producto =>
     producto.descripcion.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -852,15 +872,21 @@ export default function Productos() {
 
           <div className="space-y-4">
             {/* Resumen */}
-            <div className="flex gap-4">
+            <div className="flex flex-wrap gap-4">
               <div className="flex items-center gap-2 text-sm">
                 <CheckCircle className="h-4 w-4 text-green-600" />
-                <span className="text-green-600 font-medium">{validCount} válidos</span>
+                <span className="text-green-600 font-medium">{validCount} para importar</span>
               </div>
               <div className="flex items-center gap-2 text-sm">
-                <XCircle className="h-4 w-4 text-destructive" />
-                <span className="text-destructive font-medium">{invalidCount} con errores</span>
+                <SkipForward className="h-4 w-4 text-muted-foreground" />
+                <span className="text-muted-foreground font-medium">{skippedCount} ya existen (ignorados)</span>
               </div>
+              {errorCount > 0 && (
+                <div className="flex items-center gap-2 text-sm">
+                  <XCircle className="h-4 w-4 text-destructive" />
+                  <span className="text-destructive font-medium">{errorCount} con errores</span>
+                </div>
+              )}
             </div>
 
             {/* Tabla de preview */}
@@ -878,10 +904,18 @@ export default function Productos() {
                 </TableHeader>
                 <TableBody>
                   {importData.map((item, idx) => (
-                    <TableRow key={idx} className={!item.isValid ? "bg-destructive/10" : ""}>
+                    <TableRow 
+                      key={idx} 
+                      className={
+                        item.skipped ? "bg-muted/50 opacity-60" : 
+                        !item.isValid ? "bg-destructive/10" : ""
+                      }
+                    >
                       <TableCell>
                         {item.isValid ? (
                           <CheckCircle className="h-4 w-4 text-green-600" />
+                        ) : item.skipped ? (
+                          <SkipForward className="h-4 w-4 text-muted-foreground" />
                         ) : (
                           <XCircle className="h-4 w-4 text-destructive" />
                         )}
@@ -911,7 +945,9 @@ export default function Productos() {
                           <span className="text-muted-foreground text-sm">-</span>
                         )}
                       </TableCell>
-                      <TableCell className="text-destructive text-sm">{item.errorMsg || "-"}</TableCell>
+                      <TableCell className={item.skipped ? "text-muted-foreground text-sm" : "text-destructive text-sm"}>
+                        {item.skipped ? item.skipReason : item.errorMsg || "-"}
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
