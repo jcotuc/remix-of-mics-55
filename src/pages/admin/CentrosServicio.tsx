@@ -433,14 +433,14 @@ export default function CentrosServicio() {
             <div>
               <Label>Supervisor Regional</Label>
               <Select 
-                value={formData.supervisor_id} 
-                onValueChange={(val) => setFormData({ ...formData, supervisor_id: val })}
+                value={formData.supervisor_id || "__none__"} 
+                onValueChange={(val) => setFormData({ ...formData, supervisor_id: val === "__none__" ? "" : val })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Seleccionar supervisor..." />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Sin asignar</SelectItem>
+                  <SelectItem value="__none__">Sin asignar</SelectItem>
                   {supervisores.map((sup) => (
                     <SelectItem key={sup.id} value={sup.id}>
                       {sup.nombre} {sup.apellido}
