@@ -294,25 +294,49 @@ export default function Productos() {
 
   const fetchData = async () => {
     try {
-      const [productosRes, familiasRes] = await Promise.all([
-        supabase.from('productos').select('*').order('codigo'),
-        supabase.from('CDS_Familias').select('id, Categoria, Padre').order('Categoria')
-      ]);
+      // Fetch familias first
+      const { data: familiasData, error: familiasError } = await supabase
+        .from('CDS_Familias')
+        .select('id, Categoria, Padre')
+        .order('Categoria');
       
-      if (productosRes.error) throw productosRes.error;
-      if (familiasRes.error) throw familiasRes.error;
+      if (familiasError) throw familiasError;
+      setFamilias(familiasData || []);
 
-      const transformedData: ProductoExtended[] = (productosRes.data || []).map(item => ({
-        codigo: item.codigo,
-        clave: item.clave,
-        descripcion: item.descripcion,
-        descontinuado: item.descontinuado,
-        urlFoto: item.url_foto || "/placeholder.svg",
-        familia_padre_id: item.familia_padre_id
-      }));
+      // Fetch ALL products using pagination (Supabase has 1000 row limit)
+      const allProducts: ProductoExtended[] = [];
+      const pageSize = 1000;
+      let offset = 0;
+      let hasMore = true;
 
-      setProductosList(transformedData);
-      setFamilias(familiasRes.data || []);
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from('productos')
+          .select('*')
+          .order('codigo')
+          .range(offset, offset + pageSize - 1);
+
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+          const transformedBatch = data.map(item => ({
+            codigo: item.codigo,
+            clave: item.clave,
+            descripcion: item.descripcion,
+            descontinuado: item.descontinuado,
+            urlFoto: item.url_foto || "/placeholder.svg",
+            familia_padre_id: item.familia_padre_id
+          }));
+          allProducts.push(...transformedBatch);
+          offset += pageSize;
+          hasMore = data.length === pageSize;
+        } else {
+          hasMore = false;
+        }
+      }
+
+      setProductosList(allProducts);
+      console.log(`Cargados ${allProducts.length} productos`);
     } catch (error) {
       console.error('Error:', error);
       toast.error("Error al cargar datos");
