@@ -58,6 +58,7 @@ export default function FamiliasProductos() {
   const [importing, setImporting] = useState(false);
   const [selectedFamilia, setSelectedFamilia] = useState<Familia | null>(null);
   const [editPadre, setEditPadre] = useState<string>("");
+  const [editCategoria, setEditCategoria] = useState<string>("");
   const [newCategoria, setNewCategoria] = useState("");
   const [newPadre, setNewPadre] = useState<string>("");
   const [showRelacionesDialog, setShowRelacionesDialog] = useState(false);
@@ -242,12 +243,36 @@ export default function FamiliasProductos() {
 
   const handleEditClick = (familia: Familia) => {
     setSelectedFamilia(familia);
+    setEditCategoria(familia.Categoria || "");
     setEditPadre(familia.Padre?.toString() || "none");
     setShowEditDialog(true);
   };
 
-  const handleUpdatePadre = async () => {
+  const handleUpdateFamilia = async () => {
     if (!selectedFamilia) return;
+
+    if (!editCategoria.trim()) {
+      toast({
+        title: "Error",
+        description: "El nombre de la categoría es requerido",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Verificar duplicados (excluyendo la categoría actual)
+    const exists = familias.some(f => 
+      f.id !== selectedFamilia.id && 
+      f.Categoria?.toLowerCase() === editCategoria.trim().toLowerCase()
+    );
+    if (exists) {
+      toast({
+        title: "Error",
+        description: "Ya existe otra categoría con ese nombre",
+        variant: "destructive",
+      });
+      return;
+    }
 
     try {
       const newPadreValue = editPadre === "none" ? null : Number(editPadre);
@@ -264,14 +289,17 @@ export default function FamiliasProductos() {
 
       const { error } = await supabase
         .from("CDS_Familias")
-        .update({ Padre: newPadreValue })
+        .update({ 
+          Categoria: editCategoria.trim(),
+          Padre: newPadreValue 
+        })
         .eq("id", selectedFamilia.id);
 
       if (error) throw error;
 
       toast({
         title: "Actualizado",
-        description: "Relación padre actualizada correctamente",
+        description: "Categoría actualizada correctamente",
       });
 
       setShowEditDialog(false);
@@ -825,16 +853,24 @@ export default function FamiliasProductos() {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Parent Dialog */}
+      {/* Edit Dialog */}
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Editar Relación Padre</DialogTitle>
+            <DialogTitle>Editar Categoría</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label>Categoría</Label>
-              <Input value={selectedFamilia?.Categoria || ""} disabled />
+              <Label>ID</Label>
+              <Input value={selectedFamilia?.id?.toString() || ""} disabled />
+            </div>
+            <div>
+              <Label>Nombre de Categoría *</Label>
+              <Input 
+                value={editCategoria} 
+                onChange={(e) => setEditCategoria(e.target.value)}
+                placeholder="Nombre de la categoría"
+              />
             </div>
             <div>
               <Label>Categoría Padre</Label>
@@ -859,7 +895,7 @@ export default function FamiliasProductos() {
             <Button variant="outline" onClick={() => setShowEditDialog(false)}>
               Cancelar
             </Button>
-            <Button onClick={handleUpdatePadre}>
+            <Button onClick={handleUpdateFamilia}>
               <Save className="h-4 w-4 mr-2" />
               Guardar
             </Button>

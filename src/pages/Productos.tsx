@@ -240,6 +240,12 @@ export default function Productos() {
   const [selectedAbuelo, setSelectedAbuelo] = useState<string>("");
   const [selectedPadre, setSelectedPadre] = useState<string>("");
   const [saving, setSaving] = useState(false);
+  
+  // Estados para edición completa del producto
+  const [editClave, setEditClave] = useState("");
+  const [editDescripcion, setEditDescripcion] = useState("");
+  const [editUrlFoto, setEditUrlFoto] = useState("");
+  const [editDescontinuado, setEditDescontinuado] = useState(false);
 
   // Estados para crear nuevo producto
   const [isCreating, setIsCreating] = useState(false);
@@ -327,6 +333,10 @@ export default function Productos() {
 
   const handleEditClick = (producto: ProductoExtended) => {
     setEditingProducto(producto);
+    setEditClave(producto.clave || "");
+    setEditDescripcion(producto.descripcion);
+    setEditUrlFoto(producto.urlFoto === "/placeholder.svg" ? "" : producto.urlFoto || "");
+    setEditDescontinuado(producto.descontinuado);
     const familiaPadre = familias.find(f => f.id === producto.familia_padre_id);
     setSelectedAbuelo(familiaPadre?.Padre?.toString() || "");
     setSelectedPadre(producto.familia_padre_id?.toString() || "");
@@ -334,12 +344,22 @@ export default function Productos() {
 
   const handleSave = async () => {
     if (!editingProducto) return;
+    
+    if (!editDescripcion.trim()) {
+      toast.error("La descripción es requerida");
+      return;
+    }
+    
     setSaving(true);
 
     try {
       const { error } = await supabase
         .from('productos')
         .update({
+          clave: editClave.trim(),
+          descripcion: editDescripcion.trim(),
+          url_foto: editUrlFoto.trim() || null,
+          descontinuado: editDescontinuado,
           familia_padre_id: selectedPadre ? parseInt(selectedPadre) : null
         })
         .eq('codigo', editingProducto.codigo);
@@ -348,15 +368,22 @@ export default function Productos() {
 
       setProductosList(prev => prev.map(p => 
         p.codigo === editingProducto.codigo 
-          ? { ...p, familia_padre_id: selectedPadre ? parseInt(selectedPadre) : null }
+          ? { 
+              ...p, 
+              clave: editClave.trim(),
+              descripcion: editDescripcion.trim(),
+              urlFoto: editUrlFoto.trim() || "/placeholder.svg",
+              descontinuado: editDescontinuado,
+              familia_padre_id: selectedPadre ? parseInt(selectedPadre) : null 
+            }
           : p
       ));
 
-      toast.success("Familia actualizada correctamente");
+      toast.success("Producto actualizado correctamente");
       setEditingProducto(null);
     } catch (error) {
       console.error('Error:', error);
-      toast.error("Error al actualizar familia");
+      toast.error("Error al actualizar producto");
     } finally {
       setSaving(false);
     }
@@ -473,7 +500,7 @@ export default function Productos() {
           row['Codigo'] || row['codigo'] || row['CODIGO'] || row['Código'] || 
           row['SKU'] || row['sku'] || row['Sku'] || ''
         ).trim();
-        const clave = String(row['Clave'] || row['clave'] || row['CLAVE'] || codigo || '').trim();
+        const clave = String(row['Clave'] || row['clave'] || row['CLAVE'] || '').trim();
         const descripcion = String(
           row['Descripcion'] || row['descripcion'] || row['DESCRIPCION'] || row['Descripción'] || 
           row['Producto'] || row['producto'] || row['PRODUCTO'] || ''
@@ -509,7 +536,7 @@ export default function Productos() {
         if (duplicadoEnArchivo) {
           return {
             codigo,
-            clave: clave || codigo,
+            clave,
             descripcion,
             url_foto: urlFoto || undefined,
             descontinuado,
@@ -532,7 +559,7 @@ export default function Productos() {
         if (yaExisteEnBD && errors.length === 0) {
           return {
             codigo,
-            clave: clave || codigo,
+            clave,
             descripcion,
             url_foto: urlFoto || undefined,
             descontinuado,
@@ -585,7 +612,7 @@ export default function Productos() {
 
         return {
           codigo,
-          clave: clave || codigo,
+          clave,
           descripcion,
           url_foto: urlFoto || undefined,
           descontinuado,
@@ -663,11 +690,21 @@ export default function Productos() {
   // Contador de productos sin subcategoría
   const sinAsignarCount = productosList.filter(p => p.familia_padre_id === null).length;
   
-  // Contador de productos sin categoría (abuelo)
+  // ID de la categoría "Herramienta manual" que no requiere categoría padre
+  const HERRAMIENTA_MANUAL_ID = 130;
+  
+  // Contador de productos sin categoría (abuelo) - excluyendo herramientas manuales
   const sinCategoriaCount = productosList.filter(p => {
     if (p.familia_padre_id === null) return true;
     const familia = familias.find(f => f.id === p.familia_padre_id);
-    return !familia || familia.Padre === null;
+    if (!familia) return true;
+    
+    // Si pertenece a "Herramienta manual" o es hijo de ella, NO contar como "sin categoría"
+    if (familia.id === HERRAMIENTA_MANUAL_ID || familia.Padre === HERRAMIENTA_MANUAL_ID) {
+      return false;
+    }
+    
+    return familia.Padre === null;
   }).length;
 
   const filteredProductos = productosList.filter(producto => {
@@ -892,60 +929,102 @@ export default function Productos() {
         </CardContent>
       </Card>
 
-      {/* Dialog para editar familia */}
+      {/* Dialog para editar producto */}
       <Dialog open={!!editingProducto} onOpenChange={() => setEditingProducto(null)}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Editar Familia del Producto</DialogTitle>
+            <DialogTitle>Editar Producto</DialogTitle>
           </DialogHeader>
           
           {editingProducto && (
             <div className="space-y-4">
               <div className="p-3 bg-muted rounded-lg">
-                <p className="text-sm font-medium">{editingProducto.codigo}</p>
-                <p className="text-sm text-muted-foreground">{editingProducto.descripcion}</p>
+                <p className="text-sm font-medium">Código: {editingProducto.codigo}</p>
               </div>
 
               <div className="space-y-2">
-                <Label>Categoría General</Label>
-                <Select value={selectedAbuelo} onValueChange={(val) => {
-                  setSelectedAbuelo(val);
-                  setSelectedPadre("");
-                }}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar categoría..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {familiasAbuelo.map(f => (
-                      <SelectItem key={f.id} value={f.id.toString()}>
-                        {f.Categoria}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="edit-clave">Clave</Label>
+                <Input
+                  id="edit-clave"
+                  value={editClave}
+                  onChange={(e) => setEditClave(e.target.value)}
+                  placeholder="Clave del producto"
+                />
               </div>
 
               <div className="space-y-2">
-                <Label>Subcategoría (se guarda en producto)</Label>
-                <Select 
-                  value={selectedPadre} 
-                  onValueChange={setSelectedPadre}
-                  disabled={!selectedAbuelo}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder={selectedAbuelo ? "Seleccionar subcategoría..." : "Primero selecciona categoría"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {familiasPadre.map(f => (
-                      <SelectItem key={f.id} value={f.id.toString()}>
-                        {f.Categoria}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {selectedAbuelo && familiasPadre.length === 0 && (
-                  <p className="text-xs text-muted-foreground">No hay subcategorías para esta categoría</p>
-                )}
+                <Label htmlFor="edit-descripcion">Descripción *</Label>
+                <Input
+                  id="edit-descripcion"
+                  value={editDescripcion}
+                  onChange={(e) => setEditDescripcion(e.target.value)}
+                  placeholder="Descripción del producto"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="edit-url-foto">URL de Foto</Label>
+                <Input
+                  id="edit-url-foto"
+                  value={editUrlFoto}
+                  onChange={(e) => setEditUrlFoto(e.target.value)}
+                  placeholder="https://..."
+                />
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="edit-descontinuado"
+                  checked={editDescontinuado}
+                  onCheckedChange={setEditDescontinuado}
+                />
+                <Label htmlFor="edit-descontinuado">Marcar como descontinuado</Label>
+              </div>
+
+              <div className="border-t pt-4 space-y-4">
+                <p className="text-sm font-medium text-muted-foreground">Clasificación</p>
+                
+                <div className="space-y-2">
+                  <Label>Categoría General</Label>
+                  <Select value={selectedAbuelo} onValueChange={(val) => {
+                    setSelectedAbuelo(val);
+                    setSelectedPadre("");
+                  }}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccionar categoría..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {familiasAbuelo.map(f => (
+                        <SelectItem key={f.id} value={f.id.toString()}>
+                          {f.Categoria}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Subcategoría</Label>
+                  <Select 
+                    value={selectedPadre} 
+                    onValueChange={setSelectedPadre}
+                    disabled={!selectedAbuelo}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={selectedAbuelo ? "Seleccionar subcategoría..." : "Primero selecciona categoría"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {familiasPadre.map(f => (
+                        <SelectItem key={f.id} value={f.id.toString()}>
+                          {f.Categoria}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {selectedAbuelo && familiasPadre.length === 0 && (
+                    <p className="text-xs text-muted-foreground">No hay subcategorías para esta categoría</p>
+                  )}
+                </div>
               </div>
             </div>
           )}
