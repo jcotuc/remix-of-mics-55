@@ -406,7 +406,9 @@ export default function Productos() {
           descripcion: editDescripcion.trim(),
           url_foto: editUrlFoto.trim() || null,
           descontinuado: editDescontinuado,
-          familia_padre_id: selectedPadre ? parseInt(selectedPadre) : null
+          familia_padre_id: selectedPadre 
+            ? parseInt(selectedPadre) 
+            : (selectedAbuelo && familiasPadre.length === 0 ? parseInt(selectedAbuelo) : null)
         })
         .eq('codigo', editingProducto.codigo);
 
@@ -420,7 +422,9 @@ export default function Productos() {
               descripcion: editDescripcion.trim(),
               urlFoto: editUrlFoto.trim() || "/placeholder.svg",
               descontinuado: editDescontinuado,
-              familia_padre_id: selectedPadre ? parseInt(selectedPadre) : null 
+              familia_padre_id: selectedPadre 
+                ? parseInt(selectedPadre) 
+                : (selectedAbuelo && familiasPadre.length === 0 ? parseInt(selectedAbuelo) : null)
             }
           : p
       ));
@@ -492,7 +496,9 @@ export default function Productos() {
           descripcion: newProducto.descripcion.trim(),
           url_foto: newProducto.url_foto.trim() || null,
           descontinuado: newProducto.descontinuado,
-          familia_padre_id: createPadre ? parseInt(createPadre) : null
+          familia_padre_id: createPadre 
+            ? parseInt(createPadre) 
+            : (createAbuelo && familiasPadreCreate.length === 0 ? parseInt(createAbuelo) : null)
         });
 
       if (error) throw error;
