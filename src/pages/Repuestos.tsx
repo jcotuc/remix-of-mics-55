@@ -11,11 +11,12 @@ import { Repuesto, Producto } from "@/types";
 import { insertAllRepuestos } from "@/scripts/insertRepuestos";
 import { importSustitutos } from "@/scripts/importSustitutos";
 import { useToast } from "@/components/ui/use-toast";
+import { TablePagination } from "@/components/TablePagination";
 
 interface RepuestoExtendido extends Repuesto {
   codigoPadre?: string | null;
   esCodigoPadre?: boolean | null;
-  codigosHijos?: string[]; // Lista de códigos hijo que apuntan a este padre
+  codigosHijos?: string[];
 }
 
 interface RelacionPadreHijo {
@@ -34,17 +35,23 @@ export default function Repuestos() {
   const [importingSustitutos, setImportingSustitutos] = useState(false);
   const [hijoPadreMap, setHijoPadreMap] = useState<Map<string, string>>(new Map());
   const [padreHijosMap, setPadreHijosMap] = useState<Map<string, string[]>>(new Map());
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(50);
   const { toast } = useToast();
 
   useEffect(() => {
     fetchRepuestosAndProductos();
   }, []);
 
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, selectedProduct]);
+
   const fetchRepuestosAndProductos = async () => {
     try {
       setLoading(true);
       
-      // Fetch TODAS las relaciones padre-hijo con paginación (más de 14,000 registros)
       let allRelaciones: any[] = [];
       let relFrom = 0;
       const relPageSize = 1000;
@@ -70,7 +77,6 @@ export default function Repuestos() {
       
       console.log('Total relaciones cargadas:', allRelaciones.length);
 
-      // Crear mapas de relaciones
       const newHijoPadreMap = new Map<string, string>();
       const newPadreHijosMap = new Map<string, string[]>();
       
@@ -89,10 +95,7 @@ export default function Repuestos() {
       
       setHijoPadreMap(newHijoPadreMap);
       setPadreHijosMap(newPadreHijosMap);
-      console.log('Relaciones procesadas:', newHijoPadreMap.size, 'hijos →', newPadreHijosMap.size, 'padres');
-      console.log('Ejemplo - 929926 es hijo de:', newHijoPadreMap.get('929926'));
       
-      // Fetch repuestos (sin límite)
       let allRepuestos: any[] = [];
       let from = 0;
       const pageSize = 1000;
@@ -117,9 +120,6 @@ export default function Repuestos() {
         from += pageSize;
       }
 
-      console.log('Total repuestos cargados:', allRepuestos.length);
-
-      // Fetch productos
       const { data: productosData, error: productosError } = await supabase
         .from('productos')
         .select('*')
@@ -130,11 +130,10 @@ export default function Repuestos() {
         return;
       }
 
-      // Transform data - excluir códigos hijo (solo mostrar padres)
       const codigosHijo = new Set(newHijoPadreMap.keys());
       
       const transformedRepuestos: RepuestoExtendido[] = allRepuestos
-        .filter((r: any) => !codigosHijo.has(r.codigo)) // Excluir hijos
+        .filter((r: any) => !codigosHijo.has(r.codigo))
         .map((r: any) => ({
           numero: r.numero,
           codigo: r.codigo,
@@ -156,8 +155,6 @@ export default function Repuestos() {
         categoria: "Electricas" as const
       })) || [];
 
-      console.log('Repuestos (solo padres):', transformedRepuestos.length);
-
       setRepuestosList(transformedRepuestos);
       setProductosList(transformedProductos);
     } catch (error) {
@@ -167,24 +164,20 @@ export default function Repuestos() {
     }
   };
 
-  // Filtrado con búsqueda inteligente de códigos hijo
   const filteredRepuestos = useMemo(() => {
     const search = searchTerm.toLowerCase().trim();
     
     return repuestosList.filter(repuesto => {
-      // Búsqueda normal en código, descripción, clave
       let matchesSearch = repuesto.descripcion.toLowerCase().includes(search) ||
         repuesto.codigo.toLowerCase().includes(search) ||
         repuesto.clave.toLowerCase().includes(search);
       
-      // Si el término buscado es un código hijo, buscar su padre
       if (!matchesSearch && search) {
         const padreDelBuscado = hijoPadreMap.get(search.toUpperCase());
         if (padreDelBuscado) {
           matchesSearch = repuesto.codigo === padreDelBuscado;
         }
         
-        // También buscar si algún hijo del repuesto contiene el término
         if (!matchesSearch && repuesto.codigosHijos && repuesto.codigosHijos.length > 0) {
           matchesSearch = repuesto.codigosHijos.some(hijo => 
             hijo.toLowerCase().includes(search)
@@ -197,6 +190,11 @@ export default function Repuestos() {
       return matchesSearch && matchesProduct;
     });
   }, [repuestosList, searchTerm, selectedProduct, hijoPadreMap]);
+
+  // Pagination
+  const totalPages = Math.max(1, Math.ceil(filteredRepuestos.length / itemsPerPage));
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedRepuestos = filteredRepuestos.slice(startIndex, startIndex + itemsPerPage);
 
   const handleImportSustitutos = async () => {
     setImportingSustitutos(true);
@@ -345,7 +343,6 @@ export default function Repuestos() {
                 ))}
               </SelectContent>
             </Select>
-
           </div>
 
           <div className="rounded-md border">
@@ -362,7 +359,7 @@ export default function Repuestos() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredRepuestos.map((repuesto) => (
+                {paginatedRepuestos.map((repuesto) => (
                   <TableRow key={repuesto.codigo}>
                     <TableCell>
                       <div className="w-12 h-12 bg-muted rounded-md flex items-center justify-center">
@@ -407,6 +404,18 @@ export default function Repuestos() {
               </TableBody>
             </Table>
           </div>
+
+          <TablePagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={filteredRepuestos.length}
+            itemsPerPage={itemsPerPage}
+            onPageChange={setCurrentPage}
+            onItemsPerPageChange={(value) => {
+              setItemsPerPage(value);
+              setCurrentPage(1);
+            }}
+          />
         </CardContent>
       </Card>
     </div>
