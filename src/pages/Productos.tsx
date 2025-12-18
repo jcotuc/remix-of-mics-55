@@ -645,6 +645,7 @@ export default function Productos() {
   const validCount = importData.filter(p => p.isValid).length;
   const skippedCount = importData.filter(p => p.skipped).length;
   const errorCount = importData.filter(p => !p.isValid && !p.skipped).length;
+  const warningCount = importData.filter(p => p.isValid && p.asignacion_info?.includes('⚠️')).length;
 
   const filteredProductos = productosList.filter(producto =>
     producto.descripcion.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -965,6 +966,11 @@ export default function Productos() {
               <div className="flex items-center gap-2 text-sm">
                 <CheckCircle className="h-4 w-4 text-green-600" />
                 <span className="text-green-600 font-medium">{validCount} para importar</span>
+                {warningCount > 0 && (
+                  <span className="text-amber-600 text-xs">
+                    ({warningCount} sin subcategoría)
+                  </span>
+                )}
               </div>
               <div className="flex items-center gap-2 text-sm">
                 <SkipForward className="h-4 w-4 text-muted-foreground" />
@@ -977,6 +983,15 @@ export default function Productos() {
                 </div>
               )}
             </div>
+
+            {/* Mensaje explicativo para productos con advertencias */}
+            {validCount > 0 && warningCount > 0 && (
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-md text-sm text-amber-800">
+                <AlertTriangle className="h-4 w-4 inline mr-2" />
+                Hay {warningCount} productos sin subcategoría asignada. 
+                Se importarán pero necesitarás asignar la familia manualmente después.
+              </div>
+            )}
 
             {/* Tabla de preview */}
             <ScrollArea className="h-[400px] border rounded-md">
