@@ -265,6 +265,7 @@ export default function Productos() {
   const [importData, setImportData] = useState<ImportProducto[]>([]);
   const [importing, setImporting] = useState(false);
   const [cleaningKeys, setCleaningKeys] = useState(false);
+  const [assigningCategory, setAssigningCategory] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Estados para filtros avanzados
@@ -362,6 +363,63 @@ export default function Productos() {
       toast.error("Error al limpiar claves duplicadas");
     } finally {
       setCleaningKeys(false);
+    }
+  };
+
+  const asignarCategoriaHerramientaManual = async () => {
+    setAssigningCategory(true);
+    try {
+      // Contar productos sin categoría
+      const { count, error: countError } = await supabase
+        .from('productos')
+        .select('*', { count: 'exact', head: true })
+        .is('familia_padre_id', null);
+
+      if (countError) throw countError;
+
+      if (!count || count === 0) {
+        toast.info("No hay productos sin categoría");
+        return;
+      }
+
+      // Obtener productos sin categoría en lotes y actualizarlos
+      const batchSize = 1000;
+      let updated = 0;
+      let offset = 0;
+
+      while (true) {
+        const { data: productos, error: fetchError } = await supabase
+          .from('productos')
+          .select('id')
+          .is('familia_padre_id', null)
+          .range(offset, offset + batchSize - 1);
+
+        if (fetchError) throw fetchError;
+        if (!productos || productos.length === 0) break;
+
+        const ids = productos.map(p => p.id);
+        
+        const { error: updateError } = await supabase
+          .from('productos')
+          .update({ familia_padre_id: 130 })
+          .in('id', ids);
+
+        if (updateError) throw updateError;
+        
+        updated += productos.length;
+        offset += batchSize;
+
+        // Si obtuvimos menos que el batch size, terminamos
+        if (productos.length < batchSize) break;
+      }
+
+      toast.success(`Se asignaron ${updated} productos a "Herramienta manual"`);
+      fetchData();
+    } catch (error) {
+      console.error('Error asignando categoría:', error);
+      toast.error("Error al asignar categoría");
+    } finally {
+      setAssigningCategory(false);
     }
   };
 
@@ -822,6 +880,14 @@ export default function Productos() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            onClick={asignarCategoriaHerramientaManual}
+            disabled={assigningCategory}
+          >
+            <CheckCircle className="h-4 w-4 mr-2" />
+            {assigningCategory ? "Asignando..." : "Asignar Herramienta Manual"}
+          </Button>
           <Button 
             variant="outline" 
             onClick={limpiarClavesDuplicadas}
