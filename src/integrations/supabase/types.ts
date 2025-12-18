@@ -1617,7 +1617,6 @@ export type Database = {
           es_catalogo_truper: boolean | null
           es_codigo_padre: boolean | null
           id: string
-          numero: string
           prefijo_clasificacion: string | null
           stock_actual: number | null
           ubicacion_bodega: string | null
@@ -1635,7 +1634,6 @@ export type Database = {
           es_catalogo_truper?: boolean | null
           es_codigo_padre?: boolean | null
           id?: string
-          numero: string
           prefijo_clasificacion?: string | null
           stock_actual?: number | null
           ubicacion_bodega?: string | null
@@ -1653,7 +1651,6 @@ export type Database = {
           es_catalogo_truper?: boolean | null
           es_codigo_padre?: boolean | null
           id?: string
-          numero?: string
           prefijo_clasificacion?: string | null
           stock_actual?: number | null
           ubicacion_bodega?: string | null
