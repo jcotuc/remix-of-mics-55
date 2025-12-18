@@ -260,6 +260,12 @@ export default function Productos() {
   const [importing, setImporting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Estados para filtros avanzados
+  const [filterCategoria, setFilterCategoria] = useState<string>('all');
+  const [filterSubcategoria, setFilterSubcategoria] = useState<string>('all');
+  const [filterEstado, setFilterEstado] = useState<string>('all');
+  const [filterSinAsignar, setFilterSinAsignar] = useState<boolean>(false);
+
   // Familias "abuelo" (top-level, sin padre)
   const familiasAbuelo = familias.filter(f => f.Padre === null);
   
@@ -472,18 +478,24 @@ export default function Productos() {
           row['Producto'] || row['producto'] || row['PRODUCTO'] || ''
         ).trim();
         const urlFoto = String(row['URL_Foto'] || row['url_foto'] || row['URL'] || row['Foto'] || '').trim();
-        const descontinuadoRaw = row['Descontinuado'] || row['descontinuado'] || row['DESCONTINUADO'] || false;
+        const descontinuadoRaw = row['Descontinuado'] || row['descontinuado'] || row['DESCONTINUADO'] || 
+          row['Estado'] || row['estado'] || row['ESTADO'] || '';
         const familiaNombre = String(
           row['Categoria'] || row['categoria'] || row['CATEGORIA'] || 
           row['Familia'] || row['familia'] || row['FAMILIA'] || 
           row['Subcategoria'] || ''
         ).trim();
 
-        // Convertir descontinuado a boolean
-        const descontinuado = descontinuadoRaw === true || 
-          descontinuadoRaw === 'true' || 
-          descontinuadoRaw === 'TRUE' || 
-          descontinuadoRaw === '1' || 
+        // Convertir descontinuado a boolean - detectar "Descontinuados" vs "No descontinuados"
+        const descontinuadoStr = String(descontinuadoRaw).toLowerCase().trim();
+        const descontinuado = 
+          descontinuadoStr === 'descontinuados' ||
+          descontinuadoStr === 'descontinuado' ||
+          descontinuadoStr === 'si' ||
+          descontinuadoStr === 'sí' ||
+          descontinuadoStr === 'true' ||
+          descontinuadoStr === '1' ||
+          descontinuadoRaw === true ||
           descontinuadoRaw === 1;
 
         // Verificar si ya existe en BD (marcar como skipped, no error)
@@ -647,11 +659,35 @@ export default function Productos() {
   const errorCount = importData.filter(p => !p.isValid && !p.skipped).length;
   const warningCount = importData.filter(p => p.isValid && p.asignacion_info?.includes('⚠️')).length;
 
-  const filteredProductos = productosList.filter(producto =>
-    producto.descripcion.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    producto.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    producto.clave.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Contador de productos sin subcategoría
+  const sinAsignarCount = productosList.filter(p => p.familia_padre_id === null).length;
+
+  const filteredProductos = productosList.filter(producto => {
+    // Filtro de búsqueda por texto
+    const matchesSearch = searchTerm === '' ||
+      producto.descripcion.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      producto.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      producto.clave.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    // Filtro por estado
+    const matchesEstado = filterEstado === 'all' ||
+      (filterEstado === 'vigente' && !producto.descontinuado) ||
+      (filterEstado === 'descontinuado' && producto.descontinuado);
+    
+    // Filtro por sin subcategoría asignada
+    const matchesSinAsignar = !filterSinAsignar || producto.familia_padre_id === null;
+    
+    // Filtro por categoría (abuelo)
+    const familia = producto.familia_padre_id ? familias.find(f => f.id === producto.familia_padre_id) : null;
+    const abueloId = familia?.Padre;
+    const matchesCategoria = filterCategoria === 'all' || String(abueloId) === filterCategoria;
+    
+    // Filtro por subcategoría
+    const matchesSubcategoria = filterSubcategoria === 'all' || 
+      String(producto.familia_padre_id) === filterSubcategoria;
+    
+    return matchesSearch && matchesEstado && matchesSinAsignar && matchesCategoria && matchesSubcategoria;
+  });
 
   return (
     <div className="space-y-6">
@@ -686,17 +722,85 @@ export default function Productos() {
           <CardTitle>Lista de Productos</CardTitle>
           <CardDescription>
             {filteredProductos.length} productos en catálogo
+            {sinAsignarCount > 0 && (
+              <span className="text-amber-600 ml-2">
+                ({sinAsignarCount} sin subcategoría)
+              </span>
+            )}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center space-x-2 mb-4">
-            <Search className="h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar por descripción, código o clave..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="max-w-sm"
-            />
+          {/* Filtros avanzados */}
+          <div className="flex flex-wrap items-center gap-4 mb-4">
+            {/* Búsqueda */}
+            <div className="flex items-center space-x-2">
+              <Search className="h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-[200px]"
+              />
+            </div>
+            
+            {/* Filtro Estado */}
+            <Select value={filterEstado} onValueChange={setFilterEstado}>
+              <SelectTrigger className="w-[150px]">
+                <SelectValue placeholder="Estado" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos</SelectItem>
+                <SelectItem value="vigente">Vigentes</SelectItem>
+                <SelectItem value="descontinuado">Descontinuados</SelectItem>
+              </SelectContent>
+            </Select>
+            
+            {/* Filtro Categoría */}
+            <Select value={filterCategoria} onValueChange={(v) => {
+              setFilterCategoria(v);
+              setFilterSubcategoria('all');
+            }}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Categoría" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas las categorías</SelectItem>
+                {familiasAbuelo.map(cat => (
+                  <SelectItem key={cat.id} value={String(cat.id)}>
+                    {cat.Categoria}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            
+            {/* Filtro Subcategoría */}
+            <Select value={filterSubcategoria} onValueChange={setFilterSubcategoria}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Subcategoría" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas las subcategorías</SelectItem>
+                {familias
+                  .filter(f => filterCategoria === 'all' ? f.Padre !== null : f.Padre === Number(filterCategoria))
+                  .map(sub => (
+                    <SelectItem key={sub.id} value={String(sub.id)}>
+                      {sub.Categoria}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+            
+            {/* Toggle Sin Asignar */}
+            <div className="flex items-center space-x-2">
+              <Switch 
+                id="sin-asignar" 
+                checked={filterSinAsignar}
+                onCheckedChange={setFilterSinAsignar}
+              />
+              <Label htmlFor="sin-asignar" className="text-sm cursor-pointer">
+                Sin subcategoría ({sinAsignarCount})
+              </Label>
+            </div>
           </div>
 
           <div className="rounded-md border overflow-x-auto">
