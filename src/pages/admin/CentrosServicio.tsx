@@ -21,6 +21,8 @@ interface CentroServicio {
   telefono: string | null;
   email: string | null;
   responsable: string | null;
+  numero_bodega: string | null;
+  supervisor_id: string | null;
   activo: boolean;
   es_central: boolean;
 }
@@ -34,9 +36,18 @@ interface Usuario {
   centro_servicio_id: string | null;
 }
 
+interface SupervisorRegional {
+  id: string;
+  user_id: string;
+  nombre: string;
+  apellido: string;
+  email: string;
+}
+
 export default function CentrosServicio() {
   const [centros, setCentros] = useState<CentroServicio[]>([]);
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
+  const [supervisores, setSupervisores] = useState<SupervisorRegional[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCentroDialog, setShowCentroDialog] = useState(false);
   const [showAsignarDialog, setShowAsignarDialog] = useState(false);
@@ -51,7 +62,8 @@ export default function CentrosServicio() {
     direccion: "",
     telefono: "",
     email: "",
-    responsable: "",
+    numero_bodega: "",
+    supervisor_id: "",
     activo: true,
     es_central: false,
   });
@@ -63,13 +75,28 @@ export default function CentrosServicio() {
   const fetchData = async () => {
     setLoading(true);
     
-    const [centrosRes, usuariosRes] = await Promise.all([
+    const [centrosRes, usuariosRes, supervisoresRes] = await Promise.all([
       supabase.from("centros_servicio").select("*").order("nombre"),
       supabase.from("profiles").select("*").order("nombre"),
+      // Obtener usuarios con rol supervisor_regional
+      supabase
+        .from("user_roles")
+        .select("user_id, profiles!inner(id, user_id, nombre, apellido, email)")
+        .eq("role", "supervisor_regional"),
     ]);
 
     if (centrosRes.data) setCentros(centrosRes.data);
     if (usuariosRes.data) setUsuarios(usuariosRes.data);
+    if (supervisoresRes.data) {
+      const sups = supervisoresRes.data.map((item: any) => ({
+        id: item.profiles.id,
+        user_id: item.profiles.user_id,
+        nombre: item.profiles.nombre,
+        apellido: item.profiles.apellido,
+        email: item.profiles.email,
+      }));
+      setSupervisores(sups);
+    }
     
     setLoading(false);
   };
@@ -82,7 +109,8 @@ export default function CentrosServicio() {
       direccion: "",
       telefono: "",
       email: "",
-      responsable: "",
+      numero_bodega: "",
+      supervisor_id: "",
       activo: true,
       es_central: false,
     });
@@ -97,7 +125,8 @@ export default function CentrosServicio() {
       direccion: centro.direccion || "",
       telefono: centro.telefono || "",
       email: centro.email || "",
-      responsable: centro.responsable || "",
+      numero_bodega: centro.numero_bodega || "",
+      supervisor_id: centro.supervisor_id || "",
       activo: centro.activo,
       es_central: centro.es_central,
     });
@@ -121,7 +150,8 @@ export default function CentrosServicio() {
           direccion: formData.direccion || null,
           telefono: formData.telefono || null,
           email: formData.email || null,
-          responsable: formData.responsable || null,
+          numero_bodega: formData.numero_bodega || null,
+          supervisor_id: formData.supervisor_id || null,
           activo: formData.activo,
           es_central: formData.es_central,
         })
@@ -141,7 +171,8 @@ export default function CentrosServicio() {
         direccion: formData.direccion || null,
         telefono: formData.telefono || null,
         email: formData.email || null,
-        responsable: formData.responsable || null,
+        numero_bodega: formData.numero_bodega || null,
+        supervisor_id: formData.supervisor_id || null,
         activo: formData.activo,
         es_central: formData.es_central,
       });
@@ -192,6 +223,12 @@ export default function CentrosServicio() {
     if (!centroId) return "Sin asignar";
     const centro = centros.find((c) => c.id === centroId);
     return centro ? centro.nombre : "Desconocido";
+  };
+
+  const getSupervisorNombre = (supervisorId: string | null) => {
+    if (!supervisorId) return null;
+    const sup = supervisores.find((s) => s.id === supervisorId);
+    return sup ? `${sup.nombre} ${sup.apellido}` : null;
   };
 
   if (loading) {
@@ -248,11 +285,14 @@ export default function CentrosServicio() {
                           )}
                         </div>
                         <p className="text-sm text-muted-foreground">Código: {centro.codigo}</p>
+                        {centro.numero_bodega && (
+                          <p className="text-sm text-muted-foreground">Bodega: {centro.numero_bodega}</p>
+                        )}
                         {centro.direccion && (
                           <p className="text-sm text-muted-foreground">{centro.direccion}</p>
                         )}
-                        {centro.responsable && (
-                          <p className="text-sm">Responsable: {centro.responsable}</p>
+                        {getSupervisorNombre(centro.supervisor_id) && (
+                          <p className="text-sm">Supervisor: {getSupervisorNombre(centro.supervisor_id)}</p>
                         )}
                       </div>
                     </div>
@@ -383,12 +423,31 @@ export default function CentrosServicio() {
               </div>
             </div>
             <div>
-              <Label>Responsable</Label>
+              <Label>Número de Bodega</Label>
               <Input
-                value={formData.responsable}
-                onChange={(e) => setFormData({ ...formData, responsable: e.target.value })}
-                placeholder="Nombre del responsable"
+                value={formData.numero_bodega}
+                onChange={(e) => setFormData({ ...formData, numero_bodega: e.target.value })}
+                placeholder="B001"
               />
+            </div>
+            <div>
+              <Label>Supervisor Regional</Label>
+              <Select 
+                value={formData.supervisor_id} 
+                onValueChange={(val) => setFormData({ ...formData, supervisor_id: val })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar supervisor..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Sin asignar</SelectItem>
+                  {supervisores.map((sup) => (
+                    <SelectItem key={sup.id} value={sup.id}>
+                      {sup.nombre} {sup.apellido}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
