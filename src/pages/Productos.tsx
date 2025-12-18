@@ -265,6 +265,7 @@ export default function Productos() {
   const [filterSubcategoria, setFilterSubcategoria] = useState<string>('all');
   const [filterEstado, setFilterEstado] = useState<string>('all');
   const [filterSinAsignar, setFilterSinAsignar] = useState<boolean>(false);
+  const [filterSinCategoria, setFilterSinCategoria] = useState<boolean>(false);
 
   // Familias "abuelo" (top-level, sin padre)
   const familiasAbuelo = familias.filter(f => f.Padre === null);
@@ -661,6 +662,13 @@ export default function Productos() {
 
   // Contador de productos sin subcategoría
   const sinAsignarCount = productosList.filter(p => p.familia_padre_id === null).length;
+  
+  // Contador de productos sin categoría (abuelo)
+  const sinCategoriaCount = productosList.filter(p => {
+    if (p.familia_padre_id === null) return true;
+    const familia = familias.find(f => f.id === p.familia_padre_id);
+    return !familia || familia.Padre === null;
+  }).length;
 
   const filteredProductos = productosList.filter(producto => {
     // Filtro de búsqueda por texto
@@ -686,7 +694,10 @@ export default function Productos() {
     const matchesSubcategoria = filterSubcategoria === 'all' || 
       String(producto.familia_padre_id) === filterSubcategoria;
     
-    return matchesSearch && matchesEstado && matchesSinAsignar && matchesCategoria && matchesSubcategoria;
+    // Filtro por sin categoría asignada
+    const matchesSinCategoria = !filterSinCategoria || abueloId === null || abueloId === undefined;
+    
+    return matchesSearch && matchesEstado && matchesSinAsignar && matchesSinCategoria && matchesCategoria && matchesSubcategoria;
   });
 
   return (
@@ -799,6 +810,17 @@ export default function Productos() {
               />
               <Label htmlFor="sin-asignar" className="text-sm cursor-pointer">
                 Sin subcategoría ({sinAsignarCount})
+              </Label>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <Switch 
+                id="sin-categoria" 
+                checked={filterSinCategoria}
+                onCheckedChange={setFilterSinCategoria}
+              />
+              <Label htmlFor="sin-categoria" className="text-sm cursor-pointer">
+                Sin categoría ({sinCategoriaCount})
               </Label>
             </div>
           </div>
