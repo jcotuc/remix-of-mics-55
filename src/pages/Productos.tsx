@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Plus, Search, Edit, AlertTriangle, Save, X, Upload, FileSpreadsheet, CheckCircle, XCircle, SkipForward } from "lucide-react";
+import { Plus, Search, Edit, AlertTriangle, Save, X, Upload, FileSpreadsheet, CheckCircle, XCircle, SkipForward, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -264,6 +264,7 @@ export default function Productos() {
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [importData, setImportData] = useState<ImportProducto[]>([]);
   const [importing, setImporting] = useState(false);
+  const [cleaningKeys, setCleaningKeys] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Estados para filtros avanzados
@@ -316,6 +317,51 @@ export default function Productos() {
       toast.error("Error al cargar datos");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const limpiarClavesDuplicadas = async () => {
+    setCleaningKeys(true);
+    try {
+      // Obtener productos donde clave = codigo
+      const { data: productos, error: fetchError } = await supabase
+        .from('productos')
+        .select('id, codigo, clave');
+
+      if (fetchError) throw fetchError;
+
+      const productosConClaveDuplicada = productos?.filter(p => p.clave === p.codigo) || [];
+      
+      if (productosConClaveDuplicada.length === 0) {
+        toast.info("No hay claves duplicadas para limpiar");
+        return;
+      }
+
+      // Actualizar en lotes
+      let updated = 0;
+      const batchSize = 100;
+      
+      for (let i = 0; i < productosConClaveDuplicada.length; i += batchSize) {
+        const batch = productosConClaveDuplicada.slice(i, i + batchSize);
+        const ids = batch.map(p => p.id);
+        
+        const { error: updateError } = await supabase
+          .from('productos')
+          .update({ clave: '' })
+          .in('id', ids);
+
+        if (!updateError) {
+          updated += batch.length;
+        }
+      }
+
+      toast.success(`Se limpiaron ${updated} claves duplicadas`);
+      fetchData(); // Recargar datos
+    } catch (error) {
+      console.error('Error limpiando claves:', error);
+      toast.error("Error al limpiar claves duplicadas");
+    } finally {
+      setCleaningKeys(false);
     }
   };
 
@@ -747,6 +793,14 @@ export default function Productos() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            onClick={limpiarClavesDuplicadas}
+            disabled={cleaningKeys}
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            {cleaningKeys ? "Limpiando..." : "Limpiar Claves"}
+          </Button>
           <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
             <Upload className="h-4 w-4 mr-2" />
             Importar Excel
