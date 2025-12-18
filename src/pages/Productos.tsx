@@ -365,16 +365,26 @@ export default function Productos() {
     }
   };
 
-  const getFamiliaName = (id: number | null) => {
-    if (!id) return "-";
-    return familias.find(f => f.id === id)?.Categoria || "-";
+  const getFamiliaName = (familiaPadreId: number | null) => {
+    if (!familiaPadreId) return "-";
+    const familia = familias.find(f => f.id === familiaPadreId);
+    if (!familia) return "-";
+    // Si no tiene padre, es categoría de primer nivel - no hay subcategoría
+    if (familia.Padre === null) return "-";
+    return familia.Categoria || "-";
   };
 
   const getAbueloName = (familiaPadreId: number | null) => {
     if (!familiaPadreId) return "-";
     const familia = familias.find(f => f.id === familiaPadreId);
-    if (!familia?.Padre) return "-";
-    return getFamiliaName(familia.Padre);
+    if (!familia) return "-";
+    // Si no tiene padre, ES una categoría de primer nivel
+    if (familia.Padre === null) {
+      return familia.Categoria || "-";
+    }
+    // Si tiene padre, buscar el nombre del padre
+    const padre = familias.find(f => f.id === familia.Padre);
+    return padre?.Categoria || "-";
   };
 
   const handleEditClick = (producto: ProductoExtended) => {
@@ -383,9 +393,22 @@ export default function Productos() {
     setEditDescripcion(producto.descripcion);
     setEditUrlFoto(producto.urlFoto === "/placeholder.svg" ? "" : producto.urlFoto || "");
     setEditDescontinuado(producto.descontinuado);
-    const familiaPadre = familias.find(f => f.id === producto.familia_padre_id);
-    setSelectedAbuelo(familiaPadre?.Padre?.toString() || "");
-    setSelectedPadre(producto.familia_padre_id?.toString() || "");
+    
+    const familia = familias.find(f => f.id === producto.familia_padre_id);
+    if (familia) {
+      if (familia.Padre === null) {
+        // Es una categoría de primer nivel (como Herramienta manual)
+        setSelectedAbuelo(familia.id.toString());
+        setSelectedPadre("");
+      } else {
+        // Es una subcategoría, buscar su padre
+        setSelectedAbuelo(familia.Padre.toString());
+        setSelectedPadre(familia.id.toString());
+      }
+    } else {
+      setSelectedAbuelo("");
+      setSelectedPadre("");
+    }
   };
 
   const handleSave = async () => {
