@@ -1488,6 +1488,7 @@ export type Database = {
         Row: {
           apellido: string
           centro_servicio_id: string | null
+          codigo_empleado: string | null
           created_at: string
           email: string
           id: string
@@ -1498,6 +1499,7 @@ export type Database = {
         Insert: {
           apellido: string
           centro_servicio_id?: string | null
+          codigo_empleado?: string | null
           created_at?: string
           email: string
           id?: string
@@ -1508,6 +1510,7 @@ export type Database = {
         Update: {
           apellido?: string
           centro_servicio_id?: string | null
+          codigo_empleado?: string | null
           created_at?: string
           email?: string
           id?: string

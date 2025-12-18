@@ -45,11 +45,18 @@ import { UserPlus, Edit, Trash2, RefreshCw, Search } from "lucide-react";
 
 type UserRole = "admin" | "mostrador" | "logistica" | "taller" | "bodega" | "tecnico" | "digitador" | "jefe_taller" | "sac" | "control_calidad" | "asesor" | "gerente_centro" | "supervisor_regional" | "jefe_logistica" | "jefe_bodega" | "supervisor_bodega" | "supervisor_calidad" | "supervisor_sac";
 
+interface CentroServicio {
+  id: string;
+  nombre: string;
+}
+
 interface UserData {
   id: string;
   email: string;
   nombre: string;
-  apellido: string;
+  codigo_empleado: string | null;
+  centro_servicio_id: string | null;
+  centro_servicio_nombre: string | null;
   role: UserRole | null;
   created_at: string;
 }
@@ -58,9 +65,11 @@ export default function Usuarios() {
   const { userRole, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [users, setUsers] = useState<UserData[]>([]);
+  const [centrosServicio, setCentrosServicio] = useState<CentroServicio[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
+  const [centroFilter, setCentroFilter] = useState<string>("all");
   
   // Dialog states
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -72,7 +81,8 @@ export default function Usuarios() {
     email: "",
     password: "",
     nombre: "",
-    apellido: "",
+    codigo_empleado: "",
+    centro_servicio_id: "",
     role: "" as UserRole | "",
   });
   const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
@@ -87,17 +97,36 @@ export default function Usuarios() {
   useEffect(() => {
     if (userRole === "admin") {
       fetchUsers();
+      fetchCentrosServicio();
     }
   }, [userRole]);
+
+  const fetchCentrosServicio = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("centros_servicio")
+        .select("id, nombre")
+        .eq("activo", true)
+        .order("nombre");
+
+      if (error) throw error;
+      setCentrosServicio(data || []);
+    } catch (error: any) {
+      console.error("Error fetching centros:", error);
+    }
+  };
 
   const fetchUsers = async () => {
     try {
       setLoading(true);
       
-      // Fetch profiles with user_roles
+      // Fetch profiles with centro_servicio relationship
       const { data: profiles, error: profilesError } = await supabase
         .from("profiles")
-        .select("*")
+        .select(`
+          *,
+          centros_servicio:centro_servicio_id (nombre)
+        `)
         .order("created_at", { ascending: false });
 
       if (profilesError) throw profilesError;
@@ -114,8 +143,10 @@ export default function Usuarios() {
           return {
             id: profile.user_id,
             email: profile.email,
-            nombre: profile.nombre,
-            apellido: profile.apellido,
+            nombre: profile.nombre + (profile.apellido ? ` ${profile.apellido}` : ''),
+            codigo_empleado: profile.codigo_empleado || null,
+            centro_servicio_id: profile.centro_servicio_id,
+            centro_servicio_nombre: profile.centros_servicio?.nombre || null,
             role: roleData?.role || null,
             created_at: profile.created_at,
           };
@@ -132,20 +163,23 @@ export default function Usuarios() {
   };
 
   const handleCreateUser = async () => {
-    if (!formData.email || !formData.password || !formData.nombre || !formData.apellido || !formData.role) {
-      toast.error("Todos los campos son obligatorios");
+    if (!formData.codigo_empleado || !formData.nombre || !formData.role || !formData.centro_servicio_id || !formData.password) {
+      toast.error("Código de empleado, nombre, puesto, centro de servicio y contraseña son obligatorios");
       return;
     }
 
     try {
+      // Use email if provided, otherwise generate from codigo_empleado
+      const email = formData.email || `${formData.codigo_empleado.toLowerCase()}@sistema.local`;
+
       // Create user via Supabase Auth
       const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: formData.email,
+        email: email,
         password: formData.password,
         options: {
           data: {
             nombre: formData.nombre,
-            apellido: formData.apellido,
+            apellido: "",
           },
         },
       });
@@ -159,8 +193,10 @@ export default function Usuarios() {
           .insert({
             user_id: authData.user.id,
             nombre: formData.nombre,
-            apellido: formData.apellido,
-            email: formData.email,
+            apellido: "",
+            email: email,
+            codigo_empleado: formData.codigo_empleado,
+            centro_servicio_id: formData.centro_servicio_id,
           });
 
         if (profileError) throw profileError;
@@ -187,8 +223,8 @@ export default function Usuarios() {
   };
 
   const handleEditUser = async () => {
-    if (!selectedUser || !formData.nombre || !formData.apellido || !formData.role) {
-      toast.error("Todos los campos son obligatorios");
+    if (!selectedUser || !formData.nombre || !formData.role || !formData.centro_servicio_id) {
+      toast.error("Nombre, puesto y centro de servicio son obligatorios");
       return;
     }
 
@@ -198,7 +234,9 @@ export default function Usuarios() {
         .from("profiles")
         .update({
           nombre: formData.nombre,
-          apellido: formData.apellido,
+          apellido: "",
+          codigo_empleado: formData.codigo_empleado || null,
+          centro_servicio_id: formData.centro_servicio_id,
         })
         .eq("user_id", selectedUser.id);
 
@@ -265,7 +303,8 @@ export default function Usuarios() {
       email: user.email,
       password: "",
       nombre: user.nombre,
-      apellido: user.apellido,
+      codigo_empleado: user.codigo_empleado || "",
+      centro_servicio_id: user.centro_servicio_id || "",
       role: user.role || "",
     });
     setIsEditDialogOpen(true);
@@ -281,7 +320,8 @@ export default function Usuarios() {
       email: "",
       password: "",
       nombre: "",
-      apellido: "",
+      codigo_empleado: "",
+      centro_servicio_id: "",
       role: "",
     });
   };
@@ -339,12 +379,13 @@ export default function Usuarios() {
   const filteredUsers = users.filter((user) => {
     const matchesSearch = 
       user.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.apellido.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchTerm.toLowerCase());
+      user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (user.codigo_empleado && user.codigo_empleado.toLowerCase().includes(searchTerm.toLowerCase()));
     
     const matchesRole = roleFilter === "all" || user.role === roleFilter;
+    const matchesCentro = centroFilter === "all" || user.centro_servicio_id === centroFilter;
     
-    return matchesSearch && matchesRole;
+    return matchesSearch && matchesRole && matchesCentro;
   });
 
   if (authLoading || (userRole !== "admin" && loading)) {
@@ -363,7 +404,7 @@ export default function Usuarios() {
     <div className="container mx-auto py-6 space-y-6">
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
               <CardTitle className="text-2xl">Administración de Usuarios</CardTitle>
               <CardDescription>
@@ -383,12 +424,12 @@ export default function Usuarios() {
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Filters */}
-          <div className="flex gap-4">
+          <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1">
               <div className="relative">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Buscar por nombre, apellido o email..."
+                  placeholder="Buscar por código, nombre o email..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
@@ -396,11 +437,11 @@ export default function Usuarios() {
               </div>
             </div>
             <Select value={roleFilter} onValueChange={setRoleFilter}>
-              <SelectTrigger className="w-[220px]">
-                <SelectValue placeholder="Filtrar por rol" />
+              <SelectTrigger className="w-full sm:w-[200px]">
+                <SelectValue placeholder="Filtrar por puesto" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todos los roles</SelectItem>
+                <SelectItem value="all">Todos los puestos</SelectItem>
                 <SelectItem value="admin">Administrador</SelectItem>
                 <SelectItem value="gerente_centro">Gerente de Centro</SelectItem>
                 <SelectItem value="supervisor_regional">Supervisor Regional</SelectItem>
@@ -421,20 +462,33 @@ export default function Usuarios() {
                 <SelectItem value="asesor">Asesor</SelectItem>
               </SelectContent>
             </Select>
+            <Select value={centroFilter} onValueChange={setCentroFilter}>
+              <SelectTrigger className="w-full sm:w-[200px]">
+                <SelectValue placeholder="Filtrar por centro" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos los centros</SelectItem>
+                {centrosServicio.map((centro) => (
+                  <SelectItem key={centro.id} value={centro.id}>
+                    {centro.nombre}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Users Table */}
           {loading ? (
             <div className="text-center py-8">Cargando usuarios...</div>
           ) : (
-            <div className="rounded-md border">
+            <div className="rounded-md border overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>Código</TableHead>
                     <TableHead>Nombre</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Rol</TableHead>
-                    <TableHead>Fecha de Creación</TableHead>
+                    <TableHead>Puesto</TableHead>
+                    <TableHead>Centro de Servicio</TableHead>
                     <TableHead className="text-right">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -448,17 +502,19 @@ export default function Usuarios() {
                   ) : (
                     filteredUsers.map((user) => (
                       <TableRow key={user.id}>
-                        <TableCell className="font-medium">
-                          {user.nombre} {user.apellido}
+                        <TableCell className="font-mono text-sm">
+                          {user.codigo_empleado || "-"}
                         </TableCell>
-                        <TableCell>{user.email}</TableCell>
+                        <TableCell className="font-medium">
+                          {user.nombre}
+                        </TableCell>
                         <TableCell>
                           <Badge variant={getRoleBadgeVariant(user.role)}>
                             {getRoleLabel(user.role)}
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          {new Date(user.created_at).toLocaleDateString("es-GT")}
+                          {user.centro_servicio_nombre || "-"}
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex gap-2 justify-end">
@@ -494,28 +550,17 @@ export default function Usuarios() {
           <DialogHeader>
             <DialogTitle>Crear Nuevo Usuario</DialogTitle>
             <DialogDescription>
-              Ingresa los datos del nuevo usuario. Se enviará un correo de confirmación.
+              Ingresa los datos del nuevo usuario.
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label htmlFor="email">Email *</Label>
+              <Label htmlFor="codigo_empleado">Código de Empleado *</Label>
               <Input
-                id="email"
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                placeholder="usuario@ejemplo.com"
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="password">Contraseña *</Label>
-              <Input
-                id="password"
-                type="password"
-                value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                placeholder="Mínimo 6 caracteres"
+                id="codigo_empleado"
+                value={formData.codigo_empleado}
+                onChange={(e) => setFormData({ ...formData, codigo_empleado: e.target.value })}
+                placeholder="EMP-001"
               />
             </div>
             <div className="grid gap-2">
@@ -524,23 +569,14 @@ export default function Usuarios() {
                 id="nombre"
                 value={formData.nombre}
                 onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
-                placeholder="Juan"
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="apellido">Apellido *</Label>
-              <Input
-                id="apellido"
-                value={formData.apellido}
-                onChange={(e) => setFormData({ ...formData, apellido: e.target.value })}
-                placeholder="Pérez"
+                placeholder="Juan Pérez"
               />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="role">Puesto *</Label>
               <Select value={formData.role} onValueChange={(value) => setFormData({ ...formData, role: value as UserRole })}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Selecciona un rol" />
+                  <SelectValue placeholder="Selecciona un puesto" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="admin">Administrador</SelectItem>
@@ -563,6 +599,41 @@ export default function Usuarios() {
                   <SelectItem value="asesor">Asesor</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="centro_servicio">Centro de Servicio *</Label>
+              <Select value={formData.centro_servicio_id} onValueChange={(value) => setFormData({ ...formData, centro_servicio_id: value })}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona un centro" />
+                </SelectTrigger>
+                <SelectContent>
+                  {centrosServicio.map((centro) => (
+                    <SelectItem key={centro.id} value={centro.id}>
+                      {centro.nombre}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="email">Email (opcional)</Label>
+              <Input
+                id="email"
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                placeholder="usuario@ejemplo.com"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="password">Contraseña *</Label>
+              <Input
+                id="password"
+                type="password"
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                placeholder="Mínimo 6 caracteres"
+              />
             </div>
           </div>
           <DialogFooter>
@@ -585,8 +656,13 @@ export default function Usuarios() {
           </DialogHeader>
           <div className="grid gap-4 py-4">
             <div className="grid gap-2">
-              <Label>Email</Label>
-              <Input value={formData.email} disabled />
+              <Label htmlFor="edit-codigo_empleado">Código de Empleado</Label>
+              <Input
+                id="edit-codigo_empleado"
+                value={formData.codigo_empleado}
+                onChange={(e) => setFormData({ ...formData, codigo_empleado: e.target.value })}
+                placeholder="EMP-001"
+              />
             </div>
             <div className="grid gap-2">
               <Label htmlFor="edit-nombre">Nombre *</Label>
@@ -597,18 +673,10 @@ export default function Usuarios() {
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="edit-apellido">Apellido *</Label>
-              <Input
-                id="edit-apellido"
-                value={formData.apellido}
-                onChange={(e) => setFormData({ ...formData, apellido: e.target.value })}
-              />
-            </div>
-            <div className="grid gap-2">
               <Label htmlFor="edit-role">Puesto *</Label>
               <Select value={formData.role} onValueChange={(value) => setFormData({ ...formData, role: value as UserRole })}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Selecciona un rol" />
+                  <SelectValue placeholder="Selecciona un puesto" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="admin">Administrador</SelectItem>
@@ -632,6 +700,25 @@ export default function Usuarios() {
                 </SelectContent>
               </Select>
             </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-centro_servicio">Centro de Servicio *</Label>
+              <Select value={formData.centro_servicio_id} onValueChange={(value) => setFormData({ ...formData, centro_servicio_id: value })}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona un centro" />
+                </SelectTrigger>
+                <SelectContent>
+                  {centrosServicio.map((centro) => (
+                    <SelectItem key={centro.id} value={centro.id}>
+                      {centro.nombre}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label>Email</Label>
+              <Input value={formData.email} disabled className="text-muted-foreground" />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setIsEditDialogOpen(false); setSelectedUser(null); resetForm(); }}>
@@ -649,7 +736,7 @@ export default function Usuarios() {
             <AlertDialogTitle>¿Estás seguro?</AlertDialogTitle>
             <AlertDialogDescription>
               Esta acción no se puede deshacer. Se eliminará permanentemente el usuario{" "}
-              <strong>{selectedUser?.nombre} {selectedUser?.apellido}</strong> y todos sus datos asociados.
+              <strong>{selectedUser?.nombre}</strong> y todos sus datos asociados.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
