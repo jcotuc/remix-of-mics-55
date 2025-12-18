@@ -81,6 +81,7 @@ export default function Usuarios() {
     email: "",
     password: "",
     nombre: "",
+    apellido: "",
     codigo_empleado: "",
     centro_servicio_id: "",
     role: "" as UserRole | "",
@@ -163,8 +164,8 @@ export default function Usuarios() {
   };
 
   const handleCreateUser = async () => {
-    if (!formData.codigo_empleado || !formData.nombre || !formData.role || !formData.centro_servicio_id || !formData.password) {
-      toast.error("Código de empleado, nombre, puesto, centro de servicio y contraseña son obligatorios");
+    if (!formData.codigo_empleado || !formData.nombre || !formData.apellido || !formData.role || !formData.centro_servicio_id || !formData.password) {
+      toast.error("Código de empleado, nombre, apellido, puesto, centro de servicio y contraseña son obligatorios");
       return;
     }
 
@@ -179,7 +180,7 @@ export default function Usuarios() {
         options: {
           data: {
             nombre: formData.nombre,
-            apellido: "",
+            apellido: formData.apellido,
           },
         },
       });
@@ -193,7 +194,7 @@ export default function Usuarios() {
           .insert({
             user_id: authData.user.id,
             nombre: formData.nombre,
-            apellido: "",
+            apellido: formData.apellido,
             email: email,
             codigo_empleado: formData.codigo_empleado,
             centro_servicio_id: formData.centro_servicio_id,
@@ -223,8 +224,8 @@ export default function Usuarios() {
   };
 
   const handleEditUser = async () => {
-    if (!selectedUser || !formData.nombre || !formData.role || !formData.centro_servicio_id) {
-      toast.error("Nombre, puesto y centro de servicio son obligatorios");
+    if (!selectedUser || !formData.nombre || !formData.apellido || !formData.role || !formData.centro_servicio_id) {
+      toast.error("Nombre, apellido, puesto y centro de servicio son obligatorios");
       return;
     }
 
@@ -234,7 +235,7 @@ export default function Usuarios() {
         .from("profiles")
         .update({
           nombre: formData.nombre,
-          apellido: "",
+          apellido: formData.apellido,
           codigo_empleado: formData.codigo_empleado || null,
           centro_servicio_id: formData.centro_servicio_id,
         })
@@ -299,10 +300,15 @@ export default function Usuarios() {
 
   const openEditDialog = (user: UserData) => {
     setSelectedUser(user);
+    // Split nombre into nombre and apellido
+    const nameParts = user.nombre.split(' ');
+    const nombre = nameParts[0] || '';
+    const apellido = nameParts.slice(1).join(' ') || '';
     setFormData({
       email: user.email,
       password: "",
-      nombre: user.nombre,
+      nombre: nombre,
+      apellido: apellido,
       codigo_empleado: user.codigo_empleado || "",
       centro_servicio_id: user.centro_servicio_id || "",
       role: user.role || "",
@@ -320,6 +326,7 @@ export default function Usuarios() {
       email: "",
       password: "",
       nombre: "",
+      apellido: "",
       codigo_empleado: "",
       centro_servicio_id: "",
       role: "",
@@ -563,14 +570,25 @@ export default function Usuarios() {
                 placeholder="EMP-001"
               />
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="nombre">Nombre *</Label>
-              <Input
-                id="nombre"
-                value={formData.nombre}
-                onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
-                placeholder="Juan Pérez"
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="nombre">Nombre *</Label>
+                <Input
+                  id="nombre"
+                  value={formData.nombre}
+                  onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+                  placeholder="Juan"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="apellido">Apellido *</Label>
+                <Input
+                  id="apellido"
+                  value={formData.apellido}
+                  onChange={(e) => setFormData({ ...formData, apellido: e.target.value })}
+                  placeholder="Pérez"
+                />
+              </div>
             </div>
             <div className="grid gap-2">
               <Label htmlFor="role">Puesto *</Label>
@@ -664,13 +682,23 @@ export default function Usuarios() {
                 placeholder="EMP-001"
               />
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="edit-nombre">Nombre *</Label>
-              <Input
-                id="edit-nombre"
-                value={formData.nombre}
-                onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label htmlFor="edit-nombre">Nombre *</Label>
+                <Input
+                  id="edit-nombre"
+                  value={formData.nombre}
+                  onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="edit-apellido">Apellido *</Label>
+                <Input
+                  id="edit-apellido"
+                  value={formData.apellido}
+                  onChange={(e) => setFormData({ ...formData, apellido: e.target.value })}
+                />
+              </div>
             </div>
             <div className="grid gap-2">
               <Label htmlFor="edit-role">Puesto *</Label>
