@@ -74,15 +74,25 @@ Deno.serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
+    // Try to delete from auth.users
     const { error: deleteError } = await adminClient.auth.admin.deleteUser(userId);
 
-    if (deleteError) {
-      console.error("Error deleting user:", deleteError);
+    // If user not found in auth, we still need to clean up profiles and user_roles
+    if (deleteError && deleteError.message !== "User not found") {
+      console.error("Error deleting user from auth:", deleteError);
       return new Response(JSON.stringify({ error: deleteError.message }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // Clean up user_roles (in case cascade didn't work or user was orphaned)
+    await adminClient.from("user_roles").delete().eq("user_id", userId);
+
+    // Clean up profiles (in case cascade didn't work or user was orphaned)
+    await adminClient.from("profiles").delete().eq("user_id", userId);
+
+    console.log(`User ${userId} deleted successfully`);
 
     return new Response(JSON.stringify({ success: true }), {
       status: 200,
