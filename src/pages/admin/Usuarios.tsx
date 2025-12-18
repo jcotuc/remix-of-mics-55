@@ -43,7 +43,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { UserPlus, Edit, Trash2, RefreshCw, Search } from "lucide-react";
 
-type UserRole = "admin" | "mostrador" | "logistica" | "taller" | "bodega" | "tecnico" | "digitador" | "jefe_taller" | "sac" | "control_calidad" | "asesor" | "gerente_centro" | "supervisor_regional" | "jefe_logistica" | "jefe_bodega" | "supervisor_bodega" | "supervisor_calidad" | "supervisor_sac";
+type UserRole = "admin" | "mostrador" | "logistica" | "taller" | "bodega" | "tecnico" | "digitador" | "jefe_taller" | "sac" | "control_calidad" | "asesor" | "gerente_centro" | "supervisor_regional" | "jefe_logistica" | "jefe_bodega" | "supervisor_bodega" | "supervisor_calidad" | "supervisor_sac" | "auxiliar_bodega" | "auxiliar_logistica" | "supervisor_inventarios" | "capacitador";
 
 interface CentroServicio {
   id: string;
@@ -348,6 +348,7 @@ export default function Usuarios() {
       supervisor_bodega: "outline",
       supervisor_calidad: "outline",
       supervisor_sac: "outline",
+      supervisor_inventarios: "outline",
       mostrador: "default",
       logistica: "default",
       taller: "default",
@@ -357,6 +358,9 @@ export default function Usuarios() {
       tecnico: "secondary",
       digitador: "secondary",
       asesor: "secondary",
+      auxiliar_bodega: "secondary",
+      auxiliar_logistica: "secondary",
+      capacitador: "secondary",
     };
     return variants[role] || "secondary";
   };
@@ -365,7 +369,7 @@ export default function Usuarios() {
     if (!role) return "Sin Rol";
     const labels: Record<string, string> = {
       admin: "Administrador",
-      mostrador: "Mostrador",
+      mostrador: "Dependiente de Mostrador",
       logistica: "Logística",
       taller: "Taller",
       bodega: "Bodega",
@@ -373,15 +377,19 @@ export default function Usuarios() {
       digitador: "Digitador",
       jefe_taller: "Jefe de Taller",
       sac: "SAC",
-      control_calidad: "Control de Calidad",
+      control_calidad: "Coordinador de Calidad",
       asesor: "Asesor",
       gerente_centro: "Gerente de Centro",
-      supervisor_regional: "Supervisor Regional",
+      supervisor_regional: "Supervisor Regional CS",
       jefe_logistica: "Jefe de Logística",
       jefe_bodega: "Jefe de Bodega",
       supervisor_bodega: "Supervisor de Bodega",
       supervisor_calidad: "Supervisor de Calidad",
-      supervisor_sac: "Supervisor SAC",
+      supervisor_sac: "Supervisor de Servicio al Cliente",
+      auxiliar_bodega: "Auxiliar de Bodega",
+      auxiliar_logistica: "Auxiliar de Logística",
+      supervisor_inventarios: "Supervisor Inventarios",
+      capacitador: "Capacitador",
     };
     return labels[role] || role;
   };
@@ -454,22 +462,26 @@ export default function Usuarios() {
                 <SelectItem value="all">Todos los puestos</SelectItem>
                 <SelectItem value="admin">Administrador</SelectItem>
                 <SelectItem value="gerente_centro">Gerente de Centro</SelectItem>
-                <SelectItem value="supervisor_regional">Supervisor Regional</SelectItem>
+                <SelectItem value="supervisor_regional">Supervisor Regional CS</SelectItem>
                 <SelectItem value="jefe_taller">Jefe de Taller</SelectItem>
                 <SelectItem value="jefe_logistica">Jefe de Logística</SelectItem>
                 <SelectItem value="jefe_bodega">Jefe de Bodega</SelectItem>
                 <SelectItem value="supervisor_bodega">Supervisor de Bodega</SelectItem>
                 <SelectItem value="supervisor_calidad">Supervisor de Calidad</SelectItem>
-                <SelectItem value="supervisor_sac">Supervisor SAC</SelectItem>
-                <SelectItem value="mostrador">Mostrador</SelectItem>
+                <SelectItem value="supervisor_sac">Supervisor de Servicio al Cliente</SelectItem>
+                <SelectItem value="supervisor_inventarios">Supervisor Inventarios</SelectItem>
+                <SelectItem value="mostrador">Dependiente de Mostrador</SelectItem>
                 <SelectItem value="logistica">Logística</SelectItem>
                 <SelectItem value="taller">Taller</SelectItem>
                 <SelectItem value="bodega">Bodega</SelectItem>
+                <SelectItem value="auxiliar_bodega">Auxiliar de Bodega</SelectItem>
+                <SelectItem value="auxiliar_logistica">Auxiliar de Logística</SelectItem>
                 <SelectItem value="sac">SAC</SelectItem>
-                <SelectItem value="control_calidad">Control de Calidad</SelectItem>
+                <SelectItem value="control_calidad">Coordinador de Calidad</SelectItem>
                 <SelectItem value="tecnico">Técnico</SelectItem>
                 <SelectItem value="digitador">Digitador</SelectItem>
                 <SelectItem value="asesor">Asesor</SelectItem>
+                <SelectItem value="capacitador">Capacitador</SelectItem>
               </SelectContent>
             </Select>
             <Select value={centroFilter} onValueChange={setCentroFilter}>
@@ -602,22 +614,26 @@ export default function Usuarios() {
                 <SelectContent>
                   <SelectItem value="admin">Administrador</SelectItem>
                   <SelectItem value="gerente_centro">Gerente de Centro</SelectItem>
-                  <SelectItem value="supervisor_regional">Supervisor Regional</SelectItem>
+                  <SelectItem value="supervisor_regional">Supervisor Regional CS</SelectItem>
                   <SelectItem value="jefe_taller">Jefe de Taller</SelectItem>
                   <SelectItem value="jefe_logistica">Jefe de Logística</SelectItem>
                   <SelectItem value="jefe_bodega">Jefe de Bodega</SelectItem>
                   <SelectItem value="supervisor_bodega">Supervisor de Bodega</SelectItem>
                   <SelectItem value="supervisor_calidad">Supervisor de Calidad</SelectItem>
-                  <SelectItem value="supervisor_sac">Supervisor SAC</SelectItem>
-                  <SelectItem value="mostrador">Mostrador</SelectItem>
+                  <SelectItem value="supervisor_sac">Supervisor de Servicio al Cliente</SelectItem>
+                  <SelectItem value="supervisor_inventarios">Supervisor Inventarios</SelectItem>
+                  <SelectItem value="mostrador">Dependiente de Mostrador</SelectItem>
                   <SelectItem value="logistica">Logística</SelectItem>
                   <SelectItem value="taller">Taller</SelectItem>
                   <SelectItem value="bodega">Bodega</SelectItem>
+                  <SelectItem value="auxiliar_bodega">Auxiliar de Bodega</SelectItem>
+                  <SelectItem value="auxiliar_logistica">Auxiliar de Logística</SelectItem>
                   <SelectItem value="sac">SAC</SelectItem>
-                  <SelectItem value="control_calidad">Control de Calidad</SelectItem>
+                  <SelectItem value="control_calidad">Coordinador de Calidad</SelectItem>
                   <SelectItem value="tecnico">Técnico</SelectItem>
                   <SelectItem value="digitador">Digitador</SelectItem>
                   <SelectItem value="asesor">Asesor</SelectItem>
+                  <SelectItem value="capacitador">Capacitador</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -712,22 +728,26 @@ export default function Usuarios() {
                 <SelectContent>
                   <SelectItem value="admin">Administrador</SelectItem>
                   <SelectItem value="gerente_centro">Gerente de Centro</SelectItem>
-                  <SelectItem value="supervisor_regional">Supervisor Regional</SelectItem>
+                  <SelectItem value="supervisor_regional">Supervisor Regional CS</SelectItem>
                   <SelectItem value="jefe_taller">Jefe de Taller</SelectItem>
                   <SelectItem value="jefe_logistica">Jefe de Logística</SelectItem>
                   <SelectItem value="jefe_bodega">Jefe de Bodega</SelectItem>
                   <SelectItem value="supervisor_bodega">Supervisor de Bodega</SelectItem>
                   <SelectItem value="supervisor_calidad">Supervisor de Calidad</SelectItem>
-                  <SelectItem value="supervisor_sac">Supervisor SAC</SelectItem>
-                  <SelectItem value="mostrador">Mostrador</SelectItem>
+                  <SelectItem value="supervisor_sac">Supervisor de Servicio al Cliente</SelectItem>
+                  <SelectItem value="supervisor_inventarios">Supervisor Inventarios</SelectItem>
+                  <SelectItem value="mostrador">Dependiente de Mostrador</SelectItem>
                   <SelectItem value="logistica">Logística</SelectItem>
                   <SelectItem value="taller">Taller</SelectItem>
                   <SelectItem value="bodega">Bodega</SelectItem>
+                  <SelectItem value="auxiliar_bodega">Auxiliar de Bodega</SelectItem>
+                  <SelectItem value="auxiliar_logistica">Auxiliar de Logística</SelectItem>
                   <SelectItem value="sac">SAC</SelectItem>
-                  <SelectItem value="control_calidad">Control de Calidad</SelectItem>
+                  <SelectItem value="control_calidad">Coordinador de Calidad</SelectItem>
                   <SelectItem value="tecnico">Técnico</SelectItem>
                   <SelectItem value="digitador">Digitador</SelectItem>
                   <SelectItem value="asesor">Asesor</SelectItem>
+                  <SelectItem value="capacitador">Capacitador</SelectItem>
                 </SelectContent>
               </Select>
             </div>
