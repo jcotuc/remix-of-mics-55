@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Plus, Search, Edit, Eye, AlertTriangle, CheckCircle, Calendar, Stethoscope, User, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { StatusBadge } from "@/components/StatusBadge";
+import { TablePagination } from "@/components/TablePagination";
 import { productos, tecnicos } from "@/data/mockData";
 import { Incidente, StatusIncidente } from "@/types";
 import { supabase } from "@/integrations/supabase/client";
@@ -27,16 +28,22 @@ export default function Incidentes() {
   const [clientesList, setClientesList] = useState<ClienteDB[]>([]);
   const [selectedIncidentes, setSelectedIncidentes] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(50);
 
   useEffect(() => {
     fetchData();
   }, []);
 
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter, categoryFilter]);
+
   const fetchData = async () => {
     try {
       setLoading(true);
       
-      // Cargar incidentes y clientes en paralelo
       const [incidentesResult, clientesResult] = await Promise.all([
         supabase.from('incidentes').select('*').order('fecha_ingreso', { ascending: false }),
         supabase.from('clientes').select('*')
@@ -66,7 +73,7 @@ export default function Incidentes() {
       const { error } = await supabase
         .from('incidentes')
         .delete()
-        .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all
+        .neq('id', '00000000-0000-0000-0000-000000000000');
 
       if (error) throw error;
       
@@ -78,7 +85,6 @@ export default function Incidentes() {
     }
   };
 
-  // Helper functions moved before they are used
   const getClienteName = (codigo: string) => {
     const cliente = clientesList.find(c => c.codigo === codigo);
     return cliente ? cliente.nombre : "Cliente no encontrado";
@@ -105,21 +111,28 @@ export default function Incidentes() {
 
   const categoryOptions = ["Electricas", "Neumaticas", "Hidraulicas", "4 tiempos", "2 tiempos", "Estacionarias"];
 
-  const filteredIncidentes = incidentesList
-    .filter(incidente => {
-      const matchesSearch = incidente.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        incidente.descripcion_problema.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        getClienteName(incidente.codigo_cliente).toLowerCase().includes(searchTerm.toLowerCase()) ||
-        getProductDisplayName(incidente.codigo_producto).toLowerCase().includes(searchTerm.toLowerCase());
-      
-      const matchesStatus = statusFilter === "all" || incidente.status === statusFilter;
-      
-      const producto = productos.find(p => p.codigo === incidente.codigo_producto);
-      const matchesCategory = categoryFilter === "all" || (producto && producto.categoria === categoryFilter);
-      
-      return matchesSearch && matchesStatus && matchesCategory;
-    })
-    .sort((a, b) => new Date(a.fecha_ingreso).getTime() - new Date(b.fecha_ingreso).getTime()); // FIFO ordering
+  const filteredIncidentes = useMemo(() => {
+    return incidentesList
+      .filter(incidente => {
+        const matchesSearch = incidente.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          incidente.descripcion_problema.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          getClienteName(incidente.codigo_cliente).toLowerCase().includes(searchTerm.toLowerCase()) ||
+          getProductDisplayName(incidente.codigo_producto).toLowerCase().includes(searchTerm.toLowerCase());
+        
+        const matchesStatus = statusFilter === "all" || incidente.status === statusFilter;
+        
+        const producto = productos.find(p => p.codigo === incidente.codigo_producto);
+        const matchesCategory = categoryFilter === "all" || (producto && producto.categoria === categoryFilter);
+        
+        return matchesSearch && matchesStatus && matchesCategory;
+      })
+      .sort((a, b) => new Date(a.fecha_ingreso).getTime() - new Date(b.fecha_ingreso).getTime());
+  }, [incidentesList, searchTerm, statusFilter, categoryFilter, clientesList]);
+
+  // Pagination
+  const totalPages = Math.max(1, Math.ceil(filteredIncidentes.length / itemsPerPage));
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedIncidentes = filteredIncidentes.slice(startIndex, startIndex + itemsPerPage);
 
   const handleSelectIncidente = (incidenteId: string, checked: boolean) => {
     if (checked) {
@@ -131,7 +144,7 @@ export default function Incidentes() {
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedIncidentes(filteredIncidentes.map(i => i.id));
+      setSelectedIncidentes(paginatedIncidentes.map(i => i.id));
     } else {
       setSelectedIncidentes([]);
     }
@@ -142,7 +155,6 @@ export default function Incidentes() {
   };
 
   const handleRowClick = (incidenteId: string, event: React.MouseEvent) => {
-    // Evitar navegación si se hace click en checkbox o botones
     if ((event.target as HTMLElement).closest('input[type="checkbox"]') || 
         (event.target as HTMLElement).closest('button')) {
       return;
@@ -152,33 +164,7 @@ export default function Incidentes() {
 
   const handleDiagnosticar = (incidenteId: string, event: React.MouseEvent) => {
     event.stopPropagation();
-    // Aquí puedes navegar a una página de diagnóstico o abrir un modal
     navigate(`/incidentes/${incidenteId}/diagnostico`);
-  };
-
-  const getProductDescription = async (codigo: string) => {
-    // Primero buscar en productos de mock data
-    const producto = productos.find(p => p.codigo === codigo);
-    if (producto) {
-      return producto.descripcion;
-    }
-    
-    // Si no se encuentra, buscar en la base de datos
-    try {
-      const { data, error } = await supabase
-        .from('productos')
-        .select('descripcion')
-        .eq('codigo', codigo)
-        .single();
-      
-      if (error || !data) {
-        return "Producto no encontrado";
-      }
-      
-      return data.descripcion;
-    } catch (error) {
-      return "Producto no encontrado";
-    }
   };
 
   return (
@@ -336,7 +322,7 @@ export default function Incidentes() {
                 <TableRow>
                   <TableHead className="w-12">
                     <Checkbox
-                      checked={selectedIncidentes.length === filteredIncidentes.length && filteredIncidentes.length > 0}
+                      checked={selectedIncidentes.length === paginatedIncidentes.length && paginatedIncidentes.length > 0}
                       onCheckedChange={handleSelectAll}
                     />
                   </TableHead>
@@ -357,104 +343,118 @@ export default function Incidentes() {
                       Cargando incidentes...
                     </TableCell>
                   </TableRow>
-                ) : filteredIncidentes.length === 0 ? (
+                ) : paginatedIncidentes.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={9} className="text-center">
                       No hay incidentes registrados
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredIncidentes.map((incidente) => (
-                  <TableRow 
-                    key={incidente.id}
-                    className={`${selectedIncidentes.includes(incidente.id) ? "bg-muted/50" : ""} cursor-pointer hover:bg-muted/30`}
-                    onClick={(e) => handleRowClick(incidente.id, e)}
-                  >
-                    <TableCell>
-                      <Checkbox
-                        checked={selectedIncidentes.includes(incidente.id)}
-                        onCheckedChange={(checked) => handleSelectIncidente(incidente.id, checked as boolean)}
-                      />
-                    </TableCell>
-                    <TableCell className="font-medium">{incidente.codigo}</TableCell>
-                    <TableCell>{getClienteName(incidente.codigo_cliente)}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center space-x-2">
-                        <span className="text-sm">{getProductDisplayName(incidente.codigo_producto)}</span>
-                        {isProductDiscontinued(incidente.codigo_producto) && (
-                          <Badge variant="destructive" className="text-xs">
-                            <AlertTriangle className="h-3 w-3 mr-1" />
-                            Descontinuado
+                  paginatedIncidentes.map((incidente) => (
+                    <TableRow 
+                      key={incidente.id}
+                      className={`${selectedIncidentes.includes(incidente.id) ? "bg-muted/50" : ""} cursor-pointer hover:bg-muted/30`}
+                      onClick={(e) => handleRowClick(incidente.id, e)}
+                    >
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedIncidentes.includes(incidente.id)}
+                          onCheckedChange={(checked) => handleSelectIncidente(incidente.id, checked as boolean)}
+                        />
+                      </TableCell>
+                      <TableCell className="font-medium">{incidente.codigo}</TableCell>
+                      <TableCell>{getClienteName(incidente.codigo_cliente)}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center space-x-2">
+                          <span className="text-sm">{getProductDisplayName(incidente.codigo_producto)}</span>
+                          {isProductDiscontinued(incidente.codigo_producto) && (
+                            <Badge variant="destructive" className="text-xs">
+                              <AlertTriangle className="h-3 w-3 mr-1" />
+                              Descontinuado
+                            </Badge>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-sm">{incidente.codigo_tecnico ? getTecnicoName(incidente.codigo_tecnico) : 'No asignado'}</TableCell>
+                      <TableCell>
+                        <StatusBadge status={incidente.status as StatusIncidente} />
+                      </TableCell>
+                      <TableCell>
+                        {incidente.cobertura_garantia ? (
+                          <Badge className="bg-success text-success-foreground">
+                            Sí
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline">
+                            No
                           </Badge>
                         )}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-sm">{incidente.codigo_tecnico ? getTecnicoName(incidente.codigo_tecnico) : 'No asignado'}</TableCell>
-                    <TableCell>
-                      <StatusBadge status={incidente.status as StatusIncidente} />
-                    </TableCell>
-                    <TableCell>
-                      {incidente.cobertura_garantia ? (
-                        <Badge className="bg-success text-success-foreground">
-                          Sí
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline">
-                          No
-                        </Badge>
-                      )}
-                    </TableCell>
-                    <TableCell>{new Date(incidente.fecha_ingreso).toLocaleDateString()}</TableCell>
-                     <TableCell className="text-right">
-                       <div className="flex items-center justify-end space-x-2">
-                         {incidente.status === "Ingresado" && (
-                           <>
-                             <Button 
-                               variant="secondary" 
-                               size="sm"
-                               onClick={(e) => {
-                                 e.stopPropagation();
-                                 // Asignar técnico al incidente
-                                 const updatedIncidentes = incidentesList.map(inc => 
-                                   inc.id === incidente.id 
-                                     ? { ...inc, tecnicoAsignado: "TEC001" } // En un caso real, esto sería dinámico
-                                     : inc
-                                 );
-                                 setIncidentesList(updatedIncidentes);
-                               }}
-                             >
-                               <User className="h-4 w-4 mr-1" />
-                               Asignarme
-                             </Button>
-                             <Button 
-                               variant="default" 
-                               size="sm"
-                               onClick={(e) => handleDiagnosticar(incidente.id, e)}
-                               className="bg-primary text-primary-foreground hover:bg-primary/90"
-                             >
-                               <Stethoscope className="h-4 w-4 mr-1" />
-                               Diagnosticar
-                             </Button>
-                           </>
-                         )}
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => handleVerIncidente(incidente.id)}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                        <Button variant="outline" size="sm">
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
+                      </TableCell>
+                      <TableCell>{new Date(incidente.fecha_ingreso).toLocaleDateString()}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end space-x-2">
+                          {incidente.status === "Ingresado" && (
+                            <>
+                              <Button 
+                                variant="secondary" 
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const updatedIncidentes = incidentesList.map(inc => 
+                                    inc.id === incidente.id 
+                                      ? { ...inc, tecnicoAsignado: "TEC001" }
+                                      : inc
+                                  );
+                                  setIncidentesList(updatedIncidentes);
+                                }}
+                              >
+                                <User className="h-4 w-4 mr-1" />
+                                Asignarme
+                              </Button>
+                              <Button 
+                                variant="default" 
+                                size="sm"
+                                onClick={(e) => handleDiagnosticar(incidente.id, e)}
+                                className="bg-primary text-primary-foreground hover:bg-primary/90"
+                              >
+                                <Stethoscope className="h-4 w-4 mr-1" />
+                                Diagnosticar
+                              </Button>
+                            </>
+                          )}
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleVerIncidente(incidente.id);
+                            }}
+                          >
+                            <Eye className="h-4 w-4 mr-1" />
+                            Ver
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
                   ))
                 )}
               </TableBody>
             </Table>
           </div>
+
+          {!loading && filteredIncidentes.length > 0 && (
+            <TablePagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={filteredIncidentes.length}
+              itemsPerPage={itemsPerPage}
+              onPageChange={setCurrentPage}
+              onItemsPerPageChange={(value) => {
+                setItemsPerPage(value);
+                setCurrentPage(1);
+              }}
+            />
+          )}
         </CardContent>
       </Card>
     </div>

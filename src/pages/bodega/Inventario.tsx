@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Package, Search, AlertTriangle, TrendingUp, TrendingDown, Plus, Edit, History, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { importRepuestosZona5 } from "@/scripts/importRepuestosZona5";
 import { PuertaEntradaWidget } from "@/components/dashboard/PuertaEntradaWidget";
 import { EquivalenciasWidget } from "@/components/dashboard/EquivalenciasWidget";
+import { TablePagination } from "@/components/TablePagination";
 
 type Repuesto = {
   id: string;
@@ -35,16 +36,22 @@ export default function Inventario() {
   const [cantidad, setCantidad] = useState("");
   const [motivo, setMotivo] = useState("");
   const [importing, setImporting] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(50);
 
   useEffect(() => {
     fetchRepuestos();
   }, []);
 
+  // Reset page when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
+
   const fetchRepuestos = async () => {
     try {
       setLoading(true);
       
-      // Fetch repuestos from bodega central
       const { data: repuestosCentral, error: errorCentral } = await supabase
         .from('repuestos')
         .select('*')
@@ -52,7 +59,6 @@ export default function Inventario() {
 
       if (errorCentral) throw errorCentral;
 
-      // Fetch stock departamental con datos del repuesto
       const { data: stockDept, error: errorDept } = await supabase
         .from('stock_departamental')
         .select(`
@@ -63,7 +69,6 @@ export default function Inventario() {
 
       if (errorDept) throw errorDept;
 
-      // Mapear stock departamental con toda la información
       const stockDeptFormateado = (stockDept || []).map(s => {
         const repuestoInfo = s.repuestos as any;
         return {
@@ -104,7 +109,7 @@ export default function Inventario() {
         if (result.errorCount > 0) {
           toast.warning(`${result.errorCount} registros con errores`);
         }
-        fetchRepuestos(); // Recargar datos
+        fetchRepuestos();
       } else {
         toast.error(`Error en importación: ${result.error}`);
       }
@@ -133,7 +138,6 @@ export default function Inventario() {
       return;
     }
 
-    // Actualizar localmente
     setRepuestos(prev => prev.map(r => 
       r.id === selectedRepuesto.id 
         ? { ...r, stock_actual: nuevoStock }
@@ -146,10 +150,17 @@ export default function Inventario() {
     setMotivo("");
   };
 
-  const filteredRepuestos = repuestos.filter(r =>
-    r.descripcion.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    r.codigo.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredRepuestos = useMemo(() => {
+    return repuestos.filter(r =>
+      r.descripcion.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      r.codigo.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [repuestos, searchTerm]);
+
+  // Pagination
+  const totalPages = Math.max(1, Math.ceil(filteredRepuestos.length / itemsPerPage));
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedRepuestos = filteredRepuestos.slice(startIndex, startIndex + itemsPerPage);
 
   const stockBajo = repuestos.filter(r => r.stock_actual <= r.stock_minimo).length;
   const stockTotal = repuestos.reduce((acc, r) => acc + r.stock_actual, 0);
@@ -244,58 +255,74 @@ export default function Inventario() {
           {loading ? (
             <div className="text-center py-8">Cargando inventario...</div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Código</TableHead>
-                  <TableHead>Descripción</TableHead>
-                  <TableHead>Centro/Bodega</TableHead>
-                  <TableHead>Ubicación</TableHead>
-                  <TableHead>Stock Actual</TableHead>
-                  <TableHead>Stock Mínimo</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead className="text-right">Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredRepuestos.map((repuesto) => (
-                  <TableRow key={repuesto.id}>
-                    <TableCell className="font-medium">{repuesto.codigo}</TableCell>
-                    <TableCell>{repuesto.descripcion}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{repuesto.centro_servicio}</Badge>
-                    </TableCell>
-                    <TableCell>{repuesto.ubicacion}</TableCell>
-                    <TableCell>
-                      <span className={repuesto.stock_actual <= repuesto.stock_minimo ? "text-orange-500 font-bold" : ""}>
-                        {repuesto.stock_actual}
-                      </span>
-                    </TableCell>
-                    <TableCell>{repuesto.stock_minimo}</TableCell>
-                    <TableCell>
-                      {repuesto.stock_actual === 0 ? (
-                        <Badge variant="destructive">Sin stock</Badge>
-                      ) : repuesto.stock_actual <= repuesto.stock_minimo ? (
-                        <Badge className="bg-orange-500">Stock bajo</Badge>
-                      ) : (
-                        <Badge className="bg-green-500">Normal</Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleMovimiento(repuesto)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Código</TableHead>
+                    <TableHead>Descripción</TableHead>
+                    <TableHead>Centro/Bodega</TableHead>
+                    <TableHead>Ubicación</TableHead>
+                    <TableHead>Stock Actual</TableHead>
+                    <TableHead>Stock Mínimo</TableHead>
+                    <TableHead>Estado</TableHead>
+                    <TableHead className="text-right">Acciones</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {paginatedRepuestos.map((repuesto) => (
+                    <TableRow key={repuesto.id}>
+                      <TableCell className="font-medium">{repuesto.codigo}</TableCell>
+                      <TableCell>{repuesto.descripcion}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{repuesto.centro_servicio}</Badge>
+                      </TableCell>
+                      <TableCell>{repuesto.ubicacion}</TableCell>
+                      <TableCell>
+                        <span className={repuesto.stock_actual <= repuesto.stock_minimo ? "text-orange-500 font-bold" : ""}>
+                          {repuesto.stock_actual}
+                        </span>
+                      </TableCell>
+                      <TableCell>{repuesto.stock_minimo}</TableCell>
+                      <TableCell>
+                        {repuesto.stock_actual === 0 ? (
+                          <Badge variant="destructive">Sin stock</Badge>
+                        ) : repuesto.stock_actual <= repuesto.stock_minimo ? (
+                          <Badge className="bg-orange-500">Stock bajo</Badge>
+                        ) : (
+                          <Badge className="bg-green-500">Normal</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleMovimiento(repuesto)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+
+              {filteredRepuestos.length > 0 && (
+                <TablePagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  totalItems={filteredRepuestos.length}
+                  itemsPerPage={itemsPerPage}
+                  onPageChange={setCurrentPage}
+                  onItemsPerPageChange={(value) => {
+                    setItemsPerPage(value);
+                    setCurrentPage(1);
+                  }}
+                />
+              )}
+            </>
           )}
         </CardContent>
       </Card>

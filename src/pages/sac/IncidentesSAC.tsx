@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Search, Filter, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { StatusBadge } from "@/components/StatusBadge";
+import { TablePagination } from "@/components/TablePagination";
 
 type IncidenteDB = {
   id: string;
@@ -51,41 +52,41 @@ export default function IncidentesSAC() {
   const [notificacionesCount, setNotificacionesCount] = useState<NotificacionCount[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(50);
 
   useEffect(() => {
     fetchData();
   }, []);
 
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter]);
+
   const fetchData = async () => {
     try {
       setLoading(true);
       
-      // Get current user
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         setCurrentUserId(user.id);
       }
 
-      // Fetch incidents that need SAC attention (only Presupuesto and Porcentaje for notifications)
       const { data: incidentesData, error: incidentesError } = await supabase
         .from("incidentes")
         .select("*")
-        .in("status", [
-          "Presupuesto",
-          "Porcentaje"
-        ])
+        .in("status", ["Presupuesto", "Porcentaje"])
         .order("fecha_ingreso", { ascending: false });
 
       if (incidentesError) throw incidentesError;
 
-      // Fetch clients
       const { data: clientesData, error: clientesError } = await supabase
         .from("clientes")
         .select("codigo, nombre");
 
       if (clientesError) throw clientesError;
 
-      // Fetch active SAC assignments
       const { data: asignacionesData, error: asignacionesError } = await supabase
         .from("asignaciones_sac")
         .select("*")
@@ -93,14 +94,12 @@ export default function IncidentesSAC() {
 
       if (asignacionesError) throw asignacionesError;
 
-      // Fetch notification counts for each incident
       const { data: notificacionesData, error: notificacionesError } = await supabase
         .from("notificaciones_cliente")
         .select("incidente_id, numero_notificacion");
 
       if (notificacionesError) throw notificacionesError;
 
-      // Count notifications per incident (get max numero_notificacion for each)
       const notifCounts: NotificacionCount[] = [];
       if (notificacionesData) {
         const grouped = notificacionesData.reduce((acc, notif) => {
@@ -160,20 +159,24 @@ export default function IncidentesSAC() {
     navigate(`/sac/incidentes/${incidente.id}`);
   };
 
-  const filteredIncidentes = incidentesList.filter((incidente) => {
-    const matchesSearch =
-      incidente.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      getClienteName(incidente.codigo_cliente).toLowerCase().includes(searchTerm.toLowerCase());
+  const filteredIncidentes = useMemo(() => {
+    return incidentesList.filter((incidente) => {
+      const matchesSearch =
+        incidente.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        getClienteName(incidente.codigo_cliente).toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchesStatus = statusFilter === "todos" || incidente.status === statusFilter;
+      const matchesStatus = statusFilter === "todos" || incidente.status === statusFilter;
 
-    return matchesSearch && matchesStatus;
-  });
+      return matchesSearch && matchesStatus;
+    });
+  }, [incidentesList, searchTerm, statusFilter, clientes]);
 
-  const statusOptions = [
-    "Presupuesto",
-    "Porcentaje"
-  ];
+  // Pagination
+  const totalPages = Math.max(1, Math.ceil(filteredIncidentes.length / itemsPerPage));
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedIncidentes = filteredIncidentes.slice(startIndex, startIndex + itemsPerPage);
+
+  const statusOptions = ["Presupuesto", "Porcentaje"];
 
   if (loading) {
     return (
@@ -270,14 +273,14 @@ export default function IncidentesSAC() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredIncidentes.length === 0 ? (
+                {paginatedIncidentes.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center text-muted-foreground">
                       No hay incidentes para mostrar
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredIncidentes.map((incidente) => (
+                  paginatedIncidentes.map((incidente) => (
                     <TableRow
                       key={incidente.id}
                       className={`cursor-pointer hover:bg-muted/50 ${
@@ -322,6 +325,20 @@ export default function IncidentesSAC() {
               </TableBody>
             </Table>
           </div>
+
+          {filteredIncidentes.length > 0 && (
+            <TablePagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={filteredIncidentes.length}
+              itemsPerPage={itemsPerPage}
+              onPageChange={setCurrentPage}
+              onItemsPerPageChange={(value) => {
+                setItemsPerPage(value);
+                setCurrentPage(1);
+              }}
+            />
+          )}
         </CardContent>
       </Card>
     </div>
