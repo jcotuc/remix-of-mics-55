@@ -426,13 +426,31 @@ export default function Productos() {
         // Verificar si ya existe en BD (marcar como skipped, no error)
         const yaExisteEnBD = existingCodes.has(codigo.toLowerCase());
         
+        // Verificar duplicado en archivo ANTES de agregarlo a seenCodes
+        const duplicadoEnArchivo = seenCodes.has(codigo.toLowerCase());
+        
+        // Si es duplicado en archivo, ignorarlo (skipped)
+        if (duplicadoEnArchivo) {
+          return {
+            codigo,
+            clave: clave || codigo,
+            descripcion,
+            url_foto: urlFoto || undefined,
+            descontinuado,
+            familia_nombre: familiaNombre || undefined,
+            isValid: false,
+            skipped: true,
+            skipReason: "Duplicado en archivo"
+          };
+        }
+        
+        // Agregar código a vistos DESPUÉS de verificar duplicado
+        seenCodes.add(codigo.toLowerCase());
+        
         // Validaciones reales (errores)
         const errors: string[] = [];
         if (!codigo) errors.push("Código requerido");
         if (!descripcion) errors.push("Descripción requerida");
-        if (seenCodes.has(codigo.toLowerCase())) errors.push("Código duplicado en archivo");
-
-        seenCodes.add(codigo.toLowerCase());
         
         // Si ya existe en BD, marcarlo como skipped (no como error)
         if (yaExisteEnBD && errors.length === 0) {
@@ -879,7 +897,7 @@ export default function Productos() {
               </div>
               <div className="flex items-center gap-2 text-sm">
                 <SkipForward className="h-4 w-4 text-muted-foreground" />
-                <span className="text-muted-foreground font-medium">{skippedCount} ya existen (ignorados)</span>
+                <span className="text-muted-foreground font-medium">{skippedCount} ignorados (existentes o duplicados)</span>
               </div>
               {errorCount > 0 && (
                 <div className="flex items-center gap-2 text-sm">
@@ -897,6 +915,7 @@ export default function Productos() {
                     <TableHead className="w-[50px]">Estado</TableHead>
                     <TableHead>Código</TableHead>
                     <TableHead>Descripción</TableHead>
+                    <TableHead>Vigente</TableHead>
                     <TableHead>Familia (Excel)</TableHead>
                     <TableHead>Asignación Automática</TableHead>
                     <TableHead>Error</TableHead>
@@ -923,6 +942,13 @@ export default function Productos() {
                       <TableCell className="font-mono text-sm">{item.codigo || "-"}</TableCell>
                       <TableCell className="max-w-[250px] truncate" title={item.descripcion}>
                         {item.descripcion || "-"}
+                      </TableCell>
+                      <TableCell>
+                        {item.descontinuado ? (
+                          <Badge variant="secondary" className="text-amber-600 bg-amber-50">Descontinuado</Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-green-600 border-green-300">Vigente</Badge>
+                        )}
                       </TableCell>
                       <TableCell>
                         {item.familia_nombre ? (
