@@ -45,9 +45,126 @@ interface ImportProducto {
   descontinuado: boolean;
   familia_nombre?: string;
   familia_padre_id?: number;
+  asignacion_info?: string;
   isValid: boolean;
   errorMsg?: string;
 }
+
+// Mapeo de palabras clave por familia abuelo → familia padre (subcategoría)
+// IMPORTANTE: Las reglas más específicas van PRIMERO en cada array
+const SUBCATEGORIA_KEYWORDS: Record<number, { keywords: string[], padreId: number, nombre: string }[]> = {
+  // 2 tiempos (27)
+  27: [
+    { keywords: ['motosierra'], padreId: 88, nombre: 'Motosierra' },
+    { keywords: ['desbrozadora', 'desmalezadora'], padreId: 87, nombre: 'Desbrozadora' },
+    { keywords: ['cortasetos', 'corta setos'], padreId: 91, nombre: 'Cortasetos' },
+    { keywords: ['sopladora'], padreId: 89, nombre: 'Sopladora' },
+  ],
+  // 4 tiempos (23)
+  23: [
+    { keywords: ['generador'], padreId: 83, nombre: 'Generadores' },
+    { keywords: ['podadora'], padreId: 84, nombre: 'Podadoras' },
+    { keywords: ['fumigadora'], padreId: 85, nombre: 'Fumigadoras' },
+    { keywords: ['revolvedora'], padreId: 86, nombre: 'Revolvedora' },
+  ],
+  // Bomba (33)
+  33: [
+    { keywords: ['motobomba'], padreId: 99, nombre: 'Motobombas' },
+    { keywords: ['sumergible'], padreId: 92, nombre: 'Sumergible' },
+    { keywords: ['periférica', 'periferica'], padreId: 98, nombre: 'Periférica' },
+    { keywords: ['centrifuga', 'centrífuga'], padreId: 93, nombre: 'Centrífuga' },
+    { keywords: ['hidroneumática', 'hidroneumatica'], padreId: 97, nombre: 'Hidroneumática' },
+    { keywords: ['presurizada'], padreId: 96, nombre: 'Presurizada' },
+    { keywords: ['bala'], padreId: 94, nombre: 'Bala' },
+  ],
+  // Compresor (1)
+  1: [
+    { keywords: ['libre de aceite', 'oil free'], padreId: 63, nombre: 'Libre de aceite' },
+    { keywords: ['banda', '120l', '240l', '120 l', '240 l'], padreId: 62, nombre: 'Lubricado de banda' },
+    { keywords: ['lubricado'], padreId: 61, nombre: 'Lubricado' },
+  ],
+  // Eléctrica (4) - REGLAS ESPECÍFICAS PRIMERO
+  4: [
+    // ⚡ REGLA ESPECÍFICA: Rotomartillo SDS → Electroneumáticos/Demoledores
+    { keywords: ['rotomartillo sds', 'roto martillo sds', 'sds plus', 'sds max', 'sds-plus', 'sds-max'], padreId: 69, nombre: 'Electroneumático/Demoledor' },
+    // Rotomartillos normales (después de la regla SDS)
+    { keywords: ['rotomartillo', 'roto martillo'], padreId: 64, nombre: 'Rotomartillos' },
+    { keywords: ['demoledor', 'electroneumático', 'electroneumatico'], padreId: 69, nombre: 'Electroneumático/Demoledor' },
+    { keywords: ['esmeril', 'pulidora', 'amoladora'], padreId: 65, nombre: 'Esmeriladora' },
+    { keywords: ['inalámbrico', 'inalambrico', 'batería', 'bateria', '20v', '18v', '12v'], padreId: 79, nombre: 'Inalámbrica' },
+    { keywords: ['caladora'], padreId: 70, nombre: 'Caladora' },
+    { keywords: ['sierra circular', 'circular'], padreId: 68, nombre: 'Circular' },
+    { keywords: ['lijadora orbital', 'orbital'], padreId: 72, nombre: 'Lijadora orbital' },
+    { keywords: ['lijadora de banda', 'lijadora banda'], padreId: 71, nombre: 'Lijadora de banda' },
+    { keywords: ['taladro'], padreId: 78, nombre: 'Taladro' },
+    { keywords: ['router', 'fresadora', 'rebajadora'], padreId: 67, nombre: 'Router' },
+    { keywords: ['aspiradora'], padreId: 74, nombre: 'Aspiradora' },
+    { keywords: ['cepillo'], padreId: 77, nombre: 'Cepillo' },
+    { keywords: ['pistola de calor', 'pistola calor'], padreId: 66, nombre: 'Pistola de calor' },
+    { keywords: ['desbrozadora'], padreId: 73, nombre: 'Desbrozadora eléctrica' },
+    { keywords: ['cargador'], padreId: 75, nombre: 'Cargador' },
+    { keywords: ['inversor'], padreId: 76, nombre: 'Inversor' },
+  ],
+  // Estacionaria (41)
+  41: [
+    { keywords: ['inglete'], padreId: 101, nombre: 'Inglete' },
+    { keywords: ['cortadora de metales', 'cortadora metales'], padreId: 103, nombre: 'Cortadora de metales' },
+    { keywords: ['taladro de piso', 'taladro piso'], padreId: 102, nombre: 'Taladro de piso' },
+    { keywords: ['cepillo de piso', 'cepillo piso'], padreId: 100, nombre: 'Cepillo de piso' },
+    { keywords: ['polipasto'], padreId: 105, nombre: 'Polipasto' },
+    { keywords: ['calentador'], padreId: 106, nombre: 'Calentador' },
+    { keywords: ['duplicadora', 'llaves'], padreId: 104, nombre: 'Duplicadora' },
+  ],
+  // Hidráulica (49)
+  49: [
+    { keywords: ['gato'], padreId: 107, nombre: 'Gato' },
+    { keywords: ['pallet', 'patín', 'patin'], padreId: 110, nombre: 'Pallet/Patín' },
+    { keywords: ['porto power', 'portopower'], padreId: 109, nombre: 'Porto Power' },
+    { keywords: ['prensa', 'pluma'], padreId: 108, nombre: 'Prensa/Pluma' },
+  ],
+  // Hidrolavadoras (20)
+  20: [
+    { keywords: ['4000', '4,000', '4000 psi'], padreId: 81, nombre: 'Hidrolavadora 4000 PSI' },
+    { keywords: ['eléctrica', 'electrica'], padreId: 82, nombre: 'Hidrolavadora eléctrica' },
+    { keywords: ['2800', '3300', '2,800', '3,300'], padreId: 80, nombre: 'Hidrolavadora 2800-3300' },
+  ],
+  // Neumática (53)
+  53: [
+    { keywords: ['engrapadora', 'clavadora'], padreId: 111, nombre: 'Engrapadora/Clavadora' },
+    { keywords: ['impacto', 'llave de impacto'], padreId: 112, nombre: 'Llave de impacto' },
+    { keywords: ['matraca'], padreId: 115, nombre: 'Matraca' },
+    { keywords: ['rectificador'], padreId: 114, nombre: 'Rectificador' },
+    { keywords: ['lijadora'], padreId: 117, nombre: 'Lijadora neumática' },
+    { keywords: ['remachadora'], padreId: 116, nombre: 'Remachadora' },
+    { keywords: ['taladro'], padreId: 113, nombre: 'Taladro neumático' },
+  ],
+  // Soldadoras (60)
+  60: [
+    { keywords: ['plasma'], padreId: 120, nombre: 'Plasma' },
+    { keywords: ['arco'], padreId: 119, nombre: 'Arco' },
+    { keywords: ['mig', 'mag', 'microalambre'], padreId: 121, nombre: 'MIG/MAG' },
+  ],
+};
+
+// Función para encontrar subcategoría basada en descripción
+const findSubcategoriaByDescription = (
+  abueloId: number, 
+  descripcion: string
+): { padreId: number; nombre: string } | undefined => {
+  const rules = SUBCATEGORIA_KEYWORDS[abueloId];
+  if (!rules) return undefined;
+  
+  const descLower = descripcion.toLowerCase();
+  
+  // Buscar en orden (las reglas más específicas están primero)
+  for (const rule of rules) {
+    if (rule.keywords.some(kw => descLower.includes(kw.toLowerCase()))) {
+      return { padreId: rule.padreId, nombre: rule.nombre };
+    }
+  }
+  
+  return undefined;
+};
 
 export default function Productos() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -279,13 +396,23 @@ export default function Productos() {
 
       // Procesar cada fila
       const processedData: ImportProducto[] = jsonData.map((row) => {
-        // Buscar columnas con nombres flexibles
-        const codigo = String(row['Codigo'] || row['codigo'] || row['CODIGO'] || row['Código'] || '').trim();
+        // Buscar columnas con nombres flexibles (incluyendo SKU y Producto)
+        const codigo = String(
+          row['Codigo'] || row['codigo'] || row['CODIGO'] || row['Código'] || 
+          row['SKU'] || row['sku'] || row['Sku'] || ''
+        ).trim();
         const clave = String(row['Clave'] || row['clave'] || row['CLAVE'] || codigo || '').trim();
-        const descripcion = String(row['Descripcion'] || row['descripcion'] || row['DESCRIPCION'] || row['Descripción'] || '').trim();
+        const descripcion = String(
+          row['Descripcion'] || row['descripcion'] || row['DESCRIPCION'] || row['Descripción'] || 
+          row['Producto'] || row['producto'] || row['PRODUCTO'] || ''
+        ).trim();
         const urlFoto = String(row['URL_Foto'] || row['url_foto'] || row['URL'] || row['Foto'] || '').trim();
         const descontinuadoRaw = row['Descontinuado'] || row['descontinuado'] || row['DESCONTINUADO'] || false;
-        const familiaNombre = String(row['Categoria'] || row['categoria'] || row['Familia'] || row['familia'] || row['Subcategoria'] || '').trim();
+        const familiaNombre = String(
+          row['Categoria'] || row['categoria'] || row['CATEGORIA'] || 
+          row['Familia'] || row['familia'] || row['FAMILIA'] || 
+          row['Subcategoria'] || ''
+        ).trim();
 
         // Convertir descontinuado a boolean
         const descontinuado = descontinuadoRaw === true || 
@@ -303,13 +430,36 @@ export default function Productos() {
 
         seenCodes.add(codigo.toLowerCase());
 
-        // Buscar familia por nombre (case-insensitive)
+        // Buscar familia por nombre (case-insensitive) y auto-asignar subcategoría
         let familiaId: number | undefined;
+        let asignacionInfo: string | undefined;
+        
         if (familiaNombre) {
           const familiaMatch = familias.find(f => 
             f.Categoria?.toLowerCase() === familiaNombre.toLowerCase()
           );
-          familiaId = familiaMatch?.id;
+          
+          if (familiaMatch) {
+            // Verificar si es un "abuelo" (categoría principal, Padre = NULL)
+            if (familiaMatch.Padre === null) {
+              // Es una categoría principal → buscar subcategoría por descripción
+              const subcategoria = findSubcategoriaByDescription(familiaMatch.id, descripcion);
+              
+              if (subcategoria) {
+                familiaId = subcategoria.padreId;
+                asignacionInfo = `✅ Auto: ${familiaMatch.Categoria} → ${subcategoria.nombre}`;
+              } else {
+                // No se encontró subcategoría, dejar sin asignar
+                asignacionInfo = `⚠️ ${familiaMatch.Categoria} (sin subcategoría detectada)`;
+              }
+            } else {
+              // Ya es una subcategoría, asignar directamente
+              familiaId = familiaMatch.id;
+              asignacionInfo = `📌 Directa: ${familiaMatch.Categoria}`;
+            }
+          } else {
+            asignacionInfo = `❌ "${familiaNombre}" no encontrada`;
+          }
         }
 
         return {
@@ -320,6 +470,7 @@ export default function Productos() {
           descontinuado,
           familia_nombre: familiaNombre || undefined,
           familia_padre_id: familiaId,
+          asignacion_info: asignacionInfo,
           isValid: errors.length === 0,
           errorMsg: errors.length > 0 ? errors.join(", ") : undefined
         };
@@ -719,10 +870,9 @@ export default function Productos() {
                   <TableRow>
                     <TableHead className="w-[50px]">Estado</TableHead>
                     <TableHead>Código</TableHead>
-                    <TableHead>Clave</TableHead>
                     <TableHead>Descripción</TableHead>
-                    <TableHead>Familia</TableHead>
-                    <TableHead>Descontinuado</TableHead>
+                    <TableHead>Familia (Excel)</TableHead>
+                    <TableHead>Asignación Automática</TableHead>
                     <TableHead>Error</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -737,22 +887,28 @@ export default function Productos() {
                         )}
                       </TableCell>
                       <TableCell className="font-mono text-sm">{item.codigo || "-"}</TableCell>
-                      <TableCell>{item.clave || "-"}</TableCell>
-                      <TableCell className="max-w-[200px] truncate">{item.descripcion || "-"}</TableCell>
+                      <TableCell className="max-w-[250px] truncate" title={item.descripcion}>
+                        {item.descripcion || "-"}
+                      </TableCell>
                       <TableCell>
-                        {item.familia_padre_id ? (
-                          <Badge variant="secondary">{item.familia_nombre}</Badge>
-                        ) : item.familia_nombre ? (
-                          <Badge variant="outline" className="text-amber-600">{item.familia_nombre} (no encontrada)</Badge>
+                        {item.familia_nombre ? (
+                          <Badge variant="outline">{item.familia_nombre}</Badge>
                         ) : (
                           <span className="text-muted-foreground text-sm">-</span>
                         )}
                       </TableCell>
                       <TableCell>
-                        {item.descontinuado ? (
-                          <Badge variant="destructive">Sí</Badge>
+                        {item.asignacion_info ? (
+                          <span className={`text-xs ${
+                            item.asignacion_info.startsWith('✅') ? 'text-green-600' :
+                            item.asignacion_info.startsWith('📌') ? 'text-blue-600' :
+                            item.asignacion_info.startsWith('⚠️') ? 'text-amber-600' :
+                            'text-destructive'
+                          }`}>
+                            {item.asignacion_info}
+                          </span>
                         ) : (
-                          <Badge variant="outline">No</Badge>
+                          <span className="text-muted-foreground text-sm">-</span>
                         )}
                       </TableCell>
                       <TableCell className="text-destructive text-sm">{item.errorMsg || "-"}</TableCell>
@@ -763,10 +919,11 @@ export default function Productos() {
             </ScrollArea>
 
             {/* Ayuda de formato */}
-            <div className="text-xs text-muted-foreground p-3 bg-muted rounded-md">
-              <p className="font-medium mb-1">Formato esperado del archivo:</p>
-              <p>Columnas: Codigo*, Clave, Descripcion*, URL_Foto, Descontinuado, Categoria/Familia</p>
-              <p>* Campos requeridos. La columna Categoria/Familia debe coincidir con una subcategoría existente.</p>
+            <div className="text-xs text-muted-foreground p-3 bg-muted rounded-md space-y-1">
+              <p className="font-medium">Formato esperado del archivo:</p>
+              <p>Columnas: <span className="font-mono">SKU/Codigo*</span>, <span className="font-mono">Producto/Descripcion*</span>, <span className="font-mono">Familia</span>, <span className="font-mono">Descontinuado</span></p>
+              <p className="text-green-600">✅ Si la Familia es una categoría principal (ej: "Eléctrica"), la subcategoría se asigna automáticamente según la descripción.</p>
+              <p className="text-blue-600">📌 Si la Familia ya es una subcategoría (ej: "Rotomartillos"), se asigna directamente.</p>
             </div>
           </div>
 
