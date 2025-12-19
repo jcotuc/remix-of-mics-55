@@ -20,11 +20,17 @@ interface CentroServicio {
   direccion: string | null;
   telefono: string | null;
   email: string | null;
-  responsable: string | null;
+  responsable_id: string | null;
   numero_bodega: string | null;
-  supervisor_id: string | null;
   activo: boolean;
   es_central: boolean;
+}
+
+interface JefeTaller {
+  user_id: string;
+  nombre: string;
+  apellido: string;
+  centro_servicio_id: string | null;
 }
 
 interface Usuario {
@@ -54,6 +60,7 @@ export default function CentrosServicio() {
   const [centros, setCentros] = useState<CentroServicio[]>([]);
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [supervisores, setSupervisores] = useState<SupervisorRegional[]>([]);
+  const [jefesTaller, setJefesTaller] = useState<JefeTaller[]>([]);
   const [centrosSupervisor, setCentrosSupervisor] = useState<CentroSupervisor[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCentroDialog, setShowCentroDialog] = useState(false);
@@ -72,6 +79,7 @@ export default function CentrosServicio() {
     telefono: "",
     email: "",
     numero_bodega: "",
+    responsable_id: "",
     activo: true,
     es_central: false,
   });
@@ -83,7 +91,7 @@ export default function CentrosServicio() {
   const fetchData = async () => {
     setLoading(true);
     
-    const [centrosRes, usuariosRes, rolesRes, centrosSupervisorRes] = await Promise.all([
+    const [centrosRes, usuariosRes, rolesRes, jefesRolesRes, centrosSupervisorRes] = await Promise.all([
       supabase.from("centros_servicio").select("*").order("nombre"),
       supabase.from("profiles").select("*").order("nombre"),
       // Obtener solo los user_id con rol supervisor_regional
@@ -91,6 +99,11 @@ export default function CentrosServicio() {
         .from("user_roles")
         .select("user_id")
         .eq("role", "supervisor_regional"),
+      // Obtener solo los user_id con rol jefe_taller
+      supabase
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", "jefe_taller"),
       // Obtener asignaciones de centros a supervisores
       supabase.from("centros_supervisor").select("*"),
     ]);
@@ -99,7 +112,7 @@ export default function CentrosServicio() {
     if (usuariosRes.data) setUsuarios(usuariosRes.data);
     if (centrosSupervisorRes.data) setCentrosSupervisor(centrosSupervisorRes.data);
     
-    // Obtener los perfiles de los supervisores regionales con query separado
+    // Obtener los perfiles de los supervisores regionales
     if (rolesRes.data && rolesRes.data.length > 0) {
       const supervisorUserIds = rolesRes.data.map((r) => r.user_id);
       const { data: perfilesSupervisores } = await supabase
@@ -113,6 +126,21 @@ export default function CentrosServicio() {
     } else {
       setSupervisores([]);
     }
+
+    // Obtener los perfiles de los jefes de taller
+    if (jefesRolesRes.data && jefesRolesRes.data.length > 0) {
+      const jefesUserIds = jefesRolesRes.data.map((r) => r.user_id);
+      const { data: perfilesJefes } = await supabase
+        .from("profiles")
+        .select("user_id, nombre, apellido, centro_servicio_id")
+        .in("user_id", jefesUserIds);
+      
+      if (perfilesJefes) {
+        setJefesTaller(perfilesJefes);
+      }
+    } else {
+      setJefesTaller([]);
+    }
     
     setLoading(false);
   };
@@ -125,6 +153,7 @@ export default function CentrosServicio() {
       telefono: "",
       email: "",
       numero_bodega: "",
+      responsable_id: "",
       activo: true,
       es_central: false,
     });
@@ -139,6 +168,7 @@ export default function CentrosServicio() {
       telefono: centro.telefono || "",
       email: centro.email || "",
       numero_bodega: centro.numero_bodega || "",
+      responsable_id: centro.responsable_id || "",
       activo: centro.activo,
       es_central: centro.es_central,
     });
@@ -162,6 +192,7 @@ export default function CentrosServicio() {
           telefono: formData.telefono || null,
           email: formData.email || null,
           numero_bodega: formData.numero_bodega || null,
+          responsable_id: formData.responsable_id || null,
           activo: formData.activo,
           es_central: formData.es_central,
         })
@@ -181,6 +212,7 @@ export default function CentrosServicio() {
         telefono: formData.telefono || null,
         email: formData.email || null,
         numero_bodega: formData.numero_bodega || null,
+        responsable_id: formData.responsable_id || null,
         activo: formData.activo,
         es_central: formData.es_central,
       });
@@ -304,9 +336,14 @@ export default function CentrosServicio() {
 
   const getSupervisorNombre = (supervisorId: string | null) => {
     if (!supervisorId) return null;
-    // Ahora buscamos por user_id, no por id
     const sup = supervisores.find((s) => s.user_id === supervisorId);
     return sup ? `${sup.nombre} ${sup.apellido}` : null;
+  };
+
+  const getResponsableNombre = (responsableId: string | null) => {
+    if (!responsableId) return null;
+    const jefe = jefesTaller.find((j) => j.user_id === responsableId);
+    return jefe ? `${jefe.nombre} ${jefe.apellido}` : null;
   };
 
   const getCentrosDelSupervisor = (supervisorUserId: string) => {
@@ -384,8 +421,8 @@ export default function CentrosServicio() {
                         {centro.direccion && (
                           <p className="text-sm text-muted-foreground">{centro.direccion}</p>
                         )}
-                        {getSupervisorNombre(centro.supervisor_id) && (
-                          <p className="text-sm">Supervisor: {getSupervisorNombre(centro.supervisor_id)}</p>
+                        {getResponsableNombre(centro.responsable_id) && (
+                          <p className="text-sm">Responsable: {getResponsableNombre(centro.responsable_id)}</p>
                         )}
                       </div>
                     </div>
@@ -590,6 +627,25 @@ export default function CentrosServicio() {
                 onChange={(e) => setFormData({ ...formData, numero_bodega: e.target.value })}
                 placeholder="B001"
               />
+            </div>
+            <div>
+              <Label>Responsable (Jefe de Taller)</Label>
+              <Select 
+                value={formData.responsable_id || "__none__"} 
+                onValueChange={(val) => setFormData({ ...formData, responsable_id: val === "__none__" ? "" : val })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar responsable..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Sin asignar</SelectItem>
+                  {jefesTaller.map((jefe) => (
+                    <SelectItem key={jefe.user_id} value={jefe.user_id}>
+                      {jefe.nombre} {jefe.apellido}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             {editingCentro && (
               <div>
