@@ -4,22 +4,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { Loader2, Activity, TrendingUp, AlertCircle, Users, Clock } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 
-interface AreaStats {
-  area: string;
-  incidentes: number;
-  tiempoPromedio: number;
-}
-
 interface DashboardStats {
   incidentesTotales: number;
   incidentesHoy: number;
-  tiempoPromedioReparacion: number;
   tasaGarantia: number;
   incidentesSinAsignar: number;
-  stockCritico: number;
+  stockBajo: number;
   clientesSinNotificar: number;
   incidentesPorEstado: { estado: string; cantidad: number }[];
-  incidentesPorArea: AreaStats[];
+  incidentesPorArea: { area: string; incidentes: number }[];
 }
 
 export default function DashboardGerente() {
@@ -57,13 +50,12 @@ export default function DashboardGerente() {
         .eq('status', 'Ingresado')
         .is('codigo_tecnico', null);
 
-      const { data: stockCritico } = await supabase
-        .from('stock_departamental')
-        .select('*');
+      // Stock bajo desde inventario
+      const { data: inventarioData } = await supabase
+        .from('inventario')
+        .select('cantidad');
 
-      const itemsCriticos = stockCritico?.filter(s =>
-        s.stock_minimo && s.cantidad_actual < s.stock_minimo
-      ).length || 0;
+      const stockBajo = inventarioData?.filter(i => i.cantidad < 5).length || 0;
 
       const { data: sinNotificar } = await supabase
         .from('incidentes')
@@ -97,22 +89,17 @@ export default function DashboardGerente() {
         areaMap.set(producto, (areaMap.get(producto) || 0) + 1);
       });
 
-      const incidentesPorArea: AreaStats[] = Array.from(areaMap.entries())
-        .map(([area, incidentes]) => ({
-          area,
-          incidentes,
-          tiempoPromedio: 0 // Simplificado
-        }))
+      const incidentesPorArea = Array.from(areaMap.entries())
+        .map(([area, incidentes]) => ({ area, incidentes }))
         .sort((a, b) => b.incidentes - a.incidentes)
         .slice(0, 5);
 
       setStats({
         incidentesTotales: todosIncidentes?.length || 0,
         incidentesHoy,
-        tiempoPromedioReparacion: 0, // Simplificado
         tasaGarantia: Math.round(tasaGarantia),
         incidentesSinAsignar: sinAsignar?.length || 0,
-        stockCritico: itemsCriticos,
+        stockBajo,
         clientesSinNotificar,
         incidentesPorEstado,
         incidentesPorArea
@@ -181,15 +168,15 @@ export default function DashboardGerente() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {stats.stockCritico + stats.clientesSinNotificar}
+              {stats.stockBajo + stats.clientesSinNotificar}
             </div>
-            <p className="text-xs text-muted-foreground">Stock + Notificaciones</p>
+            <p className="text-xs text-muted-foreground">Stock bajo + Sin notificar</p>
           </CardContent>
         </Card>
       </div>
 
       {/* Alertas Críticas Detalladas */}
-      {(stats.incidentesSinAsignar > 0 || stats.stockCritico > 0 || stats.clientesSinNotificar > 0) && (
+      {(stats.incidentesSinAsignar > 0 || stats.stockBajo > 0 || stats.clientesSinNotificar > 0) && (
         <Card className="border-red-500">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-red-600">
@@ -201,8 +188,8 @@ export default function DashboardGerente() {
             {stats.incidentesSinAsignar > 0 && (
               <p className="text-sm">• {stats.incidentesSinAsignar} incidentes sin asignar</p>
             )}
-            {stats.stockCritico > 0 && (
-              <p className="text-sm">• {stats.stockCritico} repuestos en stock crítico</p>
+            {stats.stockBajo > 0 && (
+              <p className="text-sm">• {stats.stockBajo} items con stock bajo</p>
             )}
             {stats.clientesSinNotificar > 0 && (
               <p className="text-sm">• {stats.clientesSinNotificar} clientes sin notificar</p>

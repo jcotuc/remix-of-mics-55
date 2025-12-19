@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -7,20 +7,19 @@ import { Badge } from "@/components/ui/badge";
 import { Search, Package, DollarSign } from "lucide-react";
 import { toast } from "sonner";
 
-type Repuesto = {
+type RepuestoConStock = {
   id: string;
   codigo: string;
   clave: string;
   descripcion: string;
-  stock_actual: number;
+  stock: number;
   disponible_mostrador: boolean;
-  url_foto: string | null;
-  ubicacion_bodega: string | null;
+  ubicacion: string | null;
 };
 
 export default function ConsultaExistencias() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [repuestos, setRepuestos] = useState<Repuesto[]>([]);
+  const [repuestos, setRepuestos] = useState<RepuestoConStock[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
 
@@ -34,17 +33,39 @@ export default function ConsultaExistencias() {
       setLoading(true);
       setSearched(true);
 
-      const { data, error } = await supabase
+      // Buscar repuestos
+      const { data: repuestosData, error: repError } = await supabase
         .from("repuestos")
-        .select("*")
+        .select("id, codigo, clave, descripcion, disponible_mostrador")
         .or(`codigo.ilike.%${searchTerm}%,clave.ilike.%${searchTerm}%,descripcion.ilike.%${searchTerm}%`)
         .order("descripcion", { ascending: true });
 
-      if (error) throw error;
+      if (repError) throw repError;
 
-      setRepuestos(data || []);
+      // Buscar stock en inventario
+      const codigos = repuestosData?.map(r => r.codigo) || [];
+      const { data: inventarioData } = await supabase
+        .from('inventario')
+        .select('codigo_repuesto, cantidad, ubicacion')
+        .in('codigo_repuesto', codigos);
 
-      if ((data || []).length === 0) {
+      // Combinar datos
+      const repuestosConStock: RepuestoConStock[] = (repuestosData || []).map(rep => {
+        const inv = inventarioData?.find(i => i.codigo_repuesto === rep.codigo);
+        return {
+          id: rep.id,
+          codigo: rep.codigo,
+          clave: rep.clave,
+          descripcion: rep.descripcion,
+          disponible_mostrador: rep.disponible_mostrador ?? false,
+          stock: inv?.cantidad || 0,
+          ubicacion: inv?.ubicacion || null
+        };
+      });
+
+      setRepuestos(repuestosConStock);
+
+      if (repuestosConStock.length === 0) {
         toast.info("No se encontraron repuestos");
       }
     } catch (error: any) {
@@ -128,9 +149,9 @@ export default function ConsultaExistencias() {
                         <TableCell>{repuesto.descripcion}</TableCell>
                         <TableCell className="text-center">
                           <Badge
-                            variant={repuesto.stock_actual > 0 ? "default" : "secondary"}
+                            variant={repuesto.stock > 0 ? "default" : "secondary"}
                           >
-                            {repuesto.stock_actual}
+                            {repuesto.stock}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-center">
@@ -144,7 +165,7 @@ export default function ConsultaExistencias() {
                           )}
                         </TableCell>
                         <TableCell>
-                          {repuesto.ubicacion_bodega || (
+                          {repuesto.ubicacion || (
                             <span className="text-muted-foreground">Sin ubicación</span>
                           )}
                         </TableCell>
