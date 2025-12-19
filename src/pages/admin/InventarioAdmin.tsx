@@ -114,7 +114,13 @@ export default function InventarioAdmin() {
 
   // Normaliza texto removiendo acentos
   const normalizeText = (text: string): string => {
-    return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
+    return text
+      .replace(/_/g, " ")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/\s+/g, " ")
+      .toUpperCase()
+      .trim();
   };
 
   // Busca valor en objeto ignorando acentos y mayúsculas
@@ -131,8 +137,16 @@ export default function InventarioAdmin() {
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+    const inputEl = e.target;
+    const file = inputEl.files?.[0];
     if (!file) return;
+
+    // Evita intentar importar si aún no han cargado los centros
+    if (centros.length === 0) {
+      toast.error("Primero espere a que carguen los centros de servicio");
+      inputEl.value = "";
+      return;
+    }
 
     setImporting(true);
 
@@ -155,7 +169,7 @@ export default function InventarioAdmin() {
       const requiredCols = [
         { name: "SKU", alternatives: ["SKU", "CODIGO", "CODIGO_REPUESTO"] },
         { name: "CANTIDAD", alternatives: ["CANTIDAD", "QTY", "STOCK"] },
-        { name: "CS", alternatives: ["CS", "BODEGA", "BODEGA CS", "CENTRO_SERVICIO"] },
+        { name: "CS", alternatives: ["CS", "BODEGA CS", "BODEGA_CS", "CENTRO DE SERVICIO", "CENTRO SERVICIO", "CENTRO_SERVICIO"] },
       ];
       
       const missingCols = requiredCols.filter(
@@ -188,6 +202,8 @@ export default function InventarioAdmin() {
       let imported = 0;
       let errors = 0;
       const errorMessages: string[] = [];
+      const centrosAfectados = new Set<string>();
+      let firstCentroId: string | null = null;
 
       for (const row of rows) {
         const ubicacion = findValue(row, "UBICACIÓN", "UBICACION", "ubicacion");
@@ -196,8 +212,17 @@ export default function InventarioAdmin() {
         const cantidadRaw = findValue(row, "CANTIDAD", "cantidad", "QTY", "STOCK") || "0";
         const cantidad = parseInt(cantidadRaw.replace(/,/g, "")) || 0;
         
-        // Leer CS (puede estar en CS, BODEGA, o BODEGA CS)
-        const cs = findValue(row, "CS", "cs", "BODEGA", "bodega", "BODEGA CS", "BODEGA_CS", "CENTRO_SERVICIO");
+        // Leer CS (número) y convertirlo a numero_bodega (ej: 8 -> B008)
+        const cs = findValue(
+          row,
+          "CS",
+          "cs",
+          "BODEGA CS",
+          "BODEGA_CS",
+          "CENTRO DE SERVICIO",
+          "CENTRO SERVICIO",
+          "CENTRO_SERVICIO"
+        );
         
         const costoRaw = findValue(row, "COSTO UN", "COSTO  UN", "COSTO_UN", "costo_un", "COSTO UNITARIO") || "0";
         const costoUnitario = parseFloat(costoRaw.replace(/,/g, "").replace("Q", "").replace("$", "")) || 0;
@@ -238,6 +263,8 @@ export default function InventarioAdmin() {
           console.error("Error upserting:", error);
         } else {
           imported++;
+          centrosAfectados.add(centroId);
+          if (!firstCentroId) firstCentroId = centroId;
         }
       }
 
@@ -248,15 +275,18 @@ export default function InventarioAdmin() {
       toast.success(`Importación completada: ${imported} registros importados, ${errors} errores`);
       setShowImportDialog(false);
 
-      if (selectedCentro) {
+      if (!selectedCentro && firstCentroId) {
+        setSelectedCentro(firstCentroId);
+      } else if (selectedCentro && centrosAfectados.has(selectedCentro)) {
         fetchInventario();
       }
     } catch (error) {
       console.error("Error processing file:", error);
       toast.error("Error al procesar el archivo");
+    } finally {
+      setImporting(false);
+      inputEl.value = "";
     }
-
-    setImporting(false);
   };
 
   return (
