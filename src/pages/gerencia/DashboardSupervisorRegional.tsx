@@ -22,7 +22,6 @@ interface DashboardStats {
   centros: CentroStats[];
   transitosActivos: number;
   stockConsolidado: number;
-  tiempoPromedioTransferencia: number;
 }
 
 interface SupervisorRegional {
@@ -67,14 +66,15 @@ export default function DashboardSupervisorRegional() {
         .from('incidentes')
         .select('centro_servicio');
 
-      const { data: stockDept } = await supabase
-        .from('stock_departamental')
-        .select('centro_servicio_id, cantidad_actual');
+      // Usar inventario en lugar de stock_departamental
+      const { data: inventarioData } = await supabase
+        .from('inventario')
+        .select('centro_servicio_id, cantidad');
 
       const centroStats: CentroStats[] = centrosData?.map(centro => {
         const incidentesCentro = incidentes?.filter(i => i.centro_servicio === centro.nombre).length || 0;
-        const stockCentro = stockDept?.filter(s => s.centro_servicio_id === centro.id)
-          .reduce((sum, s) => sum + s.cantidad_actual, 0) || 0;
+        const stockCentro = inventarioData?.filter(s => s.centro_servicio_id === centro.id)
+          .reduce((sum, s) => sum + (s.cantidad || 0), 0) || 0;
 
         return {
           nombre: centro.nombre,
@@ -89,13 +89,12 @@ export default function DashboardSupervisorRegional() {
         .select('*')
         .eq('estado', 'en_transito');
 
-      const stockConsolidado = stockDept?.reduce((sum, s) => sum + s.cantidad_actual, 0) || 0;
+      const stockConsolidado = inventarioData?.reduce((sum, s) => sum + (s.cantidad || 0), 0) || 0;
 
       setStats({
         centros: centroStats,
         transitosActivos: transitos?.length || 0,
         stockConsolidado,
-        tiempoPromedioTransferencia: 0
       });
 
     } catch (error) {
@@ -109,7 +108,6 @@ export default function DashboardSupervisorRegional() {
     try {
       setLoadingSupervisores(true);
 
-      // Obtener todos los centros de servicio
       const { data: centrosData } = await supabase
         .from('centros_servicio')
         .select('id, nombre')
@@ -118,7 +116,6 @@ export default function DashboardSupervisorRegional() {
 
       setCentros(centrosData || []);
 
-      // Obtener usuarios con rol supervisor_regional
       const { data: rolesData } = await supabase
         .from('user_roles')
         .select('user_id')
@@ -131,19 +128,16 @@ export default function DashboardSupervisorRegional() {
 
       const userIds = rolesData.map(r => r.user_id);
 
-      // Obtener perfiles de los supervisores
       const { data: profilesData } = await supabase
         .from('profiles')
         .select('id, user_id, nombre, apellido, email')
         .in('user_id', userIds);
 
-      // Obtener asignaciones de centros
       const { data: asignacionesData } = await supabase
         .from('centros_supervisor')
         .select('supervisor_id, centro_servicio_id, centros_servicio(id, nombre)')
         .in('supervisor_id', userIds);
 
-      // Mapear supervisores con sus centros asignados
       const supervisoresConCentros: SupervisorRegional[] = (profilesData || []).map(profile => {
         const centrosDelSupervisor = (asignacionesData || [])
           .filter(a => a.supervisor_id === profile.user_id)
@@ -193,13 +187,11 @@ export default function DashboardSupervisorRegional() {
     try {
       setSaving(true);
 
-      // Eliminar asignaciones actuales
       await supabase
         .from('centros_supervisor')
         .delete()
         .eq('supervisor_id', selectedSupervisor.user_id);
 
-      // Crear nuevas asignaciones
       if (selectedCentros.length > 0) {
         const nuevasAsignaciones = selectedCentros.map(centroId => ({
           supervisor_id: selectedSupervisor.user_id,
@@ -254,7 +246,6 @@ export default function DashboardSupervisorRegional() {
         </TabsList>
 
         <TabsContent value="dashboard" className="space-y-6 mt-6">
-          {/* KPIs Regionales */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -284,12 +275,11 @@ export default function DashboardSupervisorRegional() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{stats.stockConsolidado}</div>
-                <p className="text-xs text-muted-foreground">Total de items</p>
+                <p className="text-xs text-muted-foreground">Total de unidades</p>
               </CardContent>
             </Card>
           </div>
 
-          {/* Ranking de Centros */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -305,7 +295,7 @@ export default function DashboardSupervisorRegional() {
                       <div>
                         <p className="font-medium">{centro.nombre}</p>
                         <p className="text-xs text-muted-foreground">
-                          {centro.incidentes} incidentes • {centro.stock} items en stock
+                          {centro.incidentes} incidentes • {centro.stock} unidades en stock
                         </p>
                       </div>
                       <span className="text-2xl font-bold text-muted-foreground">#{idx + 1}</span>
@@ -388,7 +378,6 @@ export default function DashboardSupervisorRegional() {
         </TabsContent>
       </Tabs>
 
-      {/* Dialog para asignar centros */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>

@@ -12,13 +12,20 @@ import type { Database } from "@/integrations/supabase/types";
 
 type Incidente = Database['public']['Tables']['incidentes']['Row'];
 type Cliente = Database['public']['Tables']['clientes']['Row'];
-type Repuesto = Database['public']['Tables']['repuestos']['Row'];
+
+type RepuestoConStock = {
+  id: string;
+  codigo: string;
+  descripcion: string;
+  stock: number;
+  ubicacion: string | null;
+};
 
 export default function FaltanteAccesorios() {
   const [searchTerm, setSearchTerm] = useState("");
   const [repuestoSearch, setRepuestoSearch] = useState("");
   const [incidentes, setIncidentes] = useState<(Incidente & { cliente: Cliente })[]>([]);
-  const [repuestos, setRepuestos] = useState<Repuesto[]>([]);
+  const [repuestos, setRepuestos] = useState<RepuestoConStock[]>([]);
   const [loading, setLoading] = useState(true);
   const [consultaOpen, setConsultaOpen] = useState(false);
 
@@ -30,7 +37,6 @@ export default function FaltanteAccesorios() {
     try {
       setLoading(true);
       
-      // Fetch incidents with status "Reparado" that have missing accessories
       const { data, error } = await supabase
         .from('incidentes')
         .select('*, clientes!inner(*)')
@@ -62,14 +68,35 @@ export default function FaltanteAccesorios() {
     }
 
     try {
-      const { data, error } = await supabase
+      // Buscar repuestos
+      const { data: repuestosData, error: repError } = await supabase
         .from('repuestos')
-        .select('*')
+        .select('id, codigo, descripcion')
         .or(`codigo.ilike.%${repuestoSearch}%,descripcion.ilike.%${repuestoSearch}%`)
         .limit(20);
 
-      if (error) throw error;
-      setRepuestos(data || []);
+      if (repError) throw repError;
+
+      // Buscar stock en inventario
+      const codigos = repuestosData?.map(r => r.codigo) || [];
+      const { data: inventarioData } = await supabase
+        .from('inventario')
+        .select('codigo_repuesto, cantidad, ubicacion')
+        .in('codigo_repuesto', codigos);
+
+      // Combinar datos
+      const repuestosConStock: RepuestoConStock[] = (repuestosData || []).map(rep => {
+        const inv = inventarioData?.find(i => i.codigo_repuesto === rep.codigo);
+        return {
+          id: rep.id,
+          codigo: rep.codigo,
+          descripcion: rep.descripcion,
+          stock: inv?.cantidad || 0,
+          ubicacion: inv?.ubicacion || null
+        };
+      });
+
+      setRepuestos(repuestosConStock);
     } catch (error) {
       console.error('Error:', error);
       toast.error('Error al buscar repuestos');
@@ -205,11 +232,11 @@ export default function FaltanteAccesorios() {
                       <TableCell className="font-medium">{rep.codigo}</TableCell>
                       <TableCell>{rep.descripcion}</TableCell>
                       <TableCell>
-                        <Badge variant={rep.stock_actual > 0 ? "default" : "secondary"}>
-                          {rep.stock_actual}
+                        <Badge variant={rep.stock > 0 ? "default" : "secondary"}>
+                          {rep.stock}
                         </Badge>
                       </TableCell>
-                      <TableCell>{rep.ubicacion_bodega || '-'}</TableCell>
+                      <TableCell>{rep.ubicacion || '-'}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

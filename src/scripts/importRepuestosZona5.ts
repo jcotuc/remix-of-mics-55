@@ -1,5 +1,4 @@
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
 import * as XLSX from 'xlsx';
 
 export async function importRepuestosZona5() {
@@ -41,7 +40,6 @@ export async function importRepuestosZona5() {
           clave: sku,
           descripcion: descripcion,
           codigo_producto: 'GENERAL',
-          stock_actual: 0,
           disponible_mostrador: false,
         });
       }
@@ -66,7 +64,7 @@ export async function importRepuestosZona5() {
       }
     }
 
-    // Procesar los datos en lotes para stock departamental
+    // Procesar los datos en lotes para inventario
     const batchSize = 100;
     let processedCount = 0;
     let errorCount = 0;
@@ -74,48 +72,29 @@ export async function importRepuestosZona5() {
     for (let i = 0; i < jsonData.length; i += batchSize) {
       const batch = jsonData.slice(i, i + batchSize);
       
-      // Preparar datos para stock_departamental
-      const stockData = batch.map(row => ({
+      // Preparar datos para inventario
+      const inventarioData = batch.map(row => ({
         centro_servicio_id: centroId,
         codigo_repuesto: String(row.sku || ''),
         ubicacion: String(row['Ubicación'] || row['ubicacion'] || '').toUpperCase(),
-        cantidad_actual: parseInt(String(row.cantidad || 0)),
-        stock_minimo: 0,
-        stock_maximo: 0,
-      })).filter(item => item.codigo_repuesto); // Solo procesar si tiene SKU
+        cantidad: parseInt(String(row.cantidad || 0)),
+        descripcion: String(row['descripción'] || row['descripcion'] || ''),
+      })).filter(item => item.codigo_repuesto);
 
-      // Insertar/actualizar stock departamental
-      if (stockData.length > 0) {
-        const { error: stockError } = await supabase
-          .from('stock_departamental')
-          .upsert(stockData, {
+      // Insertar/actualizar inventario
+      if (inventarioData.length > 0) {
+        const { error: invError } = await supabase
+          .from('inventario')
+          .upsert(inventarioData, {
             onConflict: 'centro_servicio_id,codigo_repuesto',
             ignoreDuplicates: false,
           });
 
-        if (stockError) {
-          console.error('Error insertando stock:', stockError);
-          errorCount += stockData.length;
+        if (invError) {
+          console.error('Error insertando inventario:', invError);
+          errorCount += inventarioData.length;
         } else {
-          processedCount += stockData.length;
-        }
-      }
-
-      // Registrar ubicaciones históricas
-      const ubicacionesData = batch.map(row => ({
-        codigo_repuesto: String(row.sku || ''),
-        ubicacion: String(row['Ubicación'] || row['ubicacion'] || '').toUpperCase(),
-        centro_servicio_id: centroId,
-        cantidad_asignada: parseInt(String(row.cantidad || 0)),
-      })).filter(item => item.codigo_repuesto && item.ubicacion);
-
-      if (ubicacionesData.length > 0) {
-        const { error: ubicError } = await supabase
-          .from('ubicaciones_historicas')
-          .insert(ubicacionesData);
-
-        if (ubicError) {
-          console.error('Error insertando ubicaciones históricas:', ubicError);
+          processedCount += inventarioData.length;
         }
       }
 
