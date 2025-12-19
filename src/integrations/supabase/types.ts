@@ -1528,6 +1528,33 @@ export type Database = {
           },
         ]
       }
+      puestos: {
+        Row: {
+          activo: boolean | null
+          created_at: string | null
+          descripcion: string | null
+          id: string
+          nombre: string
+          updated_at: string | null
+        }
+        Insert: {
+          activo?: boolean | null
+          created_at?: string | null
+          descripcion?: string | null
+          id?: string
+          nombre: string
+          updated_at?: string | null
+        }
+        Update: {
+          activo?: boolean | null
+          created_at?: string | null
+          descripcion?: string | null
+          id?: string
+          nombre?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       reclamos_faltantes: {
         Row: {
           cantidad_faltante: number
