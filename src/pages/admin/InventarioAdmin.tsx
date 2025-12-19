@@ -155,77 +155,34 @@ export default function InventarioAdmin() {
       const requiredCols = [
         { name: "SKU", alternatives: ["SKU", "CODIGO", "CODIGO_REPUESTO"] },
         { name: "CANTIDAD", alternatives: ["CANTIDAD", "QTY", "STOCK"] },
+        { name: "CS", alternatives: ["CS", "BODEGA", "BODEGA CS", "CENTRO_SERVICIO"] },
       ];
-      
-      // Verificar que exista BODEGA o CS (pueden ser columnas separadas)
-      const hasBodega = keys.includes(normalizeText("BODEGA")) || 
-                        keys.includes(normalizeText("CS")) || 
-                        keys.includes(normalizeText("BODEGA CS")) ||
-                        keys.includes(normalizeText("CENTRO_SERVICIO"));
       
       const missingCols = requiredCols.filter(
         (col) => !col.alternatives.some(alt => keys.includes(normalizeText(alt)))
       );
 
-      if (missingCols.length > 0 || !hasBodega) {
-        const missing = [...missingCols.map(c => c.name), ...(hasBodega ? [] : ["BODEGA o CS"])];
-        toast.error(`Faltan columnas: ${missing.join(", ")}`);
+      if (missingCols.length > 0) {
+        toast.error(`Faltan columnas: ${missingCols.map(c => c.name).join(", ")}`);
         setImporting(false);
         return;
       }
 
       console.log("Columnas encontradas:", Object.keys(firstRow));
-      console.log("Primera fila:", firstRow);
 
-      // Crear mapeos para búsqueda flexible de centros
-      const centrosMapByNombre = new Map(centros.map((c) => [c.nombre.toLowerCase().trim(), c.id]));
+      // Crear mapeo por numero_bodega (B008 -> id)
       const centrosMapByNumero = new Map(
         centros.filter(c => c.numero_bodega).map((c) => [c.numero_bodega!.toLowerCase().trim(), c.id])
       );
 
-      // Función para buscar centro con múltiples estrategias
-      const findCentroId = (bodega: string, cs: string): string | null => {
-        // 1. Si CS tiene número, construir numero_bodega (ej: 8 -> B008)
-        if (cs) {
-          const csNum = cs.replace(/\D/g, "");
-          if (csNum) {
-            const numeroBodega = `b${csNum.padStart(3, "0")}`;
-            const found = centrosMapByNumero.get(numeroBodega);
-            if (found) return found;
-          }
-        }
-
-        // 2. Si BODEGA parece ser numero_bodega (ej: B008)
-        if (bodega && /^b?\d+$/i.test(bodega.trim())) {
-          const num = bodega.replace(/\D/g, "");
-          const numeroBodega = `b${num.padStart(3, "0")}`;
-          const found = centrosMapByNumero.get(numeroBodega);
-          if (found) return found;
-        }
-
-        // 3. Buscar por nombre exacto
-        if (bodega) {
-          const found = centrosMapByNombre.get(bodega.toLowerCase().trim());
-          if (found) return found;
-        }
-
-        // 4. Buscar por coincidencia parcial del nombre
-        if (bodega) {
-          // Limpiar prefijos comunes
-          const keyword = normalizeText(bodega)
-            .replace(/^(CS\.?|C\.?S\.?|CENTRO\s*(DE\s*)?SERVICIO)\s*/i, "")
-            .trim();
-          
-          if (keyword.length >= 3) {
-            const match = centros.find(c => 
-              normalizeText(c.nombre).includes(keyword) ||
-              keyword.includes(normalizeText(c.nombre).replace(/CENTRO\s*(DE\s*)?SERVICIO\s*/i, "").trim())
-            );
-            if (match) return match.id;
-          }
-        }
-
-        return null;
+      // Función simple: CS -> numero_bodega -> centro_id
+      const findCentroId = (cs: string): { id: string | null; numeroBodega: string } => {
+        const csNum = cs.toString().replace(/\D/g, "");
+        if (!csNum) return { id: null, numeroBodega: "" };
+        
+        const numeroBodega = `b${csNum.padStart(3, "0")}`;
+        const centroId = centrosMapByNumero.get(numeroBodega) || null;
+        return { id: centroId, numeroBodega: numeroBodega.toUpperCase() };
       };
 
       let imported = 0;
@@ -233,17 +190,14 @@ export default function InventarioAdmin() {
       const errorMessages: string[] = [];
 
       for (const row of rows) {
-        // Buscar columnas usando la función flexible
         const ubicacion = findValue(row, "UBICACIÓN", "UBICACION", "ubicacion");
         const sku = findValue(row, "SKU", "sku", "Sku", "CODIGO", "codigo_repuesto");
         const descripcion = findValue(row, "DESCRIPCIÓN", "DESCRIPCION", "descripcion");
         const cantidadRaw = findValue(row, "CANTIDAD", "cantidad", "QTY", "STOCK") || "0";
         const cantidad = parseInt(cantidadRaw.replace(/,/g, "")) || 0;
         
-        // Leer BODEGA y CS como columnas separadas
-        const bodega = findValue(row, "BODEGA", "bodega");
-        const cs = findValue(row, "CS", "cs");
-        const bodegaCS = bodega || cs || findValue(row, "BODEGA CS", "BODEGA_CS", "CENTRO", "centro_servicio");
+        // Leer CS (puede estar en CS, BODEGA, o BODEGA CS)
+        const cs = findValue(row, "CS", "cs", "BODEGA", "bodega", "BODEGA CS", "BODEGA_CS", "CENTRO_SERVICIO");
         
         const costoRaw = findValue(row, "COSTO UN", "COSTO  UN", "COSTO_UN", "costo_un", "COSTO UNITARIO") || "0";
         const costoUnitario = parseFloat(costoRaw.replace(/,/g, "").replace("Q", "").replace("$", "")) || 0;
@@ -253,14 +207,14 @@ export default function InventarioAdmin() {
           continue;
         }
 
-        // Buscar centro de servicio con múltiples estrategias
-        const centroId = findCentroId(bodega, cs);
+        // Buscar centro por numero_bodega
+        const { id: centroId, numeroBodega } = findCentroId(cs);
 
         if (!centroId) {
           errors++;
-          const identifier = cs ? `CS: ${cs}` : `BODEGA: ${bodega || bodegaCS}`;
-          if (!errorMessages.includes(`Centro no encontrado: ${identifier}`)) {
-            errorMessages.push(`Centro no encontrado: ${identifier}`);
+          const errorMsg = `Centro no encontrado: CS=${cs} (${numeroBodega || "sin número"})`;
+          if (!errorMessages.includes(errorMsg)) {
+            errorMessages.push(errorMsg);
           }
           continue;
         }
@@ -273,7 +227,7 @@ export default function InventarioAdmin() {
             descripcion: descripcion || null,
             cantidad: cantidad,
             ubicacion: ubicacion || null,
-            bodega: bodegaCS || null,
+            bodega: numeroBodega || null,
             costo_unitario: costoUnitario || null,
           },
           { onConflict: "centro_servicio_id,codigo_repuesto" }
@@ -469,23 +423,20 @@ export default function InventarioAdmin() {
               El archivo debe contener las siguientes columnas:
             </p>
             <ul className="text-sm list-disc list-inside space-y-1">
-              <li><strong>UBICACIÓN</strong> - Ubicación en bodega</li>
-              <li><strong>SKU</strong> - Código del repuesto</li>
-              <li><strong>DESCRIPCIÓN</strong> - Descripción del repuesto</li>
-              <li><strong>CANTIDAD</strong> - Cantidad en stock</li>
-              <li><strong>BODEGA</strong> - Nombre del centro (ej: ZONA 5, HUEHUE)</li>
-              <li><strong>CS</strong> - Número de centro (ej: 8, 18) - se convierte a B008, B018</li>
+              <li><strong>SKU</strong> - Código del repuesto (requerido)</li>
+              <li><strong>CANTIDAD</strong> - Cantidad en stock (requerido)</li>
+              <li><strong>CS</strong> - Número de centro de servicio: 8, 18, 19... (requerido)</li>
+              <li><strong>UBICACIÓN</strong> - Ubicación física (opcional)</li>
+              <li><strong>DESCRIPCIÓN</strong> - Descripción del repuesto (opcional)</li>
               <li><strong>COSTO UN</strong> - Costo unitario (opcional)</li>
             </ul>
-            <p className="text-xs text-muted-foreground mt-2">
-              El sistema buscará centros por: número de bodega (B008), nombre exacto, o coincidencia parcial del nombre.
+            <p className="text-xs text-muted-foreground italic">
+              El número CS se convierte a numero_bodega: 8 → B008, 18 → B018
             </p>
-            <Input
-              type="file"
-              accept=".xlsx,.xls"
-              onChange={handleFileUpload}
-              disabled={importing}
-            />
+            <div className="space-y-2">
+              <Label>Seleccionar archivo</Label>
+              <Input type="file" accept=".xlsx,.xls" onChange={handleFileUpload} disabled={importing} />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowImportDialog(false)} disabled={importing}>
