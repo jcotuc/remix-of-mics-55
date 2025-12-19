@@ -9,7 +9,6 @@ import { useNavigate } from "react-router-dom";
 type PendienteReubicacion = {
   centro_servicio: string;
   cantidad_repuestos: number;
-  mas_antiguos: number; // Repuestos con más de 24 horas
 };
 
 export const PuertaEntradaWidget = () => {
@@ -23,40 +22,29 @@ export const PuertaEntradaWidget = () => {
 
   const fetchPendientes = async () => {
     try {
-      const { data: stockData, error } = await supabase
-        .from("stock_departamental")
+      // Query inventario where ubicacion is null or empty (pending relocation)
+      const { data: inventarioData, error } = await supabase
+        .from("inventario")
         .select(`
           centro_servicio_id,
-          fecha_recepcion,
           centros_servicio (
-            nombre,
-            codigo
+            nombre
           )
         `)
-        .eq("requiere_reubicacion", true);
+        .or("ubicacion.is.null,ubicacion.eq.");
 
       if (error) throw error;
 
-      // Agrupar por centro de servicio
-      const grouped = stockData?.reduce((acc: any, item: any) => {
+      // Group by service center
+      const grouped = inventarioData?.reduce((acc: any, item: any) => {
         const centroNombre = item.centros_servicio?.nombre || "Sin asignar";
         if (!acc[centroNombre]) {
           acc[centroNombre] = {
             centro_servicio: centroNombre,
             cantidad_repuestos: 0,
-            mas_antiguos: 0,
           };
         }
         acc[centroNombre].cantidad_repuestos += 1;
-
-        // Verificar si tiene más de 24 horas
-        const fechaRecepcion = new Date(item.fecha_recepcion);
-        const ahora = new Date();
-        const diffHoras = (ahora.getTime() - fechaRecepcion.getTime()) / (1000 * 60 * 60);
-        if (diffHoras > 24) {
-          acc[centroNombre].mas_antiguos += 1;
-        }
-
         return acc;
       }, {});
 
@@ -69,7 +57,6 @@ export const PuertaEntradaWidget = () => {
   };
 
   const totalPendientes = pendientes.reduce((sum, p) => sum + p.cantidad_repuestos, 0);
-  const totalAntiguos = pendientes.reduce((sum, p) => sum + p.mas_antiguos, 0);
 
   if (loading) {
     return (
@@ -95,7 +82,7 @@ export const PuertaEntradaWidget = () => {
             <PackageSearch className="h-5 w-5" />
             Pendientes de Reubicación
           </CardTitle>
-          <CardDescription>No hay repuestos en puerta de entrada</CardDescription>
+          <CardDescription>No hay repuestos sin ubicación</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex items-center gap-2 text-muted-foreground">
@@ -115,19 +102,10 @@ export const PuertaEntradaWidget = () => {
           Pendientes de Reubicación
         </CardTitle>
         <CardDescription>
-          Repuestos en puerta de entrada esperando ubicación final
+          Repuestos sin ubicación asignada
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {totalAntiguos > 0 && (
-          <div className="flex items-center gap-2 p-3 bg-destructive/10 rounded-lg border border-destructive/20">
-            <AlertCircle className="h-5 w-5 text-destructive" />
-            <p className="text-sm font-medium text-destructive">
-              {totalAntiguos} repuesto{totalAntiguos !== 1 ? "s" : ""} con más de 24 horas sin reubicar
-            </p>
-          </div>
-        )}
-
         <div className="space-y-2">
           {pendientes
             .sort((a, b) => b.cantidad_repuestos - a.cantidad_repuestos)
@@ -140,14 +118,9 @@ export const PuertaEntradaWidget = () => {
                   <MapPin className="h-4 w-4 text-muted-foreground" />
                   <div>
                     <p className="font-medium">{pendiente.centro_servicio}</p>
-                    {pendiente.mas_antiguos > 0 && (
-                      <p className="text-xs text-destructive">
-                        {pendiente.mas_antiguos} urgente{pendiente.mas_antiguos !== 1 ? "s" : ""}
-                      </p>
-                    )}
                   </div>
                 </div>
-                <Badge variant={pendiente.mas_antiguos > 0 ? "destructive" : "secondary"}>
+                <Badge variant="secondary">
                   {pendiente.cantidad_repuestos} repuesto{pendiente.cantidad_repuestos !== 1 ? "s" : ""}
                 </Badge>
               </div>

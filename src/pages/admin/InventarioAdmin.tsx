@@ -17,21 +17,21 @@ interface CentroServicio {
   nombre: string;
 }
 
-interface StockItem {
+interface InventarioItem {
   id: string;
   codigo_repuesto: string;
-  cantidad_actual: number;
+  descripcion: string | null;
+  cantidad: number;
   ubicacion: string | null;
   bodega: string | null;
   costo_unitario: number | null;
   centro_servicio_id: string;
-  descripcion?: string;
 }
 
 export default function InventarioAdmin() {
   const [centros, setCentros] = useState<CentroServicio[]>([]);
   const [selectedCentro, setSelectedCentro] = useState<string>("");
-  const [stock, setStock] = useState<StockItem[]>([]);
+  const [inventario, setInventario] = useState<InventarioItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [showImportDialog, setShowImportDialog] = useState(false);
@@ -45,7 +45,7 @@ export default function InventarioAdmin() {
 
   useEffect(() => {
     if (selectedCentro) {
-      fetchStock();
+      fetchInventario();
     }
   }, [selectedCentro]);
 
@@ -65,47 +65,51 @@ export default function InventarioAdmin() {
     }
   };
 
-  const fetchStock = async () => {
+  const fetchInventario = async () => {
     if (!selectedCentro) return;
     setLoading(true);
 
     const { data, error } = await supabase
-      .from("stock_departamental")
+      .from("inventario")
       .select("*")
       .eq("centro_servicio_id", selectedCentro)
       .order("codigo_repuesto");
 
     if (!error && data) {
-      setStock(data);
+      setInventario(data);
+    } else if (error) {
+      console.error("Error fetching inventario:", error);
+      toast.error("Error al cargar inventario");
     }
     setLoading(false);
   };
 
-  const filteredStock = useMemo(() => {
-    if (!searchTerm) return stock;
+  const filteredInventario = useMemo(() => {
+    if (!searchTerm) return inventario;
     const term = searchTerm.toLowerCase();
-    return stock.filter(
+    return inventario.filter(
       (item) =>
         item.codigo_repuesto.toLowerCase().includes(term) ||
+        item.descripcion?.toLowerCase().includes(term) ||
         item.ubicacion?.toLowerCase().includes(term) ||
         item.bodega?.toLowerCase().includes(term)
     );
-  }, [stock, searchTerm]);
+  }, [inventario, searchTerm]);
 
-  const totalPages = Math.ceil(filteredStock.length / itemsPerPage);
+  const totalPages = Math.ceil(filteredInventario.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedStock = filteredStock.slice(startIndex, startIndex + itemsPerPage);
+  const paginatedInventario = filteredInventario.slice(startIndex, startIndex + itemsPerPage);
 
   const totals = useMemo(() => {
     return {
-      skus: filteredStock.length,
-      unidades: filteredStock.reduce((sum, item) => sum + item.cantidad_actual, 0),
-      valor: filteredStock.reduce(
-        (sum, item) => sum + item.cantidad_actual * (item.costo_unitario || 0),
+      skus: filteredInventario.length,
+      unidades: filteredInventario.reduce((sum, item) => sum + item.cantidad, 0),
+      valor: filteredInventario.reduce(
+        (sum, item) => sum + item.cantidad * (item.costo_unitario || 0),
         0
       ),
     };
-  }, [filteredStock]);
+  }, [filteredInventario]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -126,10 +130,12 @@ export default function InventarioAdmin() {
       }
 
       // Validar columnas requeridas
-      const requiredCols = ["ubicacion", "codigo", "descripcion", "cantidad", "centro_servicio"];
+      const requiredCols = ["UBICACIÓN", "SKU", "DESCRIPCIÓN", "CANTIDAD", "BODEGA CS"];
       const firstRow = rows[0];
+      const keys = Object.keys(firstRow);
+      
       const missingCols = requiredCols.filter(
-        (col) => !(col in firstRow) && !(col.toUpperCase() in firstRow)
+        (col) => !keys.some(k => k.toUpperCase() === col.toUpperCase().replace("Ó", "O").replace("É", "E"))
       );
 
       if (missingCols.length > 0) {
@@ -139,54 +145,73 @@ export default function InventarioAdmin() {
       }
 
       // Obtener mapeo de nombres de centro a IDs
-      const centrosMap = new Map(centros.map((c) => [c.nombre.toLowerCase(), c.id]));
+      const centrosMap = new Map(centros.map((c) => [c.nombre.toLowerCase().trim(), c.id]));
 
       let imported = 0;
       let errors = 0;
+      const errorMessages: string[] = [];
 
       for (const row of rows) {
-        const codigoCentro = (row.centro_servicio || row.CENTRO_SERVICIO || "").toString().toLowerCase();
-        const centroId = centrosMap.get(codigoCentro);
+        // Buscar columnas con diferentes variaciones
+        const ubicacion = (row["UBICACIÓN"] || row["UBICACION"] || row["ubicacion"] || row["ubicación"] || "").toString().trim();
+        const sku = (row["SKU"] || row["sku"] || row["Sku"] || "").toString().trim();
+        const descripcion = (row["DESCRIPCIÓN"] || row["DESCRIPCION"] || row["descripcion"] || row["descripción"] || "").toString().trim();
+        const cantidadRaw = row["CANTIDAD"] || row["cantidad"] || row["Cantidad"] || 0;
+        const cantidad = parseInt(cantidadRaw.toString().replace(/,/g, "")) || 0;
+        const bodegaCS = (row["BODEGA CS"] || row["bodega cs"] || row["Bodega CS"] || row["BODEGA_CS"] || "").toString().trim();
+        const costoRaw = row["COSTO  UN"] || row["COSTO UN"] || row["costo_un"] || row["COSTO_UN"] || 0;
+        const costoUnitario = parseFloat(costoRaw.toString().replace(/,/g, "").replace("Q", "")) || 0;
 
-        if (!centroId) {
+        if (!sku) {
           errors++;
           continue;
         }
 
-        const codigo = (row.codigo || row.CODIGO || "").toString();
-        const cantidad = parseInt(row.cantidad || row.CANTIDAD || 0);
-        const ubicacion = (row.ubicacion || row.UBICACION || "").toString();
-        const bodega = (row.bodega || row.BODEGA || "").toString() || null;
-        const costoUnitario = parseFloat(row.costo_unitario || row.COSTO_UNITARIO || 0) || 0;
+        // Buscar centro de servicio
+        const centroId = centrosMap.get(bodegaCS.toLowerCase().trim());
 
-        // Upsert stock_departamental
-        const { error } = await supabase.from("stock_departamental").upsert(
+        if (!centroId) {
+          errors++;
+          if (!errorMessages.includes(`Centro no encontrado: ${bodegaCS}`)) {
+            errorMessages.push(`Centro no encontrado: ${bodegaCS}`);
+          }
+          continue;
+        }
+
+        // Upsert inventario
+        const { error } = await supabase.from("inventario").upsert(
           {
             centro_servicio_id: centroId,
-            codigo_repuesto: codigo,
-            cantidad_actual: cantidad,
+            codigo_repuesto: sku,
+            descripcion: descripcion || null,
+            cantidad: cantidad,
             ubicacion: ubicacion || null,
-            bodega: bodega,
-            costo_unitario: costoUnitario,
-            ultima_actualizacion: new Date().toISOString(),
+            bodega: bodegaCS || null,
+            costo_unitario: costoUnitario || null,
           },
           { onConflict: "centro_servicio_id,codigo_repuesto" }
         );
 
         if (error) {
           errors++;
+          console.error("Error upserting:", error);
         } else {
           imported++;
         }
+      }
+
+      if (errorMessages.length > 0) {
+        console.log("Errores de importación:", errorMessages);
       }
 
       toast.success(`Importación completada: ${imported} registros importados, ${errors} errores`);
       setShowImportDialog(false);
 
       if (selectedCentro) {
-        fetchStock();
+        fetchInventario();
       }
     } catch (error) {
+      console.error("Error processing file:", error);
       toast.error("Error al procesar el archivo");
     }
 
@@ -230,7 +255,7 @@ export default function InventarioAdmin() {
               <div className="relative">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Código, ubicación, bodega..."
+                  placeholder="SKU, descripción, ubicación, bodega..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
@@ -294,7 +319,7 @@ export default function InventarioAdmin() {
             <p className="text-center py-8 text-muted-foreground">
               Seleccione un centro de servicio para ver su inventario
             </p>
-          ) : paginatedStock.length === 0 ? (
+          ) : paginatedInventario.length === 0 ? (
             <p className="text-center py-8 text-muted-foreground">No hay datos de inventario</p>
           ) : (
             <>
@@ -302,26 +327,28 @@ export default function InventarioAdmin() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Código</TableHead>
                       <TableHead>Ubicación</TableHead>
-                      <TableHead>Bodega</TableHead>
+                      <TableHead>SKU</TableHead>
+                      <TableHead>Descripción</TableHead>
                       <TableHead className="text-right">Cantidad</TableHead>
+                      <TableHead>Bodega CS</TableHead>
                       <TableHead className="text-right">Costo Unit.</TableHead>
                       <TableHead className="text-right">Valor Total</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {paginatedStock.map((item) => (
+                    {paginatedInventario.map((item) => (
                       <TableRow key={item.id}>
-                        <TableCell className="font-mono">{item.codigo_repuesto}</TableCell>
                         <TableCell>{item.ubicacion || "-"}</TableCell>
+                        <TableCell className="font-mono">{item.codigo_repuesto}</TableCell>
+                        <TableCell className="max-w-xs truncate">{item.descripcion || "-"}</TableCell>
+                        <TableCell className="text-right">{item.cantidad}</TableCell>
                         <TableCell>{item.bodega || "-"}</TableCell>
-                        <TableCell className="text-right">{item.cantidad_actual}</TableCell>
                         <TableCell className="text-right">
                           Q{(item.costo_unitario || 0).toFixed(2)}
                         </TableCell>
                         <TableCell className="text-right font-medium">
-                          Q{(item.cantidad_actual * (item.costo_unitario || 0)).toFixed(2)}
+                          Q{(item.cantidad * (item.costo_unitario || 0)).toFixed(2)}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -331,7 +358,7 @@ export default function InventarioAdmin() {
               <TablePagination
                 currentPage={currentPage}
                 totalPages={totalPages}
-                totalItems={filteredStock.length}
+                totalItems={filteredInventario.length}
                 itemsPerPage={itemsPerPage}
                 onPageChange={setCurrentPage}
                 onItemsPerPageChange={(val) => {
@@ -355,13 +382,12 @@ export default function InventarioAdmin() {
               El archivo debe contener las siguientes columnas:
             </p>
             <ul className="text-sm list-disc list-inside space-y-1">
-              <li><strong>ubicacion</strong> - Ubicación en bodega</li>
-              <li><strong>codigo</strong> - Código del repuesto</li>
-              <li><strong>descripcion</strong> - Descripción del repuesto</li>
-              <li><strong>cantidad</strong> - Cantidad en stock</li>
-              <li><strong>bodega</strong> - Nombre de la bodega (opcional)</li>
-              <li><strong>centro_servicio</strong> - Código del centro de servicio</li>
-              <li><strong>costo_unitario</strong> - Costo unitario (opcional)</li>
+              <li><strong>UBICACIÓN</strong> - Ubicación en bodega</li>
+              <li><strong>SKU</strong> - Código del repuesto</li>
+              <li><strong>DESCRIPCIÓN</strong> - Descripción del repuesto</li>
+              <li><strong>CANTIDAD</strong> - Cantidad en stock</li>
+              <li><strong>BODEGA CS</strong> - Nombre del centro de servicio</li>
+              <li><strong>COSTO UN</strong> - Costo unitario (opcional)</li>
             </ul>
             <Input
               type="file"

@@ -1155,6 +1155,53 @@ export type Database = {
           },
         ]
       }
+      inventario: {
+        Row: {
+          bodega: string | null
+          cantidad: number
+          centro_servicio_id: string
+          codigo_repuesto: string
+          costo_unitario: number | null
+          created_at: string
+          descripcion: string | null
+          id: string
+          ubicacion: string | null
+          updated_at: string
+        }
+        Insert: {
+          bodega?: string | null
+          cantidad?: number
+          centro_servicio_id: string
+          codigo_repuesto: string
+          costo_unitario?: number | null
+          created_at?: string
+          descripcion?: string | null
+          id?: string
+          ubicacion?: string | null
+          updated_at?: string
+        }
+        Update: {
+          bodega?: string | null
+          cantidad?: number
+          centro_servicio_id?: string
+          codigo_repuesto?: string
+          costo_unitario?: number | null
+          created_at?: string
+          descripcion?: string | null
+          id?: string
+          ubicacion?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventario_centro_servicio_id_fkey"
+            columns: ["centro_servicio_id"]
+            isOneToOne: false
+            referencedRelation: "centros_servicio"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inventario_ciclico: {
         Row: {
           centro_servicio_id: string
@@ -1656,8 +1703,6 @@ export type Database = {
           es_codigo_padre: boolean | null
           id: string
           prefijo_clasificacion: string | null
-          stock_actual: number | null
-          ubicacion_bodega: string | null
           updated_at: string
           url_foto: string | null
         }
@@ -1673,8 +1718,6 @@ export type Database = {
           es_codigo_padre?: boolean | null
           id?: string
           prefijo_clasificacion?: string | null
-          stock_actual?: number | null
-          ubicacion_bodega?: string | null
           updated_at?: string
           url_foto?: string | null
         }
@@ -1690,8 +1733,6 @@ export type Database = {
           es_codigo_padre?: boolean | null
           id?: string
           prefijo_clasificacion?: string | null
-          stock_actual?: number | null
-          ubicacion_bodega?: string | null
           updated_at?: string
           url_foto?: string | null
         }
@@ -2088,62 +2129,6 @@ export type Database = {
             columns: ["incidente_id"]
             isOneToOne: false
             referencedRelation: "incidentes"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      stock_departamental: {
-        Row: {
-          bodega: string | null
-          cantidad_actual: number
-          centro_servicio_id: string
-          codigo_repuesto: string
-          costo_unitario: number | null
-          fecha_recepcion: string | null
-          id: string
-          requiere_reubicacion: boolean | null
-          stock_maximo: number | null
-          stock_minimo: number | null
-          ubicacion: string | null
-          ubicacion_temporal: string | null
-          ultima_actualizacion: string
-        }
-        Insert: {
-          bodega?: string | null
-          cantidad_actual?: number
-          centro_servicio_id: string
-          codigo_repuesto: string
-          costo_unitario?: number | null
-          fecha_recepcion?: string | null
-          id?: string
-          requiere_reubicacion?: boolean | null
-          stock_maximo?: number | null
-          stock_minimo?: number | null
-          ubicacion?: string | null
-          ubicacion_temporal?: string | null
-          ultima_actualizacion?: string
-        }
-        Update: {
-          bodega?: string | null
-          cantidad_actual?: number
-          centro_servicio_id?: string
-          codigo_repuesto?: string
-          costo_unitario?: number | null
-          fecha_recepcion?: string | null
-          id?: string
-          requiere_reubicacion?: boolean | null
-          stock_maximo?: number | null
-          stock_minimo?: number | null
-          ubicacion?: string | null
-          ubicacion_temporal?: string | null
-          ultima_actualizacion?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "stock_departamental_centro_servicio_id_fkey"
-            columns: ["centro_servicio_id"]
-            isOneToOne: false
-            referencedRelation: "centros_servicio"
             referencedColumns: ["id"]
           },
         ]
