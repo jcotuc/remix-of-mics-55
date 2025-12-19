@@ -75,21 +75,19 @@ export default function DashboardSupervisorBodega() {
         .gte('created_at', fecha180Dias.toISOString());
 
       const repuestosConMovimiento = new Set(movimientos?.map(m => m.codigo_repuesto));
-      const { data: todosRepuestos } = await supabase
-        .from('repuestos')
-        .select('codigo, stock_actual');
+      
+      // Usar tabla inventario en lugar de repuestos.stock_actual
+      const { data: inventarioData } = await supabase
+        .from('inventario')
+        .select('codigo_repuesto, cantidad');
 
-      const itemsObsoletos = todosRepuestos?.filter(r =>
-        !repuestosConMovimiento.has(r.codigo) && (r.stock_actual || 0) > 0
+      const itemsObsoletos = inventarioData?.filter(item =>
+        !repuestosConMovimiento.has(item.codigo_repuesto) && item.cantidad > 0
       ).length || 0;
 
-      // Eficiencia de espacio (simplificado - % de ubicaciones ocupadas)
-      const { data: stockDept } = await supabase
-        .from('stock_departamental')
-        .select('*');
-
-      const ubicacionesConStock = stockDept?.filter(s => s.cantidad_actual > 0).length || 0;
-      const totalUbicaciones = stockDept?.length || 1;
+      // Eficiencia de espacio (usando inventario)
+      const ubicacionesConStock = inventarioData?.filter(s => s.cantidad > 0).length || 0;
+      const totalUbicaciones = inventarioData?.length || 1;
       const eficienciaEspacio = (ubicacionesConStock / totalUbicaciones) * 100;
 
       setStats({

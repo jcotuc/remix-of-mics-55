@@ -28,7 +28,7 @@ type InventarioItem = {
 };
 
 export default function Inventario() {
-  const { profile } = useAuth();
+  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [inventario, setInventario] = useState<InventarioItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -42,7 +42,7 @@ export default function Inventario() {
 
   useEffect(() => {
     fetchInventario();
-  }, [profile]);
+  }, []);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -52,20 +52,13 @@ export default function Inventario() {
     try {
       setLoading(true);
       
-      let query = supabase
+      const { data, error } = await supabase
         .from('inventario')
         .select(`
           *,
           centros_servicio(nombre)
         `)
         .order('codigo_repuesto');
-
-      // Si el usuario tiene un centro de servicio asignado, filtrar por ese centro
-      if (profile?.centro_servicio_id) {
-        query = query.eq('centro_servicio_id', profile.centro_servicio_id);
-      }
-
-      const { data, error } = await query;
 
       if (error) throw error;
 

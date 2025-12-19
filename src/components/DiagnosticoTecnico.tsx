@@ -761,13 +761,9 @@ export function DiagnosticoTecnico({ incidente, onDiagnosticoCompleto }: Diagnos
                         <p className="font-medium text-sm">{rep.descripcion}</p>
                         <p className="text-xs text-muted-foreground">Código: {rep.codigo}</p>
                         <div className="flex gap-2 mt-2">
-                          {rep.stock_actual && rep.stock_actual > 0 ? (
-                            <Badge className="bg-green-500 text-white text-xs">
-                              Stock: {rep.stock_actual}
-                            </Badge>
-                          ) : (
-                            <Badge variant="destructive" className="text-xs">Sin stock</Badge>
-                          )}
+                          <Badge variant="outline" className="text-xs">
+                            {rep.disponible_mostrador ? 'Disponible' : 'Catálogo'}
+                          </Badge>
                         </div>
                       </div>
                       <Plus className="h-5 w-5 text-primary" />

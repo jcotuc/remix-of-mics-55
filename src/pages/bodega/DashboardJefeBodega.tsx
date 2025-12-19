@@ -51,13 +51,14 @@ export default function DashboardJefeBodega() {
         .select('*')
         .eq('procesado', false);
 
-      // Stock crítico
-      const { data: stockDept } = await supabase
-        .from('stock_departamental')
+      // Stock crítico - usando la nueva tabla inventario
+      const { data: inventarioData } = await supabase
+        .from('inventario')
         .select('*');
 
-      const stockCritico = stockDept?.filter(s =>
-        s.stock_minimo && s.cantidad_actual < s.stock_minimo
+      // Consideramos stock crítico los items con menos de 5 unidades
+      const stockCritico = inventarioData?.filter(s =>
+        s.cantidad < 5
       ).length || 0;
 
       // Sin movimiento mayor a 90 días
