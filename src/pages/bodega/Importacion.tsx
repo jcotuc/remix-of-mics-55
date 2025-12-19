@@ -1,273 +1,145 @@
 import { useState, useEffect } from "react";
-import { Package, Plus, Save, Search, Check, AlertCircle, TrendingUp } from "lucide-react";
+import { Package, Upload, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import * as XLSX from "xlsx";
 
-type DetalleImportacion = {
-  id?: string;
-  sku: string;
-  descripcion: string;
-  cantidad: number;
-  ubicacion_asignada: string;
-};
-
-type UbicacionHistorica = {
-  ubicacion: string;
-  fecha_asignacion: string;
-  cantidad: number;
+type Importacion = {
+  id: string;
+  numero_embarque: string;
+  origen: string;
+  fecha_llegada: string;
+  estado: string;
 };
 
 export default function Importacion() {
-  const [showNuevaImportacion, setShowNuevaImportacion] = useState(false);
-  const [numeroEmbarque, setNumeroEmbarque] = useState("");
-  const [origen, setOrigen] = useState<"Mexico" | "China">("Mexico");
-  const [fechaLlegada, setFechaLlegada] = useState("");
-  const [notas, setNotas] = useState("");
-  const [detalles, setDetalles] = useState<DetalleImportacion[]>([]);
-  const [skuActual, setSkuActual] = useState("");
-  const [descripcionActual, setDescripcionActual] = useState("");
-  const [cantidadActual, setCantidadActual] = useState("");
-  const [ubicacionActual, setUbicacionActual] = useState("");
-  const [ubicacionesHistoricas, setUbicacionesHistoricas] = useState<UbicacionHistorica[]>([]);
-  const [importaciones, setImportaciones] = useState<any[]>([]);
+  const [importaciones, setImportaciones] = useState<Importacion[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showDialog, setShowDialog] = useState(false);
+  const [importing, setImporting] = useState(false);
 
   useEffect(() => {
     fetchImportaciones();
   }, []);
 
-  useEffect(() => {
-    if (skuActual) {
-      fetchUbicacionesHistoricas(skuActual);
-    } else {
-      setUbicacionesHistoricas([]);
-    }
-  }, [skuActual]);
-
   const fetchImportaciones = async () => {
     try {
       setLoading(true);
       const { data, error } = await supabase
-        .from('importaciones')
-        .select(`
-          *,
-          importaciones_detalle (*)
-        `)
-        .order('created_at', { ascending: false })
-        .limit(20);
+        .from("importaciones")
+        .select("*")
+        .order("fecha_llegada", { ascending: false });
 
       if (error) throw error;
       setImportaciones(data || []);
     } catch (error) {
-      console.error('Error:', error);
-      toast.error('Error al cargar importaciones');
+      console.error("Error:", error);
+      toast.error("Error al cargar importaciones");
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchUbicacionesHistoricas = async (sku: string) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setImporting(true);
     try {
-      const { data, error } = await supabase
-        .from('ubicaciones_historicas')
-        .select('ubicacion, fecha_asignacion, cantidad_asignada')
-        .eq('codigo_repuesto', sku)
-        .order('fecha_asignacion', { ascending: false })
-        .limit(3);
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data);
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet) as any[];
 
-      if (error) throw error;
-
-      setUbicacionesHistoricas((data || []).map(d => ({
-        ubicacion: d.ubicacion,
-        fecha_asignacion: d.fecha_asignacion,
-        cantidad: d.cantidad_asignada || 0
-      })));
-    } catch (error) {
-      console.error('Error:', error);
-    }
-  };
-
-  const agregarDetalle = () => {
-    if (!skuActual || !descripcionActual || !cantidadActual || !ubicacionActual) {
-      toast.error('Complete todos los campos');
-      return;
-    }
-
-    const nuevoDetalle: DetalleImportacion = {
-      sku: skuActual,
-      descripcion: descripcionActual,
-      cantidad: parseInt(cantidadActual),
-      ubicacion_asignada: ubicacionActual
-    };
-
-    setDetalles([...detalles, nuevoDetalle]);
-    
-    // Limpiar campos
-    setSkuActual("");
-    setDescripcionActual("");
-    setCantidadActual("");
-    setUbicacionActual("");
-    
-    toast.success('Repuesto agregado');
-  };
-
-  const guardarImportacion = async () => {
-    if (!numeroEmbarque || !fechaLlegada || detalles.length === 0) {
-      toast.error('Complete todos los campos y agregue al menos un repuesto');
-      return;
-    }
-
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        toast.error('No se pudo identificar el usuario');
+      if (rows.length === 0) {
+        toast.error("El archivo está vacío");
+        setImporting(false);
         return;
       }
 
       // Obtener centro central
       const { data: centroCentral } = await supabase
-        .from('centros_servicio')
-        .select('id')
-        .eq('es_central', true)
+        .from("centros_servicio")
+        .select("id")
+        .eq("es_central", true)
         .single();
 
-      // Crear importación
-      const { data: importacion, error: importacionError } = await supabase
-        .from('importaciones')
-        .insert({
-          numero_embarque: numeroEmbarque,
-          origen: origen,
-          fecha_llegada: fechaLlegada,
-          centro_destino_id: centroCentral?.id,
-          notas: notas,
-          estado: 'procesando',
-          created_by: user.id
-        })
-        .select()
-        .single();
-
-      if (importacionError) throw importacionError;
-
-      // Crear detalles
-      const detallesConId = detalles.map(d => ({
-        importacion_id: importacion.id,
-        sku: d.sku,
-        descripcion: d.descripcion,
-        cantidad: d.cantidad,
-        ubicacion_asignada: d.ubicacion_asignada,
-        procesado: false
-      }));
-
-      const { error: detallesError } = await supabase
-        .from('importaciones_detalle')
-        .insert(detallesConId);
-
-      if (detallesError) throw detallesError;
-
-      // Actualizar o crear stock departamental en PUERTA-ENTRADA
-      for (const detalle of detalles) {
-        // Buscar si ya existe stock para este repuesto en este centro
-        const { data: stockExistente } = await supabase
-          .from('stock_departamental')
-          .select('*')
-          .eq('codigo_repuesto', detalle.sku)
-          .eq('centro_servicio_id', centroCentral?.id)
-          .maybeSingle();
-
-        if (stockExistente) {
-          // Actualizar stock existente
-          await supabase
-            .from('stock_departamental')
-            .update({
-              cantidad_actual: (stockExistente.cantidad_actual || 0) + detalle.cantidad,
-              ubicacion_temporal: 'PUERTA-ENTRADA',
-              requiere_reubicacion: true,
-              fecha_recepcion: new Date().toISOString()
-            })
-            .eq('id', stockExistente.id);
-        } else {
-          // Crear nuevo registro de stock
-          await supabase
-            .from('stock_departamental')
-            .insert({
-              codigo_repuesto: detalle.sku,
-              centro_servicio_id: centroCentral?.id,
-              cantidad_actual: detalle.cantidad,
-              ubicacion: 'PUERTA-ENTRADA',
-              ubicacion_temporal: 'PUERTA-ENTRADA',
-              requiere_reubicacion: true,
-              fecha_recepcion: new Date().toISOString()
-            });
-        }
-
-        // Guardar ubicación histórica
-        await supabase.from('ubicaciones_historicas').insert({
-          codigo_repuesto: detalle.sku,
-          ubicacion: 'PUERTA-ENTRADA',
-          centro_servicio_id: centroCentral?.id,
-          cantidad_asignada: detalle.cantidad,
-          usuario_asigno: user.id
-        });
+      if (!centroCentral) {
+        toast.error("No se encontró centro central");
+        setImporting(false);
+        return;
       }
 
-      toast.success('Importación registrada exitosamente');
-      setShowNuevaImportacion(false);
-      resetForm();
+      let imported = 0;
+      let errors = 0;
+
+      for (const row of rows) {
+        const sku = row.SKU || row.sku || row.codigo || "";
+        const descripcion = row.DESCRIPCION || row.descripcion || "";
+        const cantidad = parseInt(row.CANTIDAD || row.cantidad || 0);
+        const ubicacion = row.UBICACION || row.ubicacion || "";
+
+        if (!sku) {
+          errors++;
+          continue;
+        }
+
+        // Upsert a inventario
+        const { error } = await supabase.from("inventario").upsert({
+          centro_servicio_id: centroCentral.id,
+          codigo_repuesto: sku,
+          descripcion: descripcion || null,
+          cantidad: cantidad,
+          ubicacion: ubicacion || "PUERTA-ENTRADA",
+          bodega: "Central"
+        }, { onConflict: "centro_servicio_id,codigo_repuesto" });
+
+        if (error) {
+          errors++;
+        } else {
+          imported++;
+        }
+      }
+
+      toast.success(`Importación completada: ${imported} registros, ${errors} errores`);
+      setShowDialog(false);
       fetchImportaciones();
     } catch (error) {
-      console.error('Error:', error);
-      toast.error('Error al guardar importación');
+      console.error("Error:", error);
+      toast.error("Error al procesar archivo");
     }
+    setImporting(false);
   };
 
-  const resetForm = () => {
-    setNumeroEmbarque("");
-    setOrigen("Mexico");
-    setFechaLlegada("");
-    setNotas("");
-    setDetalles([]);
-    setSkuActual("");
-    setDescripcionActual("");
-    setCantidadActual("");
-    setUbicacionActual("");
-  };
-
-  const getEstadoBadge = (estado: string) => {
-    switch (estado) {
-      case "pendiente":
-        return <Badge variant="outline" className="bg-yellow-500/10 text-yellow-700 border-yellow-300">Pendiente</Badge>;
-      case "procesando":
-        return <Badge variant="outline" className="bg-blue-500/10 text-blue-700 border-blue-300">Procesando</Badge>;
-      case "completado":
-        return <Badge variant="outline" className="bg-green-500/10 text-green-700 border-green-300">Completado</Badge>;
-      default:
-        return <Badge variant="outline">{estado}</Badge>;
-    }
-  };
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Package className="h-8 w-8 animate-pulse text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto py-8 space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Package className="h-8 w-8 text-primary" />
+            <Upload className="h-8 w-8 text-primary" />
             Importaciones
           </h1>
           <p className="text-muted-foreground mt-2">
-            Gestión de embarques de México y China
+            Gestión de ingresos de mercadería
           </p>
         </div>
-        <Button onClick={() => setShowNuevaImportacion(true)}>
-          <Plus className="h-4 w-4 mr-2" />
+        <Button onClick={() => setShowDialog(true)}>
+          <Upload className="h-4 w-4 mr-2" />
           Nueva Importación
         </Button>
       </div>
@@ -275,200 +147,63 @@ export default function Importacion() {
       <Card>
         <CardHeader>
           <CardTitle>Historial de Importaciones</CardTitle>
-          <CardDescription>Últimas 20 importaciones registradas</CardDescription>
+          <CardDescription>
+            {importaciones.length} importaciones registradas
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          {loading ? (
-            <div className="text-center py-8">Cargando...</div>
+          {importaciones.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              No hay importaciones registradas
+            </div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>No. Embarque</TableHead>
+                  <TableHead>Número</TableHead>
                   <TableHead>Origen</TableHead>
-                  <TableHead>Fecha Llegada</TableHead>
-                  <TableHead>Repuestos</TableHead>
+                  <TableHead>Fecha</TableHead>
                   <TableHead>Estado</TableHead>
-                  <TableHead>Fecha Registro</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {importaciones.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
-                      No hay importaciones registradas
+                {importaciones.map((imp) => (
+                  <TableRow key={imp.id}>
+                    <TableCell className="font-mono">{imp.numero_embarque}</TableCell>
+                    <TableCell>{imp.origen}</TableCell>
+                    <TableCell>{new Date(imp.fecha_llegada).toLocaleDateString()}</TableCell>
+                    <TableCell>
+                      <Badge variant={imp.estado === "completado" ? "default" : "secondary"}>
+                        {imp.estado}
+                      </Badge>
                     </TableCell>
                   </TableRow>
-                ) : (
-                  importaciones.map((imp) => (
-                    <TableRow key={imp.id}>
-                      <TableCell className="font-medium">{imp.numero_embarque}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{imp.origen}</Badge>
-                      </TableCell>
-                      <TableCell>{new Date(imp.fecha_llegada).toLocaleDateString('es-GT')}</TableCell>
-                      <TableCell>{imp.importaciones_detalle?.length || 0} items</TableCell>
-                      <TableCell>{getEstadoBadge(imp.estado)}</TableCell>
-                      <TableCell>{new Date(imp.created_at).toLocaleDateString('es-GT')}</TableCell>
-                    </TableRow>
-                  ))
-                )}
+                ))}
               </TableBody>
             </Table>
           )}
         </CardContent>
       </Card>
 
-      <Dialog open={showNuevaImportacion} onOpenChange={setShowNuevaImportacion}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <Dialog open={showDialog} onOpenChange={setShowDialog}>
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle>Nueva Importación</DialogTitle>
-            <DialogDescription>
-              Registre los detalles del embarque y los repuestos
-            </DialogDescription>
+            <DialogTitle>Importar Inventario</DialogTitle>
           </DialogHeader>
-
-          <div className="space-y-6">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Número de Embarque</Label>
-                <Input
-                  value={numeroEmbarque}
-                  onChange={(e) => setNumeroEmbarque(e.target.value)}
-                  placeholder="EMB-2024-001"
-                />
-              </div>
-              <div>
-                <Label>Origen</Label>
-                <Select value={origen} onValueChange={(v: "Mexico" | "China") => setOrigen(v)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Mexico">México</SelectItem>
-                    <SelectItem value="China">China</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div>
-              <Label>Fecha de Llegada</Label>
-              <Input
-                type="date"
-                value={fechaLlegada}
-                onChange={(e) => setFechaLlegada(e.target.value)}
-              />
-            </div>
-
-            <div>
-              <Label>Notas</Label>
-              <Textarea
-                value={notas}
-                onChange={(e) => setNotas(e.target.value)}
-                placeholder="Observaciones del embarque..."
-                rows={2}
-              />
-            </div>
-
-            <div className="border-t pt-4">
-              <h3 className="font-semibold mb-4">Agregar Repuestos</h3>
-              
-              <div className="grid grid-cols-2 gap-4 mb-4">
-                <div>
-                  <Label>SKU</Label>
-                  <Input
-                    value={skuActual}
-                    onChange={(e) => setSkuActual(e.target.value)}
-                    placeholder="Código del repuesto"
-                  />
-                </div>
-                <div>
-                  <Label>Descripción</Label>
-                  <Input
-                    value={descripcionActual}
-                    onChange={(e) => setDescripcionActual(e.target.value)}
-                    placeholder="Descripción del repuesto"
-                  />
-                </div>
-                <div>
-                  <Label>Cantidad</Label>
-                  <Input
-                    type="number"
-                    value={cantidadActual}
-                    onChange={(e) => setCantidadActual(e.target.value)}
-                    placeholder="0"
-                  />
-                </div>
-                <div>
-                  <Label>Ubicación Destino</Label>
-                  <Input
-                    value={ubicacionActual}
-                    onChange={(e) => setUbicacionActual(e.target.value)}
-                    placeholder="Ej: A-01"
-                  />
-                </div>
-              </div>
-
-              {ubicacionesHistoricas.length > 0 && (
-                <div className="bg-blue-50 dark:bg-blue-950/20 p-3 rounded-lg mb-4">
-                  <p className="text-sm font-medium mb-2 flex items-center gap-2">
-                    <TrendingUp className="h-4 w-4" />
-                    Últimas 3 ubicaciones de este SKU:
-                  </p>
-                  <div className="space-y-1">
-                    {ubicacionesHistoricas.map((uh, idx) => (
-                      <div key={idx} className="text-sm text-muted-foreground flex justify-between">
-                        <span className="font-medium">{uh.ubicacion}</span>
-                        <span>Cant: {uh.cantidad} - {new Date(uh.fecha_asignacion).toLocaleDateString('es-GT')}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <Button onClick={agregarDetalle} variant="outline" className="w-full">
-                <Plus className="h-4 w-4 mr-2" />
-                Agregar Repuesto
-              </Button>
-            </div>
-
-            {detalles.length > 0 && (
-              <div className="border rounded-lg p-4">
-                <h4 className="font-semibold mb-3">Repuestos Agregados ({detalles.length})</h4>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>SKU</TableHead>
-                      <TableHead>Descripción</TableHead>
-                      <TableHead>Cantidad</TableHead>
-                      <TableHead>Ubicación</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {detalles.map((d, idx) => (
-                      <TableRow key={idx}>
-                        <TableCell className="font-medium">{d.sku}</TableCell>
-                        <TableCell>{d.descripcion}</TableCell>
-                        <TableCell>{d.cantidad}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline">{d.ubicacion_asignada}</Badge>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              El archivo debe contener las columnas: SKU, DESCRIPCION, CANTIDAD, UBICACION
+            </p>
+            <Input
+              type="file"
+              accept=".xlsx,.xls"
+              onChange={handleFileUpload}
+              disabled={importing}
+            />
           </div>
-
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowNuevaImportacion(false)}>
+            <Button variant="outline" onClick={() => setShowDialog(false)} disabled={importing}>
               Cancelar
-            </Button>
-            <Button onClick={guardarImportacion} disabled={detalles.length === 0}>
-              <Save className="h-4 w-4 mr-2" />
-              Guardar Importación
             </Button>
           </DialogFooter>
         </DialogContent>
