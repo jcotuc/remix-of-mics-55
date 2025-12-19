@@ -42,22 +42,22 @@ export function EquivalenciasWidget() {
       for (const repuesto of repuestosConPadre.slice(0, 50)) {
         // Verificar stock del código actual
         const { data: stockActual } = await supabase
-          .from('stock_departamental')
-          .select('cantidad_actual')
+          .from('inventario')
+          .select('cantidad')
           .eq('codigo_repuesto', repuesto.codigo)
           .eq('centro_servicio_id', centroData.id)
           .maybeSingle();
 
-        if (!stockActual || stockActual.cantidad_actual <= 0) {
+        if (!stockActual || stockActual.cantidad <= 0) {
           // Verificar stock del padre
           const { data: padreStock } = await supabase
-            .from('stock_departamental')
-            .select('cantidad_actual')
+            .from('inventario')
+            .select('cantidad')
             .eq('codigo_repuesto', repuesto.codigo_padre!)
             .eq('centro_servicio_id', centroData.id)
             .maybeSingle();
 
-          if (padreStock && padreStock.cantidad_actual > 0) {
+          if (padreStock && padreStock.cantidad > 0) {
             conPadreDisponible++;
           }
         }
@@ -72,13 +72,13 @@ export function EquivalenciasWidget() {
     let conHermanosDisp = 0;
     for (const padre of padresUnicos.slice(0, 30)) {
       const { data: stockPadre } = await supabase
-        .from('stock_departamental')
-        .select('cantidad_actual')
+        .from('inventario')
+        .select('cantidad')
         .eq('codigo_repuesto', padre!)
         .eq('centro_servicio_id', centroData.id)
         .maybeSingle();
 
-      if (stockPadre && stockPadre.cantidad_actual > 0) {
+      if (stockPadre && stockPadre.cantidad > 0) {
         conHermanosDisp++;
       }
     }

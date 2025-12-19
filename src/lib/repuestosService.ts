@@ -60,21 +60,53 @@ export async function buscarAlternativaDisponible(
   codigoSolicitado: string,
   centroServicioId: string
 ): Promise<AlternativaRepuesto | null> {
-  const { data, error } = await supabase.rpc('buscar_repuesto_disponible', {
-    p_codigo_solicitado: codigoSolicitado,
-    p_centro_servicio_id: centroServicioId
-  });
+  try {
+    // First check if the requested code has stock
+    const { data: stockDirecto } = await supabase
+      .from('inventario')
+      .select('*')
+      .eq('codigo_repuesto', codigoSolicitado)
+      .eq('centro_servicio_id', centroServicioId)
+      .maybeSingle();
 
-  if (error) {
+    if (stockDirecto && stockDirecto.cantidad > 0) {
+      return {
+        codigo_encontrado: stockDirecto.codigo_repuesto,
+        descripcion: stockDirecto.descripcion || '',
+        stock_disponible: stockDirecto.cantidad,
+        ubicacion: stockDirecto.ubicacion || '',
+        tipo_coincidencia: 'solicitado',
+        prioridad: 1
+      };
+    }
+
+    // Check for parent code
+    const padre = await obtenerCodigoPadre(codigoSolicitado);
+    if (padre.codigoPadre) {
+      const { data: stockPadre } = await supabase
+        .from('inventario')
+        .select('*')
+        .eq('codigo_repuesto', padre.codigoPadre)
+        .eq('centro_servicio_id', centroServicioId)
+        .maybeSingle();
+
+      if (stockPadre && stockPadre.cantidad > 0) {
+        return {
+          codigo_encontrado: stockPadre.codigo_repuesto,
+          descripcion: stockPadre.descripcion || padre.descripcionPadre || '',
+          stock_disponible: stockPadre.cantidad,
+          ubicacion: stockPadre.ubicacion || '',
+          tipo_coincidencia: 'padre',
+          prioridad: 2
+        };
+      }
+    }
+
+    return null;
+  } catch (error) {
     console.error('Error al buscar alternativa:', error);
     return null;
   }
-
-  if (data && data.length > 0) {
-    return data[0] as AlternativaRepuesto;
-  }
-
-  return null;
 }
 
 /**
@@ -97,7 +129,7 @@ export async function obtenerUbicacionRepuesto(
   const codigoParaUbicacion = repuesto.codigo_padre || repuesto.codigo;
 
   const { data: stock } = await supabase
-    .from('stock_departamental')
+    .from('inventario')
     .select('ubicacion')
     .eq('codigo_repuesto', codigoParaUbicacion)
     .eq('centro_servicio_id', centroServicioId)

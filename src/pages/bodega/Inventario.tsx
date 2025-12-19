@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { Package, Search, AlertTriangle, TrendingUp, TrendingDown, Plus, Edit, History, Upload } from "lucide-react";
+import { Package, Search, AlertTriangle, TrendingUp, TrendingDown, Edit, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,80 +10,78 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { importRepuestosZona5 } from "@/scripts/importRepuestosZona5";
 import { PuertaEntradaWidget } from "@/components/dashboard/PuertaEntradaWidget";
 import { EquivalenciasWidget } from "@/components/dashboard/EquivalenciasWidget";
 import { TablePagination } from "@/components/TablePagination";
+import { useAuth } from "@/contexts/AuthContext";
 
-type Repuesto = {
+type InventarioItem = {
   id: string;
-  codigo: string;
-  descripcion: string;
-  stock_actual: number;
-  stock_minimo: number;
-  ubicacion: string;
-  codigo_producto: string;
-  centro_servicio: string;
+  codigo_repuesto: string;
+  descripcion: string | null;
+  cantidad: number;
+  ubicacion: string | null;
+  bodega: string | null;
+  costo_unitario: number | null;
+  centro_servicio_id: string;
+  centro_nombre?: string;
 };
 
 export default function Inventario() {
+  const { profile } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
-  const [repuestos, setRepuestos] = useState<Repuesto[]>([]);
+  const [inventario, setInventario] = useState<InventarioItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showMovimiento, setShowMovimiento] = useState(false);
-  const [selectedRepuesto, setSelectedRepuesto] = useState<Repuesto | null>(null);
+  const [selectedItem, setSelectedItem] = useState<InventarioItem | null>(null);
   const [tipoMovimiento, setTipoMovimiento] = useState<"entrada" | "salida">("entrada");
   const [cantidad, setCantidad] = useState("");
   const [motivo, setMotivo] = useState("");
-  const [importing, setImporting] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(50);
 
   useEffect(() => {
-    fetchRepuestos();
-  }, []);
+    fetchInventario();
+  }, [profile]);
 
-  // Reset page when search changes
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm]);
 
-  const fetchRepuestos = async () => {
+  const fetchInventario = async () => {
     try {
       setLoading(true);
       
-      const { data: repuestosCentral, error: errorCentral } = await supabase
-        .from('repuestos')
-        .select('*')
-        .order('codigo');
-
-      if (errorCentral) throw errorCentral;
-
-      const { data: stockDept, error: errorDept } = await supabase
-        .from('stock_departamental')
+      let query = supabase
+        .from('inventario')
         .select(`
           *,
-          centros_servicio(nombre),
-          repuestos!stock_departamental_codigo_repuesto_fkey(descripcion, codigo_producto)
-        `);
+          centros_servicio(nombre)
+        `)
+        .order('codigo_repuesto');
 
-      if (errorDept) throw errorDept;
+      // Si el usuario tiene un centro de servicio asignado, filtrar por ese centro
+      if (profile?.centro_servicio_id) {
+        query = query.eq('centro_servicio_id', profile.centro_servicio_id);
+      }
 
-      const stockDeptFormateado = (stockDept || []).map(s => {
-        const repuestoInfo = s.repuestos as any;
-        return {
-          id: s.id,
-          codigo: s.codigo_repuesto,
-          descripcion: repuestoInfo?.descripcion || s.codigo_repuesto,
-          stock_actual: s.cantidad_actual || 0,
-          stock_minimo: s.stock_minimo || 0,
-          ubicacion: s.ubicacion || 'Sin ubicación',
-          codigo_producto: repuestoInfo?.codigo_producto || '',
-          centro_servicio: (s.centros_servicio as any)?.nombre || 'Sin centro'
-        };
-      });
+      const { data, error } = await query;
 
-      setRepuestos(stockDeptFormateado);
+      if (error) throw error;
+
+      const formateado = (data || []).map(item => ({
+        id: item.id,
+        codigo_repuesto: item.codigo_repuesto,
+        descripcion: item.descripcion,
+        cantidad: item.cantidad || 0,
+        ubicacion: item.ubicacion,
+        bodega: item.bodega,
+        costo_unitario: item.costo_unitario,
+        centro_servicio_id: item.centro_servicio_id,
+        centro_nombre: (item.centros_servicio as any)?.nombre || 'Sin centro'
+      }));
+
+      setInventario(formateado);
     } catch (error) {
       console.error('Error:', error);
       toast.error('Error al cargar inventario');
@@ -92,78 +90,83 @@ export default function Inventario() {
     }
   };
 
-  const handleMovimiento = (repuesto: Repuesto) => {
-    setSelectedRepuesto(repuesto);
+  const handleMovimiento = (item: InventarioItem) => {
+    setSelectedItem(item);
     setShowMovimiento(true);
   };
 
-  const handleImportZona5 = async () => {
-    setImporting(true);
-    toast.loading('Importando datos de Zona 5...');
-    
-    try {
-      const result = await importRepuestosZona5();
-      
-      if (result.success) {
-        toast.success(`Importación completada: ${result.processedCount} registros procesados`);
-        if (result.errorCount > 0) {
-          toast.warning(`${result.errorCount} registros con errores`);
-        }
-        fetchRepuestos();
-      } else {
-        toast.error(`Error en importación: ${result.error}`);
-      }
-    } catch (error) {
-      toast.error('Error al importar datos');
-      console.error(error);
-    } finally {
-      setImporting(false);
-      toast.dismiss();
-    }
-  };
-
   const guardarMovimiento = async () => {
-    if (!selectedRepuesto || !cantidad) {
+    if (!selectedItem || !cantidad) {
       toast.error('Complete todos los campos');
       return;
     }
 
     const cantidadNum = parseInt(cantidad);
     const nuevoStock = tipoMovimiento === "entrada" 
-      ? selectedRepuesto.stock_actual + cantidadNum
-      : selectedRepuesto.stock_actual - cantidadNum;
+      ? selectedItem.cantidad + cantidadNum
+      : selectedItem.cantidad - cantidadNum;
 
     if (nuevoStock < 0) {
       toast.error('Stock insuficiente');
       return;
     }
 
-    setRepuestos(prev => prev.map(r => 
-      r.id === selectedRepuesto.id 
-        ? { ...r, stock_actual: nuevoStock }
-        : r
-    ));
+    try {
+      // Actualizar inventario
+      const { error: updateError } = await supabase
+        .from('inventario')
+        .update({ cantidad: nuevoStock })
+        .eq('id', selectedItem.id);
 
-    toast.success(`Movimiento registrado: ${tipoMovimiento === "entrada" ? "+" : "-"}${cantidadNum} unidades`);
-    setShowMovimiento(false);
-    setCantidad("");
-    setMotivo("");
+      if (updateError) throw updateError;
+
+      // Registrar movimiento
+      const { error: movError } = await supabase
+        .from('movimientos_inventario')
+        .insert({
+          codigo_repuesto: selectedItem.codigo_repuesto,
+          tipo_movimiento: tipoMovimiento,
+          cantidad: cantidadNum,
+          motivo: motivo || null,
+          centro_servicio_id: selectedItem.centro_servicio_id,
+          stock_anterior: selectedItem.cantidad,
+          stock_nuevo: nuevoStock,
+        });
+
+      if (movError) {
+        console.error('Error registrando movimiento:', movError);
+      }
+
+      setInventario(prev => prev.map(item => 
+        item.id === selectedItem.id 
+          ? { ...item, cantidad: nuevoStock }
+          : item
+      ));
+
+      toast.success(`Movimiento registrado: ${tipoMovimiento === "entrada" ? "+" : "-"}${cantidadNum} unidades`);
+      setShowMovimiento(false);
+      setCantidad("");
+      setMotivo("");
+    } catch (error) {
+      console.error('Error:', error);
+      toast.error('Error al guardar movimiento');
+    }
   };
 
-  const filteredRepuestos = useMemo(() => {
-    return repuestos.filter(r =>
-      r.descripcion.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      r.codigo.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredInventario = useMemo(() => {
+    return inventario.filter(item =>
+      item.codigo_repuesto.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.descripcion?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.ubicacion?.toLowerCase().includes(searchTerm.toLowerCase())
     );
-  }, [repuestos, searchTerm]);
+  }, [inventario, searchTerm]);
 
-  // Pagination
-  const totalPages = Math.max(1, Math.ceil(filteredRepuestos.length / itemsPerPage));
+  const totalPages = Math.max(1, Math.ceil(filteredInventario.length / itemsPerPage));
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedRepuestos = filteredRepuestos.slice(startIndex, startIndex + itemsPerPage);
+  const paginatedInventario = filteredInventario.slice(startIndex, startIndex + itemsPerPage);
 
-  const stockBajo = repuestos.filter(r => r.stock_actual <= r.stock_minimo).length;
-  const stockTotal = repuestos.reduce((acc, r) => acc + r.stock_actual, 0);
+  const stockBajo = inventario.filter(item => item.cantidad <= 5).length;
+  const stockTotal = inventario.reduce((acc, item) => acc + item.cantidad, 0);
 
   return (
     <div className="container mx-auto py-8 space-y-6">
@@ -177,14 +180,6 @@ export default function Inventario() {
             Gestión de stock de repuestos y movimientos
           </p>
         </div>
-        <Button
-          onClick={handleImportZona5}
-          disabled={importing}
-          className="gap-2"
-        >
-          <Upload className="h-4 w-4" />
-          {importing ? 'Importando...' : 'Importar Bodega Zona 5'}
-        </Button>
       </div>
 
       <div className="grid gap-4 md:grid-cols-4">
@@ -196,8 +191,8 @@ export default function Inventario() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stockTotal}</div>
-            <p className="text-xs text-muted-foreground">{repuestos.length} referencias</p>
+            <div className="text-2xl font-bold">{stockTotal.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">{inventario.length} referencias</p>
           </CardContent>
         </Card>
 
@@ -210,7 +205,7 @@ export default function Inventario() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-orange-500">{stockBajo}</div>
-            <p className="text-xs text-muted-foreground">Requieren reabastecimiento</p>
+            <p className="text-xs text-muted-foreground">≤ 5 unidades</p>
           </CardContent>
         </Card>
 
@@ -238,14 +233,14 @@ export default function Inventario() {
         <CardHeader>
           <CardTitle>Inventario de Repuestos</CardTitle>
           <CardDescription>
-            {filteredRepuestos.length} repuestos en inventario
+            {filteredInventario.length} repuestos en inventario
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex items-center space-x-2 mb-4">
             <Search className="h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Buscar repuestos..."
+              placeholder="Buscar por SKU, descripción o ubicación..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="max-w-sm"
@@ -259,61 +254,61 @@ export default function Inventario() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Código</TableHead>
+                    <TableHead>Ubicación</TableHead>
+                    <TableHead>SKU</TableHead>
                     <TableHead>Descripción</TableHead>
                     <TableHead>Centro/Bodega</TableHead>
-                    <TableHead>Ubicación</TableHead>
-                    <TableHead>Stock Actual</TableHead>
-                    <TableHead>Stock Mínimo</TableHead>
+                    <TableHead className="text-right">Cantidad</TableHead>
+                    <TableHead className="text-right">Costo Unit.</TableHead>
                     <TableHead>Estado</TableHead>
                     <TableHead className="text-right">Acciones</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {paginatedRepuestos.map((repuesto) => (
-                    <TableRow key={repuesto.id}>
-                      <TableCell className="font-medium">{repuesto.codigo}</TableCell>
-                      <TableCell>{repuesto.descripcion}</TableCell>
+                  {paginatedInventario.map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell>{item.ubicacion || "-"}</TableCell>
+                      <TableCell className="font-mono">{item.codigo_repuesto}</TableCell>
+                      <TableCell className="max-w-xs truncate">{item.descripcion || "-"}</TableCell>
                       <TableCell>
-                        <Badge variant="outline">{repuesto.centro_servicio}</Badge>
+                        <Badge variant="outline">{item.centro_nombre}</Badge>
                       </TableCell>
-                      <TableCell>{repuesto.ubicacion}</TableCell>
-                      <TableCell>
-                        <span className={repuesto.stock_actual <= repuesto.stock_minimo ? "text-orange-500 font-bold" : ""}>
-                          {repuesto.stock_actual}
+                      <TableCell className="text-right">
+                        <span className={item.cantidad <= 5 ? "text-orange-500 font-bold" : ""}>
+                          {item.cantidad}
                         </span>
                       </TableCell>
-                      <TableCell>{repuesto.stock_minimo}</TableCell>
+                      <TableCell className="text-right">
+                        Q{(item.costo_unitario || 0).toFixed(2)}
+                      </TableCell>
                       <TableCell>
-                        {repuesto.stock_actual === 0 ? (
+                        {item.cantidad === 0 ? (
                           <Badge variant="destructive">Sin stock</Badge>
-                        ) : repuesto.stock_actual <= repuesto.stock_minimo ? (
+                        ) : item.cantidad <= 5 ? (
                           <Badge className="bg-orange-500">Stock bajo</Badge>
                         ) : (
                           <Badge className="bg-green-500">Normal</Badge>
                         )}
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleMovimiento(repuesto)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleMovimiento(item)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
 
-              {filteredRepuestos.length > 0 && (
+              {filteredInventario.length > 0 && (
                 <TablePagination
                   currentPage={currentPage}
                   totalPages={totalPages}
-                  totalItems={filteredRepuestos.length}
+                  totalItems={filteredInventario.length}
                   itemsPerPage={itemsPerPage}
                   onPageChange={setCurrentPage}
                   onItemsPerPageChange={(value) => {
@@ -332,7 +327,7 @@ export default function Inventario() {
           <DialogHeader>
             <DialogTitle>Registrar Movimiento</DialogTitle>
             <DialogDescription>
-              {selectedRepuesto?.descripcion}
+              {selectedItem?.codigo_repuesto} - {selectedItem?.descripcion}
             </DialogDescription>
           </DialogHeader>
 
@@ -381,14 +376,14 @@ export default function Inventario() {
 
             <div className="bg-muted p-3 rounded">
               <p className="text-sm">
-                <strong>Stock actual:</strong> {selectedRepuesto?.stock_actual}
+                <strong>Stock actual:</strong> {selectedItem?.cantidad}
               </p>
               {cantidad && (
                 <p className="text-sm mt-1">
                   <strong>Nuevo stock:</strong> {
                     tipoMovimiento === "entrada"
-                      ? (selectedRepuesto?.stock_actual || 0) + parseInt(cantidad || "0")
-                      : (selectedRepuesto?.stock_actual || 0) - parseInt(cantidad || "0")
+                      ? (selectedItem?.cantidad || 0) + parseInt(cantidad || "0")
+                      : (selectedItem?.cantidad || 0) - parseInt(cantidad || "0")
                   }
                 </p>
               )}
