@@ -154,15 +154,21 @@ export default function InventarioAdmin() {
       const requiredCols = [
         { name: "SKU", alternatives: ["SKU", "CODIGO", "CODIGO_REPUESTO"] },
         { name: "CANTIDAD", alternatives: ["CANTIDAD", "QTY", "STOCK"] },
-        { name: "BODEGA CS", alternatives: ["BODEGA CS", "BODEGA_CS", "CENTRO", "CENTRO_SERVICIO"] },
       ];
+      
+      // Verificar que exista BODEGA o CS (pueden ser columnas separadas)
+      const hasBodega = keys.includes(normalizeText("BODEGA")) || 
+                        keys.includes(normalizeText("CS")) || 
+                        keys.includes(normalizeText("BODEGA CS")) ||
+                        keys.includes(normalizeText("CENTRO_SERVICIO"));
       
       const missingCols = requiredCols.filter(
         (col) => !col.alternatives.some(alt => keys.includes(normalizeText(alt)))
       );
 
-      if (missingCols.length > 0) {
-        toast.error(`Faltan columnas: ${missingCols.map(c => c.name).join(", ")}`);
+      if (missingCols.length > 0 || !hasBodega) {
+        const missing = [...missingCols.map(c => c.name), ...(hasBodega ? [] : ["BODEGA o CS"])];
+        toast.error(`Faltan columnas: ${missing.join(", ")}`);
         setImporting(false);
         return;
       }
@@ -184,8 +190,8 @@ export default function InventarioAdmin() {
         const descripcion = findValue(row, "DESCRIPCIÓN", "DESCRIPCION", "descripcion");
         const cantidadRaw = findValue(row, "CANTIDAD", "cantidad", "QTY", "STOCK") || "0";
         const cantidad = parseInt(cantidadRaw.replace(/,/g, "")) || 0;
-        const bodegaCS = findValue(row, "BODEGA CS", "BODEGA_CS", "bodega cs", "CENTRO", "centro_servicio");
-        const costoRaw = findValue(row, "COSTO  UN", "COSTO UN", "COSTO_UN", "costo_un", "COSTO UNITARIO") || "0";
+        const bodegaCS = findValue(row, "BODEGA CS", "BODEGA_CS", "BODEGA", "CS", "CENTRO", "centro_servicio");
+        const costoRaw = findValue(row, "COSTO UN", "COSTO  UN", "COSTO_UN", "costo_un", "COSTO UNITARIO") || "0";
         const costoUnitario = parseFloat(costoRaw.replace(/,/g, "").replace("Q", "").replace("$", "")) || 0;
 
         if (!sku) {
