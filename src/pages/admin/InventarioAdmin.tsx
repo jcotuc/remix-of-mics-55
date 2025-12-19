@@ -111,6 +111,24 @@ export default function InventarioAdmin() {
     };
   }, [filteredInventario]);
 
+  // Normaliza texto removiendo acentos
+  const normalizeText = (text: string): string => {
+    return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
+  };
+
+  // Busca valor en objeto ignorando acentos y mayúsculas
+  const findValue = (row: any, ...possibleKeys: string[]): string => {
+    const keys = Object.keys(row);
+    for (const pk of possibleKeys) {
+      const normalizedPk = normalizeText(pk);
+      const foundKey = keys.find(k => normalizeText(k) === normalizedPk);
+      if (foundKey && row[foundKey] !== undefined && row[foundKey] !== null) {
+        return String(row[foundKey]).trim();
+      }
+    }
+    return "";
+  };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -130,19 +148,27 @@ export default function InventarioAdmin() {
       }
 
       // Validar columnas requeridas
-      const requiredCols = ["UBICACIÓN", "SKU", "DESCRIPCIÓN", "CANTIDAD", "BODEGA CS"];
       const firstRow = rows[0];
-      const keys = Object.keys(firstRow);
+      const keys = Object.keys(firstRow).map(k => normalizeText(k));
+      
+      const requiredCols = [
+        { name: "SKU", alternatives: ["SKU", "CODIGO", "CODIGO_REPUESTO"] },
+        { name: "CANTIDAD", alternatives: ["CANTIDAD", "QTY", "STOCK"] },
+        { name: "BODEGA CS", alternatives: ["BODEGA CS", "BODEGA_CS", "CENTRO", "CENTRO_SERVICIO"] },
+      ];
       
       const missingCols = requiredCols.filter(
-        (col) => !keys.some(k => k.toUpperCase() === col.toUpperCase().replace("Ó", "O").replace("É", "E"))
+        (col) => !col.alternatives.some(alt => keys.includes(normalizeText(alt)))
       );
 
       if (missingCols.length > 0) {
-        toast.error(`Faltan columnas: ${missingCols.join(", ")}`);
+        toast.error(`Faltan columnas: ${missingCols.map(c => c.name).join(", ")}`);
         setImporting(false);
         return;
       }
+
+      console.log("Columnas encontradas:", Object.keys(firstRow));
+      console.log("Primera fila:", firstRow);
 
       // Obtener mapeo de nombres de centro a IDs
       const centrosMap = new Map(centros.map((c) => [c.nombre.toLowerCase().trim(), c.id]));
@@ -152,15 +178,15 @@ export default function InventarioAdmin() {
       const errorMessages: string[] = [];
 
       for (const row of rows) {
-        // Buscar columnas con diferentes variaciones
-        const ubicacion = (row["UBICACIÓN"] || row["UBICACION"] || row["ubicacion"] || row["ubicación"] || "").toString().trim();
-        const sku = (row["SKU"] || row["sku"] || row["Sku"] || "").toString().trim();
-        const descripcion = (row["DESCRIPCIÓN"] || row["DESCRIPCION"] || row["descripcion"] || row["descripción"] || "").toString().trim();
-        const cantidadRaw = row["CANTIDAD"] || row["cantidad"] || row["Cantidad"] || 0;
-        const cantidad = parseInt(cantidadRaw.toString().replace(/,/g, "")) || 0;
-        const bodegaCS = (row["BODEGA CS"] || row["bodega cs"] || row["Bodega CS"] || row["BODEGA_CS"] || "").toString().trim();
-        const costoRaw = row["COSTO  UN"] || row["COSTO UN"] || row["costo_un"] || row["COSTO_UN"] || 0;
-        const costoUnitario = parseFloat(costoRaw.toString().replace(/,/g, "").replace("Q", "")) || 0;
+        // Buscar columnas usando la función flexible
+        const ubicacion = findValue(row, "UBICACIÓN", "UBICACION", "ubicacion");
+        const sku = findValue(row, "SKU", "sku", "Sku", "CODIGO", "codigo_repuesto");
+        const descripcion = findValue(row, "DESCRIPCIÓN", "DESCRIPCION", "descripcion");
+        const cantidadRaw = findValue(row, "CANTIDAD", "cantidad", "QTY", "STOCK") || "0";
+        const cantidad = parseInt(cantidadRaw.replace(/,/g, "")) || 0;
+        const bodegaCS = findValue(row, "BODEGA CS", "BODEGA_CS", "bodega cs", "CENTRO", "centro_servicio");
+        const costoRaw = findValue(row, "COSTO  UN", "COSTO UN", "COSTO_UN", "costo_un", "COSTO UNITARIO") || "0";
+        const costoUnitario = parseFloat(costoRaw.replace(/,/g, "").replace("Q", "").replace("$", "")) || 0;
 
         if (!sku) {
           errors++;
