@@ -47,8 +47,11 @@ interface ImportSummary {
   skippedRows: number;
   imported: number;
   errors: number;
+  duplicates: number;
   byCS: AnalisisCS[];
   missingCSValues: string[];
+  errorDetails: string[];
+  duplicateDetails: string[];
 }
 
 type ImportStep = "idle" | "analyzing" | "preview" | "creating-centros" | "importing" | "done";
@@ -79,6 +82,8 @@ export default function InventarioAdmin() {
   useEffect(() => {
     if (selectedCentro) {
       fetchInventario();
+    } else {
+      setInventario([]);
     }
   }, [selectedCentro]);
 
@@ -102,19 +107,55 @@ export default function InventarioAdmin() {
     if (!selectedCentro) return;
     setLoading(true);
 
-    const { data, error } = await supabase
-      .from("inventario")
-      .select("*")
-      .eq("centro_servicio_id", selectedCentro)
-      .order("codigo_repuesto");
+    try {
+      // Si es "todos", necesitamos paginar porque Supabase tiene límite de 1000
+      if (selectedCentro === "todos") {
+        const allData: InventarioItem[] = [];
+        const PAGE_SIZE = 1000;
+        let page = 0;
+        let hasMore = true;
 
-    if (!error && data) {
-      setInventario(data);
-    } else if (error) {
-      console.error("Error fetching inventario:", error);
-      toast.error("Error al cargar inventario");
+        while (hasMore) {
+          const { data, error } = await supabase
+            .from("inventario")
+            .select("*")
+            .order("codigo_repuesto")
+            .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+
+          if (error) {
+            console.error("Error fetching inventario:", error);
+            toast.error("Error al cargar inventario");
+            break;
+          }
+
+          if (data && data.length > 0) {
+            allData.push(...data);
+            hasMore = data.length === PAGE_SIZE;
+            page++;
+          } else {
+            hasMore = false;
+          }
+        }
+
+        setInventario(allData);
+      } else {
+        // Para un centro específico, una sola consulta debería bastar
+        const { data, error } = await supabase
+          .from("inventario")
+          .select("*")
+          .eq("centro_servicio_id", selectedCentro)
+          .order("codigo_repuesto");
+
+        if (!error && data) {
+          setInventario(data);
+        } else if (error) {
+          console.error("Error fetching inventario:", error);
+          toast.error("Error al cargar inventario");
+        }
+      }
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const filteredInventario = useMemo(() => {
@@ -378,8 +419,14 @@ export default function InventarioAdmin() {
       const skippedByCS = new Map<string, number>();
       let firstCentroId: string | null = null;
       const centrosAfectados = new Set<string>();
+      
+      // Detectar duplicados en Excel
+      const seenKeys = new Map<string, number>(); // key -> row number
+      const duplicateDetails: string[] = [];
+      let duplicateCount = 0;
 
-      for (const row of parsedRows) {
+      for (let rowIndex = 0; rowIndex < parsedRows.length; rowIndex++) {
+        const row = parsedRows[rowIndex];
         const sku = findValue(row, "SKU", "sku", "Sku", "CODIGO", "codigo_repuesto");
         
         if (!sku) {
@@ -401,6 +448,17 @@ export default function InventarioAdmin() {
           skippedByCS.set(cs, (skippedByCS.get(cs) || 0) + 1);
           continue;
         }
+
+        // Detectar duplicados (mismo SKU + mismo centro)
+        const key = `${centroId}|${sku}`;
+        if (seenKeys.has(key)) {
+          duplicateCount++;
+          if (duplicateDetails.length < 10) {
+            duplicateDetails.push(`SKU ${sku} en ${numeroBodega} (filas ${seenKeys.get(key)! + 2} y ${rowIndex + 2})`);
+          }
+          // Continuar para que el último valor prevalezca
+        }
+        seenKeys.set(key, rowIndex);
 
         const ubicacion = findValue(row, "UBICACIÓN", "UBICACION", "ubicacion");
         const descripcion = findValue(row, "DESCRIPCIÓN", "DESCRIPCION", "descripcion");
@@ -428,6 +486,7 @@ export default function InventarioAdmin() {
 
       let imported = 0;
       let errors = 0;
+      const errorDetails: string[] = [];
 
       if (totalToUpsert > 0) {
         const BATCH_SIZE = 300;
@@ -440,7 +499,23 @@ export default function InventarioAdmin() {
 
           if (error) {
             console.error("Error upserting batch:", error);
-            errors += batch.length;
+            
+            // Si el batch falla, intentar uno por uno
+            for (const record of batch) {
+              const { error: singleError } = await supabase.from("inventario").upsert([record], {
+                onConflict: "centro_servicio_id,codigo_repuesto",
+              });
+              
+              if (singleError) {
+                errors++;
+                if (errorDetails.length < 20) {
+                  errorDetails.push(`SKU ${record.codigo_repuesto} (${record.bodega}): ${singleError.message}`);
+                }
+                console.error(`Error con SKU ${record.codigo_repuesto}:`, singleError);
+              } else {
+                imported++;
+              }
+            }
           } else {
             imported += batch.length;
           }
@@ -459,8 +534,11 @@ export default function InventarioAdmin() {
         skippedRows: skippedNoSku + skippedNoCentro,
         imported,
         errors,
+        duplicates: duplicateCount,
         byCS: analysisResults,
         missingCSValues: Array.from(skippedByCS.entries()).map(([cs, count]) => `CS ${cs}: ${count} registros`),
+        errorDetails,
+        duplicateDetails,
       };
 
       setImportSummary(summary);
@@ -469,6 +547,7 @@ export default function InventarioAdmin() {
       console.log("=== RESUMEN DE IMPORTACIÓN ===");
       console.log(`Total filas en Excel: ${summary.totalRows}`);
       console.log(`Filas válidas: ${summary.validRows}`);
+      console.log(`Duplicados en Excel: ${duplicateCount}`);
       console.log(`Omitidas sin SKU: ${skippedNoSku}`);
       console.log(`Omitidas sin centro: ${skippedNoCentro}`);
       console.log(`Importadas exitosamente: ${imported}`);
@@ -477,10 +556,16 @@ export default function InventarioAdmin() {
         console.log("Omitidos por CS sin centro:");
         skippedByCS.forEach((count, cs) => console.log(`  CS ${cs}: ${count} registros`));
       }
+      if (errorDetails.length > 0) {
+        console.log("Errores específicos:");
+        errorDetails.forEach(e => console.log(`  ${e}`));
+      }
 
       if (!selectedCentro && firstCentroId) {
         setSelectedCentro(firstCentroId);
-      } else if (selectedCentro && centrosAfectados.has(selectedCentro)) {
+      } else if (selectedCentro && selectedCentro !== "todos" && centrosAfectados.has(selectedCentro)) {
+        fetchInventario();
+      } else if (selectedCentro === "todos") {
         fetchInventario();
       }
 
@@ -551,6 +636,9 @@ export default function InventarioAdmin() {
                   <SelectValue placeholder="Seleccionar centro..." />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="todos">
+                    <span className="font-medium">📦 Todos los centros</span>
+                  </SelectItem>
                   {centros.map((centro) => (
                     <SelectItem key={centro.id} value={centro.id}>
                       {centro.nombre} {centro.numero_bodega && `(${centro.numero_bodega})`}
@@ -919,7 +1007,41 @@ export default function InventarioAdmin() {
                       <span className="font-medium text-destructive">{importSummary.errors.toLocaleString()}</span>
                     </div>
                   )}
+                  {importSummary.duplicates > 0 && (
+                    <div className="flex justify-between py-1 border-b">
+                      <span className="text-muted-foreground">Duplicados en Excel:</span>
+                      <span className="font-medium text-amber-600">{importSummary.duplicates.toLocaleString()}</span>
+                    </div>
+                  )}
                 </div>
+
+                {importSummary.duplicateDetails.length > 0 && (
+                  <div className="p-3 rounded-md bg-amber-500/10 border border-amber-500/20 text-sm">
+                    <p className="font-medium mb-2 text-amber-700 dark:text-amber-400">Duplicados encontrados (se usó el último valor):</p>
+                    <ul className="text-xs text-muted-foreground space-y-1">
+                      {importSummary.duplicateDetails.map((msg, i) => (
+                        <li key={i}>{msg}</li>
+                      ))}
+                      {importSummary.duplicates > 10 && (
+                        <li className="italic">...y {importSummary.duplicates - 10} más</li>
+                      )}
+                    </ul>
+                  </div>
+                )}
+
+                {importSummary.errorDetails.length > 0 && (
+                  <div className="p-3 rounded-md bg-destructive/10 border border-destructive/20 text-sm">
+                    <p className="font-medium mb-2 text-destructive">Errores específicos:</p>
+                    <ul className="text-xs text-muted-foreground space-y-1">
+                      {importSummary.errorDetails.map((msg, i) => (
+                        <li key={i}>{msg}</li>
+                      ))}
+                      {importSummary.errors > 20 && (
+                        <li className="italic">...y {importSummary.errors - 20} más</li>
+                      )}
+                    </ul>
+                  </div>
+                )}
 
                 {importSummary.missingCSValues.length > 0 && (
                   <div className="p-3 rounded-md bg-muted/50 text-sm">
