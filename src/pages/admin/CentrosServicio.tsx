@@ -72,7 +72,6 @@ export default function CentrosServicio() {
     telefono: "",
     email: "",
     numero_bodega: "",
-    supervisor_id: "",
     activo: true,
     es_central: false,
   });
@@ -121,7 +120,6 @@ export default function CentrosServicio() {
       telefono: "",
       email: "",
       numero_bodega: "",
-      supervisor_id: "",
       activo: true,
       es_central: false,
     });
@@ -136,7 +134,6 @@ export default function CentrosServicio() {
       telefono: centro.telefono || "",
       email: centro.email || "",
       numero_bodega: centro.numero_bodega || "",
-      supervisor_id: centro.supervisor_id || "",
       activo: centro.activo,
       es_central: centro.es_central,
     });
@@ -160,7 +157,6 @@ export default function CentrosServicio() {
           telefono: formData.telefono || null,
           email: formData.email || null,
           numero_bodega: formData.numero_bodega || null,
-          supervisor_id: formData.supervisor_id || null,
           activo: formData.activo,
           es_central: formData.es_central,
         })
@@ -180,7 +176,6 @@ export default function CentrosServicio() {
         telefono: formData.telefono || null,
         email: formData.email || null,
         numero_bodega: formData.numero_bodega || null,
-        supervisor_id: formData.supervisor_id || null,
         activo: formData.activo,
         es_central: formData.es_central,
       });
@@ -591,28 +586,40 @@ export default function CentrosServicio() {
                 placeholder="B001"
               />
             </div>
-            <div>
-              <Label>Supervisor Regional (legado)</Label>
-              <Select 
-                value={formData.supervisor_id || "__none__"} 
-                onValueChange={(val) => setFormData({ ...formData, supervisor_id: val === "__none__" ? "" : val })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar supervisor..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">Sin asignar</SelectItem>
-                  {supervisores.map((sup) => (
-                    <SelectItem key={sup.user_id} value={sup.user_id}>
-                      {sup.nombre} {sup.apellido}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground mt-1">
-                Usa la pestaña "Supervisores Regionales" para gestión múltiple
-              </p>
-            </div>
+            {editingCentro && (
+              <div>
+                <Label>Supervisores Regionales Asignados</Label>
+                <div className="mt-2 p-3 bg-muted/50 rounded-md border">
+                  {(() => {
+                    const supervisoresAsignados = centrosSupervisor
+                      .filter((cs) => cs.centro_servicio_id === editingCentro.id)
+                      .map((cs) => supervisores.find((s) => s.user_id === cs.supervisor_id))
+                      .filter(Boolean);
+                    
+                    if (supervisoresAsignados.length === 0) {
+                      return (
+                        <p className="text-sm text-muted-foreground">
+                          Sin supervisores asignados
+                        </p>
+                      );
+                    }
+                    
+                    return (
+                      <div className="flex flex-wrap gap-2">
+                        {supervisoresAsignados.map((sup) => (
+                          <Badge key={sup!.user_id} variant="secondary">
+                            {sup!.nombre} {sup!.apellido}
+                          </Badge>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Gestiona asignaciones desde la pestaña "Supervisores Regionales"
+                </p>
+              </div>
+            )}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Switch
