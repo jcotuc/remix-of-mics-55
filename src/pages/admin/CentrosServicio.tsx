@@ -83,13 +83,13 @@ export default function CentrosServicio() {
   const fetchData = async () => {
     setLoading(true);
     
-    const [centrosRes, usuariosRes, supervisoresRes, centrosSupervisorRes] = await Promise.all([
+    const [centrosRes, usuariosRes, rolesRes, centrosSupervisorRes] = await Promise.all([
       supabase.from("centros_servicio").select("*").order("nombre"),
       supabase.from("profiles").select("*").order("nombre"),
-      // Obtener usuarios con rol supervisor_regional
+      // Obtener solo los user_id con rol supervisor_regional
       supabase
         .from("user_roles")
-        .select("user_id, profiles!inner(id, user_id, nombre, apellido, email)")
+        .select("user_id")
         .eq("role", "supervisor_regional"),
       // Obtener asignaciones de centros a supervisores
       supabase.from("centros_supervisor").select("*"),
@@ -97,17 +97,22 @@ export default function CentrosServicio() {
 
     if (centrosRes.data) setCentros(centrosRes.data);
     if (usuariosRes.data) setUsuarios(usuariosRes.data);
-    if (supervisoresRes.data) {
-      const sups = supervisoresRes.data.map((item: any) => ({
-        id: item.profiles.id,
-        user_id: item.profiles.user_id,
-        nombre: item.profiles.nombre,
-        apellido: item.profiles.apellido,
-        email: item.profiles.email,
-      }));
-      setSupervisores(sups);
-    }
     if (centrosSupervisorRes.data) setCentrosSupervisor(centrosSupervisorRes.data);
+    
+    // Obtener los perfiles de los supervisores regionales con query separado
+    if (rolesRes.data && rolesRes.data.length > 0) {
+      const supervisorUserIds = rolesRes.data.map((r) => r.user_id);
+      const { data: perfilesSupervisores } = await supabase
+        .from("profiles")
+        .select("id, user_id, nombre, apellido, email")
+        .in("user_id", supervisorUserIds);
+      
+      if (perfilesSupervisores) {
+        setSupervisores(perfilesSupervisores);
+      }
+    } else {
+      setSupervisores([]);
+    }
     
     setLoading(false);
   };
