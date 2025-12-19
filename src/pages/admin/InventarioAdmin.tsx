@@ -15,6 +15,7 @@ import { TablePagination } from "@/components/TablePagination";
 interface CentroServicio {
   id: string;
   nombre: string;
+  numero_bodega: string | null;
 }
 
 interface InventarioItem {
@@ -56,7 +57,7 @@ export default function InventarioAdmin() {
   const fetchCentros = async () => {
     const { data, error } = await supabase
       .from("centros_servicio")
-      .select("id, nombre")
+      .select("id, nombre, numero_bodega")
       .eq("activo", true)
       .order("nombre");
 
@@ -176,8 +177,56 @@ export default function InventarioAdmin() {
       console.log("Columnas encontradas:", Object.keys(firstRow));
       console.log("Primera fila:", firstRow);
 
-      // Obtener mapeo de nombres de centro a IDs
-      const centrosMap = new Map(centros.map((c) => [c.nombre.toLowerCase().trim(), c.id]));
+      // Crear mapeos para búsqueda flexible de centros
+      const centrosMapByNombre = new Map(centros.map((c) => [c.nombre.toLowerCase().trim(), c.id]));
+      const centrosMapByNumero = new Map(
+        centros.filter(c => c.numero_bodega).map((c) => [c.numero_bodega!.toLowerCase().trim(), c.id])
+      );
+
+      // Función para buscar centro con múltiples estrategias
+      const findCentroId = (bodega: string, cs: string): string | null => {
+        // 1. Si CS tiene número, construir numero_bodega (ej: 8 -> B008)
+        if (cs) {
+          const csNum = cs.replace(/\D/g, "");
+          if (csNum) {
+            const numeroBodega = `b${csNum.padStart(3, "0")}`;
+            const found = centrosMapByNumero.get(numeroBodega);
+            if (found) return found;
+          }
+        }
+
+        // 2. Si BODEGA parece ser numero_bodega (ej: B008)
+        if (bodega && /^b?\d+$/i.test(bodega.trim())) {
+          const num = bodega.replace(/\D/g, "");
+          const numeroBodega = `b${num.padStart(3, "0")}`;
+          const found = centrosMapByNumero.get(numeroBodega);
+          if (found) return found;
+        }
+
+        // 3. Buscar por nombre exacto
+        if (bodega) {
+          const found = centrosMapByNombre.get(bodega.toLowerCase().trim());
+          if (found) return found;
+        }
+
+        // 4. Buscar por coincidencia parcial del nombre
+        if (bodega) {
+          // Limpiar prefijos comunes
+          const keyword = normalizeText(bodega)
+            .replace(/^(CS\.?|C\.?S\.?|CENTRO\s*(DE\s*)?SERVICIO)\s*/i, "")
+            .trim();
+          
+          if (keyword.length >= 3) {
+            const match = centros.find(c => 
+              normalizeText(c.nombre).includes(keyword) ||
+              keyword.includes(normalizeText(c.nombre).replace(/CENTRO\s*(DE\s*)?SERVICIO\s*/i, "").trim())
+            );
+            if (match) return match.id;
+          }
+        }
+
+        return null;
+      };
 
       let imported = 0;
       let errors = 0;
@@ -190,7 +239,12 @@ export default function InventarioAdmin() {
         const descripcion = findValue(row, "DESCRIPCIÓN", "DESCRIPCION", "descripcion");
         const cantidadRaw = findValue(row, "CANTIDAD", "cantidad", "QTY", "STOCK") || "0";
         const cantidad = parseInt(cantidadRaw.replace(/,/g, "")) || 0;
-        const bodegaCS = findValue(row, "BODEGA CS", "BODEGA_CS", "BODEGA", "CS", "CENTRO", "centro_servicio");
+        
+        // Leer BODEGA y CS como columnas separadas
+        const bodega = findValue(row, "BODEGA", "bodega");
+        const cs = findValue(row, "CS", "cs");
+        const bodegaCS = bodega || cs || findValue(row, "BODEGA CS", "BODEGA_CS", "CENTRO", "centro_servicio");
+        
         const costoRaw = findValue(row, "COSTO UN", "COSTO  UN", "COSTO_UN", "costo_un", "COSTO UNITARIO") || "0";
         const costoUnitario = parseFloat(costoRaw.replace(/,/g, "").replace("Q", "").replace("$", "")) || 0;
 
@@ -199,13 +253,14 @@ export default function InventarioAdmin() {
           continue;
         }
 
-        // Buscar centro de servicio
-        const centroId = centrosMap.get(bodegaCS.toLowerCase().trim());
+        // Buscar centro de servicio con múltiples estrategias
+        const centroId = findCentroId(bodega, cs);
 
         if (!centroId) {
           errors++;
-          if (!errorMessages.includes(`Centro no encontrado: ${bodegaCS}`)) {
-            errorMessages.push(`Centro no encontrado: ${bodegaCS}`);
+          const identifier = cs ? `CS: ${cs}` : `BODEGA: ${bodega || bodegaCS}`;
+          if (!errorMessages.includes(`Centro no encontrado: ${identifier}`)) {
+            errorMessages.push(`Centro no encontrado: ${identifier}`);
           }
           continue;
         }
@@ -418,9 +473,13 @@ export default function InventarioAdmin() {
               <li><strong>SKU</strong> - Código del repuesto</li>
               <li><strong>DESCRIPCIÓN</strong> - Descripción del repuesto</li>
               <li><strong>CANTIDAD</strong> - Cantidad en stock</li>
-              <li><strong>BODEGA CS</strong> - Nombre del centro de servicio</li>
+              <li><strong>BODEGA</strong> - Nombre del centro (ej: ZONA 5, HUEHUE)</li>
+              <li><strong>CS</strong> - Número de centro (ej: 8, 18) - se convierte a B008, B018</li>
               <li><strong>COSTO UN</strong> - Costo unitario (opcional)</li>
             </ul>
+            <p className="text-xs text-muted-foreground mt-2">
+              El sistema buscará centros por: número de bodega (B008), nombre exacto, o coincidencia parcial del nombre.
+            </p>
             <Input
               type="file"
               accept=".xlsx,.xls"
