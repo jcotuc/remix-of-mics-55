@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -37,6 +37,7 @@ export default function InventarioAdmin() {
   const [searchTerm, setSearchTerm] = useState("");
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState<{ processed: number; total: number } | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(50);
 
@@ -149,6 +150,7 @@ export default function InventarioAdmin() {
     }
 
     setImporting(true);
+    setImportProgress({ processed: 0, total: 0 });
 
     try {
       const data = await file.arrayBuffer();
@@ -205,13 +207,25 @@ export default function InventarioAdmin() {
       const centrosAfectados = new Set<string>();
       let firstCentroId: string | null = null;
 
+      type UpsertRow = {
+        centro_servicio_id: string;
+        codigo_repuesto: string;
+        descripcion: string | null;
+        cantidad: number;
+        ubicacion: string | null;
+        bodega: string | null;
+        costo_unitario: number | null;
+      };
+
+      const toUpsert: UpsertRow[] = [];
+
       for (const row of rows) {
         const ubicacion = findValue(row, "UBICACIÓN", "UBICACION", "ubicacion");
         const sku = findValue(row, "SKU", "sku", "Sku", "CODIGO", "codigo_repuesto");
         const descripcion = findValue(row, "DESCRIPCIÓN", "DESCRIPCION", "descripcion");
         const cantidadRaw = findValue(row, "CANTIDAD", "cantidad", "QTY", "STOCK") || "0";
         const cantidad = parseInt(cantidadRaw.replace(/,/g, "")) || 0;
-        
+
         // Leer CS (número) y convertirlo a numero_bodega (ej: 8 -> B008)
         const cs = findValue(
           row,
@@ -223,8 +237,9 @@ export default function InventarioAdmin() {
           "CENTRO SERVICIO",
           "CENTRO_SERVICIO"
         );
-        
-        const costoRaw = findValue(row, "COSTO UN", "COSTO  UN", "COSTO_UN", "costo_un", "COSTO UNITARIO") || "0";
+
+        const costoRaw =
+          findValue(row, "COSTO UN", "COSTO  UN", "COSTO_UN", "costo_un", "COSTO UNITARIO") || "0";
         const costoUnitario = parseFloat(costoRaw.replace(/,/g, "").replace("Q", "").replace("$", "")) || 0;
 
         if (!sku) {
@@ -244,28 +259,48 @@ export default function InventarioAdmin() {
           continue;
         }
 
-        // Upsert inventario
-        const { error } = await supabase.from("inventario").upsert(
-          {
-            centro_servicio_id: centroId,
-            codigo_repuesto: sku,
-            descripcion: descripcion || null,
-            cantidad: cantidad,
-            ubicacion: ubicacion || null,
-            bodega: numeroBodega || null,
-            costo_unitario: costoUnitario || null,
-          },
-          { onConflict: "centro_servicio_id,codigo_repuesto" }
-        );
+        toUpsert.push({
+          centro_servicio_id: centroId,
+          codigo_repuesto: sku,
+          descripcion: descripcion || null,
+          cantidad,
+          ubicacion: ubicacion || null,
+          bodega: numeroBodega || null,
+          costo_unitario: costoUnitario || null,
+        });
+
+        centrosAfectados.add(centroId);
+        if (!firstCentroId) firstCentroId = centroId;
+      }
+
+      const totalToUpsert = toUpsert.length;
+      setImportProgress({ processed: 0, total: totalToUpsert });
+
+      if (totalToUpsert === 0) {
+        toast.error("No se encontraron filas válidas para importar");
+        setImporting(false);
+        return;
+      }
+
+      const BATCH_SIZE = 300;
+      for (let i = 0; i < toUpsert.length; i += BATCH_SIZE) {
+        const batch = toUpsert.slice(i, i + BATCH_SIZE);
+
+        const { error } = await supabase.from("inventario").upsert(batch, {
+          onConflict: "centro_servicio_id,codigo_repuesto",
+        });
 
         if (error) {
-          errors++;
-          console.error("Error upserting:", error);
+          console.error("Error upserting batch:", error);
+          errors += batch.length;
         } else {
-          imported++;
-          centrosAfectados.add(centroId);
-          if (!firstCentroId) firstCentroId = centroId;
+          imported += batch.length;
         }
+
+        setImportProgress({
+          processed: Math.min(i + batch.length, totalToUpsert),
+          total: totalToUpsert,
+        });
       }
 
       if (errorMessages.length > 0) {
@@ -285,6 +320,7 @@ export default function InventarioAdmin() {
       toast.error("Error al procesar el archivo");
     } finally {
       setImporting(false);
+      setImportProgress(null);
       inputEl.value = "";
     }
   };
@@ -447,8 +483,20 @@ export default function InventarioAdmin() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Importar Inventario desde Excel</DialogTitle>
+            <DialogDescription>
+              Selecciona el Excel y el sistema usará la columna CS para convertirla a numero_bodega (ej: 8 → B008).
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
+            {importing && (
+              <div className="flex items-center gap-2 rounded-md border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>
+                  Importando{importProgress?.total ? ` ${importProgress.processed.toLocaleString()} / ${importProgress.total.toLocaleString()}` : "..."}
+                </span>
+              </div>
+            )}
+
             <p className="text-sm text-muted-foreground">
               El archivo debe contener las siguientes columnas:
             </p>
