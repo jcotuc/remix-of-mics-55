@@ -41,13 +41,24 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { UserPlus, Edit, Trash2, RefreshCw, Search } from "lucide-react";
+import { UserPlus, Edit, Trash2, RefreshCw, Search, Settings, Plus } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 
 type UserRole = "admin" | "mostrador" | "logistica" | "taller" | "bodega" | "tecnico" | "digitador" | "jefe_taller" | "sac" | "control_calidad" | "asesor" | "gerente_centro" | "supervisor_regional" | "jefe_logistica" | "jefe_bodega" | "supervisor_bodega" | "supervisor_calidad" | "supervisor_sac" | "auxiliar_bodega" | "auxiliar_logistica" | "supervisor_inventarios" | "capacitador";
+
+// Roles obsoletos que no se muestran en los selectores pero se pueden ver en la tabla
+const OBSOLETE_ROLES = ["logistica", "taller", "bodega", "sac"];
 
 interface CentroServicio {
   id: string;
   nombre: string;
+}
+
+interface Puesto {
+  id: string;
+  nombre: string;
+  descripcion: string | null;
+  activo: boolean;
 }
 
 interface UserData {
@@ -66,6 +77,7 @@ export default function Usuarios() {
   const navigate = useNavigate();
   const [users, setUsers] = useState<UserData[]>([]);
   const [centrosServicio, setCentrosServicio] = useState<CentroServicio[]>([]);
+  const [puestos, setPuestos] = useState<Puesto[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
@@ -75,6 +87,12 @@ export default function Usuarios() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isPuestosDialogOpen, setIsPuestosDialogOpen] = useState(false);
+  
+  // Puestos form states
+  const [newPuestoNombre, setNewPuestoNombre] = useState("");
+  const [newPuestoDescripcion, setNewPuestoDescripcion] = useState("");
+  const [puestosLoading, setPuestosLoading] = useState(false);
   
   // Form states
   const [formData, setFormData] = useState({
@@ -99,6 +117,7 @@ export default function Usuarios() {
     if (userRole === "admin") {
       fetchUsers();
       fetchCentrosServicio();
+      fetchPuestos();
     }
   }, [userRole]);
 
@@ -114,6 +133,20 @@ export default function Usuarios() {
       setCentrosServicio(data || []);
     } catch (error: any) {
       console.error("Error fetching centros:", error);
+    }
+  };
+
+  const fetchPuestos = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("puestos")
+        .select("*")
+        .order("nombre");
+
+      if (error) throw error;
+      setPuestos(data || []);
+    } catch (error: any) {
+      console.error("Error fetching puestos:", error);
     }
   };
 
@@ -160,6 +193,56 @@ export default function Usuarios() {
       toast.error("Error al cargar usuarios");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCreatePuesto = async () => {
+    if (!newPuestoNombre.trim()) {
+      toast.error("El nombre del puesto es obligatorio");
+      return;
+    }
+
+    try {
+      setPuestosLoading(true);
+      const { error } = await supabase
+        .from("puestos")
+        .insert({
+          nombre: newPuestoNombre.trim(),
+          descripcion: newPuestoDescripcion.trim() || null,
+        });
+
+      if (error) throw error;
+
+      toast.success("Puesto creado exitosamente");
+      setNewPuestoNombre("");
+      setNewPuestoDescripcion("");
+      fetchPuestos();
+    } catch (error: any) {
+      console.error("Error creating puesto:", error);
+      if (error.message.includes("duplicate")) {
+        toast.error("Ya existe un puesto con ese nombre");
+      } else {
+        toast.error(error.message || "Error al crear puesto");
+      }
+    } finally {
+      setPuestosLoading(false);
+    }
+  };
+
+  const handleTogglePuestoActivo = async (puesto: Puesto) => {
+    try {
+      const { error } = await supabase
+        .from("puestos")
+        .update({ activo: !puesto.activo })
+        .eq("id", puesto.id);
+
+      if (error) throw error;
+
+      toast.success(puesto.activo ? "Puesto desactivado" : "Puesto activado");
+      fetchPuestos();
+    } catch (error: any) {
+      console.error("Error toggling puesto:", error);
+      toast.error("Error al actualizar puesto");
     }
   };
 
@@ -370,13 +453,13 @@ export default function Usuarios() {
     const labels: Record<string, string> = {
       admin: "Administrador",
       mostrador: "Dependiente de Mostrador",
-      logistica: "Logística",
-      taller: "Taller",
-      bodega: "Bodega",
+      logistica: "Logística (obsoleto)",
+      taller: "Taller (obsoleto)",
+      bodega: "Bodega (obsoleto)",
       tecnico: "Técnico",
       digitador: "Digitador",
       jefe_taller: "Jefe de Taller",
-      sac: "SAC",
+      sac: "SAC (obsoleto)",
       control_calidad: "Coordinador de Calidad",
       asesor: "Asesor",
       gerente_centro: "Gerente de Centro",
@@ -393,6 +476,28 @@ export default function Usuarios() {
     };
     return labels[role] || role;
   };
+
+  // Roles disponibles para selección (excluye los obsoletos)
+  const availableRoles = [
+    { value: "admin", label: "Administrador" },
+    { value: "gerente_centro", label: "Gerente de Centro" },
+    { value: "supervisor_regional", label: "Supervisor Regional CS" },
+    { value: "jefe_taller", label: "Jefe de Taller" },
+    { value: "jefe_logistica", label: "Jefe de Logística" },
+    { value: "jefe_bodega", label: "Jefe de Bodega" },
+    { value: "supervisor_bodega", label: "Supervisor de Bodega" },
+    { value: "supervisor_calidad", label: "Supervisor de Calidad" },
+    { value: "supervisor_sac", label: "Supervisor de Servicio al Cliente" },
+    { value: "supervisor_inventarios", label: "Supervisor Inventarios" },
+    { value: "mostrador", label: "Dependiente de Mostrador" },
+    { value: "auxiliar_bodega", label: "Auxiliar de Bodega" },
+    { value: "auxiliar_logistica", label: "Auxiliar de Logística" },
+    { value: "control_calidad", label: "Coordinador de Calidad" },
+    { value: "tecnico", label: "Técnico" },
+    { value: "digitador", label: "Digitador" },
+    { value: "asesor", label: "Asesor" },
+    { value: "capacitador", label: "Capacitador" },
+  ];
 
   const filteredUsers = users.filter((user) => {
     const matchesSearch = 
@@ -430,6 +535,10 @@ export default function Usuarios() {
               </CardDescription>
             </div>
             <div className="flex gap-2">
+              <Button onClick={() => setIsPuestosDialogOpen(true)} variant="outline">
+                <Settings className="h-4 w-4 mr-2" />
+                Gestionar Puestos
+              </Button>
               <Button onClick={fetchUsers} variant="outline" size="icon">
                 <RefreshCw className="h-4 w-4" />
               </Button>
@@ -460,28 +569,11 @@ export default function Usuarios() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos los puestos</SelectItem>
-                <SelectItem value="admin">Administrador</SelectItem>
-                <SelectItem value="gerente_centro">Gerente de Centro</SelectItem>
-                <SelectItem value="supervisor_regional">Supervisor Regional CS</SelectItem>
-                <SelectItem value="jefe_taller">Jefe de Taller</SelectItem>
-                <SelectItem value="jefe_logistica">Jefe de Logística</SelectItem>
-                <SelectItem value="jefe_bodega">Jefe de Bodega</SelectItem>
-                <SelectItem value="supervisor_bodega">Supervisor de Bodega</SelectItem>
-                <SelectItem value="supervisor_calidad">Supervisor de Calidad</SelectItem>
-                <SelectItem value="supervisor_sac">Supervisor de Servicio al Cliente</SelectItem>
-                <SelectItem value="supervisor_inventarios">Supervisor Inventarios</SelectItem>
-                <SelectItem value="mostrador">Dependiente de Mostrador</SelectItem>
-                <SelectItem value="logistica">Logística</SelectItem>
-                <SelectItem value="taller">Taller</SelectItem>
-                <SelectItem value="bodega">Bodega</SelectItem>
-                <SelectItem value="auxiliar_bodega">Auxiliar de Bodega</SelectItem>
-                <SelectItem value="auxiliar_logistica">Auxiliar de Logística</SelectItem>
-                <SelectItem value="sac">SAC</SelectItem>
-                <SelectItem value="control_calidad">Coordinador de Calidad</SelectItem>
-                <SelectItem value="tecnico">Técnico</SelectItem>
-                <SelectItem value="digitador">Digitador</SelectItem>
-                <SelectItem value="asesor">Asesor</SelectItem>
-                <SelectItem value="capacitador">Capacitador</SelectItem>
+                {availableRoles.map((role) => (
+                  <SelectItem key={role.value} value={role.value}>
+                    {role.label}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
             <Select value={centroFilter} onValueChange={setCentroFilter}>
@@ -566,6 +658,89 @@ export default function Usuarios() {
         </CardContent>
       </Card>
 
+      {/* Gestionar Puestos Dialog */}
+      <Dialog open={isPuestosDialogOpen} onOpenChange={setIsPuestosDialogOpen}>
+        <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Gestionar Puestos</DialogTitle>
+            <DialogDescription>
+              Crea y administra los puestos personalizados del sistema.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {/* Formulario para crear nuevo puesto */}
+          <div className="space-y-4 border-b pb-4">
+            <h4 className="font-medium">Crear Nuevo Puesto</h4>
+            <div className="grid gap-3">
+              <div className="grid gap-2">
+                <Label htmlFor="puesto-nombre">Nombre del Puesto *</Label>
+                <Input
+                  id="puesto-nombre"
+                  value={newPuestoNombre}
+                  onChange={(e) => setNewPuestoNombre(e.target.value)}
+                  placeholder="Ej: Supervisor de Ventas"
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label htmlFor="puesto-descripcion">Descripción (opcional)</Label>
+                <Textarea
+                  id="puesto-descripcion"
+                  value={newPuestoDescripcion}
+                  onChange={(e) => setNewPuestoDescripcion(e.target.value)}
+                  placeholder="Descripción del puesto..."
+                  rows={2}
+                />
+              </div>
+              <Button onClick={handleCreatePuesto} disabled={puestosLoading}>
+                <Plus className="h-4 w-4 mr-2" />
+                Crear Puesto
+              </Button>
+            </div>
+          </div>
+
+          {/* Lista de puestos personalizados */}
+          <div className="space-y-4">
+            <h4 className="font-medium">Puestos Personalizados</h4>
+            {puestos.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No hay puestos personalizados. Los puestos del sistema están predefinidos.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {puestos.map((puesto) => (
+                  <div
+                    key={puesto.id}
+                    className={`flex items-center justify-between p-3 border rounded-lg ${
+                      !puesto.activo ? "opacity-50" : ""
+                    }`}
+                  >
+                    <div>
+                      <p className="font-medium">{puesto.nombre}</p>
+                      {puesto.descripcion && (
+                        <p className="text-sm text-muted-foreground">{puesto.descripcion}</p>
+                      )}
+                    </div>
+                    <Button
+                      variant={puesto.activo ? "outline" : "default"}
+                      size="sm"
+                      onClick={() => handleTogglePuestoActivo(puesto)}
+                    >
+                      {puesto.activo ? "Desactivar" : "Activar"}
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsPuestosDialogOpen(false)}>
+              Cerrar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Create User Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
         <DialogContent className="sm:max-w-[500px]">
@@ -612,28 +787,11 @@ export default function Usuarios() {
                   <SelectValue placeholder="Selecciona un puesto" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="admin">Administrador</SelectItem>
-                  <SelectItem value="gerente_centro">Gerente de Centro</SelectItem>
-                  <SelectItem value="supervisor_regional">Supervisor Regional CS</SelectItem>
-                  <SelectItem value="jefe_taller">Jefe de Taller</SelectItem>
-                  <SelectItem value="jefe_logistica">Jefe de Logística</SelectItem>
-                  <SelectItem value="jefe_bodega">Jefe de Bodega</SelectItem>
-                  <SelectItem value="supervisor_bodega">Supervisor de Bodega</SelectItem>
-                  <SelectItem value="supervisor_calidad">Supervisor de Calidad</SelectItem>
-                  <SelectItem value="supervisor_sac">Supervisor de Servicio al Cliente</SelectItem>
-                  <SelectItem value="supervisor_inventarios">Supervisor Inventarios</SelectItem>
-                  <SelectItem value="mostrador">Dependiente de Mostrador</SelectItem>
-                  <SelectItem value="logistica">Logística</SelectItem>
-                  <SelectItem value="taller">Taller</SelectItem>
-                  <SelectItem value="bodega">Bodega</SelectItem>
-                  <SelectItem value="auxiliar_bodega">Auxiliar de Bodega</SelectItem>
-                  <SelectItem value="auxiliar_logistica">Auxiliar de Logística</SelectItem>
-                  <SelectItem value="sac">SAC</SelectItem>
-                  <SelectItem value="control_calidad">Coordinador de Calidad</SelectItem>
-                  <SelectItem value="tecnico">Técnico</SelectItem>
-                  <SelectItem value="digitador">Digitador</SelectItem>
-                  <SelectItem value="asesor">Asesor</SelectItem>
-                  <SelectItem value="capacitador">Capacitador</SelectItem>
+                  {availableRoles.map((role) => (
+                    <SelectItem key={role.value} value={role.value}>
+                      {role.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -726,28 +884,11 @@ export default function Usuarios() {
                   <SelectValue placeholder="Selecciona un puesto" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="admin">Administrador</SelectItem>
-                  <SelectItem value="gerente_centro">Gerente de Centro</SelectItem>
-                  <SelectItem value="supervisor_regional">Supervisor Regional CS</SelectItem>
-                  <SelectItem value="jefe_taller">Jefe de Taller</SelectItem>
-                  <SelectItem value="jefe_logistica">Jefe de Logística</SelectItem>
-                  <SelectItem value="jefe_bodega">Jefe de Bodega</SelectItem>
-                  <SelectItem value="supervisor_bodega">Supervisor de Bodega</SelectItem>
-                  <SelectItem value="supervisor_calidad">Supervisor de Calidad</SelectItem>
-                  <SelectItem value="supervisor_sac">Supervisor de Servicio al Cliente</SelectItem>
-                  <SelectItem value="supervisor_inventarios">Supervisor Inventarios</SelectItem>
-                  <SelectItem value="mostrador">Dependiente de Mostrador</SelectItem>
-                  <SelectItem value="logistica">Logística</SelectItem>
-                  <SelectItem value="taller">Taller</SelectItem>
-                  <SelectItem value="bodega">Bodega</SelectItem>
-                  <SelectItem value="auxiliar_bodega">Auxiliar de Bodega</SelectItem>
-                  <SelectItem value="auxiliar_logistica">Auxiliar de Logística</SelectItem>
-                  <SelectItem value="sac">SAC</SelectItem>
-                  <SelectItem value="control_calidad">Coordinador de Calidad</SelectItem>
-                  <SelectItem value="tecnico">Técnico</SelectItem>
-                  <SelectItem value="digitador">Digitador</SelectItem>
-                  <SelectItem value="asesor">Asesor</SelectItem>
-                  <SelectItem value="capacitador">Capacitador</SelectItem>
+                  {availableRoles.map((role) => (
+                    <SelectItem key={role.value} value={role.value}>
+                      {role.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
