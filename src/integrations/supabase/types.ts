@@ -169,6 +169,21 @@ export type Database = {
         }
         Relationships: []
       }
+      Bodega_CDS: {
+        Row: {
+          created_at: string
+          id: number
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+        }
+        Update: {
+          created_at?: string
+          id?: number
+        }
+        Relationships: []
+      }
       CDS_Causas: {
         Row: {
           created_at: string
@@ -2308,6 +2323,21 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      Ubicación_CDS: {
+        Row: {
+          created_at: string
+          id: number
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+        }
+        Update: {
+          created_at?: string
+          id?: number
+        }
+        Relationships: []
       }
       ubicaciones_historicas: {
         Row: {
