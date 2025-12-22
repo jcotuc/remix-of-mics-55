@@ -456,6 +456,27 @@ export default function DiagnosticoInicial() {
     }
   }, [tipoResolucion]);
 
+  // Auto-seleccionar resolución según matriz Reparable/Garantía
+  useEffect(() => {
+    if (esReparable === null || aplicaGarantia === null) return;
+    
+    // Matriz de resoluciones:
+    // Reparable=0, Garantía=0 → Canje
+    // Reparable=0, Garantía=1 → Cambio por Garantía
+    // Reparable=1, Garantía=0 → Presupuesto
+    // Reparable=1, Garantía=1 → Reparar en Garantía
+    
+    if (!esReparable && !aplicaGarantia) {
+      setTipoResolucion("Canje");
+    } else if (!esReparable && aplicaGarantia) {
+      setTipoResolucion("Cambio por Garantía");
+    } else if (esReparable && !aplicaGarantia) {
+      setTipoResolucion("Presupuesto");
+    } else if (esReparable && aplicaGarantia) {
+      setTipoResolucion("Reparar en Garantía");
+    }
+  }, [esReparable, aplicaGarantia]);
+
   // Buscar productos alternativos cuando se selecciona Canje
   useEffect(() => {
     if (tipoResolucion === "Canje") {
