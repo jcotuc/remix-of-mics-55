@@ -374,7 +374,7 @@ export default function Asignaciones() {
                       className={`p-4 rounded-xl transition-all duration-200 min-h-[100px] flex flex-col justify-between ${
                         !hasIncidentes 
                           ? 'bg-muted/30 border border-dashed border-border cursor-default opacity-60'
-                          : 'bg-gradient-to-br from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white border border-amber-500/50 shadow-lg shadow-amber-600/20 cursor-pointer hover:scale-[1.02] active:scale-[0.98]'
+                          : 'bg-gradient-to-br from-orange-500 to-orange-600 hover:from-orange-400 hover:to-orange-500 text-white border border-orange-400/50 shadow-lg shadow-orange-500/20 cursor-pointer hover:scale-[1.02] active:scale-[0.98]'
                       }`}
                       onClick={() => {
                         if (!hasIncidentes) return;
