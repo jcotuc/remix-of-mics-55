@@ -1016,7 +1016,7 @@ export default function DiagnosticoInicial() {
                 {/* Causas */}
                 <div className="space-y-4">
                   <div>
-                    <Label className="text-lg font-semibold">Causas Identificadas</Label>
+                    <Label className="text-lg font-semibold">Causas</Label>
                     <p className="text-sm text-muted-foreground">
                       Selecciona todas las causas que apliquen
                     </p>
