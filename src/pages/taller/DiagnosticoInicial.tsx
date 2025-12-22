@@ -921,10 +921,10 @@ export default function DiagnosticoInicial() {
                       setEsReparable(true);
                       setAplicaGarantia(null);
                     }} 
-                    className={`h-16 flex-col gap-1 border-2 transition-all ${
+                    className={`h-16 flex-col gap-1 border-2 transition-none hover:bg-transparent ${
                       esReparable === true 
-                        ? "border-green-500 bg-green-500/20 text-green-700 dark:text-green-400" 
-                        : "bg-background border-border hover:border-green-500/50"
+                        ? "border-green-500 bg-green-500/20 text-green-700 dark:text-green-400 hover:bg-green-500/20" 
+                        : "bg-background border-border hover:border-border"
                     }`}
                   >
                     <Wrench className="h-5 w-5" />
@@ -937,10 +937,10 @@ export default function DiagnosticoInicial() {
                       setEsReparable(false);
                       setAplicaGarantia(null);
                     }} 
-                    className={`h-16 flex-col gap-1 border-2 transition-all ${
+                    className={`h-16 flex-col gap-1 border-2 transition-none hover:bg-transparent ${
                       esReparable === false 
-                        ? "border-red-500 bg-red-500/20 text-red-700 dark:text-red-400" 
-                        : "bg-background border-border hover:border-red-500/50"
+                        ? "border-red-500 bg-red-500/20 text-red-700 dark:text-red-400 hover:bg-red-500/20" 
+                        : "bg-background border-border hover:border-border"
                     }`}
                   >
                     <Ban className="h-5 w-5" />
@@ -961,10 +961,10 @@ export default function DiagnosticoInicial() {
                         type="button" 
                         variant="outline"
                         onClick={() => setAplicaGarantia(true)} 
-                        className={`h-14 border-2 transition-all ${
+                        className={`h-14 border-2 transition-none hover:bg-transparent ${
                           aplicaGarantia === true 
-                            ? "border-green-500 bg-green-500/20 text-green-700 dark:text-green-400" 
-                            : "bg-background border-border hover:border-green-500/50"
+                            ? "border-green-500 bg-green-500/20 text-green-700 dark:text-green-400 hover:bg-green-500/20" 
+                            : "bg-background border-border hover:border-border"
                         }`}
                       >
                         <CheckCircle2 className="h-4 w-4 mr-2" />
@@ -974,10 +974,10 @@ export default function DiagnosticoInicial() {
                         type="button" 
                         variant="outline"
                         onClick={() => setAplicaGarantia(false)}
-                        className={`h-14 border-2 transition-all ${
+                        className={`h-14 border-2 transition-none hover:bg-transparent ${
                           aplicaGarantia === false 
-                            ? "border-red-500 bg-red-500/20 text-red-700 dark:text-red-400" 
-                            : "bg-background border-border hover:border-red-500/50"
+                            ? "border-red-500 bg-red-500/20 text-red-700 dark:text-red-400 hover:bg-red-500/20" 
+                            : "bg-background border-border hover:border-border"
                         }`}
                       >
                         <Ban className="h-4 w-4 mr-2" />
