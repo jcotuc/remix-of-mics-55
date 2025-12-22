@@ -29,8 +29,14 @@ export default function DiagnosticoInicial() {
   // Paso 1: Fallas, Causas, Garantía, Resolución
   const [fallas, setFallas] = useState<string[]>([]);
   const [causas, setCausas] = useState<string[]>([]);
-  const [otraFalla, setOtraFalla] = useState("");
-  const [otraCausa, setOtraCausa] = useState("");
+  
+  // Dialogs para agregar nuevas fallas/causas
+  const [showAddFallaDialog, setShowAddFallaDialog] = useState(false);
+  const [showAddCausaDialog, setShowAddCausaDialog] = useState(false);
+  const [nuevaFalla, setNuevaFalla] = useState("");
+  const [nuevaCausa, setNuevaCausa] = useState("");
+  const [fallasPersonalizadas, setFallasPersonalizadas] = useState<string[]>([]);
+  const [causasPersonalizadas, setCausasPersonalizadas] = useState<string[]>([]);
   const [aplicaGarantia, setAplicaGarantia] = useState<boolean | null>(null);
   const [tipoResolucion, setTipoResolucion] = useState<string>("");
 
@@ -842,41 +848,53 @@ export default function DiagnosticoInicial() {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Fallas */}
                 <div className="space-y-4">
-                  <div>
+                  <div className="flex items-center justify-between">
                     <Label className="text-lg font-semibold">Fallas</Label>
-                    
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowAddFallaDialog(true)}
+                      className="h-8 w-8 p-0"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
                   </div>
                   <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
-                    {fallasDisponibles.map(falla => <label key={falla} className={`flex items-center space-x-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${fallas.includes(falla) ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`}>
+                    {[...fallasDisponibles, ...fallasPersonalizadas].map(falla => (
+                      <label key={falla} className={`flex items-center space-x-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${fallas.includes(falla) ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`}>
                         <Checkbox checked={fallas.includes(falla)} onCheckedChange={() => {
-                    setFallas(prev => prev.includes(falla) ? prev.filter(f => f !== falla) : [...prev, falla]);
-                  }} />
+                          setFallas(prev => prev.includes(falla) ? prev.filter(f => f !== falla) : [...prev, falla]);
+                        }} />
                         <span className="text-sm">{falla}</span>
-                      </label>)}
-                  </div>
-                  <div>
-                    <Label>Otra falla no listada</Label>
-                    <Textarea value={otraFalla} onChange={e => setOtraFalla(e.target.value)} placeholder="Describe la falla..." rows={2} />
+                      </label>
+                    ))}
                   </div>
                 </div>
 
                 {/* Causas */}
-                <div className="space-y-4">
-                  <div>
-                    <Label className="text-lg font-semibold">Causas</Label>
-                    
+                <div className="space-y-4 bg-muted/30 p-4 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-lg font-semibold text-muted-foreground">Causas</Label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowAddCausaDialog(true)}
+                      className="h-8 w-8 p-0"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
                   </div>
                   <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
-                    {causasDisponibles.map(causa => <label key={causa} className={`flex items-center space-x-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${causas.includes(causa) ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`}>
+                    {[...causasDisponibles, ...causasPersonalizadas].map(causa => (
+                      <label key={causa} className={`flex items-center space-x-3 p-3 rounded-lg border-2 cursor-pointer transition-all bg-background ${causas.includes(causa) ? "border-primary bg-primary/5" : "border-muted-foreground/20 hover:border-primary/50"}`}>
                         <Checkbox checked={causas.includes(causa)} onCheckedChange={() => {
-                    setCausas(prev => prev.includes(causa) ? prev.filter(c => c !== causa) : [...prev, causa]);
-                  }} />
+                          setCausas(prev => prev.includes(causa) ? prev.filter(c => c !== causa) : [...prev, causa]);
+                        }} />
                         <span className="text-sm">{causa}</span>
-                      </label>)}
-                  </div>
-                  <div>
-                    <Label>Otra causa no listada</Label>
-                    <Textarea value={otraCausa} onChange={e => setOtraCausa(e.target.value)} placeholder="Describe la causa..." rows={2} />
+                      </label>
+                    ))}
                   </div>
                 </div>
               </div>
@@ -1369,6 +1387,82 @@ export default function DiagnosticoInicial() {
             </Button>
             <Button onClick={handleFinalizarDiagnostico} disabled={!tipoTrabajo || saving}>
               {saving ? "Guardando..." : "Confirmar y Finalizar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog para agregar nueva falla */}
+      <Dialog open={showAddFallaDialog} onOpenChange={setShowAddFallaDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Agregar Nueva Falla</DialogTitle>
+            <DialogDescription>
+              Ingresa una nueva falla que no esté en la lista
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Textarea
+              value={nuevaFalla}
+              onChange={(e) => setNuevaFalla(e.target.value)}
+              placeholder="Describe la falla..."
+              rows={3}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setShowAddFallaDialog(false);
+              setNuevaFalla("");
+            }}>
+              Cancelar
+            </Button>
+            <Button onClick={() => {
+              if (nuevaFalla.trim()) {
+                setFallasPersonalizadas(prev => [...prev, nuevaFalla.trim()]);
+                setFallas(prev => [...prev, nuevaFalla.trim()]);
+                setNuevaFalla("");
+                setShowAddFallaDialog(false);
+              }
+            }} disabled={!nuevaFalla.trim()}>
+              Agregar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog para agregar nueva causa */}
+      <Dialog open={showAddCausaDialog} onOpenChange={setShowAddCausaDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Agregar Nueva Causa</DialogTitle>
+            <DialogDescription>
+              Ingresa una nueva causa que no esté en la lista
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Textarea
+              value={nuevaCausa}
+              onChange={(e) => setNuevaCausa(e.target.value)}
+              placeholder="Describe la causa..."
+              rows={3}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setShowAddCausaDialog(false);
+              setNuevaCausa("");
+            }}>
+              Cancelar
+            </Button>
+            <Button onClick={() => {
+              if (nuevaCausa.trim()) {
+                setCausasPersonalizadas(prev => [...prev, nuevaCausa.trim()]);
+                setCausas(prev => [...prev, nuevaCausa.trim()]);
+                setNuevaCausa("");
+                setShowAddCausaDialog(false);
+              }
+            }} disabled={!nuevaCausa.trim()}>
+              Agregar
             </Button>
           </DialogFooter>
         </DialogContent>
