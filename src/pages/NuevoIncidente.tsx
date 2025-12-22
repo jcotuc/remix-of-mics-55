@@ -519,15 +519,12 @@ export default function NuevoIncidente() {
                 {/* Búsqueda de cliente */}
                 {!mostrarFormNuevoCliente && !clienteSeleccionado && (
                   <div className="space-y-4">
-                    <div className="relative">
-                      <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                      <Input
-                        value={busquedaCliente}
-                        onChange={e => setBusquedaCliente(e.target.value)}
-                        placeholder="Buscar por celular, código, NIT o nombre..."
-                        className="pl-10 h-12 text-base"
-                      />
-                    </div>
+                    <OutlinedInput
+                      label="Buscar Cliente"
+                      value={busquedaCliente}
+                      onChange={e => setBusquedaCliente(e.target.value)}
+                      icon={<Search className="w-4 h-4" />}
+                    />
 
                     {busquedaCliente.length >= 2 && (
                       <div className="border rounded-lg divide-y max-h-80 overflow-y-auto">
