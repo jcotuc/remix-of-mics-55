@@ -10,8 +10,8 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { WhatsAppStyleMediaCapture, MediaFile } from "@/components/WhatsAppStyleMediaCapture";
 import { uploadMediaToStorage } from "@/lib/uploadMedia";
-import { Wrench, Clock, Search, Store, CheckCircle2, XCircle, Plus, ChevronDown } from "lucide-react";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Wrench, Store, CheckCircle2, XCircle, Plus, Eye, EyeOff } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
@@ -350,48 +350,63 @@ export default function Asignaciones() {
       <div className="space-y-4">
         
         
-        {loading ? <div className="text-center py-12">
+        {loading ? (
+          <div className="text-center py-12">
             <p className="text-muted-foreground">Cargando...</p>
-          </div> : <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {FAMILIAS.filter(familia => getIncidentesPorFamilia(familia).length > 0).map(familia => {
-          const incidentesFamilia = getIncidentesPorFamilia(familia);
-          const isStockCemaco = familia.nombre === "Stock Cemaco";
-          const primerIncidente = incidentesFamilia[0];
-          const expanded = expandedFamilias[familia.nombre] || false;
-          const toggleExpanded = () => setExpandedFamilias(prev => ({ ...prev, [familia.nombre]: !prev[familia.nombre] }));
-          
-          return <Card key={familia.nombre} className={`flex flex-col ${isStockCemaco ? 'border-orange-500/50 bg-orange-50/30 dark:bg-orange-950/20' : ''}`}>
-                  <CardHeader className="pb-2 border-b bg-muted/30">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-base font-semibold flex items-center gap-2">
-                        {isStockCemaco && <Store className="h-4 w-4 text-orange-600" />}
-                        {familia.nombre}
-                      </CardTitle>
-                      <div className="flex items-center gap-2">
-                        <Badge variant="secondary" className="font-bold">
+          </div>
+        ) : (
+          <TooltipProvider>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+              {FAMILIAS.filter(familia => getIncidentesPorFamilia(familia).length > 0).map(familia => {
+                const incidentesFamilia = getIncidentesPorFamilia(familia);
+                const isStockCemaco = familia.nombre === "Stock Cemaco";
+                const primerIncidente = incidentesFamilia[0];
+                const showList = expandedFamilias[familia.nombre] || false;
+                const toggleList = (e: React.MouseEvent) => {
+                  e.stopPropagation();
+                  setExpandedFamilias(prev => ({ ...prev, [familia.nombre]: !prev[familia.nombre] }));
+                };
+                
+                return (
+                  <div key={familia.nombre} className="flex flex-col">
+                    {/* Header con nombre de familia y controles */}
+                    <div className={`flex items-center justify-between px-3 py-2 rounded-t-xl ${
+                      isStockCemaco 
+                        ? 'bg-orange-100 dark:bg-orange-900/30 border-x border-t border-orange-300 dark:border-orange-700' 
+                        : 'bg-muted/60 border-x border-t border-border'
+                    }`}>
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        {isStockCemaco && <Store className="h-3.5 w-3.5 text-orange-600 flex-shrink-0" />}
+                        <span className="text-sm font-semibold truncate">{familia.nombre}</span>
+                        <Badge variant="secondary" className="text-[10px] h-5 px-1.5 ml-1 flex-shrink-0">
                           {incidentesFamilia.length}
                         </Badge>
-                        {incidentesFamilia.length > 1 && (
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-7 w-7"
-                            onClick={toggleExpanded}
-                          >
-                            {expanded ? <ChevronDown className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-                          </Button>
-                        )}
                       </div>
+                      {incidentesFamilia.length > 1 && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              className="h-6 w-6 flex-shrink-0"
+                              onClick={toggleList}
+                            >
+                              {showList ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            {showList ? 'Ocultar lista' : 'Ver lista de espera'}
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
                     </div>
-                  </CardHeader>
-                  
-                  <CardContent className="flex-1 p-3 space-y-2">
-                    {/* Tarjeta principal clickeable */}
+                    
+                    {/* Tarjeta principal - clickeable para asignar */}
                     <div 
-                      className={`p-4 rounded-xl cursor-pointer transition-all duration-200 ${
+                      className={`p-4 rounded-b-xl cursor-pointer transition-all duration-200 min-h-[120px] flex flex-col justify-between ${
                         isStockCemaco 
-                          ? 'bg-gradient-to-br from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white shadow-lg shadow-orange-500/25' 
-                          : 'bg-gradient-to-br from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground shadow-lg shadow-primary/25'
+                          ? 'bg-gradient-to-br from-orange-500 to-orange-600 hover:from-orange-400 hover:to-orange-500 text-white border-x border-b border-orange-400 shadow-lg shadow-orange-500/20' 
+                          : 'bg-gradient-to-br from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground border-x border-b border-primary/50 shadow-lg shadow-primary/20'
                       } hover:scale-[1.02] active:scale-[0.98]`}
                       onClick={() => {
                         if (isStockCemaco) {
@@ -405,48 +420,48 @@ export default function Asignaciones() {
                         }
                       }}
                     >
-                      <p className="font-semibold text-sm truncate mb-1">
-                        {primerIncidente.codigo_producto}
-                      </p>
-                      <p className="text-xs opacity-90 line-clamp-2">
-                        {primerIncidente.descripcion_problema}
-                      </p>
-                      <p className="text-[10px] opacity-70 mt-2">
-                        {isStockCemaco 
-                          ? (primerIncidente.status === 'Ingresado' ? 'Toca para revisar' : 'Toca para aprobar')
-                          : 'Toca para asignarte'
-                        }
-                      </p>
+                      <div className="space-y-1.5">
+                        <p className="font-bold text-sm truncate">
+                          {primerIncidente.codigo_producto}
+                        </p>
+                        <p className="text-xs opacity-90 line-clamp-3 leading-relaxed">
+                          {primerIncidente.descripcion_problema}
+                        </p>
+                      </div>
+                      <div className="flex items-center justify-between mt-3 pt-2 border-t border-white/20">
+                        <span className="text-[10px] opacity-70">
+                          {isStockCemaco 
+                            ? (primerIncidente.status === 'Ingresado' ? 'Revisar' : 'Aprobar')
+                            : 'Asignarme'
+                          }
+                        </span>
+                        <Plus className="h-5 w-5 opacity-80" />
+                      </div>
                     </div>
                     
                     {/* Lista expandible de incidentes en espera */}
-                    {expanded && incidentesFamilia.length > 1 && (
-                      <div className="space-y-1.5 pt-1 border-t">
-                        <p className="text-xs text-muted-foreground font-medium px-1">En espera:</p>
-                        <div className="max-h-40 overflow-y-auto space-y-1.5">
-                          {incidentesFamilia.slice(1).map((inc, idx) => (
-                            <div 
-                              key={inc.id} 
-                              className="p-2 rounded-lg bg-muted/50 border border-border/50"
-                            >
-                              <p className="text-xs font-medium truncate">{inc.codigo_producto}</p>
-                              <p className="text-[10px] text-muted-foreground line-clamp-1">{inc.descripcion_problema}</p>
-                            </div>
-                          ))}
-                        </div>
+                    {showList && incidentesFamilia.length > 1 && (
+                      <div className="mt-2 p-2 rounded-lg bg-muted/30 border border-border/50 space-y-1.5 max-h-48 overflow-y-auto">
+                        <p className="text-[10px] text-muted-foreground font-medium px-1 uppercase tracking-wide">
+                          En espera ({incidentesFamilia.length - 1})
+                        </p>
+                        {incidentesFamilia.slice(1).map((inc) => (
+                          <div 
+                            key={inc.id} 
+                            className="p-2 rounded-md bg-background/80 border border-border/30"
+                          >
+                            <p className="text-xs font-medium truncate">{inc.codigo_producto}</p>
+                            <p className="text-[10px] text-muted-foreground line-clamp-1">{inc.descripcion_problema}</p>
+                          </div>
+                        ))}
                       </div>
                     )}
-                    
-                    {/* Indicador de cuántos más hay en cola */}
-                    {!expanded && incidentesFamilia.length > 1 && (
-                      <p className="text-xs text-muted-foreground text-center">
-                        +{incidentesFamilia.length - 1} en espera
-                      </p>
-                    )}
-                  </CardContent>
-                </Card>;
-        })}
-          </div>}
+                  </div>
+                );
+              })}
+            </div>
+          </TooltipProvider>
+        )}
 
         {/* Leyenda */}
         <Card className="bg-muted/30">
