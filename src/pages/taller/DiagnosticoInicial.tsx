@@ -959,7 +959,7 @@ export default function DiagnosticoInicial() {
       <Card className="mt-6">
         <CardHeader>
           <CardTitle>
-            {paso === 1 && "Paso 1: Diagnóstico - Fallas y Causas"}
+            {paso === 1 && "Paso 1: Diagnóstico"}
             {paso === 1.5 && "Paso 1.5: Cotización de Canje"}
             {paso === 2 && "Paso 2: Solicitud de Repuestos"}
             {paso === 3 && "Paso 3: Fotos y Observaciones"}
