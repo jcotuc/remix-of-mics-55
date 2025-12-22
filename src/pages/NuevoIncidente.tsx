@@ -1,21 +1,20 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { ArrowLeft, Search, CheckCircle2, User, Package, AlertCircle } from "lucide-react";
+import { ArrowLeft, Search, User, Package, AlertCircle, UserCircle, ChevronRight } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Producto } from "@/types";
 import { MediaFile } from "@/components/WhatsAppStyleMediaCapture";
 import { FloatingCameraWidget } from "@/components/FloatingCameraWidget";
 import { uploadMediaToStorage, saveIncidentePhotos } from "@/lib/uploadMedia";
+import { MinimalStepper } from "@/components/ui/minimal-stepper";
+import { OutlinedInput, OutlinedTextarea, OutlinedSelect } from "@/components/ui/outlined-input";
 
 const centrosServicio = ['Zona 5 (Principal)', 'Zona 4', 'Chimaltenango', 'Río Hondo', 'Escuintla', 'Xela', 'Jutiapa', 'Huehuetenango'];
 const tipologias = ['Mantenimiento', 'Reparación', 'Daños por transporte', 'Venta de repuestos'];
@@ -62,6 +61,11 @@ interface Cliente {
   municipio?: string;
 }
 
+const stepperSteps = [
+  { id: 1, title: "Cliente", description: "Datos del propietario", icon: <User className="w-5 h-5" /> },
+  { id: 2, title: "Máquina", description: "Información del equipo", icon: <Package className="w-5 h-5" /> },
+];
+
 export default function NuevoIncidente() {
   const navigate = useNavigate();
   const [paso, setPaso] = useState(1);
@@ -96,7 +100,7 @@ export default function NuevoIncidente() {
     telefono_secundario: ""
   });
 
-  // Persona que entrega (ahora en paso 1)
+  // Persona que entrega
   const [personaDejaMaquina, setPersonaDejaMaquina] = useState("");
   const [dpiPersonaDeja, setDpiPersonaDeja] = useState("");
 
@@ -120,10 +124,8 @@ export default function NuevoIncidente() {
   const [esStockCemaco, setEsStockCemaco] = useState(false);
   const [guardando, setGuardando] = useState(false);
 
-  // Media (fotos y videos)
+  // Media
   const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([]);
-
-  // Dialog for adding another machine
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
 
   useEffect(() => {
@@ -288,7 +290,6 @@ export default function NuevoIncidente() {
         return false;
       }
     }
-    // Validar persona que entrega
     if (!personaDejaMaquina.trim()) {
       toast({ title: "Error", description: "Ingrese quién deja la máquina", variant: "destructive" });
       return false;
@@ -460,597 +461,569 @@ export default function NuevoIncidente() {
   };
 
   return (
-    <div className="container mx-auto p-6 max-w-4xl pb-24">
-      <div className="flex items-center gap-4 mb-6">
-        <Button variant="ghost" onClick={() => navigate("/mostrador/incidentes")}>
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Volver a Incidentes
-        </Button>
-        <h1 className="text-2xl font-bold">Nuevo Incidente</h1>
-      </div>
-
-      {/* Progress indicator */}
-      <div className="mb-8">
-        <div className="flex items-center justify-center gap-4">
-          <div className="flex items-center gap-2">
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${paso >= 1 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
-              {paso > 1 ? <CheckCircle2 className="w-5 h-5" /> : <User className="w-5 h-5" />}
+    <div className="min-h-screen bg-muted/30 pb-24">
+      {/* Header */}
+      <div className="bg-background border-b sticky top-0 z-10">
+        <div className="container mx-auto px-4 py-4 max-w-3xl">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" onClick={() => navigate("/mostrador/incidentes")} className="shrink-0">
+              <ArrowLeft className="w-5 h-5" />
+            </Button>
+            <div>
+              <h1 className="text-xl font-semibold text-foreground">Nuevo Incidente</h1>
+              <p className="text-sm text-muted-foreground">Registro de ingreso de máquina</p>
             </div>
-            <span className={`font-medium ${paso >= 1 ? 'text-foreground' : 'text-muted-foreground'}`}>
-              Cliente
-            </span>
-          </div>
-          <div className={`w-20 h-1 ${paso >= 2 ? 'bg-primary' : 'bg-muted'}`} />
-          <div className="flex items-center gap-2">
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${paso >= 2 ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
-              <Package className="w-5 h-5" />
-            </div>
-            <span className={`font-medium ${paso >= 2 ? 'text-foreground' : 'text-muted-foreground'}`}>
-              Máquina
-            </span>
           </div>
         </div>
       </div>
 
-      {/* Paso 1: Cliente + Persona que Entrega */}
-      {paso === 1 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <User className="w-5 h-5" />
-              Información del Cliente
-            </CardTitle>
-            <CardDescription>Busque un cliente existente o cree uno nuevo</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Botón fijo para crear cliente */}
-            <div className="flex justify-end">
-              <Button
-                type="button"
-                onClick={() => {
-                  setMostrarFormNuevoCliente(true);
-                  setClienteSeleccionado(null);
-                  setBusquedaCliente("");
-                }}
-                variant="default"
-                className="gap-2"
-              >
-                <User className="w-4 h-4" />
-                Crear Cliente Nuevo
-              </Button>
-            </div>
+      {/* Stepper */}
+      <div className="container mx-auto px-4 py-6 max-w-3xl">
+        <MinimalStepper steps={stepperSteps} currentStep={paso} />
+      </div>
 
-            {!mostrarFormNuevoCliente && !clienteSeleccionado && (
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="busqueda-cliente">Buscar Cliente</Label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="busqueda-cliente"
-                      value={busquedaCliente}
-                      onChange={e => setBusquedaCliente(e.target.value)}
-                      placeholder="Buscar por celular, código, NIT o nombre..."
-                      className="pl-10"
-                    />
+      {/* Content */}
+      <div className="container mx-auto px-4 max-w-3xl space-y-6">
+        {/* Paso 1: Cliente */}
+        {paso === 1 && (
+          <>
+            {/* Card: Propietario */}
+            <div className="bg-background rounded-xl border shadow-sm overflow-hidden">
+              <div className="px-6 py-4 border-b bg-muted/30 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                    <User className="w-5 h-5 text-primary" />
                   </div>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Ingrese al menos 2 caracteres para buscar
-                  </p>
+                  <div>
+                    <h2 className="font-semibold text-foreground">Propietario</h2>
+                    <p className="text-sm text-muted-foreground">Datos del cliente</p>
+                  </div>
                 </div>
+                {!clienteSeleccionado && !mostrarFormNuevoCliente && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setMostrarFormNuevoCliente(true);
+                      setBusquedaCliente("");
+                    }}
+                    className="gap-2"
+                  >
+                    <User className="w-4 h-4" />
+                    <span className="hidden sm:inline">Crear Nuevo</span>
+                  </Button>
+                )}
+              </div>
 
-                {busquedaCliente.length >= 2 && (
-                  <div className="border rounded-lg divide-y max-h-96 overflow-y-auto">
-                    {clientesEncontrados.length > 0 ? (
-                      clientesEncontrados.map(cliente => (
-                        <div
-                          key={cliente.codigo}
-                          onClick={() => seleccionarCliente(cliente)}
-                          className="p-3 sm:p-4 hover:bg-accent cursor-pointer transition-colors"
-                        >
-                          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">
-                            <div className="space-y-1 flex-1">
-                              <p className="font-semibold text-sm sm:text-base text-foreground">{cliente.nombre}</p>
-                              <div className="flex flex-col sm:flex-row sm:gap-4 gap-1 text-xs sm:text-sm text-muted-foreground">
-                                <span>Código: {cliente.codigo}</span>
-                                <span>Celular: {cliente.celular}</span>
-                                <span className="hidden sm:inline">NIT: {cliente.nit}</span>
+              <div className="p-6 space-y-6">
+                {/* Búsqueda de cliente */}
+                {!mostrarFormNuevoCliente && !clienteSeleccionado && (
+                  <div className="space-y-4">
+                    <div className="relative">
+                      <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                      <Input
+                        value={busquedaCliente}
+                        onChange={e => setBusquedaCliente(e.target.value)}
+                        placeholder="Buscar por celular, código, NIT o nombre..."
+                        className="pl-10 h-12 text-base"
+                      />
+                    </div>
+
+                    {busquedaCliente.length >= 2 && (
+                      <div className="border rounded-lg divide-y max-h-80 overflow-y-auto">
+                        {clientesEncontrados.length > 0 ? (
+                          clientesEncontrados.map(cliente => (
+                            <div
+                              key={cliente.codigo}
+                              onClick={() => seleccionarCliente(cliente)}
+                              className="p-4 hover:bg-muted/50 cursor-pointer transition-colors flex items-center justify-between gap-4"
+                            >
+                              <div className="min-w-0 flex-1">
+                                <p className="font-medium text-foreground truncate">{cliente.nombre}</p>
+                                <p className="text-sm text-muted-foreground">
+                                  {cliente.codigo} • {cliente.celular}
+                                </p>
                               </div>
+                              <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
                             </div>
-                            <Button size="sm" variant="ghost" className="self-start sm:self-auto text-xs">
-                              Seleccionar
+                          ))
+                        ) : (
+                          <div className="p-8 text-center">
+                            <AlertCircle className="w-10 h-10 mx-auto text-muted-foreground/50 mb-3" />
+                            <p className="font-medium text-foreground">No se encontraron resultados</p>
+                            <p className="text-sm text-muted-foreground mt-1">¿Desea crear un nuevo cliente?</p>
+                            <Button
+                              onClick={() => {
+                                setMostrarFormNuevoCliente(true);
+                                setBusquedaCliente("");
+                              }}
+                              className="mt-4"
+                              size="sm"
+                            >
+                              Crear Cliente
                             </Button>
                           </div>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="p-8 text-center space-y-4">
-                        <AlertCircle className="w-12 h-12 mx-auto text-muted-foreground" />
-                        <div>
-                          <p className="font-medium text-foreground">Cliente no encontrado</p>
-                          <p className="text-sm text-muted-foreground">¿Desea crear uno nuevo?</p>
-                        </div>
-                        <Button
-                          onClick={() => {
-                            setMostrarFormNuevoCliente(true);
-                            setBusquedaCliente("");
-                          }}
-                          variant="default"
-                        >
-                          Crear Cliente
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Cliente seleccionado */}
-            {clienteSeleccionado && !mostrarFormNuevoCliente && (
-              <div className="space-y-4 p-4 border rounded-lg bg-accent/50">
-                <div className="flex justify-between items-center">
-                  <h3 className="text-lg font-semibold flex items-center gap-2">
-                    <CheckCircle2 className="w-5 h-5 text-primary" />
-                    Cliente Seleccionado
-                  </h3>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      setClienteSeleccionado(null);
-                      setBusquedaCliente("");
-                      setDireccionesEnvio([]);
-                      setDireccionSeleccionada("");
-                    }}
-                  >
-                    Cambiar
-                  </Button>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                  <div>
-                    <Label htmlFor="nombre-existente">Nombre Completo *</Label>
-                    <Input
-                      id="nombre-existente"
-                      value={datosClienteExistente.nombre}
-                      onChange={e => setDatosClienteExistente({ ...datosClienteExistente, nombre: e.target.value })}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="nit-existente">NIT *</Label>
-                    <Input
-                      id="nit-existente"
-                      value={datosClienteExistente.nit}
-                      onChange={e => setDatosClienteExistente({ ...datosClienteExistente, nit: e.target.value })}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="correo-existente">Correo Electrónico</Label>
-                    <Input
-                      id="correo-existente"
-                      type="email"
-                      value={datosClienteExistente.correo}
-                      onChange={e => setDatosClienteExistente({ ...datosClienteExistente, correo: e.target.value })}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="telefono-principal-existente">Teléfono Principal *</Label>
-                    <Input
-                      id="telefono-principal-existente"
-                      value={datosClienteExistente.telefono_principal}
-                      onChange={e => setDatosClienteExistente({ ...datosClienteExistente, telefono_principal: e.target.value })}
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="telefono-secundario-existente">Teléfono Secundario</Label>
-                    <Input
-                      id="telefono-secundario-existente"
-                      value={datosClienteExistente.telefono_secundario}
-                      onChange={e => setDatosClienteExistente({ ...datosClienteExistente, telefono_secundario: e.target.value })}
-                    />
-                  </div>
-                </div>
-
-                {clienteSeleccionado.direccion && (
-                  <div className="mt-4 p-3 bg-background rounded-md border">
-                    <Label className="text-sm font-medium">Dirección Registrada</Label>
-                    <p className="text-sm text-muted-foreground mt-1">{clienteSeleccionado.direccion}</p>
-                  </div>
-                )}
-
-                {direccionesEnvio.length > 0 && (
-                  <div className="mt-4 p-3 bg-background rounded-md border">
-                    <Label className="text-sm font-medium">Direcciones de Envío Guardadas ({direccionesEnvio.length})</Label>
-                    <div className="mt-2 space-y-2">
-                      {direccionesEnvio.map(dir => (
-                        <p key={dir.id} className="text-sm text-muted-foreground">
-                          • {dir.direccion} {dir.es_principal && <span className="text-primary font-medium">(Principal)</span>}
-                        </p>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Formulario nuevo cliente */}
-            {mostrarFormNuevoCliente && (
-              <div className="space-y-4 sm:space-y-6 p-3 sm:p-4 border rounded-lg bg-muted/30">
-                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
-                  <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground">
-                    <AlertCircle className="w-3 h-3 sm:w-4 sm:h-4" />
-                    <span>Se generará automáticamente un código HPC para este cliente</span>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      setMostrarFormNuevoCliente(false);
-                      setNuevoCliente({
-                        nombre: "", nit: "", direccion: "", correo: "",
-                        telefono_principal: "", telefono_secundario: "",
-                        nombre_facturacion: "", pais: "Guatemala", departamento: "", municipio: ""
-                      });
-                    }}
-                    className="text-xs"
-                  >
-                    Cancelar
-                  </Button>
-                </div>
-
-                <div className="space-y-3 sm:space-y-4">
-                  <h3 className="text-base sm:text-lg font-semibold border-b pb-2">Datos Personales</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                    <div className="col-span-2">
-                      <Label htmlFor="nombre">Nombre Completo *</Label>
-                      <Input id="nombre" value={nuevoCliente.nombre} onChange={e => setNuevoCliente({ ...nuevoCliente, nombre: e.target.value })} placeholder="Nombre completo del cliente" />
-                    </div>
-                    <div>
-                      <Label htmlFor="correo">Correo Electrónico</Label>
-                      <Input id="correo" type="email" value={nuevoCliente.correo} onChange={e => setNuevoCliente({ ...nuevoCliente, correo: e.target.value })} placeholder="correo@ejemplo.com" />
-                    </div>
-                    <div>
-                      <Label htmlFor="telefono-principal">Teléfono Principal *</Label>
-                      <Input id="telefono-principal" value={nuevoCliente.telefono_principal} onChange={e => setNuevoCliente({ ...nuevoCliente, telefono_principal: e.target.value })} placeholder="1234-5678" />
-                    </div>
-                    <div>
-                      <Label htmlFor="telefono-secundario">Teléfono Secundario</Label>
-                      <Input id="telefono-secundario" value={nuevoCliente.telefono_secundario} onChange={e => setNuevoCliente({ ...nuevoCliente, telefono_secundario: e.target.value })} placeholder="1234-5678" />
-                    </div>
-                    <div className="col-span-2">
-                      <Label htmlFor="direccion">Dirección *</Label>
-                      <Input id="direccion" value={nuevoCliente.direccion} onChange={e => setNuevoCliente({ ...nuevoCliente, direccion: e.target.value })} placeholder="Dirección completa" />
-                    </div>
-                    <div>
-                      <Label htmlFor="pais">País *</Label>
-                      <Input id="pais" value={nuevoCliente.pais} onChange={e => setNuevoCliente({ ...nuevoCliente, pais: e.target.value })} placeholder="Guatemala" />
-                    </div>
-                    <div>
-                      <Label htmlFor="departamento">Departamento *</Label>
-                      <Select value={nuevoCliente.departamento} onValueChange={value => setNuevoCliente({ ...nuevoCliente, departamento: value })}>
-                        <SelectTrigger><SelectValue placeholder="Seleccione un departamento" /></SelectTrigger>
-                        <SelectContent>
-                          {DEPARTAMENTOS.map(dept => <SelectItem key={dept} value={dept}>{dept}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label htmlFor="municipio">Municipio *</Label>
-                      <Select value={nuevoCliente.municipio} onValueChange={value => setNuevoCliente({ ...nuevoCliente, municipio: value })} disabled={!nuevoCliente.departamento}>
-                        <SelectTrigger><SelectValue placeholder="Seleccione un municipio" /></SelectTrigger>
-                        <SelectContent>
-                          {municipiosDisponibles.map(muni => <SelectItem key={muni} value={muni}>{muni}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-3 sm:space-y-4">
-                  <h3 className="text-base sm:text-lg font-semibold border-b pb-2">Datos de Facturación</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                    <div>
-                      <Label htmlFor="nit">NIT *</Label>
-                      <Input id="nit" value={nuevoCliente.nit} onChange={e => setNuevoCliente({ ...nuevoCliente, nit: e.target.value })} placeholder="NIT o CF" />
-                    </div>
-                    <div>
-                      <Label htmlFor="nombre-facturacion">Nombre de Facturación *</Label>
-                      <Input id="nombre-facturacion" value={nuevoCliente.nombre_facturacion} onChange={e => setNuevoCliente({ ...nuevoCliente, nombre_facturacion: e.target.value })} placeholder="Nombre para facturar" />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Sección: Persona que Entrega */}
-            <div className="space-y-4 p-4 border rounded-lg bg-blue-50/50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800">
-              <h3 className="text-lg font-semibold flex items-center gap-2 text-blue-700 dark:text-blue-400">
-                <User className="w-5 h-5" />
-                Persona que Entrega la Máquina
-              </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="persona-deja">Nombre Completo *</Label>
-                  <Input
-                    id="persona-deja"
-                    value={personaDejaMaquina}
-                    onChange={e => setPersonaDejaMaquina(e.target.value)}
-                    placeholder="Nombre de quien entrega el equipo"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="dpi-persona">DPI *</Label>
-                  <Input
-                    id="dpi-persona"
-                    value={dpiPersonaDeja}
-                    onChange={e => setDpiPersonaDeja(e.target.value)}
-                    placeholder="Número de DPI (13 dígitos)"
-                    maxLength={13}
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="flex justify-end">
-              <Button onClick={() => { if (validarPaso1()) setPaso(2); }} className="w-full sm:w-auto">
-                Siguiente
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Paso 2: Máquina/Incidente */}
-      {paso === 2 && (
-        <Card>
-          <CardHeader className="p-4 sm:p-6">
-            <CardTitle className="text-base sm:text-lg">Información de la Máquina</CardTitle>
-            <CardDescription className="text-xs sm:text-sm">Datos del equipo y problema reportado</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4 sm:space-y-6 p-4 sm:p-6">
-            <div>
-              <Label htmlFor="sku">SKU de la Máquina *</Label>
-              <Input
-                id="sku"
-                value={skuMaquina}
-                onChange={e => {
-                  setSkuMaquina(e.target.value);
-                  if (!e.target.value) setProductoSeleccionado(null);
-                }}
-                placeholder="Ingrese código o clave del producto (mín. 3 caracteres)"
-              />
-
-              {productosEncontrados.length > 1 && (
-                <div className="mt-2 border rounded-lg max-h-48 overflow-y-auto bg-background">
-                  {productosEncontrados.map(producto => (
-                    <div
-                      key={producto.codigo}
-                      className="p-3 hover:bg-muted cursor-pointer border-b last:border-b-0"
-                      onClick={() => { setProductoSeleccionado(producto); setSkuMaquina(producto.codigo); }}
-                    >
-                      <div className="font-medium">{producto.descripcion}</div>
-                      <div className="text-sm text-muted-foreground">
-                        Código: {producto.codigo} | Clave: {producto.clave}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {productoSeleccionado && (
-                <div className="mt-4 p-4 border rounded-lg bg-muted/30">
-                  <div className="flex gap-4">
-                    {productoSeleccionado.urlFoto && (
-                      <div className="flex-shrink-0">
-                        <img src={productoSeleccionado.urlFoto} alt={productoSeleccionado.descripcion} className="w-32 h-32 object-cover rounded-lg border" />
-                      </div>
-                    )}
-                    <div className="flex-1">
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <h3 className="font-semibold text-lg">{productoSeleccionado.descripcion}</h3>
-                          <p className="text-sm text-muted-foreground mt-1">Código: {productoSeleccionado.codigo}</p>
-                          <p className="text-sm text-muted-foreground">Clave: {productoSeleccionado.clave}</p>
-                        </div>
-                        {productoSeleccionado.descontinuado ? (
-                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">Descontinuado</span>
-                        ) : (
-                          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">Vigente</span>
                         )}
                       </div>
+                    )}
+
+                    {busquedaCliente.length < 2 && (
+                      <p className="text-sm text-muted-foreground text-center py-4">
+                        Ingrese al menos 2 caracteres para buscar
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* Cliente seleccionado */}
+                {clienteSeleccionado && !mostrarFormNuevoCliente && (
+                  <div className="space-y-5">
+                    <div className="flex items-center justify-between p-3 rounded-lg bg-primary/5 border border-primary/20">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
+                          <User className="w-4 h-4 text-primary-foreground" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-foreground">{clienteSeleccionado.nombre}</p>
+                          <p className="text-xs text-muted-foreground">Código: {clienteSeleccionado.codigo}</p>
+                        </div>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          setClienteSeleccionado(null);
+                          setBusquedaCliente("");
+                          setDireccionesEnvio([]);
+                          setDireccionSeleccionada("");
+                        }}
+                      >
+                        Cambiar
+                      </Button>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <OutlinedInput
+                        label="Nombre Completo"
+                        value={datosClienteExistente.nombre}
+                        onChange={e => setDatosClienteExistente({ ...datosClienteExistente, nombre: e.target.value })}
+                        required
+                      />
+                      <OutlinedInput
+                        label="NIT"
+                        value={datosClienteExistente.nit}
+                        onChange={e => setDatosClienteExistente({ ...datosClienteExistente, nit: e.target.value })}
+                        required
+                      />
+                      <OutlinedInput
+                        label="Correo Electrónico"
+                        type="email"
+                        value={datosClienteExistente.correo}
+                        onChange={e => setDatosClienteExistente({ ...datosClienteExistente, correo: e.target.value })}
+                      />
+                      <OutlinedInput
+                        label="Teléfono Principal"
+                        value={datosClienteExistente.telefono_principal}
+                        onChange={e => setDatosClienteExistente({ ...datosClienteExistente, telefono_principal: e.target.value })}
+                        required
+                      />
+                      <OutlinedInput
+                        label="Teléfono Secundario"
+                        value={datosClienteExistente.telefono_secundario}
+                        onChange={e => setDatosClienteExistente({ ...datosClienteExistente, telefono_secundario: e.target.value })}
+                      />
                     </div>
                   </div>
-                </div>
-              )}
-            </div>
+                )}
 
-            <div className="space-y-3 sm:space-y-4 p-3 sm:p-4 border rounded-lg bg-muted/30">
-              <h4 className="font-medium text-sm sm:text-base">Reporte de Fallas</h4>
-              <div>
-                <Label htmlFor="descripcion">Comentario del cliente (o fallas de la máquina) *</Label>
-                <Textarea id="descripcion" value={descripcionProblema} onChange={e => setDescripcionProblema(e.target.value)} placeholder="Describa las fallas o problema reportado por el cliente" rows={4} className="text-sm" />
-              </div>
-            </div>
+                {/* Formulario nuevo cliente */}
+                {mostrarFormNuevoCliente && (
+                  <div className="space-y-6">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm text-muted-foreground flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4" />
+                        Se generará automáticamente un código HPC
+                      </p>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          setMostrarFormNuevoCliente(false);
+                          setNuevoCliente({
+                            nombre: "", nit: "", direccion: "", correo: "",
+                            telefono_principal: "", telefono_secundario: "",
+                            nombre_facturacion: "", pais: "Guatemala", departamento: "", municipio: ""
+                          });
+                        }}
+                      >
+                        Cancelar
+                      </Button>
+                    </div>
 
-            <div>
-              <Label>Accesorios con los que ingresa</Label>
-              <div className="mt-2 border rounded-lg p-4 max-h-60 overflow-y-auto space-y-3">
-                {accesoriosDisponibles.length > 0 ? accesoriosDisponibles.map(accesorio => (
-                  <div key={accesorio.id} className="flex items-center space-x-3">
-                    <Checkbox
-                      id={accesorio.id}
-                      checked={accesoriosSeleccionados.includes(accesorio.descripcion)}
-                      onCheckedChange={checked => {
-                        if (checked) {
-                          setAccesoriosSeleccionados([...accesoriosSeleccionados, accesorio.descripcion]);
-                        } else {
-                          setAccesoriosSeleccionados(accesoriosSeleccionados.filter(a => a !== accesorio.descripcion));
-                        }
-                      }}
-                    />
-                    <Label htmlFor={accesorio.id} className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer">
-                      {accesorio.descripcion}
-                    </Label>
+                    <div className="space-y-4">
+                      <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Datos Personales</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="sm:col-span-2">
+                          <OutlinedInput
+                            label="Nombre Completo"
+                            value={nuevoCliente.nombre}
+                            onChange={e => setNuevoCliente({ ...nuevoCliente, nombre: e.target.value })}
+                            required
+                          />
+                        </div>
+                        <OutlinedInput
+                          label="Correo Electrónico"
+                          type="email"
+                          value={nuevoCliente.correo}
+                          onChange={e => setNuevoCliente({ ...nuevoCliente, correo: e.target.value })}
+                        />
+                        <OutlinedInput
+                          label="Teléfono Principal"
+                          value={nuevoCliente.telefono_principal}
+                          onChange={e => setNuevoCliente({ ...nuevoCliente, telefono_principal: e.target.value })}
+                          required
+                        />
+                        <OutlinedInput
+                          label="Teléfono Secundario"
+                          value={nuevoCliente.telefono_secundario}
+                          onChange={e => setNuevoCliente({ ...nuevoCliente, telefono_secundario: e.target.value })}
+                        />
+                        <div className="sm:col-span-2">
+                          <OutlinedInput
+                            label="Dirección"
+                            value={nuevoCliente.direccion}
+                            onChange={e => setNuevoCliente({ ...nuevoCliente, direccion: e.target.value })}
+                            required
+                          />
+                        </div>
+                        <OutlinedInput
+                          label="País"
+                          value={nuevoCliente.pais}
+                          onChange={e => setNuevoCliente({ ...nuevoCliente, pais: e.target.value })}
+                          required
+                        />
+                        <OutlinedSelect
+                          label="Departamento"
+                          value={nuevoCliente.departamento}
+                          onValueChange={value => setNuevoCliente({ ...nuevoCliente, departamento: value })}
+                          options={DEPARTAMENTOS.map(d => ({ value: d, label: d }))}
+                          required
+                        />
+                        <OutlinedSelect
+                          label="Municipio"
+                          value={nuevoCliente.municipio}
+                          onValueChange={value => setNuevoCliente({ ...nuevoCliente, municipio: value })}
+                          options={municipiosDisponibles.map(m => ({ value: m, label: m }))}
+                          disabled={!nuevoCliente.departamento}
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Datos de Facturación</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <OutlinedInput
+                          label="NIT"
+                          value={nuevoCliente.nit}
+                          onChange={e => setNuevoCliente({ ...nuevoCliente, nit: e.target.value })}
+                          required
+                        />
+                        <OutlinedInput
+                          label="Nombre de Facturación"
+                          value={nuevoCliente.nombre_facturacion}
+                          onChange={e => setNuevoCliente({ ...nuevoCliente, nombre_facturacion: e.target.value })}
+                          required
+                        />
+                      </div>
+                    </div>
                   </div>
-                )) : <p className="text-sm text-muted-foreground">No hay accesorios disponibles</p>}
+                )}
               </div>
-              {accesoriosSeleccionados.length > 0 && (
-                <p className="text-sm text-muted-foreground mt-2">
-                  Seleccionados: {accesoriosSeleccionados.join(", ")}
-                </p>
-              )}
             </div>
 
-            <div>
-              <Label htmlFor="centro">Centro de Servicio *</Label>
-              <Select value={centroServicio} onValueChange={setCentroServicio}>
-                <SelectTrigger><SelectValue placeholder="Seleccione un centro" /></SelectTrigger>
-                <SelectContent>
-                  {centrosServicio.map(centro => <SelectItem key={centro} value={centro}>{centro}</SelectItem>)}
-                </SelectContent>
-              </Select>
+            {/* Card: Persona que Entrega */}
+            <div className="bg-background rounded-xl border shadow-sm overflow-hidden">
+              <div className="px-6 py-4 border-b bg-muted/30 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-secondary/10 flex items-center justify-center">
+                  <UserCircle className="w-5 h-5 text-secondary" />
+                </div>
+                <div>
+                  <h2 className="font-semibold text-foreground">Persona que Entrega</h2>
+                  <p className="text-sm text-muted-foreground">Quien deja la máquina</p>
+                </div>
+              </div>
+
+              <div className="p-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <OutlinedInput
+                    label="Nombre Completo"
+                    value={personaDejaMaquina}
+                    onChange={e => setPersonaDejaMaquina(e.target.value)}
+                    required
+                  />
+                  <OutlinedInput
+                    label="DPI"
+                    value={dpiPersonaDeja}
+                    onChange={e => setDpiPersonaDeja(e.target.value)}
+                    maxLength={13}
+                    required
+                  />
+                </div>
+              </div>
             </div>
 
-            <div className="space-y-4">
-              <Label>Opciones de Entrega *</Label>
-              <RadioGroup
-                value={opcionEnvio}
-                onValueChange={value => {
-                  setOpcionEnvio(value);
-                  if (value === 'recoger') {
-                    setDireccionSeleccionada("");
-                    setNuevaDireccion("");
-                    setMostrarNuevaDireccion(false);
-                  }
-                }}
-                className="flex flex-col gap-3 mt-2"
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="recoger" id="recoger" />
-                  <Label htmlFor="recoger" className="cursor-pointer font-normal">Viene a recoger al centro de servicio</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="directo" id="directo" />
-                  <Label htmlFor="directo" className="cursor-pointer font-normal">Envío directo</Label>
-                </div>
-              </RadioGroup>
+            {/* Botón Siguiente */}
+            <div className="flex justify-end">
+              <Button onClick={() => { if (validarPaso1()) setPaso(2); }} size="lg" className="gap-2 px-8">
+                Siguiente
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+            </div>
+          </>
+        )}
 
-              {opcionEnvio !== 'recoger' && opcionEnvio && (
-                <div className="pl-6 space-y-4 border-l-2 border-primary/20">
-                  <div>
-                    <Label htmlFor="direccion-envio">Dirección de Envío {opcionEnvio === 'directo' && '*'}</Label>
-                    {mostrarFormNuevoCliente ? (
-                      <div className="mt-2">
-                        {nuevoCliente.direccion ? (
-                          <div className="p-3 border rounded-md bg-accent/50">
+        {/* Paso 2: Máquina */}
+        {paso === 2 && (
+          <>
+            {/* Card: Información de la Máquina */}
+            <div className="bg-background rounded-xl border shadow-sm overflow-hidden">
+              <div className="px-6 py-4 border-b bg-muted/30 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Package className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <h2 className="font-semibold text-foreground">Información de la Máquina</h2>
+                  <p className="text-sm text-muted-foreground">Datos del equipo y problema</p>
+                </div>
+              </div>
+
+              <div className="p-6 space-y-6">
+                {/* SKU */}
+                <div className="space-y-3">
+                  <OutlinedInput
+                    label="SKU de la Máquina"
+                    value={skuMaquina}
+                    onChange={e => {
+                      setSkuMaquina(e.target.value);
+                      if (!e.target.value) setProductoSeleccionado(null);
+                    }}
+                    icon={<Search className="w-4 h-4" />}
+                    required
+                  />
+
+                  {productosEncontrados.length > 1 && (
+                    <div className="border rounded-lg max-h-48 overflow-y-auto divide-y">
+                      {productosEncontrados.map(producto => (
+                        <div
+                          key={producto.codigo}
+                          className="p-3 hover:bg-muted/50 cursor-pointer transition-colors"
+                          onClick={() => { setProductoSeleccionado(producto); setSkuMaquina(producto.codigo); }}
+                        >
+                          <p className="font-medium text-sm">{producto.descripcion}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {producto.codigo} • {producto.clave}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {productoSeleccionado && (
+                    <div className="p-4 rounded-lg bg-muted/30 border flex gap-4">
+                      {productoSeleccionado.urlFoto && (
+                        <img src={productoSeleccionado.urlFoto} alt="" className="w-20 h-20 object-cover rounded-lg border shrink-0" />
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <h3 className="font-semibold text-foreground">{productoSeleccionado.descripcion}</h3>
+                            <p className="text-sm text-muted-foreground mt-1">{productoSeleccionado.codigo} • {productoSeleccionado.clave}</p>
+                          </div>
+                          {productoSeleccionado.descontinuado ? (
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-destructive/10 text-destructive">Descontinuado</span>
+                          ) : (
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-500/10 text-green-600">Vigente</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Descripción del problema */}
+                <OutlinedTextarea
+                  label="Comentario del cliente (fallas de la máquina)"
+                  value={descripcionProblema}
+                  onChange={e => setDescripcionProblema(e.target.value)}
+                  required
+                />
+
+                {/* Accesorios */}
+                <div className="space-y-3">
+                  <p className="text-sm font-medium text-muted-foreground">Accesorios con los que ingresa</p>
+                  <div className="border rounded-lg p-4 max-h-48 overflow-y-auto space-y-3">
+                    {accesoriosDisponibles.length > 0 ? accesoriosDisponibles.map(accesorio => (
+                      <div key={accesorio.id} className="flex items-center space-x-3">
+                        <Checkbox
+                          id={accesorio.id}
+                          checked={accesoriosSeleccionados.includes(accesorio.descripcion)}
+                          onCheckedChange={checked => {
+                            if (checked) {
+                              setAccesoriosSeleccionados([...accesoriosSeleccionados, accesorio.descripcion]);
+                            } else {
+                              setAccesoriosSeleccionados(accesoriosSeleccionados.filter(a => a !== accesorio.descripcion));
+                            }
+                          }}
+                        />
+                        <Label htmlFor={accesorio.id} className="text-sm cursor-pointer">{accesorio.descripcion}</Label>
+                      </div>
+                    )) : <p className="text-sm text-muted-foreground">No hay accesorios disponibles</p>}
+                  </div>
+                </div>
+
+                {/* Centro y Tipología */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <OutlinedSelect
+                    label="Centro de Servicio"
+                    value={centroServicio}
+                    onValueChange={setCentroServicio}
+                    options={centrosServicio.map(c => ({ value: c, label: c }))}
+                    required
+                  />
+                  <OutlinedSelect
+                    label="Tipología"
+                    value={tipologia}
+                    onValueChange={setTipologia}
+                    options={tipologias.map(t => ({ value: t, label: t }))}
+                    required
+                  />
+                </div>
+
+                {/* Opciones de Entrega */}
+                <div className="space-y-3">
+                  <p className="text-sm font-medium text-muted-foreground">Opciones de Entrega *</p>
+                  <RadioGroup
+                    value={opcionEnvio}
+                    onValueChange={value => {
+                      setOpcionEnvio(value);
+                      if (value === 'recoger') {
+                        setDireccionSeleccionada("");
+                        setNuevaDireccion("");
+                        setMostrarNuevaDireccion(false);
+                      }
+                    }}
+                    className="flex flex-col gap-3"
+                  >
+                    <div className="flex items-center space-x-3 p-3 rounded-lg border hover:bg-muted/30 transition-colors">
+                      <RadioGroupItem value="recoger" id="recoger" />
+                      <Label htmlFor="recoger" className="cursor-pointer font-normal flex-1">Viene a recoger al centro</Label>
+                    </div>
+                    <div className="flex items-center space-x-3 p-3 rounded-lg border hover:bg-muted/30 transition-colors">
+                      <RadioGroupItem value="directo" id="directo" />
+                      <Label htmlFor="directo" className="cursor-pointer font-normal flex-1">Envío directo</Label>
+                    </div>
+                  </RadioGroup>
+
+                  {opcionEnvio !== 'recoger' && opcionEnvio && (
+                    <div className="pl-4 border-l-2 border-primary/20 space-y-4 mt-4">
+                      {mostrarFormNuevoCliente ? (
+                        nuevoCliente.direccion ? (
+                          <div className="p-3 rounded-lg bg-muted/30 border">
                             <p className="text-sm font-medium">Dirección del nuevo cliente:</p>
                             <p className="text-sm text-muted-foreground mt-1">{nuevoCliente.direccion}</p>
                           </div>
                         ) : (
                           <p className="text-sm text-destructive">Complete la dirección del cliente en el paso anterior</p>
-                        )}
+                        )
+                      ) : direccionesEnvio.length > 0 ? (
+                        <OutlinedSelect
+                          label="Dirección de Envío"
+                          value={direccionSeleccionada}
+                          onValueChange={setDireccionSeleccionada}
+                          options={direccionesEnvio.map(dir => ({
+                            value: dir.id,
+                            label: `${dir.direccion}${dir.es_principal ? ' (Principal)' : ''}`
+                          }))}
+                          required
+                        />
+                      ) : (
+                        <p className="text-sm text-muted-foreground">No hay direcciones guardadas</p>
+                      )}
+
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm text-muted-foreground">¿Agregar nueva dirección?</p>
+                        <Button type="button" variant="ghost" size="sm" onClick={() => setMostrarNuevaDireccion(!mostrarNuevaDireccion)}>
+                          {mostrarNuevaDireccion ? 'Cancelar' : 'Agregar'}
+                        </Button>
                       </div>
-                    ) : direccionesEnvio.length > 0 ? (
-                      <Select value={direccionSeleccionada} onValueChange={setDireccionSeleccionada}>
-                        <SelectTrigger><SelectValue placeholder="Seleccione una dirección" /></SelectTrigger>
-                        <SelectContent>
-                          {direccionesEnvio.map(dir => (
-                            <SelectItem key={dir.id} value={dir.id}>{dir.direccion} {dir.es_principal && '(Principal)'}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    ) : (
-                      <p className="text-sm text-muted-foreground">No hay direcciones guardadas</p>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-sm">Agregar nueva dirección</Label>
-                      <Button type="button" variant="ghost" size="sm" onClick={() => setMostrarNuevaDireccion(!mostrarNuevaDireccion)}>
-                        {mostrarNuevaDireccion ? 'Cancelar' : 'Agregar'}
-                      </Button>
-                    </div>
-                    {mostrarNuevaDireccion && (
-                      <Textarea value={nuevaDireccion} onChange={e => setNuevaDireccion(e.target.value)} placeholder="Ingrese la nueva dirección de envío" rows={3} />
-                    )}
-                  </div>
-
-                  {direccionSeleccionada && !mostrarNuevaDireccion && (
-                    <div className="p-3 bg-muted/30 rounded-lg">
-                      <p className="text-sm font-medium">Dirección seleccionada:</p>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {direccionesEnvio.find(d => d.id === direccionSeleccionada)?.direccion}
-                      </p>
+                      {mostrarNuevaDireccion && (
+                        <OutlinedTextarea
+                          label="Nueva Dirección"
+                          value={nuevaDireccion}
+                          onChange={e => setNuevaDireccion(e.target.value)}
+                        />
+                      )}
                     </div>
                   )}
                 </div>
-              )}
+
+                {/* Checkboxes */}
+                <div className="space-y-3">
+                  <div className="flex items-center space-x-3 p-3 rounded-lg border">
+                    <Checkbox id="mostrador" checked={ingresadoMostrador} onCheckedChange={checked => setIngresadoMostrador(checked as boolean)} />
+                    <Label htmlFor="mostrador" className="cursor-pointer">Ingresado en mostrador</Label>
+                  </div>
+                  <div className="flex items-center space-x-3 p-3 rounded-lg border">
+                    <Checkbox id="reingreso" checked={esReingreso} onCheckedChange={checked => setEsReingreso(checked as boolean)} />
+                    <Label htmlFor="reingreso" className="cursor-pointer">Es un reingreso</Label>
+                  </div>
+                </div>
+
+                {/* Observaciones */}
+                <OutlinedTextarea
+                  label="Observaciones (LOG)"
+                  value={logObservaciones}
+                  onChange={e => setLogObservaciones(e.target.value)}
+                />
+              </div>
             </div>
 
-            <div className="flex items-center space-x-2">
-              <Checkbox id="mostrador" checked={ingresadoMostrador} onCheckedChange={checked => setIngresadoMostrador(checked as boolean)} />
-              <Label htmlFor="mostrador" className="cursor-pointer">Ingresado en mostrador</Label>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <Checkbox id="reingreso" checked={esReingreso} onCheckedChange={checked => setEsReingreso(checked as boolean)} />
-              <Label htmlFor="reingreso" className="cursor-pointer">Es un reingreso</Label>
-            </div>
-
-            <div>
-              <Label htmlFor="tipologia">Tipología *</Label>
-              <Select value={tipologia} onValueChange={setTipologia}>
-                <SelectTrigger><SelectValue placeholder="Seleccione la tipología" /></SelectTrigger>
-                <SelectContent>
-                  {tipologias.map(tipo => <SelectItem key={tipo} value={tipo}>{tipo}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label htmlFor="log">Observaciones (LOG)</Label>
-              <Textarea id="log" value={logObservaciones} onChange={e => setLogObservaciones(e.target.value)} placeholder="Cualquier observación adicional" rows={3} />
-            </div>
-
-            <div className="flex flex-col sm:flex-row justify-between gap-2 sm:gap-0">
-              <Button variant="outline" onClick={() => setPaso(1)} className="w-full sm:w-auto order-2 sm:order-1">
+            {/* Botones */}
+            <div className="flex flex-col sm:flex-row justify-between gap-3">
+              <Button variant="outline" onClick={() => setPaso(1)} className="order-2 sm:order-1">
+                <ArrowLeft className="w-4 h-4 mr-2" />
                 Atrás
               </Button>
-              <Button onClick={guardarIncidente} disabled={guardando} className="w-full sm:w-auto order-1 sm:order-2">
+              <Button onClick={guardarIncidente} disabled={guardando} size="lg" className="order-1 sm:order-2 px-8">
                 {guardando ? "Guardando..." : "Crear Incidente"}
               </Button>
             </div>
-          </CardContent>
-        </Card>
-      )}
+          </>
+        )}
+      </div>
 
-      {/* Widget flotante de cámara - visible en todos los pasos */}
+      {/* Widget flotante de cámara */}
       <FloatingCameraWidget
         media={mediaFiles}
         onMediaChange={setMediaFiles}
-        maxFiles={10}
       />
 
-      {/* Success Dialog */}
+      {/* Dialog de éxito */}
       <AlertDialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>¿Desea ingresar otra máquina?</AlertDialogTitle>
+            <AlertDialogTitle>¡Incidente creado exitosamente!</AlertDialogTitle>
             <AlertDialogDescription>
-              ¿Desea ingresar otra máquina para este mismo cliente ({clienteSeleccionado?.nombre || nuevoCliente.nombre})?
+              ¿Desea agregar otra máquina para el mismo cliente?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => navigate("/mostrador/incidentes")}>
-              No, Finalizar
+              No, ir a Incidentes
             </AlertDialogCancel>
-            <AlertDialogAction onClick={() => {
-              setShowSuccessDialog(false);
-              resetForm();
-              toast({ title: "Listo para nuevo ingreso", description: "Complete los datos de la nueva máquina" });
-            }}>
-              Sí, Ingresar Otra Máquina
+            <AlertDialogAction onClick={() => { setShowSuccessDialog(false); resetForm(); }}>
+              Sí, agregar otra
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
