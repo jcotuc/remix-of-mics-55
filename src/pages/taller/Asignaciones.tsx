@@ -357,11 +357,12 @@ export default function Asignaciones() {
         ) : (
           <TooltipProvider>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-              {FAMILIAS.filter(familia => getIncidentesPorFamilia(familia).length > 0).map(familia => {
+              {FAMILIAS.map(familia => {
                 const incidentesFamilia = getIncidentesPorFamilia(familia);
                 const isStockCemaco = familia.nombre === "Stock Cemaco";
                 const primerIncidente = incidentesFamilia[0];
                 const showList = expandedFamilias[familia.nombre] || false;
+                const hasIncidentes = incidentesFamilia.length > 0;
                 const toggleList = (e: React.MouseEvent) => {
                   e.stopPropagation();
                   setExpandedFamilias(prev => ({ ...prev, [familia.nombre]: !prev[familia.nombre] }));
@@ -369,46 +370,17 @@ export default function Asignaciones() {
                 
                 return (
                   <div key={familia.nombre} className="flex flex-col">
-                    {/* Header con nombre de familia y controles */}
-                    <div className={`flex items-center justify-between px-3 py-2 rounded-t-xl ${
-                      isStockCemaco 
-                        ? 'bg-orange-100 dark:bg-orange-900/30 border-x border-t border-orange-300 dark:border-orange-700' 
-                        : 'bg-muted/60 border-x border-t border-border'
-                    }`}>
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        {isStockCemaco && <Store className="h-3.5 w-3.5 text-orange-600 flex-shrink-0" />}
-                        <span className="text-sm font-semibold truncate">{familia.nombre}</span>
-                        <Badge variant="secondary" className="text-[10px] h-5 px-1.5 ml-1 flex-shrink-0">
-                          {incidentesFamilia.length}
-                        </Badge>
-                      </div>
-                      {incidentesFamilia.length > 1 && (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button 
-                              variant="ghost" 
-                              size="icon" 
-                              className="h-6 w-6 flex-shrink-0"
-                              onClick={toggleList}
-                            >
-                              {showList ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            {showList ? 'Ocultar lista' : 'Ver lista de espera'}
-                          </TooltipContent>
-                        </Tooltip>
-                      )}
-                    </div>
-                    
-                    {/* Tarjeta principal - clickeable para asignar */}
+                    {/* Tarjeta principal */}
                     <div 
-                      className={`p-4 rounded-b-xl cursor-pointer transition-all duration-200 min-h-[120px] flex flex-col justify-between ${
-                        isStockCemaco 
-                          ? 'bg-gradient-to-br from-orange-500 to-orange-600 hover:from-orange-400 hover:to-orange-500 text-white border-x border-b border-orange-400 shadow-lg shadow-orange-500/20' 
-                          : 'bg-gradient-to-br from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground border-x border-b border-primary/50 shadow-lg shadow-primary/20'
-                      } hover:scale-[1.02] active:scale-[0.98]`}
+                      className={`p-4 rounded-xl transition-all duration-200 min-h-[100px] flex flex-col justify-between ${
+                        !hasIncidentes 
+                          ? 'bg-muted/30 border border-dashed border-border cursor-default opacity-60'
+                          : isStockCemaco 
+                            ? 'bg-gradient-to-br from-orange-500 to-orange-600 hover:from-orange-400 hover:to-orange-500 text-white border border-orange-400 shadow-lg shadow-orange-500/20 cursor-pointer hover:scale-[1.02] active:scale-[0.98]' 
+                            : 'bg-gradient-to-br from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground border border-primary/50 shadow-lg shadow-primary/20 cursor-pointer hover:scale-[1.02] active:scale-[0.98]'
+                      }`}
                       onClick={() => {
+                        if (!hasIncidentes) return;
                         if (isStockCemaco) {
                           if (primerIncidente.status === 'Ingresado') {
                             handleRevisar(primerIncidente);
@@ -420,22 +392,42 @@ export default function Asignaciones() {
                         }
                       }}
                     >
-                      <div className="space-y-1.5">
-                        <p className="font-bold text-sm truncate">
-                          {primerIncidente.codigo_producto}
-                        </p>
-                        <p className="text-xs opacity-90 line-clamp-3 leading-relaxed">
-                          {primerIncidente.descripcion_problema}
-                        </p>
-                      </div>
-                      <div className="flex items-center justify-between mt-3 pt-2 border-t border-white/20">
-                        <span className="text-[10px] opacity-70">
-                          {isStockCemaco 
-                            ? (primerIncidente.status === 'Ingresado' ? 'Revisar' : 'Aprobar')
-                            : 'Asignarme'
-                          }
+                      <div className="flex items-center gap-2">
+                        {isStockCemaco && <Store className="h-4 w-4 flex-shrink-0" />}
+                        <span className={`font-bold text-base ${!hasIncidentes ? 'text-muted-foreground' : ''}`}>
+                          {familia.nombre}
                         </span>
-                        <Plus className="h-5 w-5 opacity-80" />
+                      </div>
+                      
+                      <div className={`flex items-center justify-between mt-3 pt-2 ${hasIncidentes ? 'border-t border-white/20' : 'border-t border-border/50'}`}>
+                        <Badge 
+                          variant={hasIncidentes ? "secondary" : "outline"} 
+                          className={`text-xs ${hasIncidentes ? 'bg-white/20 text-inherit border-0' : ''}`}
+                        >
+                          {incidentesFamilia.length} en cola
+                        </Badge>
+                        {hasIncidentes && (
+                          <div className="flex items-center gap-1">
+                            {incidentesFamilia.length > 1 && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button 
+                                    variant="ghost" 
+                                    size="icon" 
+                                    className="h-6 w-6 text-inherit hover:bg-white/20"
+                                    onClick={toggleList}
+                                  >
+                                    {showList ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  {showList ? 'Ocultar lista' : 'Ver lista'}
+                                </TooltipContent>
+                              </Tooltip>
+                            )}
+                            <Plus className="h-5 w-5 opacity-80" />
+                          </div>
+                        )}
                       </div>
                     </div>
                     
