@@ -16,12 +16,9 @@ import { uploadMediaToStorage, saveIncidentePhotos } from "@/lib/uploadMedia";
 import { MinimalStepper } from "@/components/ui/minimal-stepper";
 import { OutlinedInput, OutlinedTextarea, OutlinedSelect } from "@/components/ui/outlined-input";
 import { MultiSelectDropdown } from "@/components/ui/multi-select-dropdown";
-
 const centrosServicio = ['Zona 5 (Principal)', 'Zona 4', 'Chimaltenango', 'Río Hondo', 'Escuintla', 'Xela', 'Jutiapa', 'Huehuetenango'];
 const tipologias = ['Mantenimiento', 'Reparación', 'Daños por transporte', 'Venta de repuestos'];
-
 const DEPARTAMENTOS = ["Guatemala", "Alta Verapaz", "Baja Verapaz", "Chimaltenango", "Chiquimula", "El Progreso", "Escuintla", "Huehuetenango", "Izabal", "Jalapa", "Jutiapa", "Petén", "Quetzaltenango", "Quiché", "Retalhuleu", "Sacatepéquez", "San Marcos", "Santa Rosa", "Sololá", "Suchitepéquez", "Totonicapán", "Zacapa"];
-
 const MUNICIPIOS: Record<string, string[]> = {
   "Guatemala": ["Guatemala", "Santa Catarina Pinula", "San José Pinula", "San José del Golfo", "Palencia", "Chinautla", "San Pedro Ayampuc", "Mixco", "San Pedro Sacatepéquez", "San Juan Sacatepéquez", "San Raymundo", "Chuarrancho", "Fraijanes", "Amatitlán", "Villa Nueva", "Villa Canales", "San Miguel Petapa"],
   "Alta Verapaz": ["Cobán", "Santa Cruz Verapaz", "San Cristóbal Verapaz", "Tactic", "Tamahú", "Tucurú", "Panzós", "Senahú", "San Pedro Carchá", "San Juan Chamelco", "Lanquín", "Cahabón", "Chisec", "Chahal", "Fray Bartolomé de las Casas", "Santa Catarina La Tinta", "Raxruhá"],
@@ -46,7 +43,6 @@ const MUNICIPIOS: Record<string, string[]> = {
   "Totonicapán": ["Totonicapán", "San Cristóbal Totonicapán", "San Francisco El Alto", "San Andrés Xecul", "Momostenango", "Santa María Chiquimula", "Santa Lucía La Reforma", "San Bartolo"],
   "Zacapa": ["Zacapa", "Estanzuela", "Río Hondo", "Gualán", "Teculután", "Usumatlán", "Cabañas", "San Diego", "La Unión", "Huité", "San Jorge"]
 };
-
 interface Cliente {
   codigo: string;
   nombre: string;
@@ -61,12 +57,17 @@ interface Cliente {
   departamento?: string;
   municipio?: string;
 }
-
-const stepperSteps = [
-  { id: 1, title: "Cliente", description: "Datos del propietario", icon: <User className="w-5 h-5" /> },
-  { id: 2, title: "Máquina", description: "Información del equipo", icon: <Package className="w-5 h-5" /> },
-];
-
+const stepperSteps = [{
+  id: 1,
+  title: "Cliente",
+  description: "Datos del propietario",
+  icon: <User className="w-5 h-5" />
+}, {
+  id: 2,
+  title: "Máquina",
+  description: "Información del equipo",
+  icon: <Package className="w-5 h-5" />
+}];
 export default function NuevoIncidente() {
   const navigate = useNavigate();
   const [paso, setPaso] = useState(1);
@@ -128,18 +129,22 @@ export default function NuevoIncidente() {
   // Media
   const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([]);
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
-
   useEffect(() => {
     if (nuevoCliente.departamento) {
       setMunicipiosDisponibles(MUNICIPIOS[nuevoCliente.departamento] || []);
-      setNuevoCliente(prev => ({ ...prev, municipio: "" }));
+      setNuevoCliente(prev => ({
+        ...prev,
+        municipio: ""
+      }));
     }
   }, [nuevoCliente.departamento]);
-
   useEffect(() => {
     const fetchAccesorios = async () => {
       try {
-        const { data, error } = await supabase.from('productos').select('*').eq('clave', 'ACC');
+        const {
+          data,
+          error
+        } = await supabase.from('productos').select('*').eq('clave', 'ACC');
         if (error) throw error;
         setAccesoriosDisponibles(data || []);
       } catch (error) {
@@ -148,19 +153,17 @@ export default function NuevoIncidente() {
     };
     fetchAccesorios();
   }, []);
-
   useEffect(() => {
     const fetchDirecciones = async () => {
       if (!clienteSeleccionado) return;
       try {
-        const { data: direccionesData, error: direccionesError } = await supabase
-          .from('direcciones_envio')
-          .select('*')
-          .eq('codigo_cliente', clienteSeleccionado.codigo)
-          .order('es_principal', { ascending: false });
-        
+        const {
+          data: direccionesData,
+          error: direccionesError
+        } = await supabase.from('direcciones_envio').select('*').eq('codigo_cliente', clienteSeleccionado.codigo).order('es_principal', {
+          ascending: false
+        });
         if (direccionesError) throw direccionesError;
-
         if (direccionesData && direccionesData.length > 0) {
           setDireccionesEnvio(direccionesData);
           const principal = direccionesData.find(d => d.es_principal);
@@ -191,16 +194,14 @@ export default function NuevoIncidente() {
     };
     fetchDirecciones();
   }, [clienteSeleccionado]);
-
   useEffect(() => {
     if (busquedaCliente.length >= 2) {
       const fetchClientes = async () => {
         try {
-          const { data, error } = await supabase
-            .from('clientes')
-            .select('*')
-            .or(`nombre.ilike.%${busquedaCliente}%,nit.ilike.%${busquedaCliente}%,celular.ilike.%${busquedaCliente}%,codigo.ilike.%${busquedaCliente}%`)
-            .limit(10);
+          const {
+            data,
+            error
+          } = await supabase.from('clientes').select('*').or(`nombre.ilike.%${busquedaCliente}%,nit.ilike.%${busquedaCliente}%,celular.ilike.%${busquedaCliente}%,codigo.ilike.%${busquedaCliente}%`).limit(10);
           if (error) throw error;
           setClientesEncontrados(data || []);
         } catch (error) {
@@ -212,15 +213,14 @@ export default function NuevoIncidente() {
       setClientesEncontrados([]);
     }
   }, [busquedaCliente]);
-
   useEffect(() => {
     if (skuMaquina.length >= 3) {
       const fetchProductos = async () => {
         try {
-          const { data, error } = await supabase
-            .from('productos')
-            .select('*')
-            .or(`codigo.ilike.%${skuMaquina}%,clave.ilike.%${skuMaquina}%`);
+          const {
+            data,
+            error
+          } = await supabase.from('productos').select('*').or(`codigo.ilike.%${skuMaquina}%,clave.ilike.%${skuMaquina}%`);
           if (error) throw error;
           const transformedData: Producto[] = (data || []).map(item => ({
             codigo: item.codigo.trim(),
@@ -241,7 +241,6 @@ export default function NuevoIncidente() {
       fetchProductos();
     }
   }, [skuMaquina]);
-
   const seleccionarCliente = (cliente: Cliente) => {
     setClienteSeleccionado(cliente);
     setDatosClienteExistente({
@@ -254,7 +253,6 @@ export default function NuevoIncidente() {
     setBusquedaCliente("");
     setClientesEncontrados([]);
   };
-
   const resetForm = () => {
     setSkuMaquina("");
     setProductoSeleccionado(null);
@@ -274,79 +272,128 @@ export default function NuevoIncidente() {
     setMediaFiles([]);
     setPaso(2);
   };
-
   const validarPaso1 = () => {
     if (mostrarFormNuevoCliente) {
       if (!nuevoCliente.nombre || !nuevoCliente.nit || !nuevoCliente.direccion || !nuevoCliente.telefono_principal || !nuevoCliente.nombre_facturacion || !nuevoCliente.departamento || !nuevoCliente.municipio) {
-        toast({ title: "Error", description: "Complete todos los campos obligatorios del cliente", variant: "destructive" });
+        toast({
+          title: "Error",
+          description: "Complete todos los campos obligatorios del cliente",
+          variant: "destructive"
+        });
         return false;
       }
     } else {
       if (!clienteSeleccionado) {
-        toast({ title: "Error", description: "Seleccione un cliente existente", variant: "destructive" });
+        toast({
+          title: "Error",
+          description: "Seleccione un cliente existente",
+          variant: "destructive"
+        });
         return false;
       }
       if (!datosClienteExistente.nombre || !datosClienteExistente.nit || !datosClienteExistente.telefono_principal) {
-        toast({ title: "Error", description: "Complete todos los campos obligatorios del cliente", variant: "destructive" });
+        toast({
+          title: "Error",
+          description: "Complete todos los campos obligatorios del cliente",
+          variant: "destructive"
+        });
         return false;
       }
     }
     if (!personaDejaMaquina.trim()) {
-      toast({ title: "Error", description: "Ingrese quién deja la máquina", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "Ingrese quién deja la máquina",
+        variant: "destructive"
+      });
       return false;
     }
     if (!dpiPersonaDeja.trim()) {
-      toast({ title: "Error", description: "Ingrese el DPI de quien deja la máquina", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "Ingrese el DPI de quien deja la máquina",
+        variant: "destructive"
+      });
       return false;
     }
     return true;
   };
-
   const validarPaso2 = () => {
     if (!productoSeleccionado) {
-      toast({ title: "Error", description: "Seleccione un producto (SKU de la máquina)", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "Seleccione un producto (SKU de la máquina)",
+        variant: "destructive"
+      });
       return false;
     }
     if (!descripcionProblema.trim()) {
-      toast({ title: "Error", description: "Ingrese la descripción del problema", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "Ingrese la descripción del problema",
+        variant: "destructive"
+      });
       return false;
     }
     if (!centroServicio) {
-      toast({ title: "Error", description: "Seleccione un centro de servicio", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "Seleccione un centro de servicio",
+        variant: "destructive"
+      });
       return false;
     }
     if (!opcionEnvio) {
-      toast({ title: "Error", description: "Seleccione una opción de entrega", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "Seleccione una opción de entrega",
+        variant: "destructive"
+      });
       return false;
     }
     if (opcionEnvio === 'directo' && !direccionSeleccionada && !nuevaDireccion.trim()) {
-      toast({ title: "Error", description: "Seleccione o agregue una dirección de envío", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "Seleccione o agregue una dirección de envío",
+        variant: "destructive"
+      });
       return false;
     }
     if (!tipologia) {
-      toast({ title: "Error", description: "Seleccione la tipología", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "Seleccione la tipología",
+        variant: "destructive"
+      });
       return false;
     }
     if (mediaFiles.length === 0) {
-      toast({ title: "Error", description: "Debe agregar al menos 1 foto del ingreso de la máquina", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "Debe agregar al menos 1 foto del ingreso de la máquina",
+        variant: "destructive"
+      });
       return false;
     }
     return true;
   };
-
   const guardarIncidente = async () => {
     if (!validarPaso2()) return;
     setGuardando(true);
     try {
       let codigoCliente = clienteSeleccionado?.codigo;
       let direccionEnvioId = direccionSeleccionada;
-
       if (mostrarFormNuevoCliente) {
-        const { data: codigoData, error: codigoError } = await supabase.rpc('generar_codigo_hpc');
+        const {
+          data: codigoData,
+          error: codigoError
+        } = await supabase.rpc('generar_codigo_hpc');
         if (codigoError) throw codigoError;
         const nuevoCodigoHPC = codigoData;
-
-        const { data: clienteData, error: clienteError } = await supabase.from('clientes').insert({
+        const {
+          data: clienteData,
+          error: clienteError
+        } = await supabase.from('clientes').insert({
           codigo: nuevoCodigoHPC,
           nombre: nuevoCliente.nombre,
           nit: nuevoCliente.nit,
@@ -362,9 +409,11 @@ export default function NuevoIncidente() {
         }).select().single();
         if (clienteError) throw clienteError;
         codigoCliente = clienteData.codigo;
-
         if (nuevoCliente.direccion && nuevoCliente.direccion.trim()) {
-          const { data: dirData, error: dirError } = await supabase.from('direcciones_envio').insert({
+          const {
+            data: dirData,
+            error: dirError
+          } = await supabase.from('direcciones_envio').insert({
             codigo_cliente: nuevoCodigoHPC,
             direccion: nuevoCliente.direccion,
             nombre_referencia: 'Dirección Principal',
@@ -380,11 +429,15 @@ export default function NuevoIncidente() {
             }
           }
         }
-
         setClienteSeleccionado(clienteData);
-        toast({ title: "Cliente creado", description: `Código HPC: ${nuevoCodigoHPC}` });
+        toast({
+          title: "Cliente creado",
+          description: `Código HPC: ${nuevoCodigoHPC}`
+        });
       } else {
-        const { error: updateError } = await supabase.from('clientes').update({
+        const {
+          error: updateError
+        } = await supabase.from('clientes').update({
           nombre: datosClienteExistente.nombre,
           nit: datosClienteExistente.nit,
           correo: datosClienteExistente.correo,
@@ -394,9 +447,11 @@ export default function NuevoIncidente() {
         }).eq('codigo', clienteSeleccionado!.codigo);
         if (updateError) throw updateError;
       }
-
       if (nuevaDireccion.trim() && opcionEnvio !== 'recoger') {
-        const { data: dirData, error: dirError } = await supabase.from('direcciones_envio').insert({
+        const {
+          data: dirData,
+          error: dirError
+        } = await supabase.from('direcciones_envio').insert({
           codigo_cliente: codigoCliente,
           direccion: nuevaDireccion,
           nombre_referencia: `Dirección ${new Date().toLocaleDateString()}`,
@@ -405,19 +460,25 @@ export default function NuevoIncidente() {
         if (dirError) throw dirError;
         direccionEnvioId = dirData.id;
       }
-
-      const { data: { user } } = await supabase.auth.getUser();
-      const { data: codigoIncidente, error: codigoError } = await supabase.rpc('generar_codigo_incidente');
+      const {
+        data: {
+          user
+        }
+      } = await supabase.auth.getUser();
+      const {
+        data: codigoIncidente,
+        error: codigoError
+      } = await supabase.rpc('generar_codigo_incidente');
       if (codigoError) throw codigoError;
-
-      const { data: productoData, error: productoError } = await supabase
-        .from('productos')
-        .select('familia_padre_id')
-        .eq('codigo', productoSeleccionado!.codigo)
-        .single();
+      const {
+        data: productoData,
+        error: productoError
+      } = await supabase.from('productos').select('familia_padre_id').eq('codigo', productoSeleccionado!.codigo).single();
       if (productoError) throw productoError;
-
-      const { data: incidenteData, error: incidenteError } = await supabase.from('incidentes').insert({
+      const {
+        data: incidenteData,
+        error: incidenteError
+      } = await supabase.from('incidentes').insert({
         codigo: codigoIncidente,
         codigo_cliente: codigoCliente,
         codigo_producto: productoSeleccionado!.codigo,
@@ -441,28 +502,36 @@ export default function NuevoIncidente() {
         created_by: user?.id || null
       }).select().single();
       if (incidenteError) throw incidenteError;
-
       if (mediaFiles.length > 0) {
         try {
           const uploadedMedia = await uploadMediaToStorage(mediaFiles, incidenteData.id);
           await saveIncidentePhotos(incidenteData.id, uploadedMedia, 'ingreso');
-          toast({ title: "Fotos subidas", description: `${uploadedMedia.length} archivo(s) subido(s) correctamente` });
+          toast({
+            title: "Fotos subidas",
+            description: `${uploadedMedia.length} archivo(s) subido(s) correctamente`
+          });
         } catch (uploadError) {
           console.error('Error uploading media:', uploadError);
-          toast({ title: "Advertencia", description: "El incidente se creó pero hubo un error al subir algunas fotos", variant: "destructive" });
+          toast({
+            title: "Advertencia",
+            description: "El incidente se creó pero hubo un error al subir algunas fotos",
+            variant: "destructive"
+          });
         }
       }
       setShowSuccessDialog(true);
     } catch (error) {
       console.error('Error al guardar:', error);
-      toast({ title: "Error", description: "No se pudo guardar el incidente. Intente nuevamente.", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "No se pudo guardar el incidente. Intente nuevamente.",
+        variant: "destructive"
+      });
     } finally {
       setGuardando(false);
     }
   };
-
-  return (
-    <div className="pb-24">
+  return <div className="pb-24">
       {/* Header */}
       <div className="mb-6 px-4 pt-4">
         <div className="flex items-center gap-3 max-w-3xl mx-auto">
@@ -484,8 +553,7 @@ export default function NuevoIncidente() {
       {/* Content */}
       <div className="container mx-auto px-4 max-w-3xl space-y-6">
         {/* Paso 1: Cliente */}
-        {paso === 1 && (
-          <>
+        {paso === 1 && <>
             {/* Card: Propietario */}
             <div className="bg-background rounded-xl border shadow-sm overflow-hidden">
               <div className="px-6 py-4 border-b bg-muted/30 flex items-center justify-between">
@@ -495,45 +563,25 @@ export default function NuevoIncidente() {
                   </div>
                   <div>
                     <h2 className="font-semibold text-foreground">Propietario</h2>
-                    <p className="text-sm text-muted-foreground">Datos del cliente</p>
+                    
                   </div>
                 </div>
-                {!clienteSeleccionado && !mostrarFormNuevoCliente && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setMostrarFormNuevoCliente(true);
-                      setBusquedaCliente("");
-                    }}
-                    className="gap-2"
-                  >
+                {!clienteSeleccionado && !mostrarFormNuevoCliente && <Button variant="outline" size="sm" onClick={() => {
+              setMostrarFormNuevoCliente(true);
+              setBusquedaCliente("");
+            }} className="gap-2">
                     <User className="w-4 h-4" />
                     <span className="hidden sm:inline">Crear Nuevo</span>
-                  </Button>
-                )}
+                  </Button>}
               </div>
 
               <div className="p-6 space-y-6">
                 {/* Búsqueda de cliente */}
-                {!mostrarFormNuevoCliente && !clienteSeleccionado && (
-                  <div className="space-y-4">
-                    <OutlinedInput
-                      label="Buscar Cliente"
-                      value={busquedaCliente}
-                      onChange={e => setBusquedaCliente(e.target.value)}
-                      icon={<Search className="w-4 h-4" />}
-                    />
+                {!mostrarFormNuevoCliente && !clienteSeleccionado && <div className="space-y-4">
+                    <OutlinedInput label="Buscar Cliente" value={busquedaCliente} onChange={e => setBusquedaCliente(e.target.value)} icon={<Search className="w-4 h-4" />} />
 
-                    {busquedaCliente.length >= 2 && (
-                      <div className="border rounded-lg divide-y max-h-80 overflow-y-auto">
-                        {clientesEncontrados.length > 0 ? (
-                          clientesEncontrados.map(cliente => (
-                            <div
-                              key={cliente.codigo}
-                              onClick={() => seleccionarCliente(cliente)}
-                              className="p-4 hover:bg-muted/50 cursor-pointer transition-colors flex items-center justify-between gap-4"
-                            >
+                    {busquedaCliente.length >= 2 && <div className="border rounded-lg divide-y max-h-80 overflow-y-auto">
+                        {clientesEncontrados.length > 0 ? clientesEncontrados.map(cliente => <div key={cliente.codigo} onClick={() => seleccionarCliente(cliente)} className="p-4 hover:bg-muted/50 cursor-pointer transition-colors flex items-center justify-between gap-4">
                               <div className="min-w-0 flex-1">
                                 <p className="font-medium text-foreground truncate">{cliente.nombre}</p>
                                 <p className="text-sm text-muted-foreground">
@@ -541,39 +589,24 @@ export default function NuevoIncidente() {
                                 </p>
                               </div>
                               <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
-                            </div>
-                          ))
-                        ) : (
-                          <div className="p-8 text-center">
+                            </div>) : <div className="p-8 text-center">
                             <AlertCircle className="w-10 h-10 mx-auto text-muted-foreground/50 mb-3" />
                             <p className="font-medium text-foreground">No se encontraron resultados</p>
                             <p className="text-sm text-muted-foreground mt-1">¿Desea crear un nuevo cliente?</p>
-                            <Button
-                              onClick={() => {
-                                setMostrarFormNuevoCliente(true);
-                                setBusquedaCliente("");
-                              }}
-                              className="mt-4"
-                              size="sm"
-                            >
+                            <Button onClick={() => {
+                    setMostrarFormNuevoCliente(true);
+                    setBusquedaCliente("");
+                  }} className="mt-4" size="sm">
                               Crear Cliente
                             </Button>
-                          </div>
-                        )}
-                      </div>
-                    )}
+                          </div>}
+                      </div>}
 
-                    {busquedaCliente.length < 2 && (
-                      <p className="text-sm text-muted-foreground text-center py-4">
-                        Ingrese al menos 2 caracteres para buscar
-                      </p>
-                    )}
-                  </div>
-                )}
+                    {busquedaCliente.length < 2}
+                  </div>}
 
                 {/* Cliente seleccionado */}
-                {clienteSeleccionado && !mostrarFormNuevoCliente && (
-                  <div className="space-y-5">
+                {clienteSeleccionado && !mostrarFormNuevoCliente && <div className="space-y-5">
                     <div className="flex items-center justify-between p-3 rounded-lg bg-primary/5 border border-primary/20">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
@@ -584,74 +617,62 @@ export default function NuevoIncidente() {
                           <p className="text-xs text-muted-foreground">Código: {clienteSeleccionado.codigo}</p>
                         </div>
                       </div>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => {
-                          setClienteSeleccionado(null);
-                          setBusquedaCliente("");
-                          setDireccionesEnvio([]);
-                          setDireccionSeleccionada("");
-                        }}
-                      >
+                      <Button size="sm" variant="ghost" onClick={() => {
+                  setClienteSeleccionado(null);
+                  setBusquedaCliente("");
+                  setDireccionesEnvio([]);
+                  setDireccionSeleccionada("");
+                }}>
                         Cambiar
                       </Button>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <OutlinedInput
-                        label="Nombre Completo"
-                        value={datosClienteExistente.nombre}
-                        onChange={e => setDatosClienteExistente({ ...datosClienteExistente, nombre: e.target.value })}
-                        required
-                      />
-                      <OutlinedInput
-                        label="NIT"
-                        value={datosClienteExistente.nit}
-                        onChange={e => setDatosClienteExistente({ ...datosClienteExistente, nit: e.target.value })}
-                        required
-                      />
-                      <OutlinedInput
-                        label="Correo Electrónico"
-                        type="email"
-                        value={datosClienteExistente.correo}
-                        onChange={e => setDatosClienteExistente({ ...datosClienteExistente, correo: e.target.value })}
-                      />
-                      <OutlinedInput
-                        label="Teléfono Principal"
-                        value={datosClienteExistente.telefono_principal}
-                        onChange={e => setDatosClienteExistente({ ...datosClienteExistente, telefono_principal: e.target.value })}
-                        required
-                      />
-                      <OutlinedInput
-                        label="Teléfono Secundario"
-                        value={datosClienteExistente.telefono_secundario}
-                        onChange={e => setDatosClienteExistente({ ...datosClienteExistente, telefono_secundario: e.target.value })}
-                      />
+                      <OutlinedInput label="Nombre Completo" value={datosClienteExistente.nombre} onChange={e => setDatosClienteExistente({
+                  ...datosClienteExistente,
+                  nombre: e.target.value
+                })} required />
+                      <OutlinedInput label="NIT" value={datosClienteExistente.nit} onChange={e => setDatosClienteExistente({
+                  ...datosClienteExistente,
+                  nit: e.target.value
+                })} required />
+                      <OutlinedInput label="Correo Electrónico" type="email" value={datosClienteExistente.correo} onChange={e => setDatosClienteExistente({
+                  ...datosClienteExistente,
+                  correo: e.target.value
+                })} />
+                      <OutlinedInput label="Teléfono Principal" value={datosClienteExistente.telefono_principal} onChange={e => setDatosClienteExistente({
+                  ...datosClienteExistente,
+                  telefono_principal: e.target.value
+                })} required />
+                      <OutlinedInput label="Teléfono Secundario" value={datosClienteExistente.telefono_secundario} onChange={e => setDatosClienteExistente({
+                  ...datosClienteExistente,
+                  telefono_secundario: e.target.value
+                })} />
                     </div>
-                  </div>
-                )}
+                  </div>}
 
                 {/* Formulario nuevo cliente */}
-                {mostrarFormNuevoCliente && (
-                  <div className="space-y-6">
+                {mostrarFormNuevoCliente && <div className="space-y-6">
                     <div className="flex items-center justify-between">
                       <p className="text-sm text-muted-foreground flex items-center gap-2">
                         <AlertCircle className="w-4 h-4" />
                         Se generará automáticamente un código HPC
                       </p>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => {
-                          setMostrarFormNuevoCliente(false);
-                          setNuevoCliente({
-                            nombre: "", nit: "", direccion: "", correo: "",
-                            telefono_principal: "", telefono_secundario: "",
-                            nombre_facturacion: "", pais: "Guatemala", departamento: "", municipio: ""
-                          });
-                        }}
-                      >
+                      <Button size="sm" variant="ghost" onClick={() => {
+                  setMostrarFormNuevoCliente(false);
+                  setNuevoCliente({
+                    nombre: "",
+                    nit: "",
+                    direccion: "",
+                    correo: "",
+                    telefono_principal: "",
+                    telefono_secundario: "",
+                    nombre_facturacion: "",
+                    pais: "Guatemala",
+                    departamento: "",
+                    municipio: ""
+                  });
+                }}>
                         Cancelar
                       </Button>
                     </div>
@@ -660,81 +681,64 @@ export default function NuevoIncidente() {
                       <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Datos Personales</p>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="sm:col-span-2">
-                          <OutlinedInput
-                            label="Nombre Completo"
-                            value={nuevoCliente.nombre}
-                            onChange={e => setNuevoCliente({ ...nuevoCliente, nombre: e.target.value })}
-                            required
-                          />
+                          <OutlinedInput label="Nombre Completo" value={nuevoCliente.nombre} onChange={e => setNuevoCliente({
+                      ...nuevoCliente,
+                      nombre: e.target.value
+                    })} required />
                         </div>
-                        <OutlinedInput
-                          label="Correo Electrónico"
-                          type="email"
-                          value={nuevoCliente.correo}
-                          onChange={e => setNuevoCliente({ ...nuevoCliente, correo: e.target.value })}
-                        />
-                        <OutlinedInput
-                          label="Teléfono Principal"
-                          value={nuevoCliente.telefono_principal}
-                          onChange={e => setNuevoCliente({ ...nuevoCliente, telefono_principal: e.target.value })}
-                          required
-                        />
-                        <OutlinedInput
-                          label="Teléfono Secundario"
-                          value={nuevoCliente.telefono_secundario}
-                          onChange={e => setNuevoCliente({ ...nuevoCliente, telefono_secundario: e.target.value })}
-                        />
+                        <OutlinedInput label="Correo Electrónico" type="email" value={nuevoCliente.correo} onChange={e => setNuevoCliente({
+                    ...nuevoCliente,
+                    correo: e.target.value
+                  })} />
+                        <OutlinedInput label="Teléfono Principal" value={nuevoCliente.telefono_principal} onChange={e => setNuevoCliente({
+                    ...nuevoCliente,
+                    telefono_principal: e.target.value
+                  })} required />
+                        <OutlinedInput label="Teléfono Secundario" value={nuevoCliente.telefono_secundario} onChange={e => setNuevoCliente({
+                    ...nuevoCliente,
+                    telefono_secundario: e.target.value
+                  })} />
                         <div className="sm:col-span-2">
-                          <OutlinedInput
-                            label="Dirección"
-                            value={nuevoCliente.direccion}
-                            onChange={e => setNuevoCliente({ ...nuevoCliente, direccion: e.target.value })}
-                            required
-                          />
+                          <OutlinedInput label="Dirección" value={nuevoCliente.direccion} onChange={e => setNuevoCliente({
+                      ...nuevoCliente,
+                      direccion: e.target.value
+                    })} required />
                         </div>
-                        <OutlinedInput
-                          label="País"
-                          value={nuevoCliente.pais}
-                          onChange={e => setNuevoCliente({ ...nuevoCliente, pais: e.target.value })}
-                          required
-                        />
-                        <OutlinedSelect
-                          label="Departamento"
-                          value={nuevoCliente.departamento}
-                          onValueChange={value => setNuevoCliente({ ...nuevoCliente, departamento: value })}
-                          options={DEPARTAMENTOS.map(d => ({ value: d, label: d }))}
-                          required
-                        />
-                        <OutlinedSelect
-                          label="Municipio"
-                          value={nuevoCliente.municipio}
-                          onValueChange={value => setNuevoCliente({ ...nuevoCliente, municipio: value })}
-                          options={municipiosDisponibles.map(m => ({ value: m, label: m }))}
-                          disabled={!nuevoCliente.departamento}
-                          required
-                        />
+                        <OutlinedInput label="País" value={nuevoCliente.pais} onChange={e => setNuevoCliente({
+                    ...nuevoCliente,
+                    pais: e.target.value
+                  })} required />
+                        <OutlinedSelect label="Departamento" value={nuevoCliente.departamento} onValueChange={value => setNuevoCliente({
+                    ...nuevoCliente,
+                    departamento: value
+                  })} options={DEPARTAMENTOS.map(d => ({
+                    value: d,
+                    label: d
+                  }))} required />
+                        <OutlinedSelect label="Municipio" value={nuevoCliente.municipio} onValueChange={value => setNuevoCliente({
+                    ...nuevoCliente,
+                    municipio: value
+                  })} options={municipiosDisponibles.map(m => ({
+                    value: m,
+                    label: m
+                  }))} disabled={!nuevoCliente.departamento} required />
                       </div>
                     </div>
 
                     <div className="space-y-4">
                       <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider">Datos de Facturación</p>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <OutlinedInput
-                          label="NIT"
-                          value={nuevoCliente.nit}
-                          onChange={e => setNuevoCliente({ ...nuevoCliente, nit: e.target.value })}
-                          required
-                        />
-                        <OutlinedInput
-                          label="Nombre de Facturación"
-                          value={nuevoCliente.nombre_facturacion}
-                          onChange={e => setNuevoCliente({ ...nuevoCliente, nombre_facturacion: e.target.value })}
-                          required
-                        />
+                        <OutlinedInput label="NIT" value={nuevoCliente.nit} onChange={e => setNuevoCliente({
+                    ...nuevoCliente,
+                    nit: e.target.value
+                  })} required />
+                        <OutlinedInput label="Nombre de Facturación" value={nuevoCliente.nombre_facturacion} onChange={e => setNuevoCliente({
+                    ...nuevoCliente,
+                    nombre_facturacion: e.target.value
+                  })} required />
                       </div>
                     </div>
-                  </div>
-                )}
+                  </div>}
               </div>
             </div>
 
@@ -746,42 +750,31 @@ export default function NuevoIncidente() {
                 </div>
                 <div>
                   <h2 className="font-semibold text-foreground">Persona que Entrega</h2>
-                  <p className="text-sm text-muted-foreground">Quien deja la máquina</p>
+                  
                 </div>
               </div>
 
               <div className="p-6">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <OutlinedInput
-                    label="Nombre Completo"
-                    value={personaDejaMaquina}
-                    onChange={e => setPersonaDejaMaquina(e.target.value)}
-                    required
-                  />
-                  <OutlinedInput
-                    label="DPI"
-                    value={dpiPersonaDeja}
-                    onChange={e => setDpiPersonaDeja(e.target.value)}
-                    maxLength={13}
-                    required
-                  />
+                  <OutlinedInput label="Nombre Completo" value={personaDejaMaquina} onChange={e => setPersonaDejaMaquina(e.target.value)} required />
+                  <OutlinedInput label="DPI" value={dpiPersonaDeja} onChange={e => setDpiPersonaDeja(e.target.value)} maxLength={13} required />
                 </div>
               </div>
             </div>
 
             {/* Botón Siguiente */}
             <div className="flex justify-end">
-              <Button onClick={() => { if (validarPaso1()) setPaso(2); }} size="lg" className="gap-2 px-8">
+              <Button onClick={() => {
+            if (validarPaso1()) setPaso(2);
+          }} size="lg" className="gap-2 px-8">
                 Siguiente
                 <ChevronRight className="w-4 h-4" />
               </Button>
             </div>
-          </>
-        )}
+          </>}
 
         {/* Paso 2: Máquina */}
-        {paso === 2 && (
-          <>
+        {paso === 2 && <>
             {/* Card: Información de la Máquina */}
             <div className="bg-background rounded-xl border shadow-sm overflow-hidden">
               <div className="px-6 py-4 border-b bg-muted/30 flex items-center gap-3">
@@ -797,106 +790,69 @@ export default function NuevoIncidente() {
               <div className="p-6 space-y-6">
                 {/* SKU */}
                 <div className="space-y-3">
-                  <OutlinedInput
-                    label="SKU de la Máquina"
-                    value={skuMaquina}
-                    onChange={e => {
-                      setSkuMaquina(e.target.value);
-                      if (!e.target.value) setProductoSeleccionado(null);
-                    }}
-                    icon={<Search className="w-4 h-4" />}
-                    required
-                  />
+                  <OutlinedInput label="SKU de la Máquina" value={skuMaquina} onChange={e => {
+                setSkuMaquina(e.target.value);
+                if (!e.target.value) setProductoSeleccionado(null);
+              }} icon={<Search className="w-4 h-4" />} required />
 
-                  {productosEncontrados.length > 1 && (
-                    <div className="border rounded-lg max-h-48 overflow-y-auto divide-y">
-                      {productosEncontrados.map(producto => (
-                        <div
-                          key={producto.codigo}
-                          className="p-3 hover:bg-muted/50 cursor-pointer transition-colors"
-                          onClick={() => { setProductoSeleccionado(producto); setSkuMaquina(producto.codigo); }}
-                        >
+                  {productosEncontrados.length > 1 && <div className="border rounded-lg max-h-48 overflow-y-auto divide-y">
+                      {productosEncontrados.map(producto => <div key={producto.codigo} className="p-3 hover:bg-muted/50 cursor-pointer transition-colors" onClick={() => {
+                  setProductoSeleccionado(producto);
+                  setSkuMaquina(producto.codigo);
+                }}>
                           <p className="font-medium text-sm">{producto.descripcion}</p>
                           <p className="text-xs text-muted-foreground">
                             {producto.codigo} • {producto.clave}
                           </p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                        </div>)}
+                    </div>}
 
-                  {productoSeleccionado && (
-                    <div className="p-4 rounded-lg bg-muted/30 border flex gap-4">
-                      {productoSeleccionado.urlFoto && (
-                        <img src={productoSeleccionado.urlFoto} alt="" className="w-20 h-20 object-cover rounded-lg border shrink-0" />
-                      )}
+                  {productoSeleccionado && <div className="p-4 rounded-lg bg-muted/30 border flex gap-4">
+                      {productoSeleccionado.urlFoto && <img src={productoSeleccionado.urlFoto} alt="" className="w-20 h-20 object-cover rounded-lg border shrink-0" />}
                       <div className="min-w-0 flex-1">
                         <div className="flex items-start justify-between gap-2">
                           <div>
                             <h3 className="font-semibold text-foreground">{productoSeleccionado.descripcion}</h3>
                             <p className="text-sm text-muted-foreground mt-1">{productoSeleccionado.codigo} • {productoSeleccionado.clave}</p>
                           </div>
-                          {productoSeleccionado.descontinuado ? (
-                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-destructive/10 text-destructive">Descontinuado</span>
-                          ) : (
-                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-500/10 text-green-600">Vigente</span>
-                          )}
+                          {productoSeleccionado.descontinuado ? <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-destructive/10 text-destructive">Descontinuado</span> : <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-500/10 text-green-600">Vigente</span>}
                         </div>
                       </div>
-                    </div>
-                  )}
+                    </div>}
                 </div>
 
                 {/* Descripción del problema */}
-                <OutlinedTextarea
-                  label="Comentario del cliente (fallas de la máquina)"
-                  value={descripcionProblema}
-                  onChange={e => setDescripcionProblema(e.target.value)}
-                  required
-                />
+                <OutlinedTextarea label="Comentario del cliente (fallas de la máquina)" value={descripcionProblema} onChange={e => setDescripcionProblema(e.target.value)} required />
 
                 {/* Accesorios */}
-                <MultiSelectDropdown
-                  label="Accesorios con los que ingresa"
-                  options={accesoriosDisponibles.map(acc => ({ value: acc.descripcion, label: acc.descripcion }))}
-                  selected={accesoriosSeleccionados}
-                  onSelectionChange={setAccesoriosSeleccionados}
-                  placeholder="Seleccionar accesorios..."
-                />
+                <MultiSelectDropdown label="Accesorios con los que ingresa" options={accesoriosDisponibles.map(acc => ({
+              value: acc.descripcion,
+              label: acc.descripcion
+            }))} selected={accesoriosSeleccionados} onSelectionChange={setAccesoriosSeleccionados} placeholder="Seleccionar accesorios..." />
 
                 {/* Centro y Tipología */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <OutlinedSelect
-                    label="Centro de Servicio"
-                    value={centroServicio}
-                    onValueChange={setCentroServicio}
-                    options={centrosServicio.map(c => ({ value: c, label: c }))}
-                    required
-                  />
-                  <OutlinedSelect
-                    label="Tipología"
-                    value={tipologia}
-                    onValueChange={setTipologia}
-                    options={tipologias.map(t => ({ value: t, label: t }))}
-                    required
-                  />
+                  <OutlinedSelect label="Centro de Servicio" value={centroServicio} onValueChange={setCentroServicio} options={centrosServicio.map(c => ({
+                value: c,
+                label: c
+              }))} required />
+                  <OutlinedSelect label="Tipología" value={tipologia} onValueChange={setTipologia} options={tipologias.map(t => ({
+                value: t,
+                label: t
+              }))} required />
                 </div>
 
                 {/* Opciones de Entrega */}
                 <div className="space-y-3">
                   <p className="text-sm font-medium text-muted-foreground">Opciones de Entrega *</p>
-                  <RadioGroup
-                    value={opcionEnvio}
-                    onValueChange={value => {
-                      setOpcionEnvio(value);
-                      if (value === 'recoger') {
-                        setDireccionSeleccionada("");
-                        setNuevaDireccion("");
-                        setMostrarNuevaDireccion(false);
-                      }
-                    }}
-                    className="flex flex-col gap-3"
-                  >
+                  <RadioGroup value={opcionEnvio} onValueChange={value => {
+                setOpcionEnvio(value);
+                if (value === 'recoger') {
+                  setDireccionSeleccionada("");
+                  setNuevaDireccion("");
+                  setMostrarNuevaDireccion(false);
+                }
+              }} className="flex flex-col gap-3">
                     <div className="flex items-center space-x-3 p-3 rounded-lg border hover:bg-muted/30 transition-colors">
                       <RadioGroupItem value="recoger" id="recoger" />
                       <Label htmlFor="recoger" className="cursor-pointer font-normal flex-1">Viene a recoger al centro</Label>
@@ -907,31 +863,14 @@ export default function NuevoIncidente() {
                     </div>
                   </RadioGroup>
 
-                  {opcionEnvio !== 'recoger' && opcionEnvio && (
-                    <div className="pl-4 border-l-2 border-primary/20 space-y-4 mt-4">
-                      {mostrarFormNuevoCliente ? (
-                        nuevoCliente.direccion ? (
-                          <div className="p-3 rounded-lg bg-muted/30 border">
+                  {opcionEnvio !== 'recoger' && opcionEnvio && <div className="pl-4 border-l-2 border-primary/20 space-y-4 mt-4">
+                      {mostrarFormNuevoCliente ? nuevoCliente.direccion ? <div className="p-3 rounded-lg bg-muted/30 border">
                             <p className="text-sm font-medium">Dirección del nuevo cliente:</p>
                             <p className="text-sm text-muted-foreground mt-1">{nuevoCliente.direccion}</p>
-                          </div>
-                        ) : (
-                          <p className="text-sm text-destructive">Complete la dirección del cliente en el paso anterior</p>
-                        )
-                      ) : direccionesEnvio.length > 0 ? (
-                        <OutlinedSelect
-                          label="Dirección de Envío"
-                          value={direccionSeleccionada}
-                          onValueChange={setDireccionSeleccionada}
-                          options={direccionesEnvio.map(dir => ({
-                            value: dir.id,
-                            label: `${dir.direccion}${dir.es_principal ? ' (Principal)' : ''}`
-                          }))}
-                          required
-                        />
-                      ) : (
-                        <p className="text-sm text-muted-foreground">No hay direcciones guardadas</p>
-                      )}
+                          </div> : <p className="text-sm text-destructive">Complete la dirección del cliente en el paso anterior</p> : direccionesEnvio.length > 0 ? <OutlinedSelect label="Dirección de Envío" value={direccionSeleccionada} onValueChange={setDireccionSeleccionada} options={direccionesEnvio.map(dir => ({
+                  value: dir.id,
+                  label: `${dir.direccion}${dir.es_principal ? ' (Principal)' : ''}`
+                }))} required /> : <p className="text-sm text-muted-foreground">No hay direcciones guardadas</p>}
 
                       <div className="flex items-center justify-between">
                         <p className="text-sm text-muted-foreground">¿Agregar nueva dirección?</p>
@@ -939,15 +878,8 @@ export default function NuevoIncidente() {
                           {mostrarNuevaDireccion ? 'Cancelar' : 'Agregar'}
                         </Button>
                       </div>
-                      {mostrarNuevaDireccion && (
-                        <OutlinedTextarea
-                          label="Nueva Dirección"
-                          value={nuevaDireccion}
-                          onChange={e => setNuevaDireccion(e.target.value)}
-                        />
-                      )}
-                    </div>
-                  )}
+                      {mostrarNuevaDireccion && <OutlinedTextarea label="Nueva Dirección" value={nuevaDireccion} onChange={e => setNuevaDireccion(e.target.value)} />}
+                    </div>}
                 </div>
 
                 {/* Checkboxes */}
@@ -963,11 +895,7 @@ export default function NuevoIncidente() {
                 </div>
 
                 {/* Observaciones */}
-                <OutlinedTextarea
-                  label="Observaciones (LOG)"
-                  value={logObservaciones}
-                  onChange={e => setLogObservaciones(e.target.value)}
-                />
+                <OutlinedTextarea label="Observaciones (LOG)" value={logObservaciones} onChange={e => setLogObservaciones(e.target.value)} />
               </div>
             </div>
 
@@ -981,15 +909,11 @@ export default function NuevoIncidente() {
                 {guardando ? "Guardando..." : "Crear Incidente"}
               </Button>
             </div>
-          </>
-        )}
+          </>}
       </div>
 
       {/* Widget flotante de cámara */}
-      <FloatingCameraWidget
-        media={mediaFiles}
-        onMediaChange={setMediaFiles}
-      />
+      <FloatingCameraWidget media={mediaFiles} onMediaChange={setMediaFiles} />
 
       {/* Dialog de éxito */}
       <AlertDialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
@@ -1004,12 +928,14 @@ export default function NuevoIncidente() {
             <AlertDialogCancel onClick={() => navigate("/mostrador/incidentes")}>
               No, ir a Incidentes
             </AlertDialogCancel>
-            <AlertDialogAction onClick={() => { setShowSuccessDialog(false); resetForm(); }}>
+            <AlertDialogAction onClick={() => {
+            setShowSuccessDialog(false);
+            resetForm();
+          }}>
               Sí, agregar otra
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
-  );
+    </div>;
 }
