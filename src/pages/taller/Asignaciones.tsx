@@ -336,92 +336,17 @@ export default function Asignaciones() {
       </div>
 
       {/* Dashboard de métricas */}
-      <div className="grid gap-4 md:grid-cols-4">
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">Pendientes por Diagnosticar</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-primary">{pendientesDiagnosticar}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">Productividad General</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-green-600">{productividadGeneral}</div>
-            <p className="text-xs text-muted-foreground mt-1">últimos 7 días</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">Día Más Alto</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-orange-600">{diaMaximo}</div>
-            <p className="text-xs text-muted-foreground mt-1">días esperando</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium">Familias Activas</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-purple-600">{familiasActivas}</div>
-            <p className="text-xs text-muted-foreground mt-1">de {FAMILIAS.length}</p>
-          </CardContent>
-        </Card>
-      </div>
+      
 
       {/* Búsqueda global */}
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Search className="h-5 w-5" />
-            Búsqueda Global de Incidentes
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex gap-2">
-            <div className="flex-1">
-              <OutlinedInput 
-                label="Buscar por código, cliente o descripción"
-                icon={<Search className="h-4 w-4" />}
-                value={searchTerm} 
-                onChange={e => setSearchTerm(e.target.value)} 
-                onKeyDown={e => e.key === 'Enter' && handleSearch()} 
-              />
-            </div>
-            <Button onClick={handleSearch} className="self-center">
-              <Search className="h-4 w-4 mr-2" />
-              Buscar
-            </Button>
-          </div>
-
-          {searchResults.length > 0 && <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">{searchResults.length} resultados</p>
-              <div className="max-h-60 overflow-y-auto space-y-2">
-                {searchResults.map(inc => <div key={inc.id} className="p-3 border rounded-lg hover:bg-muted/50 cursor-pointer" onClick={() => navigate(`/mostrador/seguimiento/${inc.id}`)}>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-medium">{inc.codigo}</p>
-                        <p className="text-sm text-muted-foreground truncate">{inc.descripcion_problema}</p>
-                      </div>
-                      <Badge variant="outline">{inc.status}</Badge>
-                    </div>
-                  </div>)}
-              </div>
-            </div>}
-        </CardContent>
+        
+        
       </Card>
 
       {/* Sistema de tarjetas por familias */}
       <div className="space-y-4">
-        <h2 className="text-2xl font-bold">Cola de Asignación por Familias (FIFO)</h2>
+        
         
         {loading ? <div className="text-center py-12">
             <p className="text-muted-foreground">Cargando...</p>
@@ -432,7 +357,6 @@ export default function Asignaciones() {
           const isStockCemaco = familia.nombre === "Stock Cemaco";
           const primerIncidente = incidentesFamilia[0];
           const dias = getDiasDesdeIngreso(primerIncidente.fecha_ingreso);
-          
           return <Card key={familia.nombre} className={`flex flex-col ${isStockCemaco ? 'border-orange-500/50 bg-orange-50/30 dark:bg-orange-950/20' : ''}`}>
                   <CardHeader className="pb-3 border-b bg-muted/30">
                     <div className="flex items-center justify-between">
@@ -478,17 +402,13 @@ export default function Asignaciones() {
                           {isStockCemaco ? primerIncidente.status === 'Ingresado' ? <Button size="sm" className="flex-1 h-7 text-xs bg-orange-600 hover:bg-orange-700" onClick={() => handleRevisar(primerIncidente)}>Revisar</Button> : primerIncidente.status as any === 'Pendiente de aprobación NC' ? <Button size="sm" className="flex-1 h-7 text-xs bg-green-600 hover:bg-green-700" onClick={() => handleAprobar(primerIncidente)}>Aprobar</Button> : null : <Button size="sm" variant="default" className="flex-1 h-7 text-xs" onClick={() => handleAsignar(primerIncidente.id, familia)}>
                               ✓ Asignarme
                             </Button>}
-                          <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => navigate(`/mostrador/seguimiento/${primerIncidente.id}`)}>👁️</Button>
+                          
                         </div>
                       </div>
                     </div>
                     
                     {/* Indicador de cuántos más hay en cola */}
-                    {incidentesFamilia.length > 1 && (
-                      <p className="text-xs text-muted-foreground text-center mt-2">
-                        +{incidentesFamilia.length - 1} más en cola
-                      </p>
-                    )}
+                    {incidentesFamilia.length > 1}
                   </CardContent>
                 </Card>;
         })}
@@ -496,26 +416,7 @@ export default function Asignaciones() {
 
         {/* Leyenda */}
         <Card className="bg-muted/30">
-          <CardContent className="p-3">
-            <div className="flex items-center gap-6 text-xs text-muted-foreground flex-wrap">
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-primary animate-pulse" />
-                <span>Siguiente en asignar (FIFO)</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded bg-red-100 border border-red-200" />
-                <span>+7 días esperando</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded bg-orange-100 border border-orange-200" />
-                <span>4-7 días esperando</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded bg-blue-100 border border-blue-200" />
-                <span>0-3 días esperando</span>
-              </div>
-            </div>
-          </CardContent>
+          
         </Card>
       </div>
 
@@ -550,25 +451,13 @@ export default function Asignaciones() {
             </div>
 
             <div>
-              <OutlinedTextarea 
-                label="Justificación * (mínimo 20 caracteres)"
-                value={justificacion} 
-                onChange={e => setJustificacion(e.target.value)} 
-                placeholder="Explique detalladamente la razón de su decisión..." 
-                rows={4}
-              />
+              <OutlinedTextarea label="Justificación * (mínimo 20 caracteres)" value={justificacion} onChange={e => setJustificacion(e.target.value)} placeholder="Explique detalladamente la razón de su decisión..." rows={4} />
               <p className="text-xs text-muted-foreground mt-1">
                 {justificacion.length}/20 caracteres mínimos
               </p>
             </div>
 
-            <OutlinedTextarea 
-              label="Observaciones adicionales"
-              value={observaciones} 
-              onChange={e => setObservaciones(e.target.value)} 
-              placeholder="Observaciones opcionales..." 
-              rows={3}
-            />
+            <OutlinedTextarea label="Observaciones adicionales" value={observaciones} onChange={e => setObservaciones(e.target.value)} placeholder="Observaciones opcionales..." rows={3} />
 
             <div>
               <Label className="text-sm font-medium">Evidencia Fotográfica * (1-10 fotos)</Label>
@@ -633,13 +522,7 @@ export default function Asignaciones() {
 
               <Separator />
 
-              <OutlinedTextarea 
-                label="Observaciones de Rechazo (si aplica)"
-                value={observacionesRechazo} 
-                onChange={e => setObservacionesRechazo(e.target.value)} 
-                placeholder="Solo si va a rechazar la propuesta..." 
-                rows={3}
-              />
+              <OutlinedTextarea label="Observaciones de Rechazo (si aplica)" value={observacionesRechazo} onChange={e => setObservacionesRechazo(e.target.value)} placeholder="Solo si va a rechazar la propuesta..." rows={3} />
             </div>}
 
           <DialogFooter className="gap-2">
