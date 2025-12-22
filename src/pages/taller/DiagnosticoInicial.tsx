@@ -469,7 +469,8 @@ export default function DiagnosticoInicial() {
     if (!esReparable && !aplicaGarantia) {
       setTipoResolucion("Canje");
     } else if (!esReparable && aplicaGarantia) {
-      setTipoResolucion("Cambio por Garantía");
+      // No pre-seleccionar para que el usuario elija entre CxG o NC
+      setTipoResolucion("");
     } else if (esReparable && !aplicaGarantia) {
       setTipoResolucion("Presupuesto");
     } else if (esReparable && aplicaGarantia) {
@@ -907,81 +908,78 @@ export default function DiagnosticoInicial() {
               <Separator />
 
               {/* Flujo mejorado: ¿Es Reparable? */}
-              <div className="space-y-4">
-                <div>
-                  <Label className="text-lg font-semibold flex items-center gap-2">
-                    ¿Es Reparable?
-                  </Label>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
+              <div className="flex items-center gap-4 flex-wrap">
+                <Label className="text-lg font-semibold whitespace-nowrap">¿Es Reparable?</Label>
+                <div className="flex gap-2">
                   <Button 
                     type="button" 
                     variant="outline"
+                    size="sm"
                     onClick={() => {
                       setEsReparable(true);
                       setAplicaGarantia(null);
                     }} 
-                    className={`h-16 flex-col gap-1 border-2 transition-none hover:bg-transparent ${
+                    className={`border-2 transition-none hover:bg-transparent ${
                       esReparable === true 
                         ? "border-green-500 bg-green-500/20 text-green-700 dark:text-green-400 hover:bg-green-500/20" 
                         : "bg-background border-border hover:border-border"
                     }`}
                   >
-                    <Wrench className="h-5 w-5" />
-                    <span>Sí, es reparable</span>
+                    <Wrench className="h-4 w-4 mr-1" />
+                    Sí
                   </Button>
                   <Button 
                     type="button" 
                     variant="outline"
+                    size="sm"
                     onClick={() => {
                       setEsReparable(false);
                       setAplicaGarantia(null);
                     }} 
-                    className={`h-16 flex-col gap-1 border-2 transition-none hover:bg-transparent ${
+                    className={`border-2 transition-none hover:bg-transparent ${
                       esReparable === false 
                         ? "border-red-500 bg-red-500/20 text-red-700 dark:text-red-400 hover:bg-red-500/20" 
                         : "bg-background border-border hover:border-border"
                     }`}
                   >
-                    <Ban className="h-5 w-5" />
-                    <span>No es reparable</span>
+                    <Ban className="h-4 w-4 mr-1" />
+                    No
                   </Button>
                 </div>
               </div>
 
               {/* Preguntar garantía cuando ya se seleccionó reparable */}
               {esReparable !== null && <>
-                  <Separator />
-                  <div className="space-y-4">
-                    <div>
-                      <Label className="text-lg font-semibold">¿Aplica Garantía?</Label>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
+                  <div className="flex items-center gap-4 flex-wrap">
+                    <Label className="text-lg font-semibold whitespace-nowrap">¿Aplica Garantía?</Label>
+                    <div className="flex gap-2">
                       <Button 
                         type="button" 
                         variant="outline"
+                        size="sm"
                         onClick={() => setAplicaGarantia(true)} 
-                        className={`h-14 border-2 transition-none hover:bg-transparent ${
+                        className={`border-2 transition-none hover:bg-transparent ${
                           aplicaGarantia === true 
                             ? "border-green-500 bg-green-500/20 text-green-700 dark:text-green-400 hover:bg-green-500/20" 
                             : "bg-background border-border hover:border-border"
                         }`}
                       >
-                        <CheckCircle2 className="h-4 w-4 mr-2" />
-                        Sí, aplica garantía
+                        <CheckCircle2 className="h-4 w-4 mr-1" />
+                        Sí
                       </Button>
                       <Button 
                         type="button" 
                         variant="outline"
+                        size="sm"
                         onClick={() => setAplicaGarantia(false)}
-                        className={`h-14 border-2 transition-none hover:bg-transparent ${
+                        className={`border-2 transition-none hover:bg-transparent ${
                           aplicaGarantia === false 
                             ? "border-red-500 bg-red-500/20 text-red-700 dark:text-red-400 hover:bg-red-500/20" 
                             : "bg-background border-border hover:border-border"
                         }`}
                       >
-                        <Ban className="h-4 w-4 mr-2" />
-                        No aplica garantía
+                        <Ban className="h-4 w-4 mr-1" />
+                        No
                       </Button>
                     </div>
                   </div>
