@@ -16,6 +16,8 @@ import { uploadMediaToStorage, saveIncidentePhotos } from "@/lib/uploadMedia";
 import { MinimalStepper } from "@/components/ui/minimal-stepper";
 import { OutlinedInput, OutlinedTextarea, OutlinedSelect } from "@/components/ui/outlined-input";
 import { MultiSelectDropdown } from "@/components/ui/multi-select-dropdown";
+import { Separator } from "@/components/ui/separator";
+import { useAuth } from "@/contexts/AuthContext";
 const centrosServicio = ['Zona 5 (Principal)', 'Zona 4', 'Chimaltenango', 'Río Hondo', 'Escuintla', 'Xela', 'Jutiapa', 'Huehuetenango'];
 const tipologias = ['Mantenimiento', 'Reparación', 'Daños por transporte', 'Venta de repuestos'];
 const DEPARTAMENTOS = ["Guatemala", "Alta Verapaz", "Baja Verapaz", "Chimaltenango", "Chiquimula", "El Progreso", "Escuintla", "Huehuetenango", "Izabal", "Jalapa", "Jutiapa", "Petén", "Quetzaltenango", "Quiché", "Retalhuleu", "Sacatepéquez", "San Marcos", "Santa Rosa", "Sololá", "Suchitepéquez", "Totonicapán", "Zacapa"];
@@ -70,6 +72,7 @@ const stepperSteps = [{
 }];
 export default function NuevoIncidente() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [paso, setPaso] = useState(1);
 
   // Paso 1: Cliente
@@ -153,6 +156,36 @@ export default function NuevoIncidente() {
     };
     fetchAccesorios();
   }, []);
+
+  // Establecer centro de servicio basado en el perfil del usuario
+  useEffect(() => {
+    const fetchUserCentro = async () => {
+      if (!user) return;
+      try {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('centro_servicio_id')
+          .eq('user_id', user.id)
+          .single();
+        
+        if (profile?.centro_servicio_id) {
+          const { data: centro } = await supabase
+            .from('centros_servicio')
+            .select('nombre')
+            .eq('id', profile.centro_servicio_id)
+            .single();
+          
+          if (centro?.nombre) {
+            setCentroServicio(centro.nombre);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching user centro:', error);
+      }
+    };
+    fetchUserCentro();
+  }, [user]);
+
   useEffect(() => {
     const fetchDirecciones = async () => {
       if (!clienteSeleccionado) return;
@@ -882,15 +915,15 @@ export default function NuevoIncidente() {
                     </div>}
                 </div>
 
-                {/* Checkboxes */}
+                {/* Separador */}
+                <Separator className="my-2" />
+
+                {/* Opciones adicionales */}
                 <div className="space-y-3">
-                  <div className="flex items-center space-x-3 p-3 rounded-lg border">
-                    <Checkbox id="mostrador" checked={ingresadoMostrador} onCheckedChange={checked => setIngresadoMostrador(checked as boolean)} />
-                    <Label htmlFor="mostrador" className="cursor-pointer">Ingresado en mostrador</Label>
-                  </div>
-                  <div className="flex items-center space-x-3 p-3 rounded-lg border">
+                  <p className="text-sm font-medium text-muted-foreground">Opciones Adicionales</p>
+                  <div className="flex items-center space-x-3 p-3 rounded-lg border hover:bg-muted/30 transition-colors">
                     <Checkbox id="reingreso" checked={esReingreso} onCheckedChange={checked => setEsReingreso(checked as boolean)} />
-                    <Label htmlFor="reingreso" className="cursor-pointer">Es un reingreso</Label>
+                    <Label htmlFor="reingreso" className="cursor-pointer font-normal flex-1">Es un reingreso</Label>
                   </div>
                 </div>
 
