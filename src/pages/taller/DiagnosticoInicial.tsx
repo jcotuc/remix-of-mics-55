@@ -973,7 +973,7 @@ export default function DiagnosticoInicial() {
                 {/* Fallas */}
                 <div className="space-y-4">
                   <div>
-                    <Label className="text-lg font-semibold">Fallas Encontradas</Label>
+                    <Label className="text-lg font-semibold">Fallas</Label>
                     <p className="text-sm text-muted-foreground">
                       Selecciona todas las fallas que apliquen
                     </p>
