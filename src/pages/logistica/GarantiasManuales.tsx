@@ -1,16 +1,13 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Plus, Paperclip, Camera } from "lucide-react";
+import { Search, Plus, Camera } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { PhotoGalleryWithDescriptions, type PhotoWithDescription } from "@/components/PhotoGalleryWithDescriptions";
 import { toast } from "sonner";
+import { OutlinedInput, OutlinedTextarea, OutlinedSelect } from "@/components/ui/outlined-input";
 type GarantiaManuaDB = {
   id: string;
   codigo_cliente: string;
@@ -298,47 +295,43 @@ export default function GarantiasManuales() {
               <DialogTitle>Nueva Solicitud de Garantía</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
-              <div>
-                <Label>Código Cliente</Label>
-                <Input value={formData.codigo_cliente} onChange={e => setFormData({
-                ...formData,
-                codigo_cliente: e.target.value
-              })} placeholder="HPC-000001" />
-              </div>
-              <div>
-                <Label>SKU Reportado</Label>
-                <Input value={formData.sku_reportado} onChange={e => setFormData({
-                ...formData,
-                sku_reportado: e.target.value
-              })} placeholder="SKU del producto" />
-              </div>
-              <div>
-                <Label>Descripción SKU</Label>
-                <Input value={formData.descripcion_sku} onChange={e => setFormData({
-                ...formData,
-                descripcion_sku: e.target.value
-              })} placeholder="Martillo de goma 2 libras" />
-              </div>
-              <div>
-                <Label>Cantidad</Label>
-                <Input type="number" min={1} value={formData.cantidad_sku} onChange={e => setFormData({
-                ...formData,
-                cantidad_sku: parseInt(e.target.value) || 1
-              })} />
-              </div>
-              <div>
-                <Label>Descripción del Problema Reportado</Label>
-                <Textarea value={formData.descripcion_problema} onChange={e => setFormData({
-                ...formData,
-                descripcion_problema: e.target.value
-              })} placeholder="Describa el problema reportado por el cliente..." rows={4} />
-              </div>
+              <OutlinedInput 
+                label="Código Cliente"
+                value={formData.codigo_cliente} 
+                onChange={e => setFormData({...formData, codigo_cliente: e.target.value})} 
+                placeholder="HPC-000001" 
+              />
+              <OutlinedInput 
+                label="SKU Reportado"
+                value={formData.sku_reportado} 
+                onChange={e => setFormData({...formData, sku_reportado: e.target.value})} 
+                placeholder="SKU del producto" 
+              />
+              <OutlinedInput 
+                label="Descripción SKU"
+                value={formData.descripcion_sku} 
+                onChange={e => setFormData({...formData, descripcion_sku: e.target.value})} 
+                placeholder="Martillo de goma 2 libras" 
+              />
+              <OutlinedInput 
+                label="Cantidad"
+                type="number" 
+                min={1} 
+                value={formData.cantidad_sku.toString()} 
+                onChange={e => setFormData({...formData, cantidad_sku: parseInt(e.target.value) || 1})} 
+              />
+              <OutlinedTextarea 
+                label="Descripción del Problema Reportado"
+                value={formData.descripcion_problema} 
+                onChange={e => setFormData({...formData, descripcion_problema: e.target.value})} 
+                placeholder="Describa el problema reportado por el cliente..." 
+              />
               
               <div className="space-y-2">
-                <Label className="flex items-center gap-2">
+                <p className="text-sm font-medium flex items-center gap-2">
                   <Camera className="h-4 w-4" />
                   Fotos de Evidencia (Opcional)
-                </Label>
+                </p>
                 <PhotoGalleryWithDescriptions
                   photos={fotosNuevaSolicitud}
                   onPhotosChange={setFotosNuevaSolicitud}
