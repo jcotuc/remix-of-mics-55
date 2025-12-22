@@ -889,24 +889,44 @@ export default function DiagnosticoInicial() {
               <div className="space-y-4">
                 <div>
                   <Label className="text-lg font-semibold flex items-center gap-2">
-                    
                     ¿Es Reparable?
                   </Label>
-                  
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                  <Button type="button" variant={esReparable === true ? "default" : "outline"} onClick={() => {
-                setEsReparable(true);
-                setTipoResolucion("");
-              }} className="h-16 flex-col gap-1">
+                  <Button 
+                    type="button" 
+                    variant="outline"
+                    onClick={() => {
+                      setEsReparable(true);
+                      // Auto-seleccionar resolución según matriz
+                      if (aplicaGarantia === false) {
+                        setTipoResolucion("Presupuesto");
+                      }
+                    }} 
+                    className={`h-16 flex-col gap-1 border-2 transition-all ${
+                      esReparable === true 
+                        ? "bg-green-500 border-green-500 text-white hover:bg-green-600" 
+                        : "border-green-500/40 bg-green-500/10 text-green-700 dark:text-green-400 hover:bg-green-500/20"
+                    }`}
+                  >
                     <Wrench className="h-5 w-5" />
                     <span>Sí, es reparable</span>
                   </Button>
-                  <Button type="button" variant={esReparable === false ? "destructive" : "outline"} onClick={() => {
-                setEsReparable(false);
-                setAplicaGarantia(null);
-                setTipoResolucion("");
-              }} className="h-16 flex-col gap-1">
+                  <Button 
+                    type="button" 
+                    variant="outline"
+                    onClick={() => {
+                      setEsReparable(false);
+                      // Auto-seleccionar "Canje" cuando no es reparable y no aplica garantía
+                      setTipoResolucion("Canje");
+                      setAplicaGarantia(null);
+                    }} 
+                    className={`h-16 flex-col gap-1 border-2 transition-all ${
+                      esReparable === false 
+                        ? "bg-red-500 border-red-500 text-white hover:bg-red-600" 
+                        : "border-red-500/40 bg-red-500/10 text-red-700 dark:text-red-400 hover:bg-red-500/20"
+                    }`}
+                  >
                     <Ban className="h-5 w-5" />
                     <span>No es reparable</span>
                   </Button>
@@ -919,72 +939,105 @@ export default function DiagnosticoInicial() {
                   <div className="space-y-4">
                     <div>
                       <Label className="text-lg font-semibold">¿Aplica Garantía?</Label>
-                      
                     </div>
                     <div className="grid grid-cols-2 gap-4">
-                      <Button type="button" variant={aplicaGarantia === true ? "default" : "outline"} onClick={() => {
-                  setAplicaGarantia(true);
-                  setTipoResolucion("");
-                }} className="h-14">
+                      <Button 
+                        type="button" 
+                        variant="outline"
+                        onClick={() => {
+                          setAplicaGarantia(true);
+                          // Reparable + Garantía = Reparar en Garantía (si hay repuestos será "Pendiente por repuestos")
+                          setTipoResolucion("Reparar en Garantía");
+                        }} 
+                        className={`h-14 border-2 transition-all ${
+                          aplicaGarantia === true 
+                            ? "bg-green-500 border-green-500 text-white hover:bg-green-600" 
+                            : "border-green-500/40 bg-green-500/10 text-green-700 dark:text-green-400 hover:bg-green-500/20"
+                        }`}
+                      >
                         <CheckCircle2 className="h-4 w-4 mr-2" />
                         Sí, aplica garantía
                       </Button>
-                      <Button type="button" variant={aplicaGarantia === false ? "outline" : "outline"} className={aplicaGarantia === false ? "border-primary bg-primary/5" : ""} onClick={() => {
-                  setAplicaGarantia(false);
-                  setTipoResolucion("");
-                }}>
+                      <Button 
+                        type="button" 
+                        variant="outline"
+                        onClick={() => {
+                          setAplicaGarantia(false);
+                          // Reparable + No Garantía = Presupuesto
+                          setTipoResolucion("Presupuesto");
+                        }}
+                        className={`h-14 border-2 transition-all ${
+                          aplicaGarantia === false 
+                            ? "bg-red-500 border-red-500 text-white hover:bg-red-600" 
+                            : "border-red-500/40 bg-red-500/10 text-red-700 dark:text-red-400 hover:bg-red-500/20"
+                        }`}
+                      >
+                        <Ban className="h-4 w-4 mr-2" />
                         No aplica garantía
                       </Button>
                     </div>
                   </div>
                 </>}
 
-              {/* Si NO es reparable: opciones directas */}
+              {/* Si NO es reparable: preguntar garantía también */}
               {esReparable === false && <>
                   <Separator />
                   <div className="space-y-4">
                     <div>
-                      <Label className="text-lg font-semibold">Resolución</Label>
-                      <p className="text-sm text-muted-foreground">
-                        Como no es reparable, selecciona la resolución
-                      </p>
+                      <Label className="text-lg font-semibold">¿Aplica Garantía?</Label>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <Button type="button" variant={tipoResolucion === "Cambio por Garantía" ? "default" : "outline"} onClick={() => {
-                  setTipoResolucion("Cambio por Garantía");
-                  setAplicaGarantia(true);
-                }} className="justify-start h-auto py-3">
+                    <div className="grid grid-cols-2 gap-4">
+                      <Button 
+                        type="button" 
+                        variant="outline"
+                        onClick={() => {
+                          setAplicaGarantia(true);
+                          // No Reparable + Garantía = Cambio por Garantía / Nota de Crédito
+                          setTipoResolucion("Cambio por Garantía");
+                        }} 
+                        className={`h-14 border-2 transition-all ${
+                          aplicaGarantia === true 
+                            ? "bg-green-500 border-green-500 text-white hover:bg-green-600" 
+                            : "border-green-500/40 bg-green-500/10 text-green-700 dark:text-green-400 hover:bg-green-500/20"
+                        }`}
+                      >
                         <CheckCircle2 className="h-4 w-4 mr-2" />
-                        Cambio por Garantía
+                        Sí, aplica garantía
                       </Button>
-                      <Button type="button" variant={tipoResolucion === "Nota de Crédito" ? "default" : "outline"} onClick={() => {
-                  setTipoResolucion("Nota de Crédito");
-                  setAplicaGarantia(true);
-                }} className="justify-start h-auto py-3">
-                        <Package className="h-4 w-4 mr-2" />
-                        Nota de Crédito
-                      </Button>
-                      <Button type="button" variant={tipoResolucion === "Canje" ? "default" : "outline"} onClick={() => {
-                  setTipoResolucion("Canje");
-                  setAplicaGarantia(false);
-                }} className="justify-start h-auto py-3">
-                        <Package className="h-4 w-4 mr-2" />
-                        Canje (sin garantía)
+                      <Button 
+                        type="button" 
+                        variant="outline"
+                        onClick={() => {
+                          setAplicaGarantia(false);
+                          // No Reparable + No Garantía = Canje
+                          setTipoResolucion("Canje");
+                        }}
+                        className={`h-14 border-2 transition-all ${
+                          aplicaGarantia === false 
+                            ? "bg-red-500 border-red-500 text-white hover:bg-red-600" 
+                            : "border-red-500/40 bg-red-500/10 text-red-700 dark:text-red-400 hover:bg-red-500/20"
+                        }`}
+                      >
+                        <Ban className="h-4 w-4 mr-2" />
+                        No aplica garantía
                       </Button>
                     </div>
                   </div>
                 </>}
 
-              {/* Si ES reparable y ya seleccionó garantía: mostrar opciones */}
-              {esReparable === true && aplicaGarantia !== null && <>
+              {/* Mostrar resolución automática basada en la matriz */}
+              {esReparable !== null && aplicaGarantia !== null && <>
                   <Separator />
                   <div className="space-y-4">
                     <div>
                       <Label className="text-lg font-semibold">Resolución</Label>
-                      
+                      <p className="text-sm text-muted-foreground">
+                        Resolución predeterminada según diagnóstico. Puedes cambiarla si es necesario.
+                      </p>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {aplicaGarantia ? <>
+                      {/* Opciones según la combinación */}
+                      {esReparable && aplicaGarantia && <>
                           <Button type="button" variant={tipoResolucion === "Reparar en Garantía" ? "default" : "outline"} onClick={() => setTipoResolucion("Reparar en Garantía")} className="justify-start h-auto py-3">
                             <Wrench className="h-4 w-4 mr-2" />
                             Reparar en Garantía
@@ -997,11 +1050,28 @@ export default function DiagnosticoInicial() {
                             <Package className="h-4 w-4 mr-2" />
                             Nota de Crédito
                           </Button>
-                        </> : <>
+                        </>}
+                      {esReparable && !aplicaGarantia && <>
                           <Button type="button" variant={tipoResolucion === "Presupuesto" ? "default" : "outline"} onClick={() => setTipoResolucion("Presupuesto")} className="justify-start h-auto py-3">
                             <ShoppingCart className="h-4 w-4 mr-2" />
                             Presupuesto (cobrar reparación)
                           </Button>
+                          <Button type="button" variant={tipoResolucion === "Canje" ? "default" : "outline"} onClick={() => setTipoResolucion("Canje")} className="justify-start h-auto py-3">
+                            <Package className="h-4 w-4 mr-2" />
+                            Canje
+                          </Button>
+                        </>}
+                      {!esReparable && aplicaGarantia && <>
+                          <Button type="button" variant={tipoResolucion === "Cambio por Garantía" ? "default" : "outline"} onClick={() => setTipoResolucion("Cambio por Garantía")} className="justify-start h-auto py-3">
+                            <CheckCircle2 className="h-4 w-4 mr-2" />
+                            Cambio por Garantía
+                          </Button>
+                          <Button type="button" variant={tipoResolucion === "Nota de Crédito" ? "default" : "outline"} onClick={() => setTipoResolucion("Nota de Crédito")} className="justify-start h-auto py-3">
+                            <Package className="h-4 w-4 mr-2" />
+                            Nota de Crédito
+                          </Button>
+                        </>}
+                      {!esReparable && !aplicaGarantia && <>
                           <Button type="button" variant={tipoResolucion === "Canje" ? "default" : "outline"} onClick={() => setTipoResolucion("Canje")} className="justify-start h-auto py-3">
                             <Package className="h-4 w-4 mr-2" />
                             Canje
