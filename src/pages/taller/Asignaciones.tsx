@@ -357,9 +357,8 @@ export default function Asignaciones() {
         ) : (
           <TooltipProvider>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-              {FAMILIAS.map(familia => {
+              {FAMILIAS.filter(f => f.nombre !== "Stock Cemaco").map(familia => {
                 const incidentesFamilia = getIncidentesPorFamilia(familia);
-                const isStockCemaco = familia.nombre === "Stock Cemaco";
                 const primerIncidente = incidentesFamilia[0];
                 const showList = expandedFamilias[familia.nombre] || false;
                 const hasIncidentes = incidentesFamilia.length > 0;
@@ -375,25 +374,14 @@ export default function Asignaciones() {
                       className={`p-4 rounded-xl transition-all duration-200 min-h-[100px] flex flex-col justify-between ${
                         !hasIncidentes 
                           ? 'bg-muted/30 border border-dashed border-border cursor-default opacity-60'
-                          : isStockCemaco 
-                            ? 'bg-gradient-to-br from-orange-500 to-orange-600 hover:from-orange-400 hover:to-orange-500 text-white border border-orange-400 shadow-lg shadow-orange-500/20 cursor-pointer hover:scale-[1.02] active:scale-[0.98]' 
-                            : 'bg-gradient-to-br from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground border border-primary/50 shadow-lg shadow-primary/20 cursor-pointer hover:scale-[1.02] active:scale-[0.98]'
+                          : 'bg-gradient-to-br from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground border border-primary/50 shadow-lg shadow-primary/20 cursor-pointer hover:scale-[1.02] active:scale-[0.98]'
                       }`}
                       onClick={() => {
                         if (!hasIncidentes) return;
-                        if (isStockCemaco) {
-                          if (primerIncidente.status === 'Ingresado') {
-                            handleRevisar(primerIncidente);
-                          } else if ((primerIncidente.status as any) === 'Pendiente de aprobación NC') {
-                            handleAprobar(primerIncidente);
-                          }
-                        } else {
-                          handleAsignar(primerIncidente.id, familia);
-                        }
+                        handleAsignar(primerIncidente.id, familia);
                       }}
                     >
                       <div className="flex items-center gap-2">
-                        {isStockCemaco && <Store className="h-4 w-4 flex-shrink-0" />}
                         <span className={`font-bold text-base ${!hasIncidentes ? 'text-muted-foreground' : ''}`}>
                           {familia.nombre}
                         </span>
