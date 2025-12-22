@@ -18,7 +18,6 @@ import { OutlinedInput, OutlinedTextarea, OutlinedSelect } from "@/components/ui
 import { MultiSelectDropdown } from "@/components/ui/multi-select-dropdown";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/contexts/AuthContext";
-const centrosServicio = ['Zona 5 (Principal)', 'Zona 4', 'Chimaltenango', 'Río Hondo', 'Escuintla', 'Xela', 'Jutiapa', 'Huehuetenango'];
 const tipologias = ['Mantenimiento', 'Reparación', 'Daños por transporte', 'Venta de repuestos'];
 const DEPARTAMENTOS = ["Guatemala", "Alta Verapaz", "Baja Verapaz", "Chimaltenango", "Chiquimula", "El Progreso", "Escuintla", "Huehuetenango", "Izabal", "Jalapa", "Jutiapa", "Petén", "Quetzaltenango", "Quiché", "Retalhuleu", "Sacatepéquez", "San Marcos", "Santa Rosa", "Sololá", "Suchitepéquez", "Totonicapán", "Zacapa"];
 const MUNICIPIOS: Record<string, string[]> = {
@@ -116,6 +115,7 @@ export default function NuevoIncidente() {
   const [descripcionProblema, setDescripcionProblema] = useState("");
   const [accesoriosSeleccionados, setAccesoriosSeleccionados] = useState<string[]>([]);
   const [accesoriosDisponibles, setAccesoriosDisponibles] = useState<any[]>([]);
+  const [centrosServicioList, setCentrosServicioList] = useState<{id: string, nombre: string}[]>([]);
   const [centroServicio, setCentroServicio] = useState("");
   const [opcionEnvio, setOpcionEnvio] = useState<string>("");
   const [direccionesEnvio, setDireccionesEnvio] = useState<any[]>([]);
@@ -157,33 +157,38 @@ export default function NuevoIncidente() {
     fetchAccesorios();
   }, []);
 
-  // Establecer centro de servicio basado en el perfil del usuario
+  // Cargar centros de servicio y establecer el predeterminado del usuario
   useEffect(() => {
-    const fetchUserCentro = async () => {
-      if (!user) return;
+    const fetchCentrosYUsuario = async () => {
       try {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('centro_servicio_id')
-          .eq('user_id', user.id)
-          .single();
+        // Cargar todos los centros de servicio
+        const { data: centros } = await supabase
+          .from('centros_servicio')
+          .select('id, nombre')
+          .eq('activo', true)
+          .order('nombre');
         
-        if (profile?.centro_servicio_id) {
-          const { data: centro } = await supabase
-            .from('centros_servicio')
-            .select('nombre')
-            .eq('id', profile.centro_servicio_id)
+        if (centros) {
+          setCentrosServicioList(centros);
+        }
+
+        // Establecer centro del usuario actual
+        if (user) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('centro_servicio_id')
+            .eq('user_id', user.id)
             .single();
           
-          if (centro?.nombre) {
-            setCentroServicio(centro.nombre);
+          if (profile?.centro_servicio_id) {
+            setCentroServicio(profile.centro_servicio_id);
           }
         }
       } catch (error) {
-        console.error('Error fetching user centro:', error);
+        console.error('Error fetching centros:', error);
       }
     };
-    fetchUserCentro();
+    fetchCentrosYUsuario();
   }, [user]);
 
   useEffect(() => {
@@ -865,9 +870,9 @@ export default function NuevoIncidente() {
 
                 {/* Centro y Tipología */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <OutlinedSelect label="Centro de Servicio" value={centroServicio} onValueChange={setCentroServicio} options={centrosServicio.map(c => ({
-                value: c,
-                label: c
+                  <OutlinedSelect label="Centro de Servicio" value={centroServicio} onValueChange={setCentroServicio} options={centrosServicioList.map(c => ({
+                value: c.id,
+                label: c.nombre
               }))} required />
                   <OutlinedSelect label="Tipología" value={tipologia} onValueChange={setTipologia} options={tipologias.map(t => ({
                 value: t,
