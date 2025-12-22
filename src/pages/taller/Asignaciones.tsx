@@ -171,7 +171,8 @@ export default function Asignaciones() {
       }).eq('id', incidenteId);
       if (error) throw error;
       toast.success('Incidente asignado');
-      fetchIncidentes();
+      // Redirigir a la página de diagnóstico
+      navigate(`/taller/diagnostico/${incidenteId}`);
     } catch (error) {
       console.error('Error:', error);
       toast.error('Error al asignar');
