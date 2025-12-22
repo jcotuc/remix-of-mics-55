@@ -174,12 +174,26 @@ export default function NuevoIncidente() {
 
         // Establecer centro del usuario actual
         if (user) {
-          const { data: profile } = await supabase
+          // 1) Buscar por user_id (ideal)
+          const { data: profileById } = await supabase
             .from('profiles')
             .select('centro_servicio_id')
             .eq('user_id', user.id)
-            .single();
-          
+            .maybeSingle();
+
+          // 2) Fallback por email (para filas antiguas donde user_id no coincide con auth.uid())
+          let profile = profileById;
+          if (!profile && user.email) {
+            const { data: profileByEmail } = await supabase
+              .from('profiles')
+              .select('centro_servicio_id')
+              .eq('email', user.email)
+              .order('created_at', { ascending: false })
+              .limit(1)
+              .maybeSingle();
+            profile = profileByEmail;
+          }
+
           if (profile?.centro_servicio_id) {
             setCentroServicio(profile.centro_servicio_id);
           }
@@ -525,7 +539,7 @@ export default function NuevoIncidente() {
         descripcion_problema: descripcionProblema,
         persona_deja_maquina: personaDejaMaquina,
         accesorios: accesoriosSeleccionados.join(", ") || null,
-        centro_servicio: centroServicio,
+        centro_servicio: centrosServicioList.find(c => c.id === centroServicio)?.nombre ?? centroServicio,
         quiere_envio: opcionEnvio !== 'recoger',
         direccion_envio_id: direccionEnvioId || null,
         ingresado_en_mostrador: ingresadoMostrador,
