@@ -15,6 +15,7 @@ import { FloatingCameraWidget } from "@/components/FloatingCameraWidget";
 import { uploadMediaToStorage, saveIncidentePhotos } from "@/lib/uploadMedia";
 import { MinimalStepper } from "@/components/ui/minimal-stepper";
 import { OutlinedInput, OutlinedTextarea, OutlinedSelect } from "@/components/ui/outlined-input";
+import { MultiSelectDropdown } from "@/components/ui/multi-select-dropdown";
 
 const centrosServicio = ['Zona 5 (Principal)', 'Zona 4', 'Chimaltenango', 'Río Hondo', 'Escuintla', 'Xela', 'Jutiapa', 'Huehuetenango'];
 const tipologias = ['Mantenimiento', 'Reparación', 'Daños por transporte', 'Venta de repuestos'];
@@ -855,27 +856,13 @@ export default function NuevoIncidente() {
                 />
 
                 {/* Accesorios */}
-                <div className="space-y-3">
-                  <p className="text-sm font-medium text-muted-foreground">Accesorios con los que ingresa</p>
-                  <div className="border rounded-lg p-4 max-h-48 overflow-y-auto space-y-3">
-                    {accesoriosDisponibles.length > 0 ? accesoriosDisponibles.map(accesorio => (
-                      <div key={accesorio.id} className="flex items-center space-x-3">
-                        <Checkbox
-                          id={accesorio.id}
-                          checked={accesoriosSeleccionados.includes(accesorio.descripcion)}
-                          onCheckedChange={checked => {
-                            if (checked) {
-                              setAccesoriosSeleccionados([...accesoriosSeleccionados, accesorio.descripcion]);
-                            } else {
-                              setAccesoriosSeleccionados(accesoriosSeleccionados.filter(a => a !== accesorio.descripcion));
-                            }
-                          }}
-                        />
-                        <Label htmlFor={accesorio.id} className="text-sm cursor-pointer">{accesorio.descripcion}</Label>
-                      </div>
-                    )) : <p className="text-sm text-muted-foreground">No hay accesorios disponibles</p>}
-                  </div>
-                </div>
+                <MultiSelectDropdown
+                  label="Accesorios con los que ingresa"
+                  options={accesoriosDisponibles.map(acc => ({ value: acc.descripcion, label: acc.descripcion }))}
+                  selected={accesoriosSeleccionados}
+                  onSelectionChange={setAccesoriosSeleccionados}
+                  placeholder="Seleccionar accesorios..."
+                />
 
                 {/* Centro y Tipología */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
