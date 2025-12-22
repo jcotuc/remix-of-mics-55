@@ -381,10 +381,27 @@ export default function Asignaciones() {
                         handleAsignar(primerIncidente.id, familia);
                       }}
                     >
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-start justify-between">
                         <span className={`font-bold text-base ${!hasIncidentes ? 'text-muted-foreground' : ''}`}>
                           {familia.nombre}
                         </span>
+                        {hasIncidentes && incidentesFamilia.length > 1 && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                className="h-6 w-6 -mt-1 -mr-1 text-inherit hover:bg-white/20"
+                                onClick={toggleList}
+                              >
+                                {showList ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              {showList ? 'Ocultar lista' : 'Ver lista'}
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
                       </div>
                       
                       <div className={`flex items-center justify-between mt-3 pt-2 ${hasIncidentes ? 'border-t border-white/20' : 'border-t border-border/50'}`}>
@@ -395,26 +412,7 @@ export default function Asignaciones() {
                           {incidentesFamilia.length} en cola
                         </Badge>
                         {hasIncidentes && (
-                          <div className="flex items-center gap-1">
-                            {incidentesFamilia.length > 1 && (
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button 
-                                    variant="ghost" 
-                                    size="icon" 
-                                    className="h-6 w-6 text-inherit hover:bg-white/20"
-                                    onClick={toggleList}
-                                  >
-                                    {showList ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  {showList ? 'Ocultar lista' : 'Ver lista'}
-                                </TooltipContent>
-                              </Tooltip>
-                            )}
-                            <Plus className="h-5 w-5 opacity-80" />
-                          </div>
+                          <Plus className="h-5 w-5 opacity-80" />
                         )}
                       </div>
                     </div>
