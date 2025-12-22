@@ -3,15 +3,14 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
+import { OutlinedInput, OutlinedTextarea } from "@/components/ui/outlined-input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { WhatsAppStyleMediaCapture, MediaFile } from "@/components/WhatsAppStyleMediaCapture";
 import { uploadMediaToStorage } from "@/lib/uploadMedia";
-import { Wrench, Clock, CheckCircle, Search, AlertCircle, Store, CheckCircle2, XCircle } from "lucide-react";
+import { Wrench, Clock, Search, Store, CheckCircle2, XCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
@@ -388,8 +387,16 @@ export default function Asignaciones() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex gap-2">
-            <Input placeholder="Buscar por código, cliente o descripción..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSearch()} />
-            <Button onClick={handleSearch}>
+            <div className="flex-1">
+              <OutlinedInput 
+                label="Buscar por código, cliente o descripción"
+                icon={<Search className="h-4 w-4" />}
+                value={searchTerm} 
+                onChange={e => setSearchTerm(e.target.value)} 
+                onKeyDown={e => e.key === 'Enter' && handleSearch()} 
+              />
+            </div>
+            <Button onClick={handleSearch} className="self-center">
               <Search className="h-4 w-4 mr-2" />
               Buscar
             </Button>
@@ -419,10 +426,13 @@ export default function Asignaciones() {
         {loading ? <div className="text-center py-12">
             <p className="text-muted-foreground">Cargando...</p>
           </div> : <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {FAMILIAS.map(familia => {
+            {FAMILIAS.filter(familia => getIncidentesPorFamilia(familia).length > 0).map(familia => {
           const incidentesFamilia = getIncidentesPorFamilia(familia);
           const diaMax = getDiaMaxPorFamilia(familia);
           const isStockCemaco = familia.nombre === "Stock Cemaco";
+          const primerIncidente = incidentesFamilia[0];
+          const dias = getDiasDesdeIngreso(primerIncidente.fecha_ingreso);
+          
           return <Card key={familia.nombre} className={`flex flex-col ${isStockCemaco ? 'border-orange-500/50 bg-orange-50/30 dark:bg-orange-950/20' : ''}`}>
                   <CardHeader className="pb-3 border-b bg-muted/30">
                     <div className="flex items-center justify-between">
@@ -442,44 +452,43 @@ export default function Asignaciones() {
                     </div>
                   </CardHeader>
                   
-                  <CardContent className="flex-1 p-3 overflow-y-auto max-h-[400px]">
-                    {incidentesFamilia.length === 0 ? <div className="text-center py-8 text-muted-foreground">
-                        <CheckCircle className="h-8 w-8 mx-auto mb-2 opacity-30" />
-                        <p className="text-sm">Sin incidentes</p>
-                      </div> : <div className="space-y-2">
-                        {incidentesFamilia.map((inc, index) => {
-                  const esPrimero = index === 0;
-                  const dias = getDiasDesdeIngreso(inc.fecha_ingreso);
-                  return <div key={inc.id} className={`p-2.5 border rounded-lg transition-all ${esPrimero ? 'border-primary bg-primary/10 shadow-sm' : 'border-muted bg-card hover:bg-muted/50'}`}>
-                              <div className="space-y-2">
-                                <div className="flex items-start justify-between gap-2">
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-1.5">
-                                      {esPrimero && <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />}
-                                      <p className="font-semibold text-xs truncate">{inc.codigo}</p>
-                                    </div>
-                                  </div>
-                                  {esPrimero && <Badge variant="default" className="text-xs px-1.5 py-0">SIGUIENTE</Badge>}
-                                </div>
+                  <CardContent className="flex-1 p-3">
+                    {/* Solo mostrar el primer incidente */}
+                    <div className="p-2.5 border rounded-lg border-primary bg-primary/10 shadow-sm">
+                      <div className="space-y-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                              <p className="font-semibold text-xs truncate">{primerIncidente.codigo}</p>
+                            </div>
+                          </div>
+                          <Badge variant="default" className="text-xs px-1.5 py-0">SIGUIENTE</Badge>
+                        </div>
 
-                                <p className="text-xs text-muted-foreground line-clamp-2">{inc.descripcion_problema}</p>
+                        <p className="text-xs text-muted-foreground line-clamp-2">{primerIncidente.descripcion_problema}</p>
 
-                                <div className="flex items-center gap-1.5 flex-wrap">
-                                  <Badge variant="outline" className={`text-xs ${dias > 7 ? 'bg-red-50 text-red-700 border-red-200' : dias > 3 ? 'bg-orange-50 text-orange-700 border-orange-200' : 'bg-blue-50 text-blue-700 border-blue-200'}`}>
-                                    <Clock className="h-3 w-3 mr-1" />{dias}d
-                                  </Badge>
-                                </div>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <Badge variant="outline" className={`text-xs ${dias > 7 ? 'bg-red-50 text-red-700 border-red-200' : dias > 3 ? 'bg-orange-50 text-orange-700 border-orange-200' : 'bg-blue-50 text-blue-700 border-blue-200'}`}>
+                            <Clock className="h-3 w-3 mr-1" />{dias}d
+                          </Badge>
+                        </div>
 
-                                <div className="flex gap-1.5 pt-1">
-                                  {isStockCemaco ? inc.status === 'Ingresado' ? <Button size="sm" className="flex-1 h-7 text-xs bg-orange-600 hover:bg-orange-700" onClick={() => handleRevisar(inc)}>Revisar</Button> : inc.status as any === 'Pendiente de aprobación NC' ? <Button size="sm" className="flex-1 h-7 text-xs bg-green-600 hover:bg-green-700" onClick={() => handleAprobar(inc)}>Aprobar</Button> : null : <Button size="sm" variant={esPrimero ? "default" : "outline"} className="flex-1 h-7 text-xs" onClick={() => handleAsignar(inc.id, familia)} disabled={!esPrimero}>
-                                      {esPrimero ? '✓ Asignarme' : '🔒 Bloqueado'}
-                                    </Button>}
-                                  <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => navigate(`/mostrador/seguimiento/${inc.id}`)}>👁️</Button>
-                                </div>
-                              </div>
-                            </div>;
-                })}
-                      </div>}
+                        <div className="flex gap-1.5 pt-1">
+                          {isStockCemaco ? primerIncidente.status === 'Ingresado' ? <Button size="sm" className="flex-1 h-7 text-xs bg-orange-600 hover:bg-orange-700" onClick={() => handleRevisar(primerIncidente)}>Revisar</Button> : primerIncidente.status as any === 'Pendiente de aprobación NC' ? <Button size="sm" className="flex-1 h-7 text-xs bg-green-600 hover:bg-green-700" onClick={() => handleAprobar(primerIncidente)}>Aprobar</Button> : null : <Button size="sm" variant="default" className="flex-1 h-7 text-xs" onClick={() => handleAsignar(primerIncidente.id, familia)}>
+                              ✓ Asignarme
+                            </Button>}
+                          <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => navigate(`/mostrador/seguimiento/${primerIncidente.id}`)}>👁️</Button>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Indicador de cuántos más hay en cola */}
+                    {incidentesFamilia.length > 1 && (
+                      <p className="text-xs text-muted-foreground text-center mt-2">
+                        +{incidentesFamilia.length - 1} más en cola
+                      </p>
+                    )}
                   </CardContent>
                 </Card>;
         })}
@@ -522,39 +531,47 @@ export default function Asignaciones() {
           
           <div className="space-y-4">
             <div>
-              <Label>Producto</Label>
+              <Label className="text-sm font-medium">Producto</Label>
               <p className="text-sm text-muted-foreground">{modalRevision.incidente?.codigo_producto}</p>
             </div>
 
             <div>
-              <Label htmlFor="decision">Decisión *</Label>
-              <RadioGroup value={decision} onValueChange={v => setDecision(v as "aprobado" | "rechazado")}>
+              <Label className="text-sm font-medium">Decisión *</Label>
+              <RadioGroup value={decision} onValueChange={v => setDecision(v as "aprobado" | "rechazado")} className="mt-2">
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="aprobado" id="aprobado" />
-                  <Label htmlFor="aprobado" className="cursor-pointer">Nota de Crédito Autorizado</Label>
+                  <Label htmlFor="aprobado" className="cursor-pointer font-normal">Nota de Crédito Autorizado</Label>
                 </div>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="rechazado" id="rechazado" />
-                  <Label htmlFor="rechazado" className="cursor-pointer">Nota de Crédito Rechazado</Label>
+                  <Label htmlFor="rechazado" className="cursor-pointer font-normal">Nota de Crédito Rechazado</Label>
                 </div>
               </RadioGroup>
             </div>
 
             <div>
-              <Label htmlFor="justificacion">Justificación * (mínimo 20 caracteres)</Label>
-              <Textarea id="justificacion" value={justificacion} onChange={e => setJustificacion(e.target.value)} placeholder="Explique detalladamente la razón de su decisión..." rows={4} className="resize-none" />
+              <OutlinedTextarea 
+                label="Justificación * (mínimo 20 caracteres)"
+                value={justificacion} 
+                onChange={e => setJustificacion(e.target.value)} 
+                placeholder="Explique detalladamente la razón de su decisión..." 
+                rows={4}
+              />
               <p className="text-xs text-muted-foreground mt-1">
                 {justificacion.length}/20 caracteres mínimos
               </p>
             </div>
 
-            <div>
-              <Label htmlFor="observaciones">Observaciones adicionales</Label>
-              <Textarea id="observaciones" value={observaciones} onChange={e => setObservaciones(e.target.value)} placeholder="Observaciones opcionales..." rows={3} />
-            </div>
+            <OutlinedTextarea 
+              label="Observaciones adicionales"
+              value={observaciones} 
+              onChange={e => setObservaciones(e.target.value)} 
+              placeholder="Observaciones opcionales..." 
+              rows={3}
+            />
 
             <div>
-              <Label>Evidencia Fotográfica * (1-10 fotos)</Label>
+              <Label className="text-sm font-medium">Evidencia Fotográfica * (1-10 fotos)</Label>
               <WhatsAppStyleMediaCapture media={mediaFiles} onMediaChange={setMediaFiles} maxFiles={10} />
             </div>
           </div>
@@ -616,10 +633,13 @@ export default function Asignaciones() {
 
               <Separator />
 
-              <div>
-                <Label htmlFor="observacionesRechazo">Observaciones de Rechazo (si aplica)</Label>
-                <Textarea id="observacionesRechazo" value={observacionesRechazo} onChange={e => setObservacionesRechazo(e.target.value)} placeholder="Solo si va a rechazar la propuesta..." rows={3} />
-              </div>
+              <OutlinedTextarea 
+                label="Observaciones de Rechazo (si aplica)"
+                value={observacionesRechazo} 
+                onChange={e => setObservacionesRechazo(e.target.value)} 
+                placeholder="Solo si va a rechazar la propuesta..." 
+                rows={3}
+              />
             </div>}
 
           <DialogFooter className="gap-2">
