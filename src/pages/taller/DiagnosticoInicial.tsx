@@ -29,7 +29,7 @@ export default function DiagnosticoInicial() {
   // Paso 1: Fallas, Causas, Garantía, Resolución
   const [fallas, setFallas] = useState<string[]>([]);
   const [causas, setCausas] = useState<string[]>([]);
-  
+
   // Dialogs para agregar nuevas fallas/causas
   const [showAddFallaDialog, setShowAddFallaDialog] = useState(false);
   const [showAddCausaDialog, setShowAddCausaDialog] = useState(false);
@@ -850,25 +850,17 @@ export default function DiagnosticoInicial() {
                 <div className="space-y-4 bg-blue-900/10 p-4 rounded-lg border border-blue-900/20">
                   <div className="flex items-center justify-between">
                     <Label className="text-lg font-semibold text-blue-900 dark:text-blue-300">Fallas</Label>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowAddFallaDialog(true)}
-                      className="h-8 w-8 p-0 border-blue-900/30 hover:bg-blue-900/10"
-                    >
+                    <Button type="button" variant="outline" size="sm" onClick={() => setShowAddFallaDialog(true)} className="h-8 w-8 p-0 border-blue-900/30 hover:bg-blue-900/10">
                       <Plus className="h-4 w-4" />
                     </Button>
                   </div>
                   <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
-                    {[...fallasDisponibles, ...fallasPersonalizadas].map(falla => (
-                      <label key={falla} className={`flex items-center space-x-3 p-3 rounded-lg border-2 cursor-pointer transition-all bg-white dark:bg-background ${fallas.includes(falla) ? "border-blue-600 bg-blue-50 dark:bg-blue-900/20" : "border-blue-200 dark:border-blue-900/30 hover:border-blue-400"}`}>
+                    {[...fallasDisponibles, ...fallasPersonalizadas].map(falla => <label key={falla} className={`flex items-center space-x-3 p-3 rounded-lg border-2 cursor-pointer transition-all bg-white dark:bg-background ${fallas.includes(falla) ? "border-blue-600 bg-blue-50 dark:bg-blue-900/20" : "border-blue-200 dark:border-blue-900/30 hover:border-blue-400"}`}>
                         <Checkbox checked={fallas.includes(falla)} onCheckedChange={() => {
-                          setFallas(prev => prev.includes(falla) ? prev.filter(f => f !== falla) : [...prev, falla]);
-                        }} />
+                    setFallas(prev => prev.includes(falla) ? prev.filter(f => f !== falla) : [...prev, falla]);
+                  }} />
                         <span className="text-sm">{falla}</span>
-                      </label>
-                    ))}
+                      </label>)}
                   </div>
                 </div>
 
@@ -876,25 +868,17 @@ export default function DiagnosticoInicial() {
                 <div className="space-y-4 bg-orange-500/10 p-4 rounded-lg border border-orange-500/20">
                   <div className="flex items-center justify-between">
                     <Label className="text-lg font-semibold text-orange-700 dark:text-orange-300">Causas</Label>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowAddCausaDialog(true)}
-                      className="h-8 w-8 p-0 border-orange-500/30 hover:bg-orange-500/10"
-                    >
+                    <Button type="button" variant="outline" size="sm" onClick={() => setShowAddCausaDialog(true)} className="h-8 w-8 p-0 border-orange-500/30 hover:bg-orange-500/10">
                       <Plus className="h-4 w-4" />
                     </Button>
                   </div>
                   <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
-                    {[...causasDisponibles, ...causasPersonalizadas].map(causa => (
-                      <label key={causa} className={`flex items-center space-x-3 p-3 rounded-lg border-2 cursor-pointer transition-all bg-white dark:bg-background ${causas.includes(causa) ? "border-orange-500 bg-orange-50 dark:bg-orange-900/20" : "border-orange-200 dark:border-orange-900/30 hover:border-orange-400"}`}>
+                    {[...causasDisponibles, ...causasPersonalizadas].map(causa => <label key={causa} className={`flex items-center space-x-3 p-3 rounded-lg border-2 cursor-pointer transition-all bg-white dark:bg-background ${causas.includes(causa) ? "border-orange-500 bg-orange-50 dark:bg-orange-900/20" : "border-orange-200 dark:border-orange-900/30 hover:border-orange-400"}`}>
                         <Checkbox checked={causas.includes(causa)} onCheckedChange={() => {
-                          setCausas(prev => prev.includes(causa) ? prev.filter(c => c !== causa) : [...prev, causa]);
-                        }} />
+                    setCausas(prev => prev.includes(causa) ? prev.filter(c => c !== causa) : [...prev, causa]);
+                  }} />
                         <span className="text-sm">{causa}</span>
-                      </label>
-                    ))}
+                      </label>)}
                   </div>
                 </div>
               </div>
@@ -905,7 +889,7 @@ export default function DiagnosticoInicial() {
               <div className="space-y-4">
                 <div>
                   <Label className="text-lg font-semibold flex items-center gap-2">
-                    <Wrench className="h-5 w-5" />
+                    
                     ¿Es Reparable?
                   </Label>
                   
@@ -935,9 +919,7 @@ export default function DiagnosticoInicial() {
                   <div className="space-y-4">
                     <div>
                       <Label className="text-lg font-semibold">¿Aplica Garantía?</Label>
-                      <p className="text-sm text-muted-foreground">
-                        Indica si la reparación está cubierta por garantía
-                      </p>
+                      
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <Button type="button" variant={aplicaGarantia === true ? "default" : "outline"} onClick={() => {
@@ -999,9 +981,7 @@ export default function DiagnosticoInicial() {
                   <div className="space-y-4">
                     <div>
                       <Label className="text-lg font-semibold">Tipo de Resolución</Label>
-                      <p className="text-sm text-muted-foreground">
-                        Selecciona cómo se resolverá este incidente
-                      </p>
+                      
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       {aplicaGarantia ? <>
@@ -1402,28 +1382,23 @@ export default function DiagnosticoInicial() {
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
-            <Textarea
-              value={nuevaFalla}
-              onChange={(e) => setNuevaFalla(e.target.value)}
-              placeholder="Describe la falla..."
-              rows={3}
-            />
+            <Textarea value={nuevaFalla} onChange={e => setNuevaFalla(e.target.value)} placeholder="Describe la falla..." rows={3} />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => {
-              setShowAddFallaDialog(false);
-              setNuevaFalla("");
-            }}>
+            setShowAddFallaDialog(false);
+            setNuevaFalla("");
+          }}>
               Cancelar
             </Button>
             <Button onClick={() => {
-              if (nuevaFalla.trim()) {
-                setFallasPersonalizadas(prev => [...prev, nuevaFalla.trim()]);
-                setFallas(prev => [...prev, nuevaFalla.trim()]);
-                setNuevaFalla("");
-                setShowAddFallaDialog(false);
-              }
-            }} disabled={!nuevaFalla.trim()}>
+            if (nuevaFalla.trim()) {
+              setFallasPersonalizadas(prev => [...prev, nuevaFalla.trim()]);
+              setFallas(prev => [...prev, nuevaFalla.trim()]);
+              setNuevaFalla("");
+              setShowAddFallaDialog(false);
+            }
+          }} disabled={!nuevaFalla.trim()}>
               Agregar
             </Button>
           </DialogFooter>
@@ -1440,28 +1415,23 @@ export default function DiagnosticoInicial() {
             </DialogDescription>
           </DialogHeader>
           <div className="py-4">
-            <Textarea
-              value={nuevaCausa}
-              onChange={(e) => setNuevaCausa(e.target.value)}
-              placeholder="Describe la causa..."
-              rows={3}
-            />
+            <Textarea value={nuevaCausa} onChange={e => setNuevaCausa(e.target.value)} placeholder="Describe la causa..." rows={3} />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => {
-              setShowAddCausaDialog(false);
-              setNuevaCausa("");
-            }}>
+            setShowAddCausaDialog(false);
+            setNuevaCausa("");
+          }}>
               Cancelar
             </Button>
             <Button onClick={() => {
-              if (nuevaCausa.trim()) {
-                setCausasPersonalizadas(prev => [...prev, nuevaCausa.trim()]);
-                setCausas(prev => [...prev, nuevaCausa.trim()]);
-                setNuevaCausa("");
-                setShowAddCausaDialog(false);
-              }
-            }} disabled={!nuevaCausa.trim()}>
+            if (nuevaCausa.trim()) {
+              setCausasPersonalizadas(prev => [...prev, nuevaCausa.trim()]);
+              setCausas(prev => [...prev, nuevaCausa.trim()]);
+              setNuevaCausa("");
+              setShowAddCausaDialog(false);
+            }
+          }} disabled={!nuevaCausa.trim()}>
               Agregar
             </Button>
           </DialogFooter>
