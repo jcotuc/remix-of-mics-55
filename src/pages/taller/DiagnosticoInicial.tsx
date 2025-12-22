@@ -846,23 +846,23 @@ export default function DiagnosticoInicial() {
           {paso === 1 && <>
               {/* Fallas y Causas en paralelo */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Fallas */}
-                <div className="space-y-4">
+                {/* Fallas - Navy Blue */}
+                <div className="space-y-4 bg-blue-900/10 p-4 rounded-lg border border-blue-900/20">
                   <div className="flex items-center justify-between">
-                    <Label className="text-lg font-semibold">Fallas</Label>
+                    <Label className="text-lg font-semibold text-blue-900 dark:text-blue-300">Fallas</Label>
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
                       onClick={() => setShowAddFallaDialog(true)}
-                      className="h-8 w-8 p-0"
+                      className="h-8 w-8 p-0 border-blue-900/30 hover:bg-blue-900/10"
                     >
                       <Plus className="h-4 w-4" />
                     </Button>
                   </div>
                   <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
                     {[...fallasDisponibles, ...fallasPersonalizadas].map(falla => (
-                      <label key={falla} className={`flex items-center space-x-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${fallas.includes(falla) ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`}>
+                      <label key={falla} className={`flex items-center space-x-3 p-3 rounded-lg border-2 cursor-pointer transition-all bg-white dark:bg-background ${fallas.includes(falla) ? "border-blue-600 bg-blue-50 dark:bg-blue-900/20" : "border-blue-200 dark:border-blue-900/30 hover:border-blue-400"}`}>
                         <Checkbox checked={fallas.includes(falla)} onCheckedChange={() => {
                           setFallas(prev => prev.includes(falla) ? prev.filter(f => f !== falla) : [...prev, falla]);
                         }} />
@@ -872,23 +872,23 @@ export default function DiagnosticoInicial() {
                   </div>
                 </div>
 
-                {/* Causas */}
-                <div className="space-y-4 bg-muted/30 p-4 rounded-lg">
+                {/* Causas - Orange */}
+                <div className="space-y-4 bg-orange-500/10 p-4 rounded-lg border border-orange-500/20">
                   <div className="flex items-center justify-between">
-                    <Label className="text-lg font-semibold text-muted-foreground">Causas</Label>
+                    <Label className="text-lg font-semibold text-orange-700 dark:text-orange-300">Causas</Label>
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
                       onClick={() => setShowAddCausaDialog(true)}
-                      className="h-8 w-8 p-0"
+                      className="h-8 w-8 p-0 border-orange-500/30 hover:bg-orange-500/10"
                     >
                       <Plus className="h-4 w-4" />
                     </Button>
                   </div>
                   <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
                     {[...causasDisponibles, ...causasPersonalizadas].map(causa => (
-                      <label key={causa} className={`flex items-center space-x-3 p-3 rounded-lg border-2 cursor-pointer transition-all bg-background ${causas.includes(causa) ? "border-primary bg-primary/5" : "border-muted-foreground/20 hover:border-primary/50"}`}>
+                      <label key={causa} className={`flex items-center space-x-3 p-3 rounded-lg border-2 cursor-pointer transition-all bg-white dark:bg-background ${causas.includes(causa) ? "border-orange-500 bg-orange-50 dark:bg-orange-900/20" : "border-orange-200 dark:border-orange-900/30 hover:border-orange-400"}`}>
                         <Checkbox checked={causas.includes(causa)} onCheckedChange={() => {
                           setCausas(prev => prev.includes(causa) ? prev.filter(c => c !== causa) : [...prev, causa]);
                         }} />
