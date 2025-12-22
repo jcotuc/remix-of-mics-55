@@ -48,7 +48,7 @@ const menuAreas = {
     { title: "Consulta de Ubicaciones", url: "/logistica/consulta-ubicaciones", icon: MapPin },
   ],
   taller: [
-    { title: "Asignaciones", url: "/taller/asignaciones", icon: Wrench },
+    { title: "Cola de reparación", url: "/taller/asignaciones", icon: Wrench },
     { title: "Mis Asignaciones", url: "/taller/mis-asignaciones", icon: ClipboardList },
     { title: "Búsqueda Incidentes", url: "/taller/busqueda-incidentes", icon: FileText },
   ],
