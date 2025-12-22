@@ -944,7 +944,7 @@ export default function DiagnosticoInicial() {
                   <Separator />
                   <div className="space-y-4">
                     <div>
-                      <Label className="text-lg font-semibold">Tipo de Resolución</Label>
+                      <Label className="text-lg font-semibold">Resolución</Label>
                       <p className="text-sm text-muted-foreground">
                         Como no es reparable, selecciona la resolución
                       </p>
@@ -980,7 +980,7 @@ export default function DiagnosticoInicial() {
                   <Separator />
                   <div className="space-y-4">
                     <div>
-                      <Label className="text-lg font-semibold">Tipo de Resolución</Label>
+                      <Label className="text-lg font-semibold">Resolución</Label>
                       
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
