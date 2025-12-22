@@ -10,8 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { WhatsAppStyleMediaCapture, MediaFile } from "@/components/WhatsAppStyleMediaCapture";
 import { uploadMediaToStorage } from "@/lib/uploadMedia";
-import { Wrench, Clock, Search, Store, CheckCircle2, XCircle, Plus, ChevronDown } from "lucide-react";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Wrench, Clock, Search, Store, CheckCircle2, XCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
@@ -54,7 +53,6 @@ export default function Asignaciones() {
   const [familias, setFamilias] = useState<FamiliaDB[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [searchResults, setSearchResults] = useState<IncidenteDB[]>([]);
-  const [expandedFamilias, setExpandedFamilias] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(true);
 
   // Estados para modal de revisión Stock Cemaco
@@ -355,13 +353,12 @@ export default function Asignaciones() {
           </div> : <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {FAMILIAS.filter(familia => getIncidentesPorFamilia(familia).length > 0).map(familia => {
           const incidentesFamilia = getIncidentesPorFamilia(familia);
+          const diaMax = getDiaMaxPorFamilia(familia);
           const isStockCemaco = familia.nombre === "Stock Cemaco";
           const primerIncidente = incidentesFamilia[0];
-          const expanded = expandedFamilias[familia.nombre] || false;
-          const toggleExpanded = () => setExpandedFamilias(prev => ({ ...prev, [familia.nombre]: !prev[familia.nombre] }));
-          
+          const dias = getDiasDesdeIngreso(primerIncidente.fecha_ingreso);
           return <Card key={familia.nombre} className={`flex flex-col ${isStockCemaco ? 'border-orange-500/50 bg-orange-50/30 dark:bg-orange-950/20' : ''}`}>
-                  <CardHeader className="pb-2 border-b bg-muted/30">
+                  <CardHeader className="pb-3 border-b bg-muted/30">
                     <div className="flex items-center justify-between">
                       <CardTitle className="text-base font-semibold flex items-center gap-2">
                         {isStockCemaco && <Store className="h-4 w-4 text-orange-600" />}
@@ -371,78 +368,47 @@ export default function Asignaciones() {
                         <Badge variant="secondary" className="font-bold">
                           {incidentesFamilia.length}
                         </Badge>
-                        {incidentesFamilia.length > 1 && (
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            className="h-7 w-7"
-                            onClick={toggleExpanded}
-                          >
-                            {expanded ? <ChevronDown className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-                          </Button>
-                        )}
+                        {diaMax > 0 && <Badge variant="outline" className="text-xs">
+                            <Clock className="h-3 w-3 mr-1" />
+                            {diaMax}d
+                          </Badge>}
                       </div>
                     </div>
                   </CardHeader>
                   
-                  <CardContent className="flex-1 p-3 space-y-2">
-                    {/* Tarjeta principal clickeable */}
-                    <div 
-                      className={`p-4 rounded-xl cursor-pointer transition-all duration-200 ${
-                        isStockCemaco 
-                          ? 'bg-gradient-to-br from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white shadow-lg shadow-orange-500/25' 
-                          : 'bg-gradient-to-br from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground shadow-lg shadow-primary/25'
-                      } hover:scale-[1.02] active:scale-[0.98]`}
-                      onClick={() => {
-                        if (isStockCemaco) {
-                          if (primerIncidente.status === 'Ingresado') {
-                            handleRevisar(primerIncidente);
-                          } else if ((primerIncidente.status as any) === 'Pendiente de aprobación NC') {
-                            handleAprobar(primerIncidente);
-                          }
-                        } else {
-                          handleAsignar(primerIncidente.id, familia);
-                        }
-                      }}
-                    >
-                      <p className="font-semibold text-sm truncate mb-1">
-                        {primerIncidente.codigo_producto}
-                      </p>
-                      <p className="text-xs opacity-90 line-clamp-2">
-                        {primerIncidente.descripcion_problema}
-                      </p>
-                      <p className="text-[10px] opacity-70 mt-2">
-                        {isStockCemaco 
-                          ? (primerIncidente.status === 'Ingresado' ? 'Toca para revisar' : 'Toca para aprobar')
-                          : 'Toca para asignarte'
-                        }
-                      </p>
-                    </div>
-                    
-                    {/* Lista expandible de incidentes en espera */}
-                    {expanded && incidentesFamilia.length > 1 && (
-                      <div className="space-y-1.5 pt-1 border-t">
-                        <p className="text-xs text-muted-foreground font-medium px-1">En espera:</p>
-                        <div className="max-h-40 overflow-y-auto space-y-1.5">
-                          {incidentesFamilia.slice(1).map((inc, idx) => (
-                            <div 
-                              key={inc.id} 
-                              className="p-2 rounded-lg bg-muted/50 border border-border/50"
-                            >
-                              <p className="text-xs font-medium truncate">{inc.codigo_producto}</p>
-                              <p className="text-[10px] text-muted-foreground line-clamp-1">{inc.descripcion_problema}</p>
+                  <CardContent className="flex-1 p-3">
+                    {/* Solo mostrar el primer incidente */}
+                    <div className="p-2.5 border rounded-lg border-primary bg-primary/10 shadow-sm">
+                      <div className="space-y-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <div className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+                              <p className="font-semibold text-xs truncate">{primerIncidente.codigo}</p>
                             </div>
-                          ))}
+                          </div>
+                          <Badge variant="default" className="text-xs px-1.5 py-0">SIGUIENTE</Badge>
+                        </div>
+
+                        <p className="text-xs text-muted-foreground line-clamp-2">{primerIncidente.descripcion_problema}</p>
+
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <Badge variant="outline" className={`text-xs ${dias > 7 ? 'bg-red-50 text-red-700 border-red-200' : dias > 3 ? 'bg-orange-50 text-orange-700 border-orange-200' : 'bg-blue-50 text-blue-700 border-blue-200'}`}>
+                            <Clock className="h-3 w-3 mr-1" />{dias}d
+                          </Badge>
+                        </div>
+
+                        <div className="flex gap-1.5 pt-1">
+                          {isStockCemaco ? primerIncidente.status === 'Ingresado' ? <Button size="sm" className="flex-1 h-7 text-xs bg-orange-600 hover:bg-orange-700" onClick={() => handleRevisar(primerIncidente)}>Revisar</Button> : primerIncidente.status as any === 'Pendiente de aprobación NC' ? <Button size="sm" className="flex-1 h-7 text-xs bg-green-600 hover:bg-green-700" onClick={() => handleAprobar(primerIncidente)}>Aprobar</Button> : null : <Button size="sm" variant="default" className="flex-1 h-7 text-xs" onClick={() => handleAsignar(primerIncidente.id, familia)}>
+                              ✓ Asignarme
+                            </Button>}
+                          
                         </div>
                       </div>
-                    )}
+                    </div>
                     
                     {/* Indicador de cuántos más hay en cola */}
-                    {!expanded && incidentesFamilia.length > 1 && (
-                      <p className="text-xs text-muted-foreground text-center">
-                        +{incidentesFamilia.length - 1} en espera
-                      </p>
-                    )}
+                    {incidentesFamilia.length > 1}
                   </CardContent>
                 </Card>;
         })}
@@ -473,10 +439,7 @@ export default function Asignaciones() {
             <div>
               <Label className="text-sm font-medium">Decisión *</Label>
               <RadioGroup value={decision} onValueChange={v => setDecision(v as "aprobado" | "rechazado")} className="mt-2">
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="aprobado" id="aprobado" />
-                  <Label htmlFor="aprobado" className="cursor-pointer font-normal">Nota de Crédito Autorizado</Label>
-                </div>
+                
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="rechazado" id="rechazado" />
                   <Label htmlFor="rechazado" className="cursor-pointer font-normal">Nota de Crédito Rechazado</Label>
