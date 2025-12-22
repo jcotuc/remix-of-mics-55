@@ -331,7 +331,7 @@ export default function Asignaciones() {
         <h1 className="text-3xl font-bold flex items-center gap-2">Asignaciones de Taller
 
         <Wrench className="h-8 w-8 text-primary" />
-          Asignaciones de Taller - Sistema FIFO
+          ​
         </h1>
         
       </div>
