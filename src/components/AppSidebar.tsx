@@ -49,7 +49,7 @@ const menuAreas = {
   ],
   taller: [
     { title: "Cola de reparación", url: "/taller/asignaciones", icon: Wrench },
-    { title: "Mis Asignaciones", url: "/taller/mis-asignaciones", icon: ClipboardList },
+    { title: "Mis diagnósticos", url: "/taller/mis-asignaciones", icon: ClipboardList },
     { title: "Búsqueda Incidentes", url: "/taller/busqueda-incidentes", icon: FileText },
   ],
   jefeTaller: [
