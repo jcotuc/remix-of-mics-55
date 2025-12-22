@@ -890,9 +890,7 @@ export default function DiagnosticoInicial() {
                     <Wrench className="h-5 w-5" />
                     ¿Es Reparable?
                   </Label>
-                  <p className="text-sm text-muted-foreground">
-                    Indica si la máquina puede ser reparada
-                  </p>
+                  
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <Button type="button" variant={esReparable === true ? "default" : "outline"} onClick={() => {
