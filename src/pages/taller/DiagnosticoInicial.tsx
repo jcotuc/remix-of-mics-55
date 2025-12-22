@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Camera, CheckCircle2, Package, Plus, Minus, Search, ShoppingCart, X, Clock, Loader2, AlertCircle } from "lucide-react";
+import { ArrowLeft, Camera, CheckCircle2, Package, Plus, Minus, Search, ShoppingCart, X, Clock, Loader2, AlertCircle, Wrench, Ban } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { GembaDocsCamera, GembaPhoto } from "@/components/GembaDocsCamera";
 
 export default function DiagnosticoInicial() {
   const { id } = useParams();
@@ -52,6 +53,12 @@ export default function DiagnosticoInicial() {
   // Paso 3: Fotos y Observaciones
   const [fotos, setFotos] = useState<File[]>([]);
   const [observaciones, setObservaciones] = useState("");
+  
+  // Gemba Docs - Fotos con comentarios (disponible en cualquier paso)
+  const [gembaPhotos, setGembaPhotos] = useState<GembaPhoto[]>([]);
+  
+  // Estado para flujo mejorado de garantía/reparable
+  const [esReparable, setEsReparable] = useState<boolean | null>(null);
   
   // Paso de Canje (entre paso 1 y 2)
   const [productosAlternativos, setProductosAlternativos] = useState<any[]>([]);
@@ -961,160 +968,304 @@ export default function DiagnosticoInicial() {
         <CardContent className="space-y-6">
           {paso === 1 && (
             <>
-              {/* Fallas */}
-              <div className="space-y-4">
-                <div>
-                  <Label className="text-lg font-semibold">Fallas Encontradas</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Selecciona todas las fallas que apliquen
-                  </p>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {fallasDisponibles.map((falla) => (
-                    <label
-                      key={falla}
-                      className={`flex items-center space-x-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${
-                        fallas.includes(falla)
-                          ? "border-primary bg-primary/5"
-                          : "border-border hover:border-primary/50"
-                      }`}
-                    >
-                      <Checkbox
-                        checked={fallas.includes(falla)}
-                        onCheckedChange={() => {
-                          setFallas((prev) =>
-                            prev.includes(falla)
-                              ? prev.filter((f) => f !== falla)
-                              : [...prev, falla]
-                          );
-                        }}
-                      />
-                      <span className="text-sm">{falla}</span>
-                    </label>
-                  ))}
-                </div>
-                <div>
-                  <Label>Otra falla no listada</Label>
-                  <Textarea
-                    value={otraFalla}
-                    onChange={(e) => setOtraFalla(e.target.value)}
-                    placeholder="Describe la falla..."
-                    rows={3}
-                  />
-                </div>
-              </div>
-
-              <Separator />
-
-              {/* Causas */}
-              <div className="space-y-4">
-                <div>
-                  <Label className="text-lg font-semibold">Causas Identificadas</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Selecciona todas las causas que apliquen
-                  </p>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {causasDisponibles.map((causa) => (
-                    <label
-                      key={causa}
-                      className={`flex items-center space-x-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${
-                        causas.includes(causa)
-                          ? "border-primary bg-primary/5"
-                          : "border-border hover:border-primary/50"
-                      }`}
-                    >
-                      <Checkbox
-                        checked={causas.includes(causa)}
-                        onCheckedChange={() => {
-                          setCausas((prev) =>
-                            prev.includes(causa)
-                              ? prev.filter((c) => c !== causa)
-                              : [...prev, causa]
-                          );
-                        }}
-                      />
-                      <span className="text-sm">{causa}</span>
-                    </label>
-                  ))}
-                </div>
-                <div>
-                  <Label>Otra causa no listada</Label>
-                  <Textarea
-                    value={otraCausa}
-                    onChange={(e) => setOtraCausa(e.target.value)}
-                    placeholder="Describe la causa..."
-                    rows={3}
-                  />
-                </div>
-              </div>
-
-              <Separator />
-
-              {/* Aplica Garantía */}
-              <div className="space-y-4">
-                <div>
-                  <Label className="text-lg font-semibold">¿Aplica Garantía?</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Indica si esta reparación está cubierta por garantía
-                  </p>
-                </div>
-                <div className="flex gap-4">
-                  <Button
-                    type="button"
-                    variant={aplicaGarantia === true ? "default" : "outline"}
-                    onClick={() => {
-                      setAplicaGarantia(true);
-                      setTipoResolucion("");
-                    }}
-                  >
-                    Sí, aplica garantía
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={aplicaGarantia === false ? "default" : "outline"}
-                    onClick={() => {
-                      setAplicaGarantia(false);
-                      setTipoResolucion("");
-                    }}
-                  >
-                    No aplica garantía
-                  </Button>
-                </div>
-              </div>
-
-              <Separator />
-
-              {/* Tipo de Resolución */}
-              {aplicaGarantia !== null && (
+              {/* Fallas y Causas en paralelo */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Fallas */}
                 <div className="space-y-4">
                   <div>
-                    <Label className="text-lg font-semibold">Tipo de Resolución</Label>
+                    <Label className="text-lg font-semibold">Fallas Encontradas</Label>
                     <p className="text-sm text-muted-foreground">
-                      Selecciona cómo se resolverá este incidente
+                      Selecciona todas las fallas que apliquen
                     </p>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {opcionesResolucion.map((opcion) => (
-                      <Button
-                        key={opcion}
-                        type="button"
-                        variant={tipoResolucion === opcion ? "default" : "outline"}
-                        onClick={() => setTipoResolucion(opcion)}
-                        className="justify-start h-auto py-3"
+                  <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
+                    {fallasDisponibles.map((falla) => (
+                      <label
+                        key={falla}
+                        className={`flex items-center space-x-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                          fallas.includes(falla)
+                            ? "border-primary bg-primary/5"
+                            : "border-border hover:border-primary/50"
+                        }`}
                       >
-                        {opcion}
-                      </Button>
+                        <Checkbox
+                          checked={fallas.includes(falla)}
+                          onCheckedChange={() => {
+                            setFallas((prev) =>
+                              prev.includes(falla)
+                                ? prev.filter((f) => f !== falla)
+                                : [...prev, falla]
+                            );
+                          }}
+                        />
+                        <span className="text-sm">{falla}</span>
+                      </label>
                     ))}
                   </div>
-                  {tipoResolucion === "Presupuesto" && necesitaRepuestos && (
-                    <div className="bg-muted p-3 rounded-md text-sm">
-                      <p className="text-muted-foreground">
-                        <strong>Nota:</strong> Los repuestos se despacharán una vez que el cliente realice el pago del presupuesto.
+                  <div>
+                    <Label>Otra falla no listada</Label>
+                    <Textarea
+                      value={otraFalla}
+                      onChange={(e) => setOtraFalla(e.target.value)}
+                      placeholder="Describe la falla..."
+                      rows={2}
+                    />
+                  </div>
+                </div>
+
+                {/* Causas */}
+                <div className="space-y-4">
+                  <div>
+                    <Label className="text-lg font-semibold">Causas Identificadas</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Selecciona todas las causas que apliquen
+                    </p>
+                  </div>
+                  <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
+                    {causasDisponibles.map((causa) => (
+                      <label
+                        key={causa}
+                        className={`flex items-center space-x-3 p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                          causas.includes(causa)
+                            ? "border-primary bg-primary/5"
+                            : "border-border hover:border-primary/50"
+                        }`}
+                      >
+                        <Checkbox
+                          checked={causas.includes(causa)}
+                          onCheckedChange={() => {
+                            setCausas((prev) =>
+                              prev.includes(causa)
+                                ? prev.filter((c) => c !== causa)
+                                : [...prev, causa]
+                            );
+                          }}
+                        />
+                        <span className="text-sm">{causa}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <div>
+                    <Label>Otra causa no listada</Label>
+                    <Textarea
+                      value={otraCausa}
+                      onChange={(e) => setOtraCausa(e.target.value)}
+                      placeholder="Describe la causa..."
+                      rows={2}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Flujo mejorado: ¿Es Reparable? */}
+              <div className="space-y-4">
+                <div>
+                  <Label className="text-lg font-semibold flex items-center gap-2">
+                    <Wrench className="h-5 w-5" />
+                    ¿Es Reparable?
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    Indica si la máquina puede ser reparada
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <Button
+                    type="button"
+                    variant={esReparable === true ? "default" : "outline"}
+                    onClick={() => {
+                      setEsReparable(true);
+                      setTipoResolucion("");
+                    }}
+                    className="h-16 flex-col gap-1"
+                  >
+                    <Wrench className="h-5 w-5" />
+                    <span>Sí, es reparable</span>
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={esReparable === false ? "destructive" : "outline"}
+                    onClick={() => {
+                      setEsReparable(false);
+                      setAplicaGarantia(null);
+                      setTipoResolucion("");
+                    }}
+                    className="h-16 flex-col gap-1"
+                  >
+                    <Ban className="h-5 w-5" />
+                    <span>No es reparable</span>
+                  </Button>
+                </div>
+              </div>
+
+              {/* Si ES reparable: preguntar garantía */}
+              {esReparable === true && (
+                <>
+                  <Separator />
+                  <div className="space-y-4">
+                    <div>
+                      <Label className="text-lg font-semibold">¿Aplica Garantía?</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Indica si la reparación está cubierta por garantía
                       </p>
                     </div>
-                  )}
-                </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <Button
+                        type="button"
+                        variant={aplicaGarantia === true ? "default" : "outline"}
+                        onClick={() => {
+                          setAplicaGarantia(true);
+                          setTipoResolucion("");
+                        }}
+                        className="h-14"
+                      >
+                        <CheckCircle2 className="h-4 w-4 mr-2" />
+                        Sí, aplica garantía
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={aplicaGarantia === false ? "outline" : "outline"}
+                        className={aplicaGarantia === false ? "border-primary bg-primary/5" : ""}
+                        onClick={() => {
+                          setAplicaGarantia(false);
+                          setTipoResolucion("");
+                        }}
+                      >
+                        No aplica garantía
+                      </Button>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Si NO es reparable: opciones directas */}
+              {esReparable === false && (
+                <>
+                  <Separator />
+                  <div className="space-y-4">
+                    <div>
+                      <Label className="text-lg font-semibold">Tipo de Resolución</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Como no es reparable, selecciona la resolución
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <Button
+                        type="button"
+                        variant={tipoResolucion === "Cambio por Garantía" ? "default" : "outline"}
+                        onClick={() => {
+                          setTipoResolucion("Cambio por Garantía");
+                          setAplicaGarantia(true);
+                        }}
+                        className="justify-start h-auto py-3"
+                      >
+                        <CheckCircle2 className="h-4 w-4 mr-2" />
+                        Cambio por Garantía
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={tipoResolucion === "Nota de Crédito" ? "default" : "outline"}
+                        onClick={() => {
+                          setTipoResolucion("Nota de Crédito");
+                          setAplicaGarantia(true);
+                        }}
+                        className="justify-start h-auto py-3"
+                      >
+                        <Package className="h-4 w-4 mr-2" />
+                        Nota de Crédito
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={tipoResolucion === "Canje" ? "default" : "outline"}
+                        onClick={() => {
+                          setTipoResolucion("Canje");
+                          setAplicaGarantia(false);
+                        }}
+                        className="justify-start h-auto py-3"
+                      >
+                        <Package className="h-4 w-4 mr-2" />
+                        Canje (sin garantía)
+                      </Button>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Si ES reparable y ya seleccionó garantía: mostrar opciones */}
+              {esReparable === true && aplicaGarantia !== null && (
+                <>
+                  <Separator />
+                  <div className="space-y-4">
+                    <div>
+                      <Label className="text-lg font-semibold">Tipo de Resolución</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Selecciona cómo se resolverá este incidente
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {aplicaGarantia ? (
+                        <>
+                          <Button
+                            type="button"
+                            variant={tipoResolucion === "Reparar en Garantía" ? "default" : "outline"}
+                            onClick={() => setTipoResolucion("Reparar en Garantía")}
+                            className="justify-start h-auto py-3"
+                          >
+                            <Wrench className="h-4 w-4 mr-2" />
+                            Reparar en Garantía
+                          </Button>
+                          <Button
+                            type="button"
+                            variant={tipoResolucion === "Cambio por Garantía" ? "default" : "outline"}
+                            onClick={() => setTipoResolucion("Cambio por Garantía")}
+                            className="justify-start h-auto py-3"
+                          >
+                            <Package className="h-4 w-4 mr-2" />
+                            Cambio por Garantía
+                          </Button>
+                          <Button
+                            type="button"
+                            variant={tipoResolucion === "Nota de Crédito" ? "default" : "outline"}
+                            onClick={() => setTipoResolucion("Nota de Crédito")}
+                            className="justify-start h-auto py-3"
+                          >
+                            <Package className="h-4 w-4 mr-2" />
+                            Nota de Crédito
+                          </Button>
+                        </>
+                      ) : (
+                        <>
+                          <Button
+                            type="button"
+                            variant={tipoResolucion === "Presupuesto" ? "default" : "outline"}
+                            onClick={() => setTipoResolucion("Presupuesto")}
+                            className="justify-start h-auto py-3"
+                          >
+                            <ShoppingCart className="h-4 w-4 mr-2" />
+                            Presupuesto (cobrar reparación)
+                          </Button>
+                          <Button
+                            type="button"
+                            variant={tipoResolucion === "Canje" ? "default" : "outline"}
+                            onClick={() => setTipoResolucion("Canje")}
+                            className="justify-start h-auto py-3"
+                          >
+                            <Package className="h-4 w-4 mr-2" />
+                            Canje
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                    {tipoResolucion === "Presupuesto" && (
+                      <div className="bg-amber-50 border border-amber-200 p-3 rounded-md text-sm">
+                        <p className="text-amber-800">
+                          <strong>Nota:</strong> Los repuestos se despacharán una vez que el cliente realice el pago del presupuesto.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </>
               )}
             </>
           )}
@@ -1617,6 +1768,13 @@ export default function DiagnosticoInicial() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Widget flotante Gemba Docs - disponible en cualquier paso */}
+      <GembaDocsCamera 
+        photos={gembaPhotos} 
+        onPhotosChange={setGembaPhotos}
+        maxPhotos={20}
+      />
     </div>
   );
 }
