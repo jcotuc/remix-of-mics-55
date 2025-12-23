@@ -2035,6 +2035,7 @@ export type Database = {
           notas: string | null
           repuestos: Json
           tecnico_solicitante: string
+          tipo_despacho: string | null
           updated_at: string | null
         }
         Insert: {
@@ -2049,6 +2050,7 @@ export type Database = {
           notas?: string | null
           repuestos: Json
           tecnico_solicitante: string
+          tipo_despacho?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -2063,6 +2065,7 @@ export type Database = {
           notas?: string | null
           repuestos?: Json
           tecnico_solicitante?: string
+          tipo_despacho?: string | null
           updated_at?: string | null
         }
         Relationships: [
