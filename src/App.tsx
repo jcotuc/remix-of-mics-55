@@ -72,6 +72,7 @@ import AuditLogs from "./pages/admin/AuditLogs";
 import InventarioAdmin from "./pages/admin/InventarioAdmin";
 import CentrosServicio from "./pages/admin/CentrosServicio";
 import RecomendacionesFamilias from "./pages/admin/RecomendacionesFamilias";
+import ImportarDespieces from "./pages/admin/ImportarDespieces";
 import RevisionStockCemaco from "./pages/taller/RevisionStockCemaco";
 import AprobacionesStockCemaco from "./pages/taller/AprobacionesStockCemaco";
 import MisGarantias from "./pages/asesor/MisGarantias";
@@ -174,6 +175,7 @@ function App() {
                 <Route path="/admin/inventario" element={<InventarioAdmin />} />
                 <Route path="/admin/centros-servicio" element={<CentrosServicio />} />
                 <Route path="/admin/recomendaciones-familias" element={<RecomendacionesFamilias />} />
+                <Route path="/admin/importar-despieces" element={<ImportarDespieces />} />
                 
                 {/* Asesor Routes */}
                 <Route path="/mis-garantias" element={<MisGarantias />} />

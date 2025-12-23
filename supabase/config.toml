@@ -1,1 +1,13 @@
 project_id = "qykysnulivqusrevkobt"
+
+[functions.admin-assign-herramienta-manual]
+verify_jwt = false
+
+[functions.admin-delete-user]
+verify_jwt = false
+
+[functions.zigo-create-guide]
+verify_jwt = false
+
+[functions.extract-despiece-pdf]
+verify_jwt = false
