@@ -1,6 +1,7 @@
 import { Users, Package, Wrench, FileText, Truck, LogOut, Home, ShoppingCart, DollarSign, ClipboardList, BarChart3, ClipboardCheck, FileSpreadsheet, LogIn, LogOut as LogOutIcon, Send, PackageCheck, AlertTriangle, AlertCircle, MapPin, Calendar, Settings, CheckCircle2, Network, RefreshCw, FolderTree, ListChecks, History, FileUp, Shield } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { usePermisos, RUTAS_PERMISOS, MENU_PERMISOS } from "@/hooks/usePermisos";
 import { Button } from "@/components/ui/button";
 
 import {
@@ -124,33 +125,57 @@ export function AppSidebar() {
   const currentPath = location.pathname;
   const isCollapsed = state === "collapsed";
   const { userRole, signOut } = useAuth();
+  const { tienePermiso, tieneAlgunPermiso, loading: permisosLoading } = usePermisos();
 
   const getNavCls = ({ isActive }: { isActive: boolean }) =>
     isActive 
       ? "bg-primary text-primary-foreground font-medium" 
       : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground";
 
-  const renderMenuSection = (title: string, items: MenuItem[]) => (
-    <SidebarGroup key={title}>
-      <SidebarGroupLabel className={`text-sidebar-foreground font-semibold ${isCollapsed ? "sr-only" : ""}`}>
-        {title}
-      </SidebarGroupLabel>
-      <SidebarGroupContent>
-        <SidebarMenu>
-          {items.map((item) => (
-            <SidebarMenuItem key={item.title}>
-              <SidebarMenuButton asChild>
-                <NavLink to={item.url} className={getNavCls} end={item.url === "/"}>
-                  <item.icon className="h-4 w-4" />
-                  {!isCollapsed && <span>{item.title}</span>}
-                </NavLink>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          ))}
-        </SidebarMenu>
-      </SidebarGroupContent>
-    </SidebarGroup>
-  );
+  // Filtrar items del menú según permisos
+  const filterMenuItems = (items: MenuItem[]): MenuItem[] => {
+    if (userRole === 'admin') return items;
+    return items.filter(item => {
+      const permisoRequerido = RUTAS_PERMISOS[item.url];
+      if (!permisoRequerido) return true; // Si no hay permiso definido, mostrar
+      return tienePermiso(permisoRequerido);
+    });
+  };
+
+  // Verificar si el usuario tiene acceso a algún item del menú
+  const tieneAccesoMenu = (menuKey: string): boolean => {
+    if (userRole === 'admin') return true;
+    const permisosMenu = MENU_PERMISOS[menuKey];
+    if (!permisosMenu) return true;
+    return tieneAlgunPermiso(permisosMenu);
+  };
+
+  const renderMenuSection = (title: string, items: MenuItem[], menuKey?: string) => {
+    const filteredItems = filterMenuItems(items);
+    if (filteredItems.length === 0) return null;
+    
+    return (
+      <SidebarGroup key={title}>
+        <SidebarGroupLabel className={`text-sidebar-foreground font-semibold ${isCollapsed ? "sr-only" : ""}`}>
+          {title}
+        </SidebarGroupLabel>
+        <SidebarGroupContent>
+          <SidebarMenu>
+            {filteredItems.map((item) => (
+              <SidebarMenuItem key={item.title}>
+                <SidebarMenuButton asChild>
+                  <NavLink to={item.url} className={getNavCls} end={item.url === "/"}>
+                    <item.icon className="h-4 w-4" />
+                    {!isCollapsed && <span>{item.title}</span>}
+                  </NavLink>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
+        </SidebarGroupContent>
+      </SidebarGroup>
+    );
+  };
 
   return (
     <Sidebar className={isCollapsed ? "w-16" : "w-52 sm:w-60 md:w-64"} collapsible="icon">
@@ -178,6 +203,7 @@ export function AppSidebar() {
                     {userRole === 'control_calidad' && 'Control de Calidad'}
                     {userRole === 'asesor' && 'Asesor'}
                     {userRole === 'admin' && 'Administrador'}
+                    {userRole === 'tecnico' && 'Técnico'}
                   </span>
                 </div>
               )}
@@ -190,18 +216,23 @@ export function AppSidebar() {
         </div>
         
         <div className="overflow-y-auto flex-1">
-          {/* Mostrar todas las secciones para desarrollo */}
+          {/* Home siempre visible */}
           {renderMenuSection("Home", menuAreas.home)}
-          {renderMenuSection("Mostrador", menuAreas.mostrador)}
-          {renderMenuSection("Logística", menuAreas.logistica)}
-          {renderMenuSection("Taller", menuAreas.taller)}
-          {(userRole === "jefe_taller" || userRole === "admin") && renderMenuSection("Jefe Taller", menuAreas.jefeTaller)}
-          {renderMenuSection("Bodega", menuAreas.bodega)}
-          {renderMenuSection("SAC", menuAreas.sac)}
-          {renderMenuSection("Calidad", menuAreas.calidad)}
+          
+          {/* Secciones filtradas por permisos */}
+          {tieneAccesoMenu('mostrador') && renderMenuSection("Mostrador", menuAreas.mostrador, 'mostrador')}
+          {tieneAccesoMenu('logistica') && renderMenuSection("Logística", menuAreas.logistica, 'logistica')}
+          {tieneAccesoMenu('taller') && renderMenuSection("Taller", menuAreas.taller, 'taller')}
+          {(userRole === "jefe_taller" || userRole === "admin" || tieneAccesoMenu('jefeTaller')) && 
+            renderMenuSection("Jefe Taller", menuAreas.jefeTaller, 'jefeTaller')}
+          {tieneAccesoMenu('bodega') && renderMenuSection("Bodega", menuAreas.bodega, 'bodega')}
+          {tieneAccesoMenu('sac') && renderMenuSection("SAC", menuAreas.sac, 'sac')}
+          {tieneAccesoMenu('calidad') && renderMenuSection("Calidad", menuAreas.calidad, 'calidad')}
           {userRole === "asesor" && renderMenuSection("Asesor", menuAreas.asesor)}
-          {(userRole === "gerente_centro" || userRole === "supervisor_regional" || userRole === "admin") && renderMenuSection("Gerencia", menuAreas.gerencia)}
-          {(["supervisor_sac", "jefe_taller", "jefe_logistica", "jefe_bodega", "supervisor_bodega", "supervisor_calidad"].includes(userRole || "") || userRole === "admin") && renderMenuSection("Supervisores", menuAreas.supervisores)}
+          {(userRole === "gerente_centro" || userRole === "supervisor_regional" || userRole === "admin" || tieneAccesoMenu('gerencia')) && 
+            renderMenuSection("Gerencia", menuAreas.gerencia, 'gerencia')}
+          {(["supervisor_sac", "jefe_taller", "jefe_logistica", "jefe_bodega", "supervisor_bodega", "supervisor_calidad"].includes(userRole || "") || userRole === "admin" || tieneAccesoMenu('supervisores')) && 
+            renderMenuSection("Supervisores", menuAreas.supervisores, 'supervisores')}
           {userRole === "admin" && renderMenuSection("Administración", menuAreas.admin)}
         </div>
 
