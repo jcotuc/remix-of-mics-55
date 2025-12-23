@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from "react";
-import { Package, Search, AlertTriangle, TrendingUp, TrendingDown, Edit, Upload } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { Package, Search, AlertTriangle, TrendingUp, TrendingDown, Edit } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,24 +14,33 @@ import { PuertaEntradaWidget } from "@/components/dashboard/PuertaEntradaWidget"
 import { EquivalenciasWidget } from "@/components/dashboard/EquivalenciasWidget";
 import { TablePagination } from "@/components/TablePagination";
 import { useAuth } from "@/contexts/AuthContext";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type InventarioItem = {
   id: string;
   codigo_repuesto: string;
   descripcion: string | null;
   cantidad: number;
-  ubicacion: string | null;
+  ubicacion: string;
   bodega: string | null;
   costo_unitario: number | null;
   centro_servicio_id: string;
   centro_nombre?: string;
 };
 
+type Stats = {
+  totalItems: number;
+  stockBajo: number;
+  stockTotal: number;
+};
+
 export default function Inventario() {
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [inventario, setInventario] = useState<InventarioItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState<Stats>({ totalItems: 0, stockBajo: 0, stockTotal: 0 });
   const [showMovimiento, setShowMovimiento] = useState(false);
   const [selectedItem, setSelectedItem] = useState<InventarioItem | null>(null);
   const [tipoMovimiento, setTipoMovimiento] = useState<"entrada" | "salida">("entrada");
@@ -39,26 +48,81 @@ export default function Inventario() {
   const [motivo, setMotivo] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(50);
+  const [totalCount, setTotalCount] = useState(0);
 
+  // Debounce search term
   useEffect(() => {
-    fetchInventario();
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+      setCurrentPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  // Fetch stats only once on mount
+  useEffect(() => {
+    fetchStats();
   }, []);
 
+  // Fetch inventory data when page or search changes
   useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm]);
+    fetchInventario();
+  }, [currentPage, itemsPerPage, debouncedSearch]);
+
+  const fetchStats = async () => {
+    try {
+      // Get total count
+      const { count: totalItems } = await supabase
+        .from('inventario')
+        .select('*', { count: 'exact', head: true });
+
+      // Get stock bajo count
+      const { count: stockBajo } = await supabase
+        .from('inventario')
+        .select('*', { count: 'exact', head: true })
+        .lte('cantidad', 5);
+
+      // Get total stock sum - using a simple approach
+      const { data: stockData } = await supabase
+        .from('inventario')
+        .select('cantidad');
+
+      const stockTotal = (stockData || []).reduce((acc, item) => acc + (item.cantidad || 0), 0);
+
+      setStats({
+        totalItems: totalItems || 0,
+        stockBajo: stockBajo || 0,
+        stockTotal
+      });
+    } catch (error) {
+      console.error('Error fetching stats:', error);
+    }
+  };
 
   const fetchInventario = async () => {
     try {
       setLoading(true);
       
-      const { data, error } = await supabase
+      const start = (currentPage - 1) * itemsPerPage;
+      const end = start + itemsPerPage - 1;
+
+      // Build query with server-side filtering
+      let query = supabase
         .from('inventario')
         .select(`
           *,
           centros_servicio(nombre)
-        `)
-        .order('codigo_repuesto');
+        `, { count: 'exact' });
+
+      // Apply search filter on server side
+      if (debouncedSearch) {
+        query = query.or(`codigo_repuesto.ilike.%${debouncedSearch}%,descripcion.ilike.%${debouncedSearch}%,ubicacion.ilike.%${debouncedSearch}%`);
+      }
+
+      // Apply pagination and ordering
+      const { data, error, count } = await query
+        .order('codigo_repuesto')
+        .range(start, end);
 
       if (error) throw error;
 
@@ -75,6 +139,7 @@ export default function Inventario() {
       }));
 
       setInventario(formateado);
+      setTotalCount(count || 0);
     } catch (error) {
       console.error('Error:', error);
       toast.error('Error al cargar inventario');
@@ -130,11 +195,15 @@ export default function Inventario() {
         console.error('Error registrando movimiento:', movError);
       }
 
+      // Update local state
       setInventario(prev => prev.map(item => 
         item.id === selectedItem.id 
           ? { ...item, cantidad: nuevoStock }
           : item
       ));
+
+      // Refresh stats
+      fetchStats();
 
       toast.success(`Movimiento registrado: ${tipoMovimiento === "entrada" ? "+" : "-"}${cantidadNum} unidades`);
       setShowMovimiento(false);
@@ -146,20 +215,7 @@ export default function Inventario() {
     }
   };
 
-  const filteredInventario = useMemo(() => {
-    return inventario.filter(item =>
-      item.codigo_repuesto.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.descripcion?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.ubicacion?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [inventario, searchTerm]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredInventario.length / itemsPerPage));
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedInventario = filteredInventario.slice(startIndex, startIndex + itemsPerPage);
-
-  const stockBajo = inventario.filter(item => item.cantidad <= 5).length;
-  const stockTotal = inventario.reduce((acc, item) => acc + item.cantidad, 0);
+  const totalPages = Math.max(1, Math.ceil(totalCount / itemsPerPage));
 
   return (
     <div className="container mx-auto py-8 space-y-6">
@@ -184,8 +240,8 @@ export default function Inventario() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stockTotal.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">{inventario.length} referencias</p>
+            <div className="text-2xl font-bold">{stats.stockTotal.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">{stats.totalItems.toLocaleString()} referencias</p>
           </CardContent>
         </Card>
 
@@ -197,7 +253,7 @@ export default function Inventario() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-orange-500">{stockBajo}</div>
+            <div className="text-2xl font-bold text-orange-500">{stats.stockBajo.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">≤ 5 unidades</p>
           </CardContent>
         </Card>
@@ -226,7 +282,10 @@ export default function Inventario() {
         <CardHeader>
           <CardTitle>Inventario de Repuestos</CardTitle>
           <CardDescription>
-            {filteredInventario.length} repuestos en inventario
+            {debouncedSearch 
+              ? `${totalCount.toLocaleString()} resultados para "${debouncedSearch}"`
+              : `${stats.totalItems.toLocaleString()} repuestos en inventario`
+            }
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -238,10 +297,17 @@ export default function Inventario() {
               onChange={(e) => setSearchTerm(e.target.value)}
               className="max-w-sm"
             />
+            {searchTerm !== debouncedSearch && (
+              <span className="text-xs text-muted-foreground">Buscando...</span>
+            )}
           </div>
 
           {loading ? (
-            <div className="text-center py-8">Cargando inventario...</div>
+            <div className="space-y-2">
+              {Array.from({ length: 10 }).map((_, i) => (
+                <Skeleton key={i} className="h-12 w-full" />
+              ))}
+            </div>
           ) : (
             <>
               <Table>
@@ -258,50 +324,61 @@ export default function Inventario() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {paginatedInventario.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell>{item.ubicacion || "-"}</TableCell>
-                      <TableCell className="font-mono">{item.codigo_repuesto}</TableCell>
-                      <TableCell className="max-w-xs truncate">{item.descripcion || "-"}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{item.centro_nombre}</Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <span className={item.cantidad <= 5 ? "text-orange-500 font-bold" : ""}>
-                          {item.cantidad}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        Q{(item.costo_unitario || 0).toFixed(2)}
-                      </TableCell>
-                      <TableCell>
-                        {item.cantidad === 0 ? (
-                          <Badge variant="destructive">Sin stock</Badge>
-                        ) : item.cantidad <= 5 ? (
-                          <Badge className="bg-orange-500">Stock bajo</Badge>
-                        ) : (
-                          <Badge className="bg-green-500">Normal</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleMovimiento(item)}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
+                  {inventario.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                        {debouncedSearch 
+                          ? `No se encontraron resultados para "${debouncedSearch}"`
+                          : 'No hay datos de inventario'
+                        }
                       </TableCell>
                     </TableRow>
-                  ))}
+                  ) : (
+                    inventario.map((item) => (
+                      <TableRow key={item.id}>
+                        <TableCell>{item.ubicacion || "-"}</TableCell>
+                        <TableCell className="font-mono">{item.codigo_repuesto}</TableCell>
+                        <TableCell className="max-w-xs truncate">{item.descripcion || "-"}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{item.centro_nombre}</Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <span className={item.cantidad <= 5 ? "text-orange-500 font-bold" : ""}>
+                            {item.cantidad}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          Q{(item.costo_unitario || 0).toFixed(2)}
+                        </TableCell>
+                        <TableCell>
+                          {item.cantidad === 0 ? (
+                            <Badge variant="destructive">Sin stock</Badge>
+                          ) : item.cantidad <= 5 ? (
+                            <Badge className="bg-orange-500">Stock bajo</Badge>
+                          ) : (
+                            <Badge className="bg-green-500">Normal</Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleMovimiento(item)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
                 </TableBody>
               </Table>
 
-              {filteredInventario.length > 0 && (
+              {totalCount > 0 && (
                 <TablePagination
                   currentPage={currentPage}
                   totalPages={totalPages}
-                  totalItems={filteredInventario.length}
+                  totalItems={totalCount}
                   itemsPerPage={itemsPerPage}
                   onPageChange={setCurrentPage}
                   onItemsPerPageChange={(value) => {
