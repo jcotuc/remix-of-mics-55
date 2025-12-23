@@ -907,83 +907,76 @@ export default function DiagnosticoInicial() {
 
               <Separator />
 
-              {/* Flujo mejorado: ¿Es Reparable? */}
-              <div className="flex items-center gap-4 flex-wrap">
+              {/* Flujo mejorado: Botones en grid alineado */}
+              <div className="grid grid-cols-[auto_1fr_1fr] gap-x-4 gap-y-3 items-center">
+                {/* Fila 1: ¿Es Reparable? */}
                 <Label className="text-lg font-semibold whitespace-nowrap">¿Es Reparable?</Label>
-                <div className="flex gap-2">
-                  <Button 
-                    type="button" 
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setEsReparable(true);
-                      setAplicaGarantia(null);
-                    }} 
-                    className={`border-2 transition-none hover:bg-transparent ${
-                      esReparable === true 
-                        ? "border-green-500 bg-green-500/20 text-green-700 dark:text-green-400 hover:bg-green-500/20" 
-                        : "bg-background border-border hover:border-border"
-                    }`}
-                  >
-                    <CheckCircle2 className="h-4 w-4 mr-1" />
-                    Sí
-                  </Button>
-                  <Button 
-                    type="button" 
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setEsReparable(false);
-                      setAplicaGarantia(null);
-                    }} 
-                    className={`border-2 transition-none hover:bg-transparent ${
-                      esReparable === false 
-                        ? "border-red-500 bg-red-500/20 text-red-700 dark:text-red-400 hover:bg-red-500/20" 
-                        : "bg-background border-border hover:border-border"
-                    }`}
-                  >
-                    <XCircle className="h-4 w-4 mr-1" />
-                    No
-                  </Button>
-                </div>
-              </div>
+                <Button 
+                  type="button" 
+                  variant="outline"
+                  onClick={() => {
+                    setEsReparable(true);
+                    setAplicaGarantia(null);
+                  }} 
+                  className={`w-full min-w-[120px] border-2 transition-none hover:bg-transparent ${
+                    esReparable === true 
+                      ? "border-green-500 bg-green-500/20 text-green-700 dark:text-green-400 hover:bg-green-500/20" 
+                      : "bg-background border-border hover:border-border"
+                  }`}
+                >
+                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                  Sí
+                </Button>
+                <Button 
+                  type="button" 
+                  variant="outline"
+                  onClick={() => {
+                    setEsReparable(false);
+                    setAplicaGarantia(null);
+                  }} 
+                  className={`w-full min-w-[120px] border-2 transition-none hover:bg-transparent ${
+                    esReparable === false 
+                      ? "border-red-500 bg-red-500/20 text-red-700 dark:text-red-400 hover:bg-red-500/20" 
+                      : "bg-background border-border hover:border-border"
+                  }`}
+                >
+                  <XCircle className="h-4 w-4 mr-2" />
+                  No
+                </Button>
 
-              {/* Preguntar garantía cuando ya se seleccionó reparable */}
-              {esReparable !== null && <>
-                  <div className="flex items-center gap-4 flex-wrap">
+                {/* Fila 2: ¿Aplica Garantía? */}
+                {esReparable !== null && (
+                  <>
                     <Label className="text-lg font-semibold whitespace-nowrap">¿Aplica Garantía?</Label>
-                    <div className="flex gap-2">
-                      <Button 
-                        type="button" 
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setAplicaGarantia(true)} 
-                        className={`border-2 transition-none hover:bg-transparent ${
-                          aplicaGarantia === true 
-                            ? "border-green-500 bg-green-500/20 text-green-700 dark:text-green-400 hover:bg-green-500/20" 
-                            : "bg-background border-border hover:border-border"
-                        }`}
-                      >
-                        <CheckCircle2 className="h-4 w-4 mr-1" />
-                        Sí
-                      </Button>
-                      <Button 
-                        type="button" 
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setAplicaGarantia(false)}
-                        className={`border-2 transition-none hover:bg-transparent ${
-                          aplicaGarantia === false 
-                            ? "border-red-500 bg-red-500/20 text-red-700 dark:text-red-400 hover:bg-red-500/20" 
-                            : "bg-background border-border hover:border-border"
-                        }`}
-                      >
-                        <XCircle className="h-4 w-4 mr-1" />
-                        No
-                      </Button>
-                    </div>
-                  </div>
-                </>}
+                    <Button 
+                      type="button" 
+                      variant="outline"
+                      onClick={() => setAplicaGarantia(true)} 
+                      className={`w-full min-w-[120px] border-2 transition-none hover:bg-transparent ${
+                        aplicaGarantia === true 
+                          ? "border-green-500 bg-green-500/20 text-green-700 dark:text-green-400 hover:bg-green-500/20" 
+                          : "bg-background border-border hover:border-border"
+                      }`}
+                    >
+                      <CheckCircle2 className="h-4 w-4 mr-2" />
+                      Sí
+                    </Button>
+                    <Button 
+                      type="button" 
+                      variant="outline"
+                      onClick={() => setAplicaGarantia(false)}
+                      className={`w-full min-w-[120px] border-2 transition-none hover:bg-transparent ${
+                        aplicaGarantia === false 
+                          ? "border-red-500 bg-red-500/20 text-red-700 dark:text-red-400 hover:bg-red-500/20" 
+                          : "bg-background border-border hover:border-border"
+                      }`}
+                    >
+                      <XCircle className="h-4 w-4 mr-2" />
+                      No
+                    </Button>
+                  </>
+                )}
+              </div>
 
               {/* Mostrar resolución automática basada en la matriz */}
               {esReparable !== null && aplicaGarantia !== null && <>
