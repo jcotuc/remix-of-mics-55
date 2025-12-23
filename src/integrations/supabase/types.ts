@@ -1717,6 +1717,7 @@ export type Database = {
           es_catalogo_truper: boolean | null
           es_codigo_padre: boolean | null
           id: string
+          producto_id: string | null
           updated_at: string
         }
         Insert: {
@@ -1730,6 +1731,7 @@ export type Database = {
           es_catalogo_truper?: boolean | null
           es_codigo_padre?: boolean | null
           id?: string
+          producto_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -1743,6 +1745,7 @@ export type Database = {
           es_catalogo_truper?: boolean | null
           es_codigo_padre?: boolean | null
           id?: string
+          producto_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -1754,11 +1757,11 @@ export type Database = {
             referencedColumns: ["codigo"]
           },
           {
-            foreignKeyName: "repuestos_codigo_producto_fkey"
-            columns: ["codigo_producto"]
+            foreignKeyName: "repuestos_producto_id_fkey"
+            columns: ["producto_id"]
             isOneToOne: false
             referencedRelation: "productos"
-            referencedColumns: ["codigo"]
+            referencedColumns: ["id"]
           },
         ]
       }

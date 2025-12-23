@@ -198,10 +198,21 @@ export default function ImportarDespieces() {
       return;
     }
 
+    // Get producto_id from productoEncontrado or fetch it
+    let productoId = productoEncontrado?.id;
     const codigoProductoFinal = productoEncontrado?.codigo || extractedData.producto.codigo;
     
-    if (!codigoProductoFinal) {
-      toast.error("Se requiere un código de producto válido");
+    if (!productoId && codigoProductoFinal) {
+      const { data: prod } = await supabase
+        .from("productos")
+        .select("id")
+        .eq("codigo", codigoProductoFinal)
+        .maybeSingle();
+      productoId = prod?.id;
+    }
+    
+    if (!productoId) {
+      toast.error("Se requiere un producto válido");
       return;
     }
 
@@ -213,7 +224,7 @@ export default function ImportarDespieces() {
         const { error: updateError } = await supabase
           .from("productos")
           .update({ clave: extractedData.producto.clave })
-          .eq("codigo", codigoProductoFinal);
+          .eq("id", productoId);
 
         if (updateError) {
           console.error("Error updating product clave:", updateError);
@@ -222,20 +233,54 @@ export default function ImportarDespieces() {
         }
       }
 
-      // Prepare repuestos for upsert
-      const repuestosParaInsertar = repuestosAGuardar.map(r => ({
-        codigo: r.codigo,
-        clave: r.clave,
-        descripcion: r.descripcion,
-        codigo_producto: codigoProductoFinal
-      }));
+      // Fetch repuestos_relaciones to validate parent codes
+      const codigosRepuestos = repuestosAGuardar.map(r => r.codigo);
+      const { data: relacionesData } = await supabase
+        .from("repuestos_relaciones")
+        .select('id, Código, Padre')
+        .filter('Código', 'in', `(${codigosRepuestos.join(',')})`);
 
-      // Use upsert to handle duplicates
+      // Build a map of codigo -> parent info from repuestos_relaciones
+      const relacionesMap = new Map<string, { id: number; padreId: number | null }>();
+      (relacionesData as any[] || []).forEach((r) => {
+        const codigo = r["Código"] || r.Código;
+        if (codigo) {
+          relacionesMap.set(codigo, { id: r.id, padreId: r.Padre });
+        }
+      });
+
+      // Get parent codes from repuestos_relaciones
+      const padreIds = [...new Set(
+        (relacionesData as any[] || [])
+          .filter((r) => r.Padre != null)
+          .map((r) => r.Padre as number)
+      )];
+      
+      let padreCodigoMap = new Map<number, string>();
+      if (padreIds.length > 0) {
+        const { data: padresData } = await supabase
+          .from("repuestos_relaciones")
+          .select('id, Código')
+          .in("id", padreIds);
+        
+        (padresData as any[] || []).forEach((p) => {
+          const codigo = p["Código"] || p.Código;
+          if (codigo) {
+            padreCodigoMap.set(p.id, codigo);
+          }
+        });
+      }
+
+      // Process each repuesto
       let insertados = 0;
       let actualizados = 0;
       let errores = 0;
 
-      for (const repuesto of repuestosParaInsertar) {
+      for (const repuesto of repuestosAGuardar) {
+        const relacion = relacionesMap.get(repuesto.codigo);
+        const codigoPadre = relacion?.padreId ? padreCodigoMap.get(relacion.padreId) : null;
+        const esCodigoPadre = relacion && !relacion.padreId;
+
         // Check if repuesto exists
         const { data: existing } = await supabase
           .from("repuestos")
@@ -243,15 +288,20 @@ export default function ImportarDespieces() {
           .eq("codigo", repuesto.codigo)
           .maybeSingle();
 
+        const repuestoData = {
+          codigo: repuesto.codigo,
+          clave: repuesto.clave,
+          descripcion: repuesto.descripcion,
+          codigo_producto: codigoProductoFinal,
+          producto_id: productoId,
+          codigo_padre: codigoPadre || null,
+          es_codigo_padre: esCodigoPadre || false
+        };
+
         if (existing) {
-          // Update
           const { error } = await supabase
             .from("repuestos")
-            .update({
-              clave: repuesto.clave,
-              descripcion: repuesto.descripcion,
-              codigo_producto: repuesto.codigo_producto
-            })
+            .update(repuestoData)
             .eq("codigo", repuesto.codigo);
 
           if (error) {
@@ -261,10 +311,9 @@ export default function ImportarDespieces() {
             actualizados++;
           }
         } else {
-          // Insert
           const { error } = await supabase
             .from("repuestos")
-            .insert(repuesto);
+            .insert(repuestoData);
 
           if (error) {
             console.error("Error inserting repuesto:", error);
@@ -277,7 +326,6 @@ export default function ImportarDespieces() {
 
       if (errores === 0) {
         toast.success(`Guardados: ${insertados} nuevos, ${actualizados} actualizados`);
-        // Reset form
         setExtractedData(null);
         setFile(null);
         setCodigoProductoManual("");

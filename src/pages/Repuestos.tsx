@@ -14,6 +14,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { TablePagination } from "@/components/TablePagination";
 
 interface RepuestoExtendido extends Repuesto {
+  productoId?: string | null;
   codigoPadre?: string | null;
   esCodigoPadre?: boolean | null;
   codigosHijos?: string[];
@@ -132,19 +133,34 @@ export default function Repuestos() {
 
       const codigosHijo = new Set(newHijoPadreMap.keys());
       
+      // Create a map of producto id -> producto for quick lookup
+      const productosMap = new Map<string, any>();
+      productosData?.forEach((p: any) => {
+        productosMap.set(p.id, p);
+        productosMap.set(p.codigo, p); // Also map by codigo for backward compatibility
+      });
+
       const transformedRepuestos: RepuestoExtendido[] = allRepuestos
         .filter((r: any) => !codigosHijo.has(r.codigo))
-        .map((r: any) => ({
-          numero: r.numero,
-          codigo: r.codigo,
-          clave: r.clave,
-          descripcion: r.descripcion,
-          urlFoto: r.url_foto || "/api/placeholder/40/40",
-          codigoProducto: r.codigo_producto,
-          codigoPadre: r.codigo_padre,
-          esCodigoPadre: r.es_codigo_padre,
-          codigosHijos: newPadreHijosMap.get(r.codigo) || []
-        }));
+        .map((r: any) => {
+          // Use producto_id if available, fallback to codigo_producto
+          const producto = r.producto_id 
+            ? productosMap.get(r.producto_id)
+            : productosMap.get(r.codigo_producto);
+          
+          return {
+            numero: r.numero,
+            codigo: r.codigo,
+            clave: r.clave,
+            descripcion: r.descripcion,
+            urlFoto: r.url_foto || "/api/placeholder/40/40",
+            codigoProducto: producto?.codigo || r.codigo_producto,
+            productoId: r.producto_id,
+            codigoPadre: r.codigo_padre,
+            esCodigoPadre: r.es_codigo_padre,
+            codigosHijos: newPadreHijosMap.get(r.codigo) || []
+          };
+        });
 
       const transformedProductos: Producto[] = productosData?.map((p: any) => ({
         codigo: p.codigo,
