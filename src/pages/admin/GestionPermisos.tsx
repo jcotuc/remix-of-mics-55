@@ -12,8 +12,9 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Shield, Users, Plus, Trash2, Search, Save, Loader2 } from "lucide-react";
+import { Shield, Users, Plus, Trash2, Search, Save, Loader2, UserCog, Copy, Check, Eye } from "lucide-react";
 import { Database } from "@/integrations/supabase/types";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 type AppRole = Database['public']['Enums']['app_role'];
 
@@ -38,8 +39,6 @@ interface PermisoUsuario {
   permiso_id: string;
   es_denegado: boolean;
   motivo: string | null;
-  permiso?: Permiso;
-  profile?: { nombre: string; apellido: string; email: string };
 }
 
 interface Profile {
@@ -47,6 +46,11 @@ interface Profile {
   nombre: string;
   apellido: string;
   email: string;
+}
+
+interface UserRole {
+  user_id: string;
+  role: AppRole;
 }
 
 const ROLES: { value: AppRole; label: string }[] = [
@@ -93,6 +97,7 @@ export default function GestionPermisos() {
   const [permisosRoles, setPermisosRoles] = useState<PermisoRol[]>([]);
   const [permisosUsuarios, setPermisosUsuarios] = useState<PermisoUsuario[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [userRoles, setUserRoles] = useState<UserRole[]>([]);
   
   const [selectedRol, setSelectedRol] = useState<AppRole>('admin');
   const [selectedPermisos, setSelectedPermisos] = useState<Set<string>>(new Set());
@@ -103,6 +108,18 @@ export default function GestionPermisos() {
   const [selectedPermisoId, setSelectedPermisoId] = useState<string>('');
   const [esDenegado, setEsDenegado] = useState(false);
   const [motivo, setMotivo] = useState('');
+
+  // Para vista de usuarios y permisos
+  const [searchUserList, setSearchUserList] = useState('');
+  const [viewUserPermisosDialog, setViewUserPermisosDialog] = useState(false);
+  const [viewingUser, setViewingUser] = useState<Profile | null>(null);
+
+  // Para perfiles personalizados (mix de roles)
+  const [perfilNombre, setPerfilNombre] = useState('');
+  const [rolesSeleccionados, setRolesSeleccionados] = useState<Set<AppRole>>(new Set());
+  const [permisosPerfilCustom, setPermisosPerfilCustom] = useState<Set<string>>(new Set());
+  const [assignDialogOpen, setAssignDialogOpen] = useState(false);
+  const [userToAssign, setUserToAssign] = useState<string>('');
 
   useEffect(() => {
     fetchData();
@@ -116,25 +133,39 @@ export default function GestionPermisos() {
     setSelectedPermisos(new Set(rolPermisos));
   }, [selectedRol, permisosRoles]);
 
+  // Calcular permisos del perfil basado en roles seleccionados
+  useEffect(() => {
+    const permisosFromRoles = new Set<string>();
+    rolesSeleccionados.forEach(rol => {
+      permisosRoles
+        .filter(pr => pr.rol === rol)
+        .forEach(pr => permisosFromRoles.add(pr.permiso_id));
+    });
+    setPermisosPerfilCustom(permisosFromRoles);
+  }, [rolesSeleccionados, permisosRoles]);
+
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [permisosRes, permisosRolesRes, permisosUsuariosRes, profilesRes] = await Promise.all([
+      const [permisosRes, permisosRolesRes, permisosUsuariosRes, profilesRes, userRolesRes] = await Promise.all([
         supabase.from('permisos').select('*').order('modulo', { ascending: true }),
         supabase.from('permisos_roles').select('*'),
         supabase.from('permisos_usuarios').select('*'),
         supabase.from('profiles').select('user_id, nombre, apellido, email'),
+        supabase.from('user_roles').select('user_id, role'),
       ]);
 
       if (permisosRes.error) throw permisosRes.error;
       if (permisosRolesRes.error) throw permisosRolesRes.error;
       if (permisosUsuariosRes.error) throw permisosUsuariosRes.error;
       if (profilesRes.error) throw profilesRes.error;
+      if (userRolesRes.error) throw userRolesRes.error;
 
       setPermisos(permisosRes.data || []);
       setPermisosRoles(permisosRolesRes.data || []);
       setPermisosUsuarios(permisosUsuariosRes.data || []);
       setProfiles(profilesRes.data || []);
+      setUserRoles(userRolesRes.data || []);
     } catch (error: any) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } finally {
@@ -155,13 +186,11 @@ export default function GestionPermisos() {
   const handleSaveRolPermisos = async () => {
     setSaving(true);
     try {
-      // Delete existing permisos for this rol
       await supabase
         .from('permisos_roles')
         .delete()
         .eq('rol', selectedRol);
 
-      // Insert new permisos
       if (selectedPermisos.size > 0) {
         const inserts = Array.from(selectedPermisos).map(permisoId => ({
           rol: selectedRol,
@@ -229,6 +258,52 @@ export default function GestionPermisos() {
     }
   };
 
+  const handleRolToggle = (rol: AppRole) => {
+    const newSelected = new Set(rolesSeleccionados);
+    if (newSelected.has(rol)) {
+      newSelected.delete(rol);
+    } else {
+      newSelected.add(rol);
+    }
+    setRolesSeleccionados(newSelected);
+  };
+
+  const handleAssignPerfilToUser = async () => {
+    if (!userToAssign || permisosPerfilCustom.size === 0) {
+      toast({ title: "Error", description: "Selecciona un usuario y al menos un rol", variant: "destructive" });
+      return;
+    }
+
+    setSaving(true);
+    try {
+      // Insertar todos los permisos como permisos especiales otorgados
+      const inserts = Array.from(permisosPerfilCustom).map(permisoId => ({
+        user_id: userToAssign,
+        permiso_id: permisoId,
+        es_denegado: false,
+        motivo: `Perfil personalizado: ${perfilNombre || 'Mix de roles'}`,
+      }));
+
+      const { error } = await supabase
+        .from('permisos_usuarios')
+        .insert(inserts);
+
+      if (error) throw error;
+
+      toast({ 
+        title: "Éxito", 
+        description: `${permisosPerfilCustom.size} permisos asignados al usuario` 
+      });
+      setAssignDialogOpen(false);
+      setUserToAssign('');
+      fetchData();
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const permisosByModulo = permisos.reduce((acc, p) => {
     if (!acc[p.modulo]) acc[p.modulo] = [];
     acc[p.modulo].push(p);
@@ -242,6 +317,13 @@ export default function GestionPermisos() {
     p.email.toLowerCase().includes(searchUser.toLowerCase())
   );
 
+  const filteredUserList = profiles.filter(p => 
+    searchUserList === '' || 
+    p.nombre.toLowerCase().includes(searchUserList.toLowerCase()) ||
+    p.apellido.toLowerCase().includes(searchUserList.toLowerCase()) ||
+    p.email.toLowerCase().includes(searchUserList.toLowerCase())
+  );
+
   const getPermisoNombre = (permisoId: string) => {
     return permisos.find(p => p.id === permisoId)?.nombre || 'Desconocido';
   };
@@ -249,6 +331,43 @@ export default function GestionPermisos() {
   const getProfileNombre = (userId: string) => {
     const profile = profiles.find(p => p.user_id === userId);
     return profile ? `${profile.nombre} ${profile.apellido}` : 'Desconocido';
+  };
+
+  const getUserRoles = (userId: string): AppRole[] => {
+    return userRoles.filter(ur => ur.user_id === userId).map(ur => ur.role);
+  };
+
+  const getRolLabel = (rol: AppRole) => {
+    return ROLES.find(r => r.value === rol)?.label || rol;
+  };
+
+  const getUserPermisos = (userId: string) => {
+    const roles = getUserRoles(userId);
+    const permisosFromRoles = new Set<string>();
+    
+    roles.forEach(rol => {
+      permisosRoles
+        .filter(pr => pr.rol === rol)
+        .forEach(pr => permisosFromRoles.add(pr.permiso_id));
+    });
+
+    // Agregar permisos especiales otorgados
+    permisosUsuarios
+      .filter(pu => pu.user_id === userId && !pu.es_denegado)
+      .forEach(pu => permisosFromRoles.add(pu.permiso_id));
+
+    // Quitar permisos denegados
+    permisosUsuarios
+      .filter(pu => pu.user_id === userId && pu.es_denegado)
+      .forEach(pu => permisosFromRoles.delete(pu.permiso_id));
+
+    return Array.from(permisosFromRoles)
+      .map(id => permisos.find(p => p.id === id))
+      .filter(Boolean) as Permiso[];
+  };
+
+  const getUserPermisosEspeciales = (userId: string) => {
+    return permisosUsuarios.filter(pu => pu.user_id === userId);
   };
 
   if (loading) {
@@ -265,7 +384,7 @@ export default function GestionPermisos() {
         <Shield className="h-8 w-8 text-primary" />
         <div>
           <h1 className="text-2xl font-bold">Gestión de Permisos</h1>
-          <p className="text-muted-foreground">Administra permisos por rol y permisos especiales por usuario</p>
+          <p className="text-muted-foreground">Administra permisos por rol, usuarios y perfiles personalizados</p>
         </div>
       </div>
 
@@ -275,12 +394,21 @@ export default function GestionPermisos() {
             <Shield className="h-4 w-4" />
             Permisos por Rol
           </TabsTrigger>
-          <TabsTrigger value="usuarios" className="gap-2">
+          <TabsTrigger value="usuarios-lista" className="gap-2">
             <Users className="h-4 w-4" />
+            Usuarios y Permisos
+          </TabsTrigger>
+          <TabsTrigger value="usuarios" className="gap-2">
+            <UserCog className="h-4 w-4" />
             Permisos Especiales
+          </TabsTrigger>
+          <TabsTrigger value="perfiles" className="gap-2">
+            <Copy className="h-4 w-4" />
+            Mix de Roles
           </TabsTrigger>
         </TabsList>
 
+        {/* TAB: Permisos por Rol */}
         <TabsContent value="roles" className="space-y-4">
           <Card>
             <CardHeader>
@@ -345,6 +473,102 @@ export default function GestionPermisos() {
           </Card>
         </TabsContent>
 
+        {/* TAB: Lista de Usuarios y sus Permisos */}
+        <TabsContent value="usuarios-lista" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Usuarios y sus Permisos</CardTitle>
+              <CardDescription>
+                Ve todos los usuarios con sus roles y permisos efectivos
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="mb-4 flex items-center gap-2">
+                <Search className="h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar usuario..."
+                  value={searchUserList}
+                  onChange={(e) => setSearchUserList(e.target.value)}
+                  className="max-w-sm"
+                />
+              </div>
+
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Usuario</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Roles</TableHead>
+                    <TableHead>Permisos Especiales</TableHead>
+                    <TableHead className="w-24">Acciones</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredUserList.map(profile => {
+                    const roles = getUserRoles(profile.user_id);
+                    const especiales = getUserPermisosEspeciales(profile.user_id);
+                    
+                    return (
+                      <TableRow key={profile.user_id}>
+                        <TableCell className="font-medium">
+                          {profile.nombre} {profile.apellido}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {profile.email}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1">
+                            {roles.length === 0 ? (
+                              <span className="text-muted-foreground text-sm">Sin roles</span>
+                            ) : (
+                              roles.map(rol => (
+                                <Badge key={rol} variant="secondary" className="text-xs">
+                                  {getRolLabel(rol)}
+                                </Badge>
+                              ))
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1">
+                            {especiales.filter(e => !e.es_denegado).length > 0 && (
+                              <Badge variant="default" className="text-xs">
+                                +{especiales.filter(e => !e.es_denegado).length} otorgados
+                              </Badge>
+                            )}
+                            {especiales.filter(e => e.es_denegado).length > 0 && (
+                              <Badge variant="destructive" className="text-xs">
+                                -{especiales.filter(e => e.es_denegado).length} denegados
+                              </Badge>
+                            )}
+                            {especiales.length === 0 && (
+                              <span className="text-muted-foreground text-sm">Ninguno</span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              setViewingUser(profile);
+                              setViewUserPermisosDialog(true);
+                            }}
+                          >
+                            <Eye className="h-4 w-4 mr-1" />
+                            Ver
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* TAB: Permisos Especiales */}
         <TabsContent value="usuarios" className="space-y-4">
           <Card>
             <CardHeader>
@@ -427,8 +651,107 @@ export default function GestionPermisos() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* TAB: Mix de Roles */}
+        <TabsContent value="perfiles" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Crear Mix de Roles</CardTitle>
+              <CardDescription>
+                Combina permisos de múltiples roles y asígnalos a un usuario
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Nombre del perfil (opcional)</Label>
+                  <Input
+                    placeholder="Ej: Supervisor Híbrido"
+                    value={perfilNombre}
+                    onChange={(e) => setPerfilNombre(e.target.value)}
+                    className="max-w-md"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Selecciona los roles a combinar:</Label>
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                    {ROLES.map(rol => (
+                      <div
+                        key={rol.value}
+                        className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                          rolesSeleccionados.has(rol.value)
+                            ? 'border-primary bg-primary/10'
+                            : 'border-border hover:border-primary/50'
+                        }`}
+                        onClick={() => handleRolToggle(rol.value)}
+                      >
+                        <div className="flex items-center gap-2">
+                          {rolesSeleccionados.has(rol.value) ? (
+                            <Check className="h-4 w-4 text-primary" />
+                          ) : (
+                            <div className="h-4 w-4 border rounded" />
+                          )}
+                          <span className="text-sm font-medium">{rol.label}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {rolesSeleccionados.size > 0 && (
+                  <Card className="bg-muted/50">
+                    <CardHeader className="py-3">
+                      <CardTitle className="text-sm">
+                        Permisos resultantes ({permisosPerfilCustom.size})
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="py-3">
+                      <ScrollArea className="h-48">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                          {Array.from(permisosPerfilCustom)
+                            .map(id => permisos.find(p => p.id === id))
+                            .filter(Boolean)
+                            .sort((a, b) => a!.modulo.localeCompare(b!.modulo))
+                            .map(permiso => (
+                              <div key={permiso!.id} className="flex items-center gap-2 text-sm">
+                                <Badge variant="outline" className="text-xs">
+                                  {permiso!.modulo}
+                                </Badge>
+                                <span>{permiso!.nombre}</span>
+                              </div>
+                            ))}
+                        </div>
+                      </ScrollArea>
+                    </CardContent>
+                  </Card>
+                )}
+
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => setAssignDialogOpen(true)}
+                    disabled={permisosPerfilCustom.size === 0}
+                  >
+                    <UserCog className="h-4 w-4 mr-2" />
+                    Asignar a Usuario
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setRolesSeleccionados(new Set());
+                      setPerfilNombre('');
+                    }}
+                  >
+                    Limpiar Selección
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
 
+      {/* Dialog: Agregar Permiso Especial */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -498,6 +821,127 @@ export default function GestionPermisos() {
             </Button>
             <Button onClick={handleAddPermisoUsuario}>
               Guardar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog: Ver Permisos de Usuario */}
+      <Dialog open={viewUserPermisosDialog} onOpenChange={setViewUserPermisosDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              Permisos de {viewingUser?.nombre} {viewingUser?.apellido}
+            </DialogTitle>
+            <DialogDescription>
+              {viewingUser?.email}
+            </DialogDescription>
+          </DialogHeader>
+
+          {viewingUser && (
+            <div className="space-y-4">
+              <div>
+                <Label className="text-sm font-medium">Roles asignados:</Label>
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {getUserRoles(viewingUser.user_id).map(rol => (
+                    <Badge key={rol} variant="secondary">
+                      {getRolLabel(rol)}
+                    </Badge>
+                  ))}
+                  {getUserRoles(viewingUser.user_id).length === 0 && (
+                    <span className="text-muted-foreground text-sm">Sin roles</span>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <Label className="text-sm font-medium">Permisos efectivos ({getUserPermisos(viewingUser.user_id).length}):</Label>
+                <ScrollArea className="h-64 mt-2 border rounded-lg p-3">
+                  <div className="space-y-1">
+                    {getUserPermisos(viewingUser.user_id)
+                      .sort((a, b) => a.modulo.localeCompare(b.modulo))
+                      .map(permiso => (
+                        <div key={permiso.id} className="flex items-center gap-2 text-sm py-1">
+                          <Badge variant="outline" className="text-xs">
+                            {permiso.modulo}
+                          </Badge>
+                          <span>{permiso.nombre}</span>
+                        </div>
+                      ))}
+                  </div>
+                </ScrollArea>
+              </div>
+
+              {getUserPermisosEspeciales(viewingUser.user_id).length > 0 && (
+                <div>
+                  <Label className="text-sm font-medium">Permisos especiales:</Label>
+                  <div className="mt-1 space-y-1">
+                    {getUserPermisosEspeciales(viewingUser.user_id).map(pe => (
+                      <div key={pe.id} className="flex items-center gap-2 text-sm">
+                        <Badge variant={pe.es_denegado ? "destructive" : "default"} className="text-xs">
+                          {pe.es_denegado ? "Denegado" : "Otorgado"}
+                        </Badge>
+                        <span>{getPermisoNombre(pe.permiso_id)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button onClick={() => setViewUserPermisosDialog(false)}>
+              Cerrar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog: Asignar Perfil a Usuario */}
+      <Dialog open={assignDialogOpen} onOpenChange={setAssignDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Asignar Permisos a Usuario</DialogTitle>
+            <DialogDescription>
+              Se asignarán {permisosPerfilCustom.size} permisos como permisos especiales
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Seleccionar Usuario</Label>
+              <Select value={userToAssign} onValueChange={setUserToAssign}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar usuario..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {profiles.map(profile => (
+                    <SelectItem key={profile.user_id} value={profile.user_id}>
+                      {profile.nombre} {profile.apellido} ({profile.email})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="p-3 bg-muted rounded-lg">
+              <p className="text-sm text-muted-foreground">
+                Roles combinados: {Array.from(rolesSeleccionados).map(r => getRolLabel(r)).join(', ')}
+              </p>
+              <p className="text-sm font-medium mt-1">
+                Total de permisos a asignar: {permisosPerfilCustom.size}
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAssignDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleAssignPerfilToUser} disabled={saving || !userToAssign}>
+              {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+              Asignar Permisos
             </Button>
           </DialogFooter>
         </DialogContent>
