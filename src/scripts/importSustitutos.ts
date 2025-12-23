@@ -132,11 +132,20 @@ export async function getCodigoPadre(codigo: string): Promise<string> {
  * If a part has a parent, return the parent info instead
  */
 export async function getRepuestosParaProducto(codigoProducto: string) {
+  // Primero obtener el producto_id
+  const { data: producto } = await supabase
+    .from('productos')
+    .select('id')
+    .eq('codigo', codigoProducto)
+    .maybeSingle();
+
+  if (!producto) return [];
+
   // Get all repuestos for the product
   const { data: repuestos, error } = await supabase
     .from('repuestos')
     .select('*')
-    .eq('codigo_producto', codigoProducto);
+    .eq('producto_id', producto.id);
   
   if (error || !repuestos) return [];
   

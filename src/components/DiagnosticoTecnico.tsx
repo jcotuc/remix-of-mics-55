@@ -112,10 +112,22 @@ export function DiagnosticoTecnico({ incidente, onDiagnosticoCompleto }: Diagnos
 
   const fetchRepuestos = async () => {
     try {
+      // Primero obtener el producto_id
+      const { data: producto } = await supabase
+        .from('productos')
+        .select('id')
+        .eq('codigo', incidente.codigo_producto)
+        .maybeSingle();
+
+      if (!producto) {
+        setRepuestosDisponibles([]);
+        return;
+      }
+
       const { data, error } = await supabase
         .from('repuestos')
         .select('*')
-        .eq('codigo_producto', incidente.codigo_producto);
+        .eq('producto_id', producto.id);
       
       if (error) throw error;
       setRepuestosDisponibles(data || []);
