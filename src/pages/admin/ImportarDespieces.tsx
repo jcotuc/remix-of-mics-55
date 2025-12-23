@@ -11,6 +11,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { getDocument, GlobalWorkerOptions } from "pdfjs-dist";
+
+GlobalWorkerOptions.workerSrc = new URL(
+  "pdfjs-dist/build/pdf.worker.min.mjs",
+  import.meta.url
+).toString();
+
 
 interface RepuestoExtraido {
   codigo: string;
@@ -84,38 +91,53 @@ export default function ImportarDespieces() {
     setIsProcessing(true);
 
     try {
-      // Read file as text (for simple PDFs) or base64
       const arrayBuffer = await file.arrayBuffer();
       const bytes = new Uint8Array(arrayBuffer);
-      
-      // Try to extract text from PDF
+
+      // Extract text from PDF (multi-page) using pdfjs
       let textContent = "";
       try {
-        // Simple text extraction - look for text streams
-        const decoder = new TextDecoder("latin1");
-        const pdfString = decoder.decode(bytes);
-        
-        // Extract text between BT and ET markers (basic PDF text extraction)
-        const textMatches = pdfString.match(/\((.*?)\)/g);
-        if (textMatches) {
-          textContent = textMatches
-            .map(m => m.slice(1, -1))
-            .filter(t => t.length > 1 && !/^[\\\/\d]+$/.test(t))
+        const pdf = await getDocument({ data: bytes }).promise;
+        const pages: string[] = [];
+
+        for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+          const page = await pdf.getPage(pageNum);
+          const text = await page.getTextContent();
+          const pageText = (text.items as any[])
+            .map((it) => (typeof it?.str === "string" ? it.str : ""))
+            .filter(Boolean)
             .join(" ");
+
+          if (pageText.trim()) pages.push(pageText);
         }
-        
-        // If minimal text extracted, convert to base64 for AI vision
-        if (textContent.length < 100) {
-          // For image-based PDFs, we'll send base64
-          const base64 = btoa(String.fromCharCode(...bytes));
-          textContent = `[PDF Base64 - First 50000 chars]: ${base64.substring(0, 50000)}`;
-        }
+
+        textContent = pages.join("\n\n");
       } catch (e) {
-        console.error("Error extracting text:", e);
-        // Fallback to base64
-        const base64 = btoa(String.fromCharCode(...bytes));
-        textContent = `[PDF Base64]: ${base64.substring(0, 50000)}`;
+        console.error("Error extracting PDF text with pdfjs:", e);
       }
+
+      // Fallback: basic extraction from raw PDF bytes
+      if (textContent.trim().length < 100) {
+        try {
+          const decoder = new TextDecoder("latin1");
+          const pdfString = decoder.decode(bytes);
+          const textMatches = pdfString.match(/\((.*?)\)/g);
+          if (textMatches) {
+            textContent = textMatches
+              .map((m) => m.slice(1, -1))
+              .filter((t) => t.length > 1 && !/^[\\\/\d]+$/.test(t))
+              .join(" ");
+          }
+        } catch (e) {
+          console.error("Fallback PDF text extraction failed:", e);
+        }
+      }
+
+      if (textContent.trim().length < 50) {
+        toast.error("No se pudo extraer texto del PDF (¿es escaneado?)");
+        return;
+      }
+
 
       // Call edge function to process with AI
       const { data, error } = await supabase.functions.invoke("extract-despiece-pdf", {
