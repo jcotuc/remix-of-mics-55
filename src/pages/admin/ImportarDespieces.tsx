@@ -20,6 +20,7 @@ GlobalWorkerOptions.workerSrc = new URL(
 
 
 interface RepuestoExtraido {
+  no: string;
   codigo: string;
   clave: string;
   descripcion: string;
@@ -37,6 +38,13 @@ interface ExtractedData {
   repuestos: RepuestoExtraido[];
 }
 
+interface ColumnSelection {
+  no: boolean;
+  codigo: boolean;
+  clave: boolean;
+  descripcion: boolean;
+}
+
 export default function ImportarDespieces() {
   const navigate = useNavigate();
   const [file, setFile] = useState<File | null>(null);
@@ -45,6 +53,12 @@ export default function ImportarDespieces() {
   const [extractedData, setExtractedData] = useState<ExtractedData | null>(null);
   const [codigoProductoManual, setCodigoProductoManual] = useState("");
   const [productoEncontrado, setProductoEncontrado] = useState<any>(null);
+  const [columnSelection, setColumnSelection] = useState<ColumnSelection>({
+    no: true,
+    codigo: true,
+    clave: true,
+    descripcion: true
+  });
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -470,7 +484,50 @@ export default function ImportarDespieces() {
               </div>
             ) : (
               <div className="space-y-4">
-                {/* Controles de selección */}
+                {/* Controles de columnas */}
+                <div className="p-3 bg-muted/50 rounded-lg">
+                  <p className="text-sm font-medium mb-2">Columnas a exportar:</p>
+                  <div className="flex items-center gap-4 flex-wrap">
+                    <label className="flex items-center gap-2 text-sm">
+                      <Checkbox
+                        checked={columnSelection.no}
+                        onCheckedChange={(checked) => 
+                          setColumnSelection(prev => ({ ...prev, no: !!checked }))
+                        }
+                      />
+                      NO.
+                    </label>
+                    <label className="flex items-center gap-2 text-sm">
+                      <Checkbox
+                        checked={columnSelection.codigo}
+                        onCheckedChange={(checked) => 
+                          setColumnSelection(prev => ({ ...prev, codigo: !!checked }))
+                        }
+                      />
+                      Código
+                    </label>
+                    <label className="flex items-center gap-2 text-sm">
+                      <Checkbox
+                        checked={columnSelection.clave}
+                        onCheckedChange={(checked) => 
+                          setColumnSelection(prev => ({ ...prev, clave: !!checked }))
+                        }
+                      />
+                      Clave
+                    </label>
+                    <label className="flex items-center gap-2 text-sm">
+                      <Checkbox
+                        checked={columnSelection.descripcion}
+                        onCheckedChange={(checked) => 
+                          setColumnSelection(prev => ({ ...prev, descripcion: !!checked }))
+                        }
+                      />
+                      Descripción
+                    </label>
+                  </div>
+                </div>
+
+                {/* Controles de selección de filas */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
                     <Button 
@@ -499,9 +556,10 @@ export default function ImportarDespieces() {
                     <TableHeader className="sticky top-0 bg-background">
                       <TableRow>
                         <TableHead className="w-10"></TableHead>
-                        <TableHead>Código</TableHead>
-                        <TableHead>Clave</TableHead>
-                        <TableHead>Descripción</TableHead>
+                        {columnSelection.no && <TableHead className="w-16">NO.</TableHead>}
+                        {columnSelection.codigo && <TableHead>Código</TableHead>}
+                        {columnSelection.clave && <TableHead>Clave</TableHead>}
+                        {columnSelection.descripcion && <TableHead>Descripción</TableHead>}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -516,11 +574,24 @@ export default function ImportarDespieces() {
                               onCheckedChange={() => toggleRepuestoSelection(index)}
                             />
                           </TableCell>
-                          <TableCell className="font-medium">{repuesto.codigo}</TableCell>
-                          <TableCell className="text-xs">
-                            {repuesto.clave}
-                          </TableCell>
-                          <TableCell>{repuesto.descripcion}</TableCell>
+                          {columnSelection.no && (
+                            <TableCell className="text-muted-foreground">{repuesto.no}</TableCell>
+                          )}
+                          {columnSelection.codigo && (
+                            <TableCell className={`font-medium ${!repuesto.codigo ? "text-destructive" : ""}`}>
+                              {repuesto.codigo || "-"}
+                            </TableCell>
+                          )}
+                          {columnSelection.clave && (
+                            <TableCell className={`text-xs ${!repuesto.clave ? "text-destructive" : ""}`}>
+                              {repuesto.clave || "-"}
+                            </TableCell>
+                          )}
+                          {columnSelection.descripcion && (
+                            <TableCell className={!repuesto.descripcion ? "text-destructive" : ""}>
+                              {repuesto.descripcion || "-"}
+                            </TableCell>
+                          )}
                         </TableRow>
                       ))}
                     </TableBody>
