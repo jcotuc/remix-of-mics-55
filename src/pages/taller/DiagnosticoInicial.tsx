@@ -1149,20 +1149,27 @@ export default function DiagnosticoInicial() {
           {paso === 2 && <div className="space-y-4">
               <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
                 {/* Columna Izquierda: Repuestos Disponibles para la Máquina (3/5) */}
-                <div className="lg:col-span-3 relative">
-                  <div className="absolute -top-3 left-4 bg-background px-2 z-10">
-                    <span className="text-sm font-medium text-primary">Repuestos Disponibles</span>
-                  </div>
-                  <div className="border-2 border-primary/30 rounded-lg p-4 pt-6">
-                    <div className="relative mb-4">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <input
-                        placeholder="Buscar por código, clave o descripción..."
-                        value={searchRepuesto}
-                        onChange={e => setSearchRepuesto(e.target.value)}
-                        className="w-full h-11 pl-10 pr-4 text-sm bg-transparent rounded-lg border-2 border-input outline-none transition-all duration-200 focus:border-primary focus:ring-0"
-                      />
+                <div className="lg:col-span-3">
+                  <div className="relative">
+                    <div className="absolute -top-3 left-4 bg-background px-2 z-10">
+                      <span className="text-sm font-medium text-primary">Repuestos Disponibles</span>
                     </div>
+                    <div className="border-2 border-primary/30 rounded-lg p-4 pt-5">
+                      {/* Outlined Search Field */}
+                      <div className="relative mb-4">
+                        <div className="absolute -top-2.5 left-3 bg-background px-1 z-10">
+                          <span className="text-xs text-muted-foreground">Buscar</span>
+                        </div>
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <input
+                            placeholder="Código, clave o descripción..."
+                            value={searchRepuesto}
+                            onChange={e => setSearchRepuesto(e.target.value)}
+                            className="w-full h-12 pl-10 pr-4 text-sm bg-transparent rounded-lg border-2 border-input outline-none transition-all duration-200 focus:border-primary focus:ring-0"
+                          />
+                        </div>
+                      </div>
                     <div className="max-h-[450px] overflow-y-auto pr-2 space-y-2">
                       {filteredRepuestos.length > 0 ? filteredRepuestos.map(repuesto => (
                         <div 
@@ -1202,6 +1209,7 @@ export default function DiagnosticoInicial() {
                           <p className="text-sm">No se encontraron repuestos</p>
                         </div>
                       )}
+                    </div>
                     </div>
                   </div>
                 </div>
