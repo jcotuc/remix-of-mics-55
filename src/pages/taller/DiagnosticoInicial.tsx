@@ -1146,32 +1146,30 @@ export default function DiagnosticoInicial() {
                 </Card>}
             </div>}
 
-          {paso === 2 && <div className="space-y-6 pt-2">
+          {paso === 2 && <div className="space-y-4">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Columna Izquierda: Repuestos Disponibles */}
-                <div className="relative">
-                  <fieldset className="border-2 border-primary rounded-lg p-4 h-full">
-                    <legend className="px-2 text-sm font-medium text-primary">
-                      Repuestos Disponibles
-                    </legend>
+                <div className="relative pt-3">
+                  <div className="absolute -top-0 left-4 bg-background px-2 z-10">
+                    <span className="text-xs font-medium text-primary">Repuestos Disponibles</span>
+                  </div>
+                  <div className="border-2 border-primary/40 rounded-lg p-4 pt-4 h-full">
                     {/* Outlined Search Field */}
-                    <div className="relative mb-4">
-                      <fieldset className="border-2 border-input rounded-lg focus-within:border-primary transition-colors">
-                        <legend className="ml-2 px-1 text-xs text-muted-foreground">
-                          Buscar
-                        </legend>
-                        <div className="relative">
-                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                          <input
-                            placeholder="Código, clave o descripción..."
-                            value={searchRepuesto}
-                            onChange={e => setSearchRepuesto(e.target.value)}
-                            className="w-full h-10 pl-10 pr-4 text-sm bg-transparent rounded-lg outline-none"
-                          />
-                        </div>
-                      </fieldset>
+                    <div className="relative pt-3 mb-4">
+                      <div className="absolute -top-0 left-3 bg-background px-1 z-10">
+                        <span className="text-xs text-muted-foreground">Buscar</span>
+                      </div>
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <input
+                          placeholder="Código, clave o descripción..."
+                          value={searchRepuesto}
+                          onChange={e => setSearchRepuesto(e.target.value)}
+                          className="w-full h-12 pl-10 pr-4 text-sm bg-transparent rounded-lg border-2 border-input outline-none transition-all duration-200 focus:border-primary focus:ring-0"
+                        />
+                      </div>
                     </div>
-                    <div className="max-h-[380px] overflow-y-auto space-y-2">
+                    <div className="max-h-[400px] overflow-y-auto space-y-2">
                       {filteredRepuestos.length > 0 ? filteredRepuestos.map(repuesto => (
                         <div 
                           key={repuesto.id} 
@@ -1209,16 +1207,16 @@ export default function DiagnosticoInicial() {
                         </div>
                       )}
                     </div>
-                  </fieldset>
+                  </div>
                 </div>
 
                 {/* Columna Derecha: Solicitud de Repuestos */}
-                <div className="relative">
-                  <fieldset className="border-2 border-muted rounded-lg p-4 h-full">
-                    <legend className="px-2 text-sm font-medium text-muted-foreground">
-                      Solicitud de Repuestos
-                    </legend>
-                    <div className="space-y-4 max-h-[450px] overflow-y-auto">
+                <div className="relative pt-3">
+                  <div className="absolute -top-0 left-4 bg-background px-2 z-10">
+                    <span className="text-xs font-medium text-muted-foreground">Solicitud de Repuestos</span>
+                  </div>
+                  <div className="border-2 border-muted rounded-lg p-4 pt-4 h-full">
+                    <div className="space-y-4 max-h-[480px] overflow-y-auto">
                       {/* Repuestos Despachados (Verde) */}
                       {solicitudesAnteriores.filter(s => s.estado === 'entregado').length > 0 && (
                         <div className="space-y-2">
@@ -1310,7 +1308,7 @@ export default function DiagnosticoInicial() {
                         </div>
                       )}
                     </div>
-                  </fieldset>
+                  </div>
                 </div>
               </div>
             </div>}
