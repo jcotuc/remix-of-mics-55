@@ -861,7 +861,7 @@ export default function DiagnosticoInicial() {
             {paso === 1 && "Paso 1: Diagnóstico"}
             {paso === 1.5 && "Paso 1.5: Cotización de Canje"}
             {paso === 2 && "Paso 2: Solicitud de Repuestos"}
-            {paso === 3 && "Paso 3: Fotos y Observaciones"}
+            {paso === 3 && "Paso 3: Observaciones Finales"}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
