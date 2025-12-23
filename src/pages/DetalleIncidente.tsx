@@ -100,13 +100,15 @@ export default function DetalleIncidente() {
         
         if (producto) setProductoInfo(producto);
 
-        // Buscar repuestos
-        const { data: repuestos } = await supabase
-          .from('repuestos')
-          .select('*')
-          .eq('codigo_producto', dbIncidente.codigo_producto);
-        
-        if (repuestos) setRepuestosDisponibles(repuestos);
+        // Buscar repuestos usando producto_id
+        if (producto) {
+          const { data: repuestos } = await supabase
+            .from('repuestos')
+            .select('*')
+            .eq('producto_id', producto.id);
+          
+          if (repuestos) setRepuestosDisponibles(repuestos);
+        }
         
         // Buscar guías de envío asociadas al incidente
         const { data: guias } = await supabase
@@ -365,13 +367,15 @@ export default function DetalleIncidente() {
       
       if (nuevoProducto) setProductoInfo(nuevoProducto);
 
-      // Buscar repuestos del nuevo producto
-      const { data: nuevosRepuestos } = await supabase
-        .from('repuestos')
-        .select('*')
-        .eq('codigo_producto', editedProductCode);
-      
-      if (nuevosRepuestos) setRepuestosDisponibles(nuevosRepuestos);
+      // Buscar repuestos del nuevo producto usando producto_id
+      if (nuevoProducto) {
+        const { data: nuevosRepuestos } = await supabase
+          .from('repuestos')
+          .select('*')
+          .eq('producto_id', nuevoProducto.id);
+        
+        if (nuevosRepuestos) setRepuestosDisponibles(nuevosRepuestos);
+      }
 
       setIsEditingProductCode(false);
 
