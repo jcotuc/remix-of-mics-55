@@ -927,16 +927,39 @@ export default function NuevoIncidente() {
               label: acc.descripcion
             }))} selected={accesoriosSeleccionados} onSelectionChange={setAccesoriosSeleccionados} placeholder="Seleccionar accesorios..." />
 
-                {/* Centro y Tipología */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Centro de Servicio y Reingreso */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
                   <OutlinedSelect label="Centro de Servicio" value={centroServicio} onValueChange={setCentroServicio} options={centrosServicioList.map(c => ({
-                value: c.id,
-                label: c.nombre
-              }))} required />
-                  <OutlinedSelect label="Tipología" value={tipologia} onValueChange={setTipologia} options={tipologias.map(t => ({
-                value: t,
-                label: t
-              }))} required />
+                    value: c.id,
+                    label: c.nombre
+                  }))} required />
+                  <div className="flex items-center space-x-3 p-3 rounded-lg border hover:bg-muted/30 transition-colors h-[52px]">
+                    <Checkbox id="reingreso" checked={esReingreso} onCheckedChange={checked => setEsReingreso(checked as boolean)} />
+                    <Label htmlFor="reingreso" className="cursor-pointer font-normal flex-1">Es un reingreso</Label>
+                  </div>
+                </div>
+
+                {/* Tipología */}
+                <div className="space-y-3">
+                  <p className="text-sm font-medium text-muted-foreground">Tipología *</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button
+                      type="button"
+                      variant={tipologia === 'Mantenimiento' ? 'default' : 'outline'}
+                      className="w-full"
+                      onClick={() => setTipologia('Mantenimiento')}
+                    >
+                      Mantenimiento
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={tipologia === 'Reparación' ? 'default' : 'outline'}
+                      className="w-full"
+                      onClick={() => setTipologia('Reparación')}
+                    >
+                      Reparación
+                    </Button>
+                  </div>
                 </div>
 
                 {/* Opciones de Entrega */}
@@ -949,14 +972,14 @@ export default function NuevoIncidente() {
                   setNuevaDireccion("");
                   setMostrarNuevaDireccion(false);
                 }
-              }} className="flex flex-col gap-3">
+              }} className="grid grid-cols-2 gap-2">
                     <div className="flex items-center space-x-3 p-3 rounded-lg border hover:bg-muted/30 transition-colors">
                       <RadioGroupItem value="recoger" id="recoger" />
-                      <Label htmlFor="recoger" className="cursor-pointer font-normal flex-1">Viene a recoger al centro</Label>
+                      <Label htmlFor="recoger" className="cursor-pointer font-normal flex-1 text-sm">Recoger en centro</Label>
                     </div>
                     <div className="flex items-center space-x-3 p-3 rounded-lg border hover:bg-muted/30 transition-colors">
                       <RadioGroupItem value="directo" id="directo" />
-                      <Label htmlFor="directo" className="cursor-pointer font-normal flex-1">Envío directo</Label>
+                      <Label htmlFor="directo" className="cursor-pointer font-normal flex-1 text-sm">Envío directo</Label>
                     </div>
                   </RadioGroup>
 
@@ -982,13 +1005,10 @@ export default function NuevoIncidente() {
                 {/* Separador */}
                 <Separator className="my-2" />
 
-                {/* Opciones adicionales */}
-                <div className="space-y-3">
-                  <p className="text-sm font-medium text-muted-foreground">Opciones Adicionales</p>
-                  <div className="flex items-center space-x-3 p-3 rounded-lg border hover:bg-muted/30 transition-colors">
-                    <Checkbox id="reingreso" checked={esReingreso} onCheckedChange={checked => setEsReingreso(checked as boolean)} />
-                    <Label htmlFor="reingreso" className="cursor-pointer font-normal flex-1">Es un reingreso</Label>
-                  </div>
+                {/* Opciones adicionales - Stock Cemaco */}
+                <div className="flex items-center space-x-3 p-3 rounded-lg border hover:bg-muted/30 transition-colors">
+                  <Checkbox id="stockCemaco" checked={esStockCemaco} onCheckedChange={checked => setEsStockCemaco(checked as boolean)} />
+                  <Label htmlFor="stockCemaco" className="cursor-pointer font-normal flex-1">Es stock de tienda</Label>
                 </div>
 
                 {/* Observaciones */}
