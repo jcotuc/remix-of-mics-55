@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 // Fallas y Causas ahora se cargan desde la base de datos
 import { Textarea } from "@/components/ui/textarea";
+import { OutlinedTextarea } from "@/components/ui/outlined-input";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { GembaDocsCamera, GembaPhoto } from "@/components/GembaDocsCamera";
@@ -1222,16 +1223,72 @@ export default function DiagnosticoInicial() {
             </div>}
 
           {paso === 3 && <>
-              
+              {/* Resolución del diagnóstico */}
+              <div className="space-y-3">
+                <Label className="text-lg font-semibold">Resolución del Diagnóstico</Label>
+                <div className="p-4 bg-primary/10 border border-primary/30 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <CheckCircle2 className="h-5 w-5 text-green-600" />
+                    {tipoResolucion === "Reparar en Garantía" && <Wrench className="h-5 w-5 text-primary" />}
+                    {tipoResolucion === "Presupuesto" && <ShoppingCart className="h-5 w-5 text-primary" />}
+                    {tipoResolucion === "Canje" && <Package className="h-5 w-5 text-primary" />}
+                    {tipoResolucion === "Cambio por Garantía" && <Package className="h-5 w-5 text-primary" />}
+                    {tipoResolucion === "Nota de Crédito" && <Package className="h-5 w-5 text-primary" />}
+                    <span className="font-medium text-lg">{tipoResolucion || "Sin definir"}</span>
+                    <Badge variant="outline" className="ml-auto text-green-600 border-green-600">
+                      Seleccionado
+                    </Badge>
+                  </div>
+                </div>
+              </div>
 
               <Separator />
 
+              {/* Observaciones del técnico con outlined input */}
               <div className="space-y-4">
-                <div>
-                  <Label className="text-lg font-semibold">Observaciones del Técnico</Label>
-                  
+                <OutlinedTextarea 
+                  label="Observaciones del Técnico"
+                  value={observaciones} 
+                  onChange={e => setObservaciones(e.target.value)} 
+                />
+              </div>
+
+              <Separator />
+
+              {/* Resumen del diagnóstico - No editable */}
+              <div className="space-y-3">
+                <Label className="text-lg font-semibold">Resumen del Diagnóstico</Label>
+                <div className="p-4 bg-muted/50 border rounded-lg space-y-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-xs text-muted-foreground uppercase">Fallas</Label>
+                      <p className="text-sm font-medium mt-1">
+                        {fallas.length > 0 ? fallas.join(", ") : "Sin fallas registradas"}
+                      </p>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground uppercase">Causas</Label>
+                      <p className="text-sm font-medium mt-1">
+                        {causas.length > 0 ? causas.join(", ") : "Sin causas registradas"}
+                      </p>
+                    </div>
+                  </div>
+                  <Separator />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-xs text-muted-foreground uppercase">Accesorios</Label>
+                      <p className="text-sm font-medium mt-1">
+                        {incidente?.accesorios || "Sin accesorios"}
+                      </p>
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground uppercase">Resolución</Label>
+                      <p className="text-sm font-medium mt-1">
+                        {tipoResolucion || "Sin definir"}
+                      </p>
+                    </div>
+                  </div>
                 </div>
-                <Textarea value={observaciones} onChange={e => setObservaciones(e.target.value)} placeholder="Escribe aquí cualquier observación relevante..." rows={6} />
               </div>
             </>}
         </CardContent>
