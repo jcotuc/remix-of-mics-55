@@ -1085,10 +1085,13 @@ export default function NuevoIncidente() {
         <AlertDialogContent className="max-w-4xl max-h-[90vh] overflow-auto">
           <AlertDialogHeader>
             <AlertDialogTitle>Vista previa de impresión</AlertDialogTitle>
+            <AlertDialogDescription>
+              Revisa la hoja y luego presiona “Imprimir” para generar el documento.
+            </AlertDialogDescription>
           </AlertDialogHeader>
           
           {incidenteCreado && (
-            <div className="border rounded-lg overflow-auto max-h-[60vh]">
+            <div className="border rounded-lg overflow-auto max-h-[60vh] bg-white">
               <IncidentePrintSheet data={incidenteCreado} />
             </div>
           )}
@@ -1101,7 +1104,8 @@ export default function NuevoIncidente() {
               Volver
             </AlertDialogCancel>
             <AlertDialogAction onClick={() => {
-              window.print();
+              // Pequeño delay para asegurar render antes de abrir el print preview
+              setTimeout(() => window.print(), 50);
             }}>
               <Printer className="h-4 w-4 mr-2" />
               Imprimir
