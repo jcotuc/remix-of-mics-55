@@ -54,6 +54,7 @@ export default function DiagnosticoInicial() {
   const [searchRepuesto, setSearchRepuesto] = useState("");
   const [solicitudesAnteriores, setSolicitudesAnteriores] = useState<Array<any>>([]);
   const [solicitudRepuestosId, setSolicitudRepuestosId] = useState<string | null>(null);
+  const [tabSolicitudActiva, setTabSolicitudActiva] = useState<number>(0);
 
   // Mapa de relaciones hijo→padre
   const [hijoPadreMap, setHijoPadreMap] = useState<Map<string, string>>(new Map());
@@ -662,7 +663,7 @@ export default function DiagnosticoInicial() {
   const eliminarRepuesto = (codigo: string) => {
     setRepuestosSolicitados(repuestosSolicitados.filter(r => r.codigo !== codigo));
   };
-  const handleEnviarSolicitudRepuestos = async () => {
+  const handleEnviarSolicitudRepuestos = async (tipoDespacho: 'bodega' | 'autoservicio') => {
     if (repuestosSolicitados.length === 0) {
       toast.error("Debes agregar al menos un repuesto");
       return;
@@ -685,7 +686,8 @@ export default function DiagnosticoInicial() {
         incidente_id: id,
         tecnico_solicitante: tecnicoNombre,
         repuestos: repuestosSolicitados,
-        estado: 'pendiente'
+        estado: 'pendiente',
+        tipo_despacho: tipoDespacho
       }).select().single();
       if (error) throw error;
 
@@ -697,7 +699,9 @@ export default function DiagnosticoInicial() {
 
       // Guardar borrador después de enviar solicitud
       await guardarBorradorSilencioso();
-      toast.success("Solicitud de repuestos enviada a bodega");
+      toast.success(tipoDespacho === 'autoservicio' 
+        ? "Solicitud creada - Retira en estación de autoservicio" 
+        : "Solicitud de repuestos enviada a bodega");
     } catch (error) {
       console.error('Error:', error);
       toast.error("Error al enviar la solicitud");
@@ -1213,47 +1217,73 @@ export default function DiagnosticoInicial() {
                   </div>
                   <div className="border-2 border-muted rounded-lg p-4 h-full">
                     <div className="space-y-4 max-h-[480px] overflow-y-auto">
-                      {/* Repuestos Despachados (Verde) */}
-                      {solicitudesAnteriores.filter(s => s.estado === 'entregado').length > 0 && (
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2 text-xs font-medium text-green-700 uppercase tracking-wide">
-                            <CheckCircle2 className="h-3.5 w-3.5" />
-                            <span>Despachados</span>
+                      
+                      {/* Pestañas de solicitudes anteriores con semáforo */}
+                      {solicitudesAnteriores.length > 0 && (
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                            <Package className="h-3.5 w-3.5" />
+                            <span>Historial de Solicitudes</span>
                           </div>
-                          {solicitudesAnteriores.filter(s => s.estado === 'entregado').map(solicitud => (
-                            <div key={solicitud.id} className="p-2.5 bg-green-500/10 rounded-lg border border-green-500/30">
-                              {solicitud.repuestos?.map((item: any, idx: number) => (
+                          <div className="flex flex-wrap gap-2">
+                            {solicitudesAnteriores.map((solicitud, index) => {
+                              const isEntregado = solicitud.estado === 'entregado';
+                              const isError = solicitud.estado === 'rechazado' || solicitud.estado === 'error';
+                              const isPendiente = solicitud.estado === 'pendiente' || solicitud.estado === 'en_proceso';
+                              
+                              const bgColor = isEntregado 
+                                ? 'bg-green-500 hover:bg-green-600' 
+                                : isError 
+                                  ? 'bg-red-500 hover:bg-red-600' 
+                                  : 'bg-yellow-500 hover:bg-yellow-600';
+                              
+                              const isActive = tabSolicitudActiva === index + 1;
+                              
+                              return (
+                                <button
+                                  key={solicitud.id}
+                                  onClick={() => setTabSolicitudActiva(isActive ? 0 : index + 1)}
+                                  className={`w-8 h-8 rounded-md text-white font-bold text-sm transition-all ${bgColor} ${isActive ? 'ring-2 ring-offset-2 ring-primary scale-110' : ''}`}
+                                  title={`Solicitud #${index + 1} - ${solicitud.estado} (${solicitud.tipo_despacho || 'bodega'})`}
+                                >
+                                  {index + 1}
+                                </button>
+                              );
+                            })}
+                          </div>
+                          
+                          {/* Contenido de la pestaña activa */}
+                          {tabSolicitudActiva > 0 && solicitudesAnteriores[tabSolicitudActiva - 1] && (
+                            <div className="p-3 bg-muted/30 rounded-lg border">
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="text-xs font-medium">Solicitud #{tabSolicitudActiva}</span>
+                                <div className="flex items-center gap-2">
+                                  <Badge variant="outline" className="text-[10px]">
+                                    {solicitudesAnteriores[tabSolicitudActiva - 1].tipo_despacho === 'autoservicio' ? '🛒 Autoservicio' : '📦 Bodega'}
+                                  </Badge>
+                                  <Badge 
+                                    className={`text-[10px] ${
+                                      solicitudesAnteriores[tabSolicitudActiva - 1].estado === 'entregado' 
+                                        ? 'bg-green-500' 
+                                        : solicitudesAnteriores[tabSolicitudActiva - 1].estado === 'rechazado' || solicitudesAnteriores[tabSolicitudActiva - 1].estado === 'error'
+                                          ? 'bg-red-500'
+                                          : 'bg-yellow-500'
+                                    }`}
+                                  >
+                                    {solicitudesAnteriores[tabSolicitudActiva - 1].estado}
+                                  </Badge>
+                                </div>
+                              </div>
+                              {solicitudesAnteriores[tabSolicitudActiva - 1].repuestos?.map((item: any, idx: number) => (
                                 <div key={idx} className="flex items-center justify-between text-sm py-0.5">
                                   <span className="truncate flex-1 text-xs">{item.descripcion}</span>
-                                  <Badge variant="outline" className="ml-2 text-[10px] h-4 px-1.5 bg-green-500/20 border-green-500/50">
+                                  <Badge variant="outline" className="ml-2 text-[10px] h-4 px-1.5">
                                     x{item.cantidad}
                                   </Badge>
                                 </div>
                               ))}
                             </div>
-                          ))}
-                        </div>
-                      )}
-
-                      {/* Repuestos En Proceso (Amarillo) */}
-                      {solicitudesAnteriores.filter(s => s.estado === 'pendiente' || s.estado === 'en_proceso').length > 0 && (
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2 text-xs font-medium text-yellow-700 uppercase tracking-wide">
-                            <Clock className="h-3.5 w-3.5" />
-                            <span>En Proceso</span>
-                          </div>
-                          {solicitudesAnteriores.filter(s => s.estado === 'pendiente' || s.estado === 'en_proceso').map(solicitud => (
-                            <div key={solicitud.id} className="p-2.5 bg-yellow-500/10 rounded-lg border border-yellow-500/30">
-                              {solicitud.repuestos?.map((item: any, idx: number) => (
-                                <div key={idx} className="flex items-center justify-between text-sm py-0.5">
-                                  <span className="truncate flex-1 text-xs">{item.descripcion}</span>
-                                  <Badge variant="outline" className="ml-2 text-[10px] h-4 px-1.5 bg-yellow-500/20 border-yellow-500/50">
-                                    x{item.cantidad}
-                                  </Badge>
-                                </div>
-                              ))}
-                            </div>
-                          ))}
+                          )}
                         </div>
                       )}
 
@@ -1282,10 +1312,28 @@ export default function DiagnosticoInicial() {
                                 </button>
                               </div>
                             ))}
-                            <Button onClick={handleEnviarSolicitudRepuestos} className="w-full mt-3" size="sm">
-                              <ShoppingCart className="w-4 h-4 mr-2" />
-                              Enviar a Bodega
-                            </Button>
+                            
+                            {/* Dos botones de despacho */}
+                            <div className="grid grid-cols-2 gap-2 mt-3">
+                              <Button 
+                                onClick={() => handleEnviarSolicitudRepuestos('bodega')} 
+                                variant="default"
+                                size="sm"
+                                className="w-full"
+                              >
+                                <Package className="w-4 h-4 mr-1" />
+                                Bodega
+                              </Button>
+                              <Button 
+                                onClick={() => handleEnviarSolicitudRepuestos('autoservicio')} 
+                                variant="secondary"
+                                size="sm"
+                                className="w-full"
+                              >
+                                <ShoppingCart className="w-4 h-4 mr-1" />
+                                Autoservicio
+                              </Button>
+                            </div>
                           </div>
                         ) : (
                           <div className="text-center py-6 text-muted-foreground border-2 border-dashed rounded-lg">
