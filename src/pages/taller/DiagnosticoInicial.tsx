@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Camera, CheckCircle2, Package, Plus, Minus, Search, ShoppingCart, X, Clock, Loader2, AlertCircle, Wrench, Ban } from "lucide-react";
+import { ArrowLeft, Camera, CheckCircle2, Package, Plus, Minus, Search, ShoppingCart, X, Clock, Loader2, AlertCircle, Wrench, Ban, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -925,7 +925,7 @@ export default function DiagnosticoInicial() {
                         : "bg-background border-border hover:border-border"
                     }`}
                   >
-                    <Wrench className="h-4 w-4 mr-1" />
+                    <CheckCircle2 className="h-4 w-4 mr-1" />
                     Sí
                   </Button>
                   <Button 
@@ -942,7 +942,7 @@ export default function DiagnosticoInicial() {
                         : "bg-background border-border hover:border-border"
                     }`}
                   >
-                    <Ban className="h-4 w-4 mr-1" />
+                    <XCircle className="h-4 w-4 mr-1" />
                     No
                   </Button>
                 </div>
@@ -978,7 +978,7 @@ export default function DiagnosticoInicial() {
                             : "bg-background border-border hover:border-border"
                         }`}
                       >
-                        <Ban className="h-4 w-4 mr-1" />
+                        <XCircle className="h-4 w-4 mr-1" />
                         No
                       </Button>
                     </div>
@@ -1015,10 +1015,14 @@ export default function DiagnosticoInicial() {
                       // Mostrar solo la resolución predeterminada (sin opciones)
                       <div className="p-4 bg-primary/10 border border-primary/30 rounded-lg">
                         <div className="flex items-center gap-3">
+                          <CheckCircle2 className="h-5 w-5 text-green-600" />
                           {tipoResolucion === "Reparar en Garantía" && <Wrench className="h-5 w-5 text-primary" />}
                           {tipoResolucion === "Presupuesto" && <ShoppingCart className="h-5 w-5 text-primary" />}
                           {tipoResolucion === "Canje" && <Package className="h-5 w-5 text-primary" />}
                           <span className="font-medium text-lg">{tipoResolucion}</span>
+                          <Badge variant="outline" className="ml-auto text-green-600 border-green-600">
+                            Seleccionado
+                          </Badge>
                         </div>
                       </div>
                     )}
