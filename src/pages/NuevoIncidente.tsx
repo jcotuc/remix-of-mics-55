@@ -441,12 +441,11 @@ export default function NuevoIncidente() {
     try {
       let codigoCliente = clienteSeleccionado?.codigo;
       let direccionEnvioId: string | null = null;
-      
+
       // Si hay una dirección seleccionada que no es temporal, usarla
       if (direccionSeleccionada && !direccionSeleccionada.startsWith('temp-')) {
         direccionEnvioId = direccionSeleccionada;
       }
-      
       if (mostrarFormNuevoCliente) {
         const {
           data: codigoData,
@@ -524,7 +523,7 @@ export default function NuevoIncidente() {
         }).select().single();
         if (dirError) throw dirError;
         direccionEnvioId = dirData.id;
-      } 
+      }
       // Si se seleccionó una dirección temporal (del cliente pero no guardada en direcciones_envio), crearla
       else if (direccionSeleccionada && direccionSeleccionada.startsWith('temp-') && opcionEnvio !== 'recoger') {
         const direccionTemp = direccionesEnvio.find(d => d.id === direccionSeleccionada);
@@ -601,7 +600,7 @@ export default function NuevoIncidente() {
           });
         }
       }
-      
+
       // Guardar datos para impresión
       setIncidenteCreado({
         codigo: incidenteData.codigo,
@@ -618,7 +617,6 @@ export default function NuevoIncidente() {
         tipologia: tipologia,
         esReingreso: esReingreso
       });
-      
       setShowSuccessDialog(true);
     } catch (error) {
       console.error('Error al guardar:', error);
@@ -640,7 +638,7 @@ export default function NuevoIncidente() {
           </Button>
           <div>
             <h1 className="text-xl font-semibold text-foreground">Nuevo Incidente</h1>
-            <p className="text-sm text-muted-foreground">Registro de ingreso de máquina</p>
+            
           </div>
         </div>
       </div>
@@ -1052,14 +1050,10 @@ export default function NuevoIncidente() {
           </AlertDialogHeader>
           
           <div className="flex justify-center my-4">
-            <Button 
-              variant="outline" 
-              className="gap-2"
-              onClick={() => {
-                setShowSuccessDialog(false);
-                setShowPrintDialog(true);
-              }}
-            >
+            <Button variant="outline" className="gap-2" onClick={() => {
+            setShowSuccessDialog(false);
+            setShowPrintDialog(true);
+          }}>
               <Printer className="h-4 w-4" />
               Imprimir Incidente
             </Button>
@@ -1070,10 +1064,10 @@ export default function NuevoIncidente() {
               Ir a Incidentes
             </AlertDialogCancel>
             <AlertDialogAction onClick={() => {
-              setShowSuccessDialog(false);
-              setIncidenteCreado(null);
-              resetForm();
-            }}>
+            setShowSuccessDialog(false);
+            setIncidenteCreado(null);
+            resetForm();
+          }}>
               Agregar otra máquina
             </AlertDialogAction>
           </AlertDialogFooter>
@@ -1090,23 +1084,21 @@ export default function NuevoIncidente() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           
-          {incidenteCreado && (
-            <div className="border rounded-lg overflow-auto max-h-[60vh] bg-white">
+          {incidenteCreado && <div className="border rounded-lg overflow-auto max-h-[60vh] bg-white">
               <IncidentePrintSheet data={incidenteCreado} />
-            </div>
-          )}
+            </div>}
           
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => {
-              setShowPrintDialog(false);
-              setShowSuccessDialog(true);
-            }}>
+            setShowPrintDialog(false);
+            setShowSuccessDialog(true);
+          }}>
               Volver
             </AlertDialogCancel>
             <AlertDialogAction onClick={() => {
-              // Pequeño delay para asegurar render antes de abrir el print preview
-              setTimeout(() => window.print(), 50);
-            }}>
+            // Pequeño delay para asegurar render antes de abrir el print preview
+            setTimeout(() => window.print(), 50);
+          }}>
               <Printer className="h-4 w-4 mr-2" />
               Imprimir
             </AlertDialogAction>
