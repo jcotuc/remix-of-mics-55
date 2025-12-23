@@ -71,14 +71,18 @@ export default function DanosTransporte() {
     setSelectedDano(dano);
     setCotizadorOpen(true);
     
-    // Fetch available parts for quotation
-    const { data } = await supabase
-      .from('repuestos')
-      .select('*')
+    // Fetch available parts for quotation using the relationship table
+    const { data: relaciones } = await supabase
+      .from('repuestos_productos')
+      .select('repuestos:repuestos!fk_repuesto(*)')
       .eq('codigo_producto', dano.incidente.codigo_producto)
       .limit(10);
     
-    setRepuestos(data || []);
+    const repuestosData = (relaciones || [])
+      .filter(r => r.repuestos)
+      .map(r => r.repuestos as Repuesto);
+    
+    setRepuestos(repuestosData);
   };
 
   const calcularTotal = () => {
