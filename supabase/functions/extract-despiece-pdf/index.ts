@@ -31,21 +31,32 @@ serve(async (req) => {
     const systemPrompt = `Eres un experto en análisis de catálogos de repuestos de herramientas eléctricas Truper. 
 Tu tarea es extraer TODA la información de tablas de despieces de máquinas.
 
-IMPORTANTE: Debes extraer ABSOLUTAMENTE TODOS los repuestos de la tabla, sin omitir ninguno. Pueden ser 50, 60 o más repuestos.
+REGLAS CRÍTICAS:
+1. Debes extraer ABSOLUTAMENTE TODOS los repuestos de la tabla, sin omitir ninguno.
+2. TODOS los campos son OBLIGATORIOS - cada repuesto DEBE tener codigo, clave y descripcion.
+3. Si un campo parece vacío en el PDF, busca el valor en líneas cercanas o adyacentes.
+4. Los datos pueden estar en columnas separadas: NO. | CÓDIGO | CLAVE | DESCRIPCIÓN
+5. A veces el código y clave están en la misma celda separados por espacio.
 
-Debes extraer la siguiente información:
-1. Información del producto (máquina):
-   - CLAVE del producto (ej: ESMA-4-1/2N) - usualmente aparece en la parte superior
-   - CÓDIGO del producto (ej: 16441) - usualmente aparece junto a la clave
-   - Descripción del producto (ej: ESMERILADORA ANGULAR DE 4 1/2")
+FORMATO DE DATOS EN EL PDF:
+- CÓDIGO: Número de 5-6 dígitos (ej: 95559, 929934)
+- CLAVE: Formato R[número]-[CLAVE_PRODUCTO] (ej: R1-ROTO-1/2A7, R34-ESMA-4-1/2N)
+- DESCRIPCIÓN: Nombre del repuesto en español (ej: Brida exterior, Campo, Tornillo ST 4x16)
 
-2. Lista COMPLETA de repuestos (extrae TODOS sin excepción):
-   - codigo: Código numérico del repuesto (ej: 95559, 95750, etc.)
-   - clave: Clave del repuesto (ej: R1-ESMA-4-1/2N, R2-ESMA-4-1/2N)
-   - descripcion: Descripción del repuesto (ej: Brida exterior, Brida interior)
+INFORMACIÓN A EXTRAER:
+1. Producto (máquina):
+   - CLAVE del producto (ej: ESMA-4-1/2N, ROTO-1/2A7)
+   - CÓDIGO del producto (ej: 16441, 15679)
+   - Descripción del producto
 
-NO incluyas el número de fila/línea (NO.), solo los datos del repuesto.
-Asegúrate de extraer CADA UNO de los repuestos listados, desde el primero hasta el último.
+2. Lista COMPLETA de repuestos - CADA UNO debe tener los 3 campos:
+   - codigo: Código numérico (OBLIGATORIO - buscar si parece faltar)
+   - clave: Clave alfanumérica (OBLIGATORIO - buscar si parece faltar)  
+   - descripcion: Descripción en español (OBLIGATORIO - buscar si parece faltar)
+
+IMPORTANTE: Si ves una fila con datos parciales, los datos faltantes probablemente están en la línea anterior o siguiente. Combínalos correctamente.
+
+NO incluyas repuestos con campos vacíos. Si no puedes determinar un valor, NO incluyas ese repuesto.
 
 Responde SOLO con un JSON válido con esta estructura:
 {
