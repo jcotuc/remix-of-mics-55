@@ -1147,38 +1147,37 @@ export default function DiagnosticoInicial() {
             </div>}
 
           {paso === 2 && <div className="space-y-4">
-              <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-                {/* Columna Izquierda: Repuestos Disponibles para la Máquina (3/5) */}
-                <div className="lg:col-span-3">
-                  <div className="relative">
-                    <div className="absolute -top-3 left-4 bg-background px-2 z-10">
-                      <span className="text-sm font-medium text-primary">Repuestos Disponibles</span>
-                    </div>
-                    <div className="border-2 border-primary/30 rounded-lg p-4 pt-5">
-                      {/* Outlined Search Field */}
-                      <div className="relative mb-4">
-                        <div className="absolute -top-2.5 left-3 bg-background px-1 z-10">
-                          <span className="text-xs text-muted-foreground">Buscar</span>
-                        </div>
-                        <div className="relative">
-                          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                          <input
-                            placeholder="Código, clave o descripción..."
-                            value={searchRepuesto}
-                            onChange={e => setSearchRepuesto(e.target.value)}
-                            className="w-full h-12 pl-10 pr-4 text-sm bg-transparent rounded-lg border-2 border-input outline-none transition-all duration-200 focus:border-primary focus:ring-0"
-                          />
-                        </div>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Columna Izquierda: Repuestos Disponibles */}
+                <div className="relative pt-3">
+                  <div className="absolute -top-0 left-4 bg-background px-2 z-10">
+                    <span className="text-xs font-medium text-primary">Repuestos Disponibles</span>
+                  </div>
+                  <div className="border-2 border-primary/40 rounded-lg p-4 pt-4 h-full">
+                    {/* Outlined Search Field */}
+                    <div className="relative pt-3 mb-4">
+                      <div className="absolute -top-0 left-3 bg-background px-1 z-10">
+                        <span className="text-xs text-muted-foreground">Buscar</span>
                       </div>
-                    <div className="max-h-[450px] overflow-y-auto pr-2 space-y-2">
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <input
+                          placeholder="Código, clave o descripción..."
+                          value={searchRepuesto}
+                          onChange={e => setSearchRepuesto(e.target.value)}
+                          className="w-full h-12 pl-10 pr-4 text-sm bg-transparent rounded-lg border-2 border-input outline-none transition-all duration-200 focus:border-primary focus:ring-0"
+                        />
+                      </div>
+                    </div>
+                    <div className="max-h-[400px] overflow-y-auto space-y-2">
                       {filteredRepuestos.length > 0 ? filteredRepuestos.map(repuesto => (
                         <div 
                           key={repuesto.id} 
-                          className="flex items-center gap-3 p-3 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors group" 
+                          className="flex items-center gap-3 p-2.5 border rounded-lg hover:bg-primary/5 hover:border-primary/40 cursor-pointer transition-all group" 
                           onClick={() => agregarRepuesto(repuesto)}
                         >
-                          <div className="w-10 h-10 bg-muted rounded-lg flex items-center justify-center flex-shrink-0">
-                            <Package className="w-5 h-5 text-muted-foreground" />
+                          <div className="w-8 h-8 bg-muted rounded flex items-center justify-center flex-shrink-0">
+                            <Package className="w-4 h-4 text-muted-foreground" />
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="font-medium text-sm truncate">{repuesto.descripcion}</p>
@@ -1188,56 +1187,50 @@ export default function DiagnosticoInicial() {
                                 <Badge 
                                   variant="outline" 
                                   className={cn(
-                                    "text-xs h-5",
+                                    "text-[10px] h-4 px-1.5",
                                     repuesto.stock_actual > 0 
                                       ? "bg-green-500/10 text-green-700 border-green-500/30" 
                                       : "bg-red-500/10 text-red-700 border-red-500/30"
                                   )}
                                 >
-                                  Stock: {repuesto.stock_actual}
+                                  {repuesto.stock_actual}
                                 </Badge>
                               )}
                             </div>
                           </div>
-                          <Button size="sm" variant="outline" className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Plus className="w-4 h-4" />
-                          </Button>
+                          <Plus className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
                         </div>
                       )) : (
-                        <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-                          <Package className="w-10 h-10 mb-2 opacity-30" />
+                        <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+                          <Package className="w-8 h-8 mb-2 opacity-30" />
                           <p className="text-sm">No se encontraron repuestos</p>
                         </div>
                       )}
                     </div>
-                    </div>
                   </div>
                 </div>
 
-                {/* Columna Derecha: Repuestos Solicitados (2/5) */}
-                <div className="lg:col-span-2 relative">
-                  <div className="absolute -top-3 left-4 bg-background px-2 z-10">
-                    <span className="text-sm font-medium text-muted-foreground">Solicitud de Repuestos</span>
+                {/* Columna Derecha: Solicitud de Repuestos */}
+                <div className="relative pt-3">
+                  <div className="absolute -top-0 left-4 bg-background px-2 z-10">
+                    <span className="text-xs font-medium text-muted-foreground">Solicitud de Repuestos</span>
                   </div>
-                  <div className="border-2 border-muted rounded-lg p-4 pt-6 h-full">
-                    <div className="space-y-4">
+                  <div className="border-2 border-muted rounded-lg p-4 pt-4 h-full">
+                    <div className="space-y-4 max-h-[480px] overflow-y-auto">
                       {/* Repuestos Despachados (Verde) */}
                       {solicitudesAnteriores.filter(s => s.estado === 'entregado').length > 0 && (
                         <div className="space-y-2">
-                          <div className="flex items-center gap-2 text-sm font-medium text-green-700">
-                            <CheckCircle2 className="h-4 w-4" />
+                          <div className="flex items-center gap-2 text-xs font-medium text-green-700 uppercase tracking-wide">
+                            <CheckCircle2 className="h-3.5 w-3.5" />
                             <span>Despachados</span>
                           </div>
                           {solicitudesAnteriores.filter(s => s.estado === 'entregado').map(solicitud => (
-                            <div key={solicitud.id} className="p-3 bg-green-500/10 rounded-lg border border-green-500/30">
-                              <p className="text-xs text-muted-foreground mb-1">
-                                {new Date(solicitud.created_at).toLocaleDateString('es-GT')}
-                              </p>
+                            <div key={solicitud.id} className="p-2.5 bg-green-500/10 rounded-lg border border-green-500/30">
                               {solicitud.repuestos?.map((item: any, idx: number) => (
-                                <div key={idx} className="flex items-center justify-between text-sm py-1">
-                                  <span className="font-medium truncate flex-1">{item.descripcion}</span>
-                                  <Badge variant="outline" className="ml-2 text-xs h-5 bg-green-500/20 border-green-500/50">
-                                    {item.cantidad}
+                                <div key={idx} className="flex items-center justify-between text-sm py-0.5">
+                                  <span className="truncate flex-1 text-xs">{item.descripcion}</span>
+                                  <Badge variant="outline" className="ml-2 text-[10px] h-4 px-1.5 bg-green-500/20 border-green-500/50">
+                                    x{item.cantidad}
                                   </Badge>
                                 </div>
                               ))}
@@ -1249,23 +1242,17 @@ export default function DiagnosticoInicial() {
                       {/* Repuestos En Proceso (Amarillo) */}
                       {solicitudesAnteriores.filter(s => s.estado === 'pendiente' || s.estado === 'en_proceso').length > 0 && (
                         <div className="space-y-2">
-                          <div className="flex items-center gap-2 text-sm font-medium text-yellow-700">
-                            <Clock className="h-4 w-4" />
-                            <span>En Proceso de Despacho</span>
+                          <div className="flex items-center gap-2 text-xs font-medium text-yellow-700 uppercase tracking-wide">
+                            <Clock className="h-3.5 w-3.5" />
+                            <span>En Proceso</span>
                           </div>
                           {solicitudesAnteriores.filter(s => s.estado === 'pendiente' || s.estado === 'en_proceso').map(solicitud => (
-                            <div key={solicitud.id} className="p-3 bg-yellow-500/10 rounded-lg border border-yellow-500/30">
-                              <div className="flex items-center justify-between mb-1">
-                                <p className="text-xs text-muted-foreground">
-                                  {new Date(solicitud.created_at).toLocaleDateString('es-GT')}
-                                </p>
-                                {solicitud.estado === 'en_proceso' && <Loader2 className="h-3 w-3 text-yellow-600 animate-spin" />}
-                              </div>
+                            <div key={solicitud.id} className="p-2.5 bg-yellow-500/10 rounded-lg border border-yellow-500/30">
                               {solicitud.repuestos?.map((item: any, idx: number) => (
-                                <div key={idx} className="flex items-center justify-between text-sm py-1">
-                                  <span className="font-medium truncate flex-1">{item.descripcion}</span>
-                                  <Badge variant="outline" className="ml-2 text-xs h-5 bg-yellow-500/20 border-yellow-500/50">
-                                    {item.cantidad}
+                                <div key={idx} className="flex items-center justify-between text-sm py-0.5">
+                                  <span className="truncate flex-1 text-xs">{item.descripcion}</span>
+                                  <Badge variant="outline" className="ml-2 text-[10px] h-4 px-1.5 bg-yellow-500/20 border-yellow-500/50">
+                                    x{item.cantidad}
                                   </Badge>
                                 </div>
                               ))}
@@ -1276,54 +1263,48 @@ export default function DiagnosticoInicial() {
 
                       {/* Nueva Solicitud (Por enviar) */}
                       <div className="space-y-2">
-                        <div className="flex items-center gap-2 text-sm font-medium text-primary">
-                          <ShoppingCart className="h-4 w-4" />
+                        <div className="flex items-center gap-2 text-xs font-medium text-primary uppercase tracking-wide">
+                          <ShoppingCart className="h-3.5 w-3.5" />
                           <span>Por Solicitar ({repuestosSolicitados.length})</span>
                         </div>
                         {repuestosSolicitados.length > 0 ? (
-                          <div className="space-y-2">
+                          <div className="space-y-1.5">
                             {repuestosSolicitados.map(item => (
-                              <div key={item.codigo} className="p-3 bg-primary/5 rounded-lg border border-primary/30">
-                                <div className="flex items-start gap-2">
-                                  <div className="flex-1 min-w-0">
-                                    <p className="font-medium text-sm truncate">{item.descripcion}</p>
-                                    <p className="text-xs text-muted-foreground font-mono">{item.codigo}</p>
-                                  </div>
-                                  <div className="flex items-center gap-1">
-                                    <Button size="sm" variant="outline" className="h-7 w-7 p-0" onClick={() => actualizarCantidad(item.codigo, item.cantidad - 1)}>
-                                      <Minus className="w-3 h-3" />
-                                    </Button>
-                                    <span className="text-sm font-medium w-8 text-center">{item.cantidad}</span>
-                                    <Button size="sm" variant="outline" className="h-7 w-7 p-0" onClick={() => actualizarCantidad(item.codigo, item.cantidad + 1)}>
-                                      <Plus className="w-3 h-3" />
-                                    </Button>
-                                    <Button size="sm" variant="ghost" className="h-7 w-7 p-0 ml-1 text-destructive hover:text-destructive" onClick={() => eliminarRepuesto(item.codigo)}>
-                                      <X className="w-3 h-3" />
-                                    </Button>
-                                  </div>
+                              <div key={item.codigo} className="flex items-center gap-2 p-2 bg-primary/5 rounded-lg border border-primary/30">
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs font-medium truncate">{item.descripcion}</p>
+                                  <p className="text-[10px] text-muted-foreground font-mono">{item.codigo}</p>
                                 </div>
+                                <Badge className="bg-primary/20 text-primary border-0 text-[10px] h-5 px-2">
+                                  x{item.cantidad}
+                                </Badge>
+                                <button 
+                                  onClick={() => eliminarRepuesto(item.codigo)}
+                                  className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
                               </div>
                             ))}
-                            <Button onClick={handleEnviarSolicitudRepuestos} className="w-full mt-3" size="default">
+                            <Button onClick={handleEnviarSolicitudRepuestos} className="w-full mt-3" size="sm">
                               <ShoppingCart className="w-4 h-4 mr-2" />
                               Enviar a Bodega
                             </Button>
                           </div>
                         ) : (
-                          <div className="text-center py-8 text-muted-foreground border-2 border-dashed rounded-lg">
-                            <ShoppingCart className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                            <p className="text-sm">Sin repuestos seleccionados</p>
-                            <p className="text-xs mt-1">Haz clic en un repuesto para agregarlo</p>
+                          <div className="text-center py-6 text-muted-foreground border-2 border-dashed rounded-lg">
+                            <ShoppingCart className="w-6 h-6 mx-auto mb-1.5 opacity-30" />
+                            <p className="text-xs">Haz clic en un repuesto para agregarlo</p>
                           </div>
                         )}
                       </div>
 
                       {/* Estado vacío cuando no hay nada */}
                       {solicitudesAnteriores.length === 0 && repuestosSolicitados.length === 0 && (
-                        <div className="text-center py-12 text-muted-foreground">
-                          <Package className="w-12 h-12 mx-auto mb-2 opacity-30" />
+                        <div className="text-center py-10 text-muted-foreground">
+                          <Package className="w-10 h-10 mx-auto mb-2 opacity-30" />
                           <p className="text-sm">No hay solicitudes de repuestos</p>
-                          <p className="text-xs mt-1">Selecciona repuestos de la columna izquierda</p>
+                          <p className="text-xs mt-1">Selecciona repuestos de la izquierda</p>
                         </div>
                       )}
                     </div>
