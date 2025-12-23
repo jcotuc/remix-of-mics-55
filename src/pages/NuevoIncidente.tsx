@@ -71,7 +71,9 @@ const stepperSteps = [{
 }];
 export default function NuevoIncidente() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const {
+    user
+  } = useAuth();
   const [paso, setPaso] = useState(1);
 
   // Paso 1: Cliente
@@ -115,7 +117,10 @@ export default function NuevoIncidente() {
   const [descripcionProblema, setDescripcionProblema] = useState("");
   const [accesoriosSeleccionados, setAccesoriosSeleccionados] = useState<string[]>([]);
   const [accesoriosDisponibles, setAccesoriosDisponibles] = useState<any[]>([]);
-  const [centrosServicioList, setCentrosServicioList] = useState<{id: string, nombre: string}[]>([]);
+  const [centrosServicioList, setCentrosServicioList] = useState<{
+    id: string;
+    nombre: string;
+  }[]>([]);
   const [centroServicio, setCentroServicio] = useState("");
   const [opcionEnvio, setOpcionEnvio] = useState<string>("");
   const [direccionesEnvio, setDireccionesEnvio] = useState<any[]>([]);
@@ -162,12 +167,9 @@ export default function NuevoIncidente() {
     const fetchCentrosYUsuario = async () => {
       try {
         // Cargar todos los centros de servicio
-        const { data: centros } = await supabase
-          .from('centros_servicio')
-          .select('id, nombre')
-          .eq('activo', true)
-          .order('nombre');
-        
+        const {
+          data: centros
+        } = await supabase.from('centros_servicio').select('id, nombre').eq('activo', true).order('nombre');
         if (centros) {
           setCentrosServicioList(centros);
         }
@@ -175,25 +177,20 @@ export default function NuevoIncidente() {
         // Establecer centro del usuario actual
         if (user) {
           // 1) Buscar por user_id (ideal)
-          const { data: profileById } = await supabase
-            .from('profiles')
-            .select('centro_servicio_id')
-            .eq('user_id', user.id)
-            .maybeSingle();
+          const {
+            data: profileById
+          } = await supabase.from('profiles').select('centro_servicio_id').eq('user_id', user.id).maybeSingle();
 
           // 2) Fallback por email (para filas antiguas donde user_id no coincide con auth.uid())
           let profile = profileById;
           if (!profile && user.email) {
-            const { data: profileByEmail } = await supabase
-              .from('profiles')
-              .select('centro_servicio_id')
-              .eq('email', user.email)
-              .order('created_at', { ascending: false })
-              .limit(1)
-              .maybeSingle();
+            const {
+              data: profileByEmail
+            } = await supabase.from('profiles').select('centro_servicio_id').eq('email', user.email).order('created_at', {
+              ascending: false
+            }).limit(1).maybeSingle();
             profile = profileByEmail;
           }
-
           if (profile?.centro_servicio_id) {
             setCentroServicio(profile.centro_servicio_id);
           }
@@ -204,7 +201,6 @@ export default function NuevoIncidente() {
     };
     fetchCentrosYUsuario();
   }, [user]);
-
   useEffect(() => {
     const fetchDirecciones = async () => {
       if (!clienteSeleccionado) return;
@@ -843,8 +839,7 @@ export default function NuevoIncidente() {
                 {/* SKU */}
                 <div className="space-y-3">
                   {/* Producto seleccionado - mostrar tarjeta con botón cambiar */}
-                  {productoSeleccionado ? (
-                    <div className="p-4 rounded-lg bg-primary/5 border-2 border-primary/30 flex gap-4">
+                  {productoSeleccionado ? <div className="p-4 rounded-lg bg-primary/5 border-2 border-primary/30 flex gap-4">
                       {productoSeleccionado.urlFoto && <img src={productoSeleccionado.urlFoto} alt="" className="w-20 h-20 object-cover rounded-lg border shrink-0" />}
                       <div className="min-w-0 flex-1">
                         <div className="flex items-start justify-between gap-2">
@@ -853,56 +848,34 @@ export default function NuevoIncidente() {
                               <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
                                 Seleccionado
                               </span>
-                              {productoSeleccionado.descontinuado ? (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-destructive/10 text-destructive">Descontinuado</span>
-                              ) : (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-500/10 text-green-600">Vigente</span>
-                              )}
+                              {productoSeleccionado.descontinuado ? <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-destructive/10 text-destructive">Descontinuado</span> : <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-500/10 text-green-600">Vigente</span>}
                             </div>
                             <h3 className="font-semibold text-foreground">{productoSeleccionado.descripcion}</h3>
                             <p className="text-sm text-muted-foreground mt-1">{productoSeleccionado.codigo} • {productoSeleccionado.clave}</p>
                           </div>
-                          <Button 
-                            size="sm" 
-                            variant="ghost" 
-                            onClick={() => {
-                              setProductoSeleccionado(null);
-                              setSkuMaquina("");
-                              setProductosEncontrados([]);
-                            }}
-                          >
+                          <Button size="sm" variant="ghost" onClick={() => {
+                      setProductoSeleccionado(null);
+                      setSkuMaquina("");
+                      setProductosEncontrados([]);
+                    }}>
                             Cambiar
                           </Button>
                         </div>
                       </div>
-                    </div>
-                  ) : (
-                    <>
+                    </div> : <>
                       {/* Búsqueda de producto */}
-                      <OutlinedInput 
-                        label="SKU de la Máquina" 
-                        value={skuMaquina} 
-                        onChange={e => {
-                          setSkuMaquina(e.target.value);
-                          if (!e.target.value) setProductoSeleccionado(null);
-                        }} 
-                        icon={<Search className="w-4 h-4" />} 
-                        required 
-                      />
+                      <OutlinedInput label="SKU de la Máquina" value={skuMaquina} onChange={e => {
+                  setSkuMaquina(e.target.value);
+                  if (!e.target.value) setProductoSeleccionado(null);
+                }} icon={<Search className="w-4 h-4" />} required />
 
                       {/* Lista de productos encontrados */}
-                      {productosEncontrados.length > 0 && (
-                        <div className="border rounded-lg max-h-48 overflow-y-auto divide-y">
-                          {productosEncontrados.map(producto => (
-                            <div 
-                              key={producto.codigo} 
-                              className="p-3 hover:bg-primary/5 cursor-pointer transition-colors flex items-center justify-between gap-3" 
-                              onClick={() => {
-                                setProductoSeleccionado(producto);
-                                setSkuMaquina(producto.codigo);
-                                setProductosEncontrados([]);
-                              }}
-                            >
+                      {productosEncontrados.length > 0 && <div className="border rounded-lg max-h-48 overflow-y-auto divide-y">
+                          {productosEncontrados.map(producto => <div key={producto.codigo} className="p-3 hover:bg-primary/5 cursor-pointer transition-colors flex items-center justify-between gap-3" onClick={() => {
+                    setProductoSeleccionado(producto);
+                    setSkuMaquina(producto.codigo);
+                    setProductosEncontrados([]);
+                  }}>
                               <div className="min-w-0 flex-1">
                                 <p className="font-medium text-sm">{producto.descripcion}</p>
                                 <p className="text-xs text-muted-foreground">
@@ -910,12 +883,9 @@ export default function NuevoIncidente() {
                                 </p>
                               </div>
                               <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </>
-                  )}
+                            </div>)}
+                        </div>}
+                    </>}
                 </div>
 
                 {/* Descripción del problema */}
@@ -930,9 +900,9 @@ export default function NuevoIncidente() {
                 {/* Centro de Servicio y Reingreso */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
                   <OutlinedSelect label="Centro de Servicio" value={centroServicio} onValueChange={setCentroServicio} options={centrosServicioList.map(c => ({
-                    value: c.id,
-                    label: c.nombre
-                  }))} required />
+                value: c.id,
+                label: c.nombre
+              }))} required />
                   <div className="flex items-center space-x-3 p-3 rounded-lg border hover:bg-muted/30 transition-colors h-[52px]">
                     <Checkbox id="reingreso" checked={esReingreso} onCheckedChange={checked => setEsReingreso(checked as boolean)} />
                     <Label htmlFor="reingreso" className="cursor-pointer font-normal flex-1">Es un reingreso</Label>
@@ -943,20 +913,10 @@ export default function NuevoIncidente() {
                 <div className="space-y-3">
                   <p className="text-sm font-medium text-muted-foreground">Tipología *</p>
                   <div className="grid grid-cols-2 gap-2">
-                    <Button
-                      type="button"
-                      variant={tipologia === 'Mantenimiento' ? 'default' : 'outline'}
-                      className="w-full"
-                      onClick={() => setTipologia('Mantenimiento')}
-                    >
+                    <Button type="button" variant={tipologia === 'Mantenimiento' ? 'default' : 'outline'} className="w-full" onClick={() => setTipologia('Mantenimiento')}>
                       Mantenimiento
                     </Button>
-                    <Button
-                      type="button"
-                      variant={tipologia === 'Reparación' ? 'default' : 'outline'}
-                      className="w-full"
-                      onClick={() => setTipologia('Reparación')}
-                    >
+                    <Button type="button" variant={tipologia === 'Reparación' ? 'default' : 'outline'} className="w-full" onClick={() => setTipologia('Reparación')}>
                       Reparación
                     </Button>
                   </div>
@@ -1006,10 +966,7 @@ export default function NuevoIncidente() {
                 <Separator className="my-2" />
 
                 {/* Opciones adicionales - Stock Cemaco */}
-                <div className="flex items-center space-x-3 p-3 rounded-lg border hover:bg-muted/30 transition-colors">
-                  <Checkbox id="stockCemaco" checked={esStockCemaco} onCheckedChange={checked => setEsStockCemaco(checked as boolean)} />
-                  <Label htmlFor="stockCemaco" className="cursor-pointer font-normal flex-1">Es stock de tienda</Label>
-                </div>
+                
 
                 {/* Observaciones */}
                 <OutlinedTextarea label="Observaciones (LOG)" value={logObservaciones} onChange={e => setLogObservaciones(e.target.value)} />
