@@ -1010,6 +1010,7 @@ export type Database = {
           quiere_envio: boolean | null
           sku_maquina: string | null
           status: Database["public"]["Enums"]["status_incidente"]
+          tecnico_asignado_id: string | null
           tipologia: string | null
           updated_at: string
         }
@@ -1044,6 +1045,7 @@ export type Database = {
           quiere_envio?: boolean | null
           sku_maquina?: string | null
           status?: Database["public"]["Enums"]["status_incidente"]
+          tecnico_asignado_id?: string | null
           tipologia?: string | null
           updated_at?: string
         }
@@ -1078,6 +1080,7 @@ export type Database = {
           quiere_envio?: boolean | null
           sku_maquina?: string | null
           status?: Database["public"]["Enums"]["status_incidente"]
+          tecnico_asignado_id?: string | null
           tipologia?: string | null
           updated_at?: string
         }

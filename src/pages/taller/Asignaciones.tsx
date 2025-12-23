@@ -164,11 +164,31 @@ export default function Asignaciones() {
       return;
     }
     try {
-      const {
-        error
-      } = await supabase.from('incidentes').update({
-        status: 'En diagnostico'
-      }).eq('id', incidenteId);
+      // Obtener el usuario actual para asignar tecnico_asignado_id
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error('No se pudo obtener el usuario actual');
+        return;
+      }
+
+      // Obtener el perfil del técnico para codigo_tecnico (display)
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('codigo_empleado, nombre, apellido')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      const codigoTecnico = profile?.codigo_empleado || `${profile?.nombre || ''} ${profile?.apellido || ''}`.trim() || user.id;
+
+      const { error } = await supabase
+        .from('incidentes')
+        .update({
+          status: 'En diagnostico',
+          tecnico_asignado_id: user.id,
+          codigo_tecnico: codigoTecnico
+        })
+        .eq('id', incidenteId);
+
       if (error) throw error;
       toast.success('Incidente asignado');
       // Redirigir a la página de diagnóstico
