@@ -163,16 +163,24 @@ export default function Despieces() {
     const producto = productosDisponibles.find(p => p.codigo === selectedProducto);
     if (!producto) return;
 
-    // Obtener repuestos del producto
-    const { data: repuestos, error: repuestosError } = await supabase
-      .from('repuestos')
-      .select('codigo, descripcion')
+    // Obtener repuestos del producto usando la tabla de relación
+    const { data: relacionesRepuestos, error: repuestosError } = await supabase
+      .from('repuestos_productos')
+      .select('codigo_repuesto, repuestos:repuestos!fk_repuesto(codigo, descripcion)')
       .eq('codigo_producto', producto.codigo);
 
     if (repuestosError) {
       toast.error('Error al cargar repuestos');
       return;
     }
+    
+    // Mapear los repuestos desde la relación
+    const repuestos = (relacionesRepuestos || [])
+      .filter(r => r.repuestos)
+      .map(r => ({
+        codigo: (r.repuestos as any).codigo,
+        descripcion: (r.repuestos as any).descripcion
+      }));
 
     const repuestosDisponibles = (repuestos || []).map(r => ({
       codigo: r.codigo,
