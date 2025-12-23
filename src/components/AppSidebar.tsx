@@ -223,14 +223,14 @@ export function AppSidebar() {
                 </h2>
               </div>
               {(profile || userRole) && (
-                <div className="ml-10 sm:ml-11 space-y-0.5">
+                <div className="ml-10 sm:ml-11 flex flex-col gap-1">
                   {profile && (
-                    <p className="text-xs sm:text-sm font-medium text-secondary-foreground truncate">
+                    <p className="text-xs sm:text-sm font-medium text-secondary-foreground leading-tight">
                       {profile.nombre} {profile.apellido}
                     </p>
                   )}
                   {userRole && (
-                    <span className="text-[10px] sm:text-xs font-medium text-secondary-foreground/80 uppercase tracking-wider px-1.5 sm:px-2 py-0.5 sm:py-1 bg-secondary-foreground/10 rounded inline-block">
+                    <span className="text-[10px] sm:text-xs font-medium text-secondary-foreground/80 uppercase tracking-wider px-1.5 sm:px-2 py-0.5 bg-secondary-foreground/10 rounded w-fit">
                       {userRole === 'mostrador' && 'Mostrador'}
                       {userRole === 'logistica' && 'Logística'}
                       {userRole === 'taller' && 'Taller'}

@@ -8,12 +8,22 @@ interface LayoutProps {
 }
 
 function LayoutContent({ children }: LayoutProps) {
-  const { isMobile, toggleSidebar } = useSidebar();
+  const { isMobile, toggleSidebar, state, setOpen } = useSidebar();
+  const isOpen = state === "expanded";
+
+  const handleMainClick = () => {
+    if (isOpen && !isMobile) {
+      setOpen(false);
+    }
+  };
 
   return (
-    <div className="flex-1 flex flex-col w-full min-w-0">
+    <div className="flex-1 flex flex-col w-full min-w-0" onClick={handleMainClick}>
       {/* Header responsive con mejor UX móvil */}
-      <header className="h-12 sm:h-14 md:h-16 border-b border-border bg-secondary flex items-center px-2 sm:px-4 md:px-6 shadow-md sticky top-0 z-20">
+      <header 
+        className="h-12 sm:h-14 md:h-16 border-b border-border bg-secondary flex items-center px-2 sm:px-4 md:px-6 shadow-md sticky top-0 z-20"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Botón de menú móvil más prominente */}
         {isMobile ? (
           <Button
