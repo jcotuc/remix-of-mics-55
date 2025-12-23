@@ -395,7 +395,7 @@ export default function Asignaciones() {
                       className={`p-4 rounded-xl transition-all duration-200 min-h-[100px] flex flex-col justify-between ${
                         !hasIncidentes 
                           ? 'bg-muted/30 border border-dashed border-border cursor-default opacity-60'
-                          : 'bg-gradient-to-br from-orange-500 to-orange-600 hover:from-orange-400 hover:to-orange-500 text-white border border-orange-400/50 shadow-lg shadow-orange-500/20 cursor-pointer hover:scale-[1.02] active:scale-[0.98]'
+                          : 'bg-orange-500/20 hover:bg-orange-500/30 text-foreground border border-orange-400/50 shadow-lg shadow-orange-500/10 cursor-pointer hover:scale-[1.02] active:scale-[0.98]'
                       }`}
                       onClick={() => {
                         if (!hasIncidentes) return;
@@ -412,7 +412,7 @@ export default function Asignaciones() {
                               <Button 
                                 variant="ghost" 
                                 size="icon" 
-                                className="h-6 w-6 -mt-1 -mr-1 text-inherit hover:bg-white/20"
+                                className="h-6 w-6 -mt-1 -mr-1 text-orange-600 hover:bg-orange-500/20"
                                 onClick={toggleList}
                               >
                                 {showList ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -425,15 +425,15 @@ export default function Asignaciones() {
                         )}
                       </div>
                       
-                      <div className={`flex items-center justify-between mt-3 pt-2 ${hasIncidentes ? 'border-t border-white/20' : 'border-t border-border/50'}`}>
+                      <div className={`flex items-center justify-between mt-3 pt-2 ${hasIncidentes ? 'border-t border-orange-400/30' : 'border-t border-border/50'}`}>
                         <Badge 
                           variant={hasIncidentes ? "secondary" : "outline"} 
-                          className={`text-xs ${hasIncidentes ? 'bg-white/20 text-inherit border-0' : ''}`}
+                          className={`text-xs ${hasIncidentes ? 'bg-orange-500/30 text-orange-700 border-0' : ''}`}
                         >
                           {incidentesFamilia.length} en cola
                         </Badge>
                         {hasIncidentes && (
-                          <Plus className="h-5 w-5 opacity-80" />
+                          <Plus className="h-5 w-5 text-orange-600 opacity-80" />
                         )}
                       </div>
                     </div>
