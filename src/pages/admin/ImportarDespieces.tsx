@@ -184,10 +184,25 @@ export default function ImportarDespieces() {
   };
 
   const processAllPdfs = async () => {
+    if (pdfFiles.length === 0) {
+      toast.error("No hay archivos PDF para procesar");
+      return;
+    }
+    
+    const pendingFiles = pdfFiles.filter(f => f.status === 'pending');
+    if (pendingFiles.length === 0) {
+      toast.info("Todos los archivos ya fueron procesados");
+      return;
+    }
+    
     setIsProcessingPdf(true);
     
-    for (let i = 0; i < pdfFiles.length; i++) {
-      if (pdfFiles[i].status !== 'pending') continue;
+    // Copy current files to process
+    const filesToProcess = [...pdfFiles];
+    
+    for (let i = 0; i < filesToProcess.length; i++) {
+      const fileItem = filesToProcess[i];
+      if (fileItem.status !== 'pending') continue;
       
       setCurrentPdfIndex(i);
       setPdfFiles(prev => prev.map((f, idx) => 
@@ -195,11 +210,17 @@ export default function ImportarDespieces() {
       ));
 
       try {
-        const result = await processPdfFile(pdfFiles[i], i);
+        const result = await processPdfFile(fileItem, i);
         setPdfFiles(prev => prev.map((f, idx) => 
           idx === i ? { ...f, status: 'done', extractedData: result } : f
         ));
+        
+        // Auto-select first successful result
+        if (!extractedData && result) {
+          setExtractedData(result);
+        }
       } catch (error: any) {
+        console.error(`Error processing PDF ${fileItem.file.name}:`, error);
         setPdfFiles(prev => prev.map((f, idx) => 
           idx === i ? { ...f, status: 'error', error: error.message } : f
         ));
@@ -208,7 +229,9 @@ export default function ImportarDespieces() {
     
     setCurrentPdfIndex(null);
     setIsProcessingPdf(false);
-    toast.success("Procesamiento completado");
+    
+    const doneCount = pdfFiles.filter(f => f.status === 'done').length + pendingFiles.length;
+    toast.success(`Procesamiento completado: ${doneCount} archivo(s)`);
   };
 
   const selectPdfResult = (index: number) => {
