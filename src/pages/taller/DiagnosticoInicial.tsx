@@ -402,11 +402,19 @@ export default function DiagnosticoInicial() {
         .order('descripcion');
       if (error) throw error;
 
-      // 2.5. Obtener centro_servicio_id del usuario y consultar inventario
+      // 2.5. Extraer códigos de repuestos para consultar inventario
+      const codigosRepuestos = (data || []).map(r => r.codigo);
+      // También incluir códigos padre para buscar stock
+      const codigosPadre = codigosRepuestos
+        .map(codigo => newHijoPadreMap.get(codigo))
+        .filter(Boolean) as string[];
+      const todosLosCodigos = [...new Set([...codigosRepuestos, ...codigosPadre])];
+
+      // 2.6. Obtener centro_servicio_id del usuario y consultar inventario SOLO para los códigos necesarios
       const { data: { user } } = await supabase.auth.getUser();
       let stockMap = new Map<string, { cantidad: number; ubicacion: string }>();
       
-      if (user) {
+      if (user && todosLosCodigos.length > 0) {
         const { data: profile } = await supabase
           .from('profiles')
           .select('centro_servicio_id')
@@ -417,7 +425,8 @@ export default function DiagnosticoInicial() {
           const { data: inventarioData } = await supabase
             .from('inventario')
             .select('codigo_repuesto, cantidad, ubicacion')
-            .eq('centro_servicio_id', profile.centro_servicio_id);
+            .eq('centro_servicio_id', profile.centro_servicio_id)
+            .in('codigo_repuesto', todosLosCodigos);
 
           // Crear mapa de stock (sumando si hay múltiples ubicaciones)
           inventarioData?.forEach(item => {
@@ -434,7 +443,7 @@ export default function DiagnosticoInicial() {
               });
             }
           });
-          console.log('Stock cargado para', inventarioData?.length || 0, 'repuestos');
+          console.log('Stock cargado para', inventarioData?.length || 0, 'repuestos de', todosLosCodigos.length, 'códigos buscados');
         }
       }
 
