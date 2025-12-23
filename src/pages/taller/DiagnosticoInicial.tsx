@@ -402,6 +402,42 @@ export default function DiagnosticoInicial() {
         .order('descripcion');
       if (error) throw error;
 
+      // 2.5. Obtener centro_servicio_id del usuario y consultar inventario
+      const { data: { user } } = await supabase.auth.getUser();
+      let stockMap = new Map<string, { cantidad: number; ubicacion: string }>();
+      
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('centro_servicio_id')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (profile?.centro_servicio_id) {
+          const { data: inventarioData } = await supabase
+            .from('inventario')
+            .select('codigo_repuesto, cantidad, ubicacion')
+            .eq('centro_servicio_id', profile.centro_servicio_id);
+
+          // Crear mapa de stock (sumando si hay múltiples ubicaciones)
+          inventarioData?.forEach(item => {
+            const existing = stockMap.get(item.codigo_repuesto);
+            if (existing) {
+              stockMap.set(item.codigo_repuesto, {
+                cantidad: existing.cantidad + item.cantidad,
+                ubicacion: existing.ubicacion + ', ' + item.ubicacion
+              });
+            } else {
+              stockMap.set(item.codigo_repuesto, {
+                cantidad: item.cantidad,
+                ubicacion: item.ubicacion || ''
+              });
+            }
+          });
+          console.log('Stock cargado para', inventarioData?.length || 0, 'repuestos');
+        }
+      }
+
       // 3. Transformar: reemplazar códigos hijo por padre
       const repuestosTransformados: any[] = [];
       const codigosVistos = new Set<string>();
@@ -415,12 +451,18 @@ export default function DiagnosticoInicial() {
 
           // Obtener descripción del padre si existe
           const descripcionPadre = padreDescripcionMap.get(codigoFinal);
+          
+          // Obtener stock del inventario
+          const stockInfo = stockMap.get(codigoFinal);
+          
           repuestosTransformados.push({
             ...repuesto,
             codigo: codigoFinal,
             codigoOriginal: codigoPadre ? repuesto.codigo : undefined,
             descripcion: descripcionPadre || repuesto.descripcion,
-            esCodigoPadre: !!codigoPadre
+            esCodigoPadre: !!codigoPadre,
+            stock_actual: stockInfo?.cantidad || 0,
+            ubicacion_inventario: stockInfo?.ubicacion || null
           });
           if (codigoPadre) {
             console.log(`Transformado: ${repuesto.codigo} → ${codigoFinal}`);
