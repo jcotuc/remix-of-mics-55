@@ -452,8 +452,11 @@ export default function DiagnosticoInicial() {
           // Obtener descripción del padre si existe
           const descripcionPadre = padreDescripcionMap.get(codigoFinal);
           
-          // Obtener stock del inventario
-          const stockInfo = stockMap.get(codigoFinal);
+          // Obtener stock del inventario - buscar por código final O código original
+          let stockInfo = stockMap.get(codigoFinal);
+          if (!stockInfo && repuesto.codigo !== codigoFinal) {
+            stockInfo = stockMap.get(repuesto.codigo);
+          }
           
           repuestosTransformados.push({
             ...repuesto,
