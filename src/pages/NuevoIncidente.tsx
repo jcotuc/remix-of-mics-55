@@ -415,14 +415,7 @@ export default function NuevoIncidente() {
       });
       return false;
     }
-    if (mediaFiles.length === 0) {
-      toast({
-        title: "Error",
-        description: "Debe agregar al menos 1 foto del ingreso de la máquina",
-        variant: "destructive"
-      });
-      return false;
-    }
+    // Fotos son opcionales por ahora
     return true;
   };
   const guardarIncidente = async () => {
