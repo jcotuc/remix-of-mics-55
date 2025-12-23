@@ -454,7 +454,8 @@ export default function InventarioAdmin() {
         costo_unitario: number | null;
       };
 
-      const toUpsert: UpsertRow[] = [];
+      // Usar Map para deduplicar: último valor gana
+      const upsertMap = new Map<string, UpsertRow>();
       let skippedNoSku = 0;
       let skippedNoCentro = 0;
       const skippedByCS = new Map<string, number>();
@@ -497,7 +498,6 @@ export default function InventarioAdmin() {
           if (duplicateDetails.length < 10) {
             duplicateDetails.push(`SKU ${sku} en ${numeroBodega} (filas ${seenKeys.get(key)! + 2} y ${rowIndex + 2})`);
           }
-          // Continuar para que el último valor prevalezca
         }
         seenKeys.set(key, rowIndex);
 
@@ -508,7 +508,8 @@ export default function InventarioAdmin() {
         const costoRaw = findValue(row, "COSTO UN", "COSTO  UN", "COSTO_UN", "costo_un", "COSTO UNITARIO") || "0";
         const costoUnitario = parseFloat(costoRaw.replace(/,/g, "").replace("Q", "").replace("$", "")) || 0;
 
-        toUpsert.push({
+        // Usar Map para que el último valor gane (sobrescribe duplicados)
+        upsertMap.set(key, {
           centro_servicio_id: centroId,
           codigo_repuesto: sku,
           descripcion: descripcion || null,
@@ -521,6 +522,9 @@ export default function InventarioAdmin() {
         centrosAfectados.add(centroId);
         if (!firstCentroId) firstCentroId = centroId;
       }
+
+      // Convertir Map a Array (ya sin duplicados)
+      const toUpsert = Array.from(upsertMap.values());
 
       const totalToUpsert = toUpsert.length;
       setImportProgress({ processed: 0, total: totalToUpsert });
