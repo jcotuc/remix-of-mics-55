@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,7 @@ import { TablePagination } from "@/components/TablePagination";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface CentroServicio {
   id: string;
@@ -62,11 +63,14 @@ export default function InventarioAdmin() {
   const [inventario, setInventario] = useState<InventarioItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [importStep, setImportStep] = useState<ImportStep>("idle");
   const [importProgress, setImportProgress] = useState<{ processed: number; total: number } | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(50);
+  const [totalCount, setTotalCount] = useState(0);
+  const [totals, setTotals] = useState({ skus: 0, unidades: 0, valor: 0 });
   
   // Estados para análisis y pre-importación
   const [analysisResults, setAnalysisResults] = useState<AnalisisCS[]>([]);
@@ -76,6 +80,15 @@ export default function InventarioAdmin() {
   const [importSummary, setImportSummary] = useState<ImportSummary | null>(null);
   const [importStartTime, setImportStartTime] = useState<number | null>(null);
   const keepAliveRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Debounce search term
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+      setCurrentPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
   useEffect(() => {
     fetchCentros();
@@ -89,14 +102,13 @@ export default function InventarioAdmin() {
   useEffect(() => {
     if (selectedCentro) {
       fetchInventario();
+      fetchTotals();
     } else {
       setInventario([]);
+      setTotals({ skus: 0, unidades: 0, valor: 0 });
+      setTotalCount(0);
     }
-  }, [selectedCentro]);
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, selectedCentro]);
+  }, [selectedCentro, currentPage, itemsPerPage, debouncedSearch]);
 
   const fetchCentros = async () => {
     const { data, error } = await supabase
@@ -110,87 +122,78 @@ export default function InventarioAdmin() {
     }
   };
 
+  const fetchTotals = async () => {
+    if (!selectedCentro) return;
+    
+    try {
+      const centroId = selectedCentro === "todos" ? null : selectedCentro;
+      const { data, error } = await supabase.rpc('inventario_totales', {
+        p_centro_servicio_id: centroId,
+        p_search: debouncedSearch || null
+      });
+
+      if (error) {
+        console.error("Error fetching totals:", error);
+        return;
+      }
+
+      if (data && data.length > 0) {
+        setTotals({
+          skus: Number(data[0].skus) || 0,
+          unidades: Number(data[0].unidades) || 0,
+          valor: Number(data[0].valor) || 0
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching totals:", error);
+    }
+  };
+
   const fetchInventario = async () => {
     if (!selectedCentro) return;
     setLoading(true);
 
     try {
-      // Si es "todos", necesitamos paginar porque Supabase tiene límite de 1000
-      if (selectedCentro === "todos") {
-        const allData: InventarioItem[] = [];
-        const PAGE_SIZE = 1000;
-        let page = 0;
-        let hasMore = true;
+      const start = (currentPage - 1) * itemsPerPage;
+      const end = start + itemsPerPage - 1;
 
-        while (hasMore) {
-          const { data, error } = await supabase
-            .from("inventario")
-            .select("*")
-            .order("codigo_repuesto")
-            .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+      let query = supabase
+        .from("inventario")
+        .select("*", { count: 'exact' });
 
-          if (error) {
-            console.error("Error fetching inventario:", error);
-            toast.error("Error al cargar inventario");
-            break;
-          }
-
-          if (data && data.length > 0) {
-            allData.push(...data);
-            hasMore = data.length === PAGE_SIZE;
-            page++;
-          } else {
-            hasMore = false;
-          }
-        }
-
-        setInventario(allData);
-      } else {
-        // Para un centro específico, una sola consulta debería bastar
-        const { data, error } = await supabase
-          .from("inventario")
-          .select("*")
-          .eq("centro_servicio_id", selectedCentro)
-          .order("codigo_repuesto");
-
-        if (!error && data) {
-          setInventario(data);
-        } else if (error) {
-          console.error("Error fetching inventario:", error);
-          toast.error("Error al cargar inventario");
-        }
+      // Filter by centro if not "todos"
+      if (selectedCentro !== "todos") {
+        query = query.eq("centro_servicio_id", selectedCentro);
       }
+
+      // Apply search filter on server
+      if (debouncedSearch) {
+        query = query.or(
+          `codigo_repuesto.ilike.%${debouncedSearch}%,descripcion.ilike.%${debouncedSearch}%,ubicacion.ilike.%${debouncedSearch}%,bodega.ilike.%${debouncedSearch}%`
+        );
+      }
+
+      const { data, error, count } = await query
+        .order("codigo_repuesto")
+        .range(start, end);
+
+      if (error) {
+        console.error("Error fetching inventario:", error);
+        toast.error("Error al cargar inventario");
+        return;
+      }
+
+      setInventario(data || []);
+      setTotalCount(count || 0);
+    } catch (error) {
+      console.error("Error:", error);
+      toast.error("Error al cargar inventario");
     } finally {
       setLoading(false);
     }
   };
 
-  const filteredInventario = useMemo(() => {
-    if (!searchTerm) return inventario;
-    const term = searchTerm.toLowerCase();
-    return inventario.filter(
-      (item) =>
-        item.codigo_repuesto.toLowerCase().includes(term) ||
-        item.descripcion?.toLowerCase().includes(term) ||
-        item.ubicacion?.toLowerCase().includes(term) ||
-        item.bodega?.toLowerCase().includes(term)
-    );
-  }, [inventario, searchTerm]);
-
-  const totalPages = Math.ceil(filteredInventario.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedInventario = filteredInventario.slice(startIndex, startIndex + itemsPerPage);
-
-  const totals = useMemo(() => {
-    return {
-      skus: filteredInventario.length,
-      unidades: filteredInventario.reduce((sum, item) => sum + item.cantidad, 0),
-      valor: filteredInventario.reduce(
-        (sum, item) => sum + item.cantidad * (item.costo_unitario || 0),
-        0
-      ),
-    };
-  }, [filteredInventario]);
+  const totalPages = Math.max(1, Math.ceil(totalCount / itemsPerPage));
 
   // Normaliza texto removiendo acentos
   const normalizeText = (text: string): string => {
@@ -760,15 +763,22 @@ export default function InventarioAdmin() {
         </CardHeader>
         <CardContent>
           {loading ? (
-            <div className="flex justify-center py-8">
-              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            <div className="space-y-2">
+              {Array.from({ length: 10 }).map((_, i) => (
+                <Skeleton key={i} className="h-12 w-full" />
+              ))}
             </div>
           ) : !selectedCentro ? (
             <p className="text-center py-8 text-muted-foreground">
               Seleccione un centro de servicio para ver su inventario
             </p>
-          ) : paginatedInventario.length === 0 ? (
-            <p className="text-center py-8 text-muted-foreground">No hay datos de inventario</p>
+          ) : inventario.length === 0 ? (
+            <p className="text-center py-8 text-muted-foreground">
+              {debouncedSearch 
+                ? `No se encontraron resultados para "${debouncedSearch}"`
+                : "No hay datos de inventario"
+              }
+            </p>
           ) : (
             <>
               <div className="rounded-md border overflow-x-auto">
@@ -785,7 +795,7 @@ export default function InventarioAdmin() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {paginatedInventario.map((item) => (
+                    {inventario.map((item) => (
                       <TableRow key={item.id}>
                         <TableCell>{item.ubicacion || "-"}</TableCell>
                         <TableCell className="font-mono">{item.codigo_repuesto}</TableCell>
@@ -806,7 +816,7 @@ export default function InventarioAdmin() {
               <TablePagination
                 currentPage={currentPage}
                 totalPages={totalPages}
-                totalItems={filteredInventario.length}
+                totalItems={totalCount}
                 itemsPerPage={itemsPerPage}
                 onPageChange={setCurrentPage}
                 onItemsPerPageChange={(val) => {

@@ -2487,6 +2487,14 @@ export type Database = {
         }
         Returns: boolean
       }
+      inventario_totales: {
+        Args: { p_centro_servicio_id: string; p_search: string }
+        Returns: {
+          skus: number
+          unidades: number
+          valor: number
+        }[]
+      }
     }
     Enums: {
       app_role:
