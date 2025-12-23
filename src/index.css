@@ -177,3 +177,31 @@
     }
   }
 }
+
+/* Print Styles */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  
+  .print-sheet,
+  .print-sheet * {
+    visibility: visible;
+  }
+  
+  .print-sheet {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 210mm !important;
+    min-height: 297mm !important;
+    margin: 0 !important;
+    padding: 10mm !important;
+  }
+  
+  /* Hide dialogs backdrop when printing */
+  [data-radix-dialog-overlay],
+  [data-radix-alert-dialog-overlay] {
+    display: none !important;
+  }
+}
