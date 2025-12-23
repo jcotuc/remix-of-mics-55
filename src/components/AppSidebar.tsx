@@ -120,12 +120,18 @@ const menuAreas = {
 };
 
 export function AppSidebar() {
-  const { state } = useSidebar();
+  const { state, isMobile, setOpenMobile } = useSidebar();
   const location = useLocation();
   const currentPath = location.pathname;
-  const isCollapsed = state === "collapsed";
+  const isCollapsed = state === "collapsed" && !isMobile;
   const { userRole, signOut } = useAuth();
   const { tienePermiso, tieneAlgunPermiso, loading: permisosLoading } = usePermisos();
+
+  const handleNavClick = () => {
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  };
 
   const getNavCls = ({ isActive }: { isActive: boolean }) =>
     isActive 
@@ -137,7 +143,7 @@ export function AppSidebar() {
     if (userRole === 'admin') return items;
     return items.filter(item => {
       const permisoRequerido = RUTAS_PERMISOS[item.url];
-      if (!permisoRequerido) return true; // Si no hay permiso definido, mostrar
+      if (!permisoRequerido) return true;
       return tienePermiso(permisoRequerido);
     });
   };
@@ -156,17 +162,22 @@ export function AppSidebar() {
     
     return (
       <SidebarGroup key={title}>
-        <SidebarGroupLabel className={`text-sidebar-foreground font-semibold ${isCollapsed ? "sr-only" : ""}`}>
+        <SidebarGroupLabel className={`text-sidebar-foreground font-semibold text-xs ${isCollapsed ? "sr-only" : ""}`}>
           {title}
         </SidebarGroupLabel>
         <SidebarGroupContent>
           <SidebarMenu>
             {filteredItems.map((item) => (
               <SidebarMenuItem key={item.title}>
-                <SidebarMenuButton asChild>
-                  <NavLink to={item.url} className={getNavCls} end={item.url === "/"}>
-                    <item.icon className="h-4 w-4" />
-                    {!isCollapsed && <span>{item.title}</span>}
+                <SidebarMenuButton asChild tooltip={isCollapsed ? item.title : undefined}>
+                  <NavLink 
+                    to={item.url} 
+                    className={getNavCls} 
+                    end={item.url === "/"}
+                    onClick={handleNavClick}
+                  >
+                    <item.icon className="h-4 w-4 shrink-0" />
+                    {!isCollapsed && <span className="truncate">{item.title}</span>}
                   </NavLink>
                 </SidebarMenuButton>
               </SidebarMenuItem>
@@ -178,17 +189,17 @@ export function AppSidebar() {
   };
 
   return (
-    <Sidebar className={isCollapsed ? "w-16" : "w-52 sm:w-60 md:w-64"} collapsible="icon">
-      <SidebarContent className="bg-card border-r-2 border-border">
+    <Sidebar collapsible="icon" className="border-r-0">
+      <SidebarContent className="bg-card">
         {/* Logo y branding responsive */}
         <div className="p-3 sm:p-4 border-b border-border bg-gradient-to-r from-secondary to-secondary/90">
           {!isCollapsed ? (
             <div>
               <div className="flex items-center gap-2 mb-2">
-                <div className="w-8 h-8 sm:w-9 sm:h-9 bg-primary rounded-lg flex items-center justify-center shadow-lg">
+                <div className="w-8 h-8 sm:w-9 sm:h-9 bg-primary rounded-lg flex items-center justify-center shadow-lg shrink-0">
                   <Wrench className="h-4 w-4 sm:h-5 sm:w-5 text-primary-foreground" />
                 </div>
-                <h2 className="font-bold text-sm sm:text-base text-secondary-foreground">
+                <h2 className="font-bold text-sm sm:text-base text-secondary-foreground truncate">
                   Centro de Servicio
                 </h2>
               </div>
@@ -209,13 +220,13 @@ export function AppSidebar() {
               )}
             </div>
           ) : (
-            <div className="w-7 h-7 sm:w-8 sm:h-8 bg-primary rounded-lg flex items-center justify-center mx-auto shadow-lg">
-              <Wrench className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary-foreground" />
+            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center mx-auto shadow-lg">
+              <Wrench className="h-4 w-4 text-primary-foreground" />
             </div>
           )}
         </div>
         
-        <div className="overflow-y-auto flex-1">
+        <div className="overflow-y-auto flex-1 scrollbar-thin">
           {/* Home siempre visible */}
           {renderMenuSection("Home", menuAreas.home)}
           
@@ -236,13 +247,16 @@ export function AppSidebar() {
           {userRole === "admin" && renderMenuSection("Administración", menuAreas.admin)}
         </div>
 
-        <div className="mt-auto p-3 sm:p-4 border-t border-border bg-muted/50">
+        <div className="mt-auto p-2 sm:p-3 border-t border-border bg-muted/50">
           <Button
             variant="ghost"
-            className="w-full justify-start gap-2 text-xs sm:text-sm hover:bg-destructive/10 hover:text-destructive"
-            onClick={signOut}
+            className={`w-full gap-2 text-xs sm:text-sm hover:bg-destructive/10 hover:text-destructive ${isCollapsed ? 'justify-center px-2' : 'justify-start'}`}
+            onClick={() => {
+              if (isMobile) setOpenMobile(false);
+              signOut();
+            }}
           >
-            <LogOut className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            <LogOut className="h-4 w-4 shrink-0" />
             {!isCollapsed && <span>Cerrar Sesión</span>}
           </Button>
         </div>
