@@ -842,35 +842,80 @@ export default function NuevoIncidente() {
               <div className="p-6 space-y-6">
                 {/* SKU */}
                 <div className="space-y-3">
-                  <OutlinedInput label="SKU de la Máquina" value={skuMaquina} onChange={e => {
-                setSkuMaquina(e.target.value);
-                if (!e.target.value) setProductoSeleccionado(null);
-              }} icon={<Search className="w-4 h-4" />} required />
-
-                  {productosEncontrados.length > 1 && <div className="border rounded-lg max-h-48 overflow-y-auto divide-y">
-                      {productosEncontrados.map(producto => <div key={producto.codigo} className="p-3 hover:bg-muted/50 cursor-pointer transition-colors" onClick={() => {
-                  setProductoSeleccionado(producto);
-                  setSkuMaquina(producto.codigo);
-                }}>
-                          <p className="font-medium text-sm">{producto.descripcion}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {producto.codigo} • {producto.clave}
-                          </p>
-                        </div>)}
-                    </div>}
-
-                  {productoSeleccionado && <div className="p-4 rounded-lg bg-muted/30 border flex gap-4">
+                  {/* Producto seleccionado - mostrar tarjeta con botón cambiar */}
+                  {productoSeleccionado ? (
+                    <div className="p-4 rounded-lg bg-primary/5 border-2 border-primary/30 flex gap-4">
                       {productoSeleccionado.urlFoto && <img src={productoSeleccionado.urlFoto} alt="" className="w-20 h-20 object-cover rounded-lg border shrink-0" />}
                       <div className="min-w-0 flex-1">
                         <div className="flex items-start justify-between gap-2">
                           <div>
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
+                                Seleccionado
+                              </span>
+                              {productoSeleccionado.descontinuado ? (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-destructive/10 text-destructive">Descontinuado</span>
+                              ) : (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-500/10 text-green-600">Vigente</span>
+                              )}
+                            </div>
                             <h3 className="font-semibold text-foreground">{productoSeleccionado.descripcion}</h3>
                             <p className="text-sm text-muted-foreground mt-1">{productoSeleccionado.codigo} • {productoSeleccionado.clave}</p>
                           </div>
-                          {productoSeleccionado.descontinuado ? <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-destructive/10 text-destructive">Descontinuado</span> : <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-500/10 text-green-600">Vigente</span>}
+                          <Button 
+                            size="sm" 
+                            variant="ghost" 
+                            onClick={() => {
+                              setProductoSeleccionado(null);
+                              setSkuMaquina("");
+                              setProductosEncontrados([]);
+                            }}
+                          >
+                            Cambiar
+                          </Button>
                         </div>
                       </div>
-                    </div>}
+                    </div>
+                  ) : (
+                    <>
+                      {/* Búsqueda de producto */}
+                      <OutlinedInput 
+                        label="SKU de la Máquina" 
+                        value={skuMaquina} 
+                        onChange={e => {
+                          setSkuMaquina(e.target.value);
+                          if (!e.target.value) setProductoSeleccionado(null);
+                        }} 
+                        icon={<Search className="w-4 h-4" />} 
+                        required 
+                      />
+
+                      {/* Lista de productos encontrados */}
+                      {productosEncontrados.length > 0 && (
+                        <div className="border rounded-lg max-h-48 overflow-y-auto divide-y">
+                          {productosEncontrados.map(producto => (
+                            <div 
+                              key={producto.codigo} 
+                              className="p-3 hover:bg-primary/5 cursor-pointer transition-colors flex items-center justify-between gap-3" 
+                              onClick={() => {
+                                setProductoSeleccionado(producto);
+                                setSkuMaquina(producto.codigo);
+                                setProductosEncontrados([]);
+                              }}
+                            >
+                              <div className="min-w-0 flex-1">
+                                <p className="font-medium text-sm">{producto.descripcion}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {producto.codigo} • {producto.clave}
+                                </p>
+                              </div>
+                              <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
 
                 {/* Descripción del problema */}
