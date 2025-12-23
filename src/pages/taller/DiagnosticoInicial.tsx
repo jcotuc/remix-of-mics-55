@@ -50,6 +50,7 @@ export default function DiagnosticoInicial() {
     codigoOriginal?: string;
     descripcion: string;
     cantidad: number;
+    ubicacion?: string;
   }>>([]);
   const [searchRepuesto, setSearchRepuesto] = useState("");
   const [solicitudesAnteriores, setSolicitudesAnteriores] = useState<Array<any>>([]);
@@ -639,7 +640,8 @@ export default function DiagnosticoInicial() {
         codigo: codigoFinal,
         codigoOriginal: codigoPadre ? repuesto.codigo : undefined,
         descripcion: repuesto.descripcion,
-        cantidad: 1
+        cantidad: 1,
+        ubicacion: repuesto.ubicacion_inventario || ''
       }]);
 
       // Notificar si hubo sustitución
@@ -650,6 +652,15 @@ export default function DiagnosticoInicial() {
       }
     }
   };
+  
+  // Ubicaciones de autoservicio
+  const UBICACIONES_AUTOSERVICIO = ['T09.001.01', 'T07.001.01'];
+  
+  // Verificar si algún repuesto solicitado está en ubicación de autoservicio
+  const tieneRepuestosAutoservicio = repuestosSolicitados.some(r => {
+    const ubicaciones = (r.ubicacion || '').split(',').map((u: string) => u.trim());
+    return ubicaciones.some((u: string) => UBICACIONES_AUTOSERVICIO.includes(u));
+  });
   const actualizarCantidad = (codigo: string, nuevaCantidad: number) => {
     if (nuevaCantidad <= 0) {
       setRepuestosSolicitados(repuestosSolicitados.filter(r => r.codigo !== codigo));
@@ -1313,26 +1324,45 @@ export default function DiagnosticoInicial() {
                               </div>
                             ))}
                             
-                            {/* Dos botones de despacho */}
-                            <div className="grid grid-cols-2 gap-2 mt-3">
-                              <Button 
-                                onClick={() => handleEnviarSolicitudRepuestos('bodega')} 
-                                variant="default"
-                                size="sm"
-                                className="w-full"
-                              >
-                                <Package className="w-4 h-4 mr-1" />
-                                Bodega
-                              </Button>
-                              <Button 
-                                onClick={() => handleEnviarSolicitudRepuestos('autoservicio')} 
-                                variant="secondary"
-                                size="sm"
-                                className="w-full"
-                              >
-                                <ShoppingCart className="w-4 h-4 mr-1" />
-                                Autoservicio
-                              </Button>
+                            {/* Botones de despacho - condicional según ubicación */}
+                            <div className="mt-3 space-y-2">
+                              {tieneRepuestosAutoservicio ? (
+                                <>
+                                  <p className="text-[10px] text-muted-foreground text-center">
+                                    Repuestos disponibles en estación de autoservicio
+                                  </p>
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <Button 
+                                      onClick={() => handleEnviarSolicitudRepuestos('bodega')} 
+                                      variant="outline"
+                                      size="sm"
+                                      className="w-full"
+                                    >
+                                      <Package className="w-4 h-4 mr-1" />
+                                      Bodega
+                                    </Button>
+                                    <Button 
+                                      onClick={() => handleEnviarSolicitudRepuestos('autoservicio')} 
+                                      variant="default"
+                                      size="sm"
+                                      className="w-full bg-green-600 hover:bg-green-700"
+                                    >
+                                      <ShoppingCart className="w-4 h-4 mr-1" />
+                                      Autoservicio
+                                    </Button>
+                                  </div>
+                                </>
+                              ) : (
+                                <Button 
+                                  onClick={() => handleEnviarSolicitudRepuestos('bodega')} 
+                                  variant="default"
+                                  size="sm"
+                                  className="w-full"
+                                >
+                                  <Package className="w-4 h-4 mr-1" />
+                                  Enviar a Bodega
+                                </Button>
+                              )}
                             </div>
                           </div>
                         ) : (
