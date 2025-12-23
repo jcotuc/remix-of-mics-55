@@ -1499,6 +1499,106 @@ export type Database = {
           },
         ]
       }
+      permisos: {
+        Row: {
+          activo: boolean | null
+          codigo: string
+          created_at: string | null
+          descripcion: string | null
+          id: string
+          modulo: string
+          nombre: string
+        }
+        Insert: {
+          activo?: boolean | null
+          codigo: string
+          created_at?: string | null
+          descripcion?: string | null
+          id?: string
+          modulo: string
+          nombre: string
+        }
+        Update: {
+          activo?: boolean | null
+          codigo?: string
+          created_at?: string | null
+          descripcion?: string | null
+          id?: string
+          modulo?: string
+          nombre?: string
+        }
+        Relationships: []
+      }
+      permisos_roles: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          id: string
+          permiso_id: string | null
+          rol: Database["public"]["Enums"]["app_role"]
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          permiso_id?: string | null
+          rol: Database["public"]["Enums"]["app_role"]
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          permiso_id?: string | null
+          rol?: Database["public"]["Enums"]["app_role"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "permisos_roles_permiso_id_fkey"
+            columns: ["permiso_id"]
+            isOneToOne: false
+            referencedRelation: "permisos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      permisos_usuarios: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          es_denegado: boolean | null
+          id: string
+          motivo: string | null
+          permiso_id: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          es_denegado?: boolean | null
+          id?: string
+          motivo?: string | null
+          permiso_id?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          es_denegado?: boolean | null
+          id?: string
+          motivo?: string | null
+          permiso_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "permisos_usuarios_permiso_id_fkey"
+            columns: ["permiso_id"]
+            isOneToOne: false
+            referencedRelation: "permisos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       productos: {
         Row: {
           clave: string

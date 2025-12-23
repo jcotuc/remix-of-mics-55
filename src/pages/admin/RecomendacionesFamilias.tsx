@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,8 @@ import { Badge } from "@/components/ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { Plus, Edit, Trash2, FolderTree, Loader2, FileText, ChevronRight } from "lucide-react";
+import { Plus, Edit, Trash2, FolderTree, Loader2, FileText, ChevronRight, Upload, X, Save } from "lucide-react";
+import * as XLSX from "xlsx";
 
 interface Familia {
   id: number;
@@ -33,6 +34,14 @@ interface FamiliaJerarquica extends Familia {
   hijos: FamiliaJerarquica[];
 }
 
+interface ImportRecomendacion {
+  titulo: string;
+  descripcion: string;
+  tipo: string;
+  activo: boolean;
+  familia_nombre?: string;
+}
+
 export default function RecomendacionesFamilias() {
   const [familias, setFamilias] = useState<Familia[]>([]);
   const [recomendaciones, setRecomendaciones] = useState<Recomendacion[]>([]);
@@ -41,6 +50,12 @@ export default function RecomendacionesFamilias() {
   const [showRecomendacionDialog, setShowRecomendacionDialog] = useState(false);
   const [editingRecomendacion, setEditingRecomendacion] = useState<Recomendacion | null>(null);
   const [saving, setSaving] = useState(false);
+
+  // Import Excel state
+  const [showImportDialog, setShowImportDialog] = useState(false);
+  const [importData, setImportData] = useState<ImportRecomendacion[]>([]);
+  const [importing, setImporting] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState({
     titulo: "",
@@ -223,6 +238,105 @@ export default function RecomendacionesFamilias() {
     return familia?.Categoria || "";
   };
 
+  // Excel import functions
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const data = event.target?.result;
+        const workbook = XLSX.read(data, { type: "binary" });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json<any>(worksheet);
+
+        const getColumnValue = (row: any, possibleNames: string[]) => {
+          for (const name of possibleNames) {
+            if (row[name] !== undefined && row[name] !== null && row[name] !== "") {
+              return String(row[name]).trim();
+            }
+          }
+          return "";
+        };
+
+        const mappedData: ImportRecomendacion[] = jsonData.map((row: any) => ({
+          titulo: getColumnValue(row, ['titulo', 'Titulo', 'TITULO', 'Nombre', 'nombre', 'Title', 'title']),
+          descripcion: getColumnValue(row, ['descripcion', 'Descripcion', 'DESCRIPCION', 'Description', 'description', 'Detalle', 'detalle']),
+          tipo: getColumnValue(row, ['tipo', 'Tipo', 'TIPO', 'Type', 'type']) || 'general',
+          activo: true,
+          familia_nombre: getColumnValue(row, ['familia', 'Familia', 'FAMILIA', 'familia_hija', 'Familia_Hija']),
+        })).filter((row: ImportRecomendacion) => row.titulo);
+
+        if (mappedData.length === 0) {
+          toast.error("No se encontraron recomendaciones válidas. Asegúrese de tener una columna 'Titulo'.");
+          return;
+        }
+
+        setImportData(mappedData);
+        setShowImportDialog(true);
+      } catch (error: any) {
+        toast.error("Error al leer archivo: " + error.message);
+      }
+    };
+    reader.readAsBinaryString(file);
+    
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const handleImportRecomendaciones = async () => {
+    if (!selectedFamiliaHija && !importData.some(d => d.familia_nombre)) {
+      toast.error("Seleccione una familia hija o incluya la columna 'familia' en el Excel");
+      return;
+    }
+
+    try {
+      setImporting(true);
+
+      // Build family name to ID map
+      const familiaMap = new Map<string, number>();
+      familiasHijas.forEach(f => {
+        familiaMap.set(f.nombre.toLowerCase(), f.id);
+      });
+
+      const toInsert = importData.map(row => {
+        let familiaId = selectedFamiliaHija;
+        if (row.familia_nombre) {
+          const foundId = familiaMap.get(row.familia_nombre.toLowerCase());
+          if (foundId) familiaId = foundId;
+        }
+        return {
+          familia_hija_id: familiaId!,
+          titulo: row.titulo,
+          descripcion: row.descripcion || null,
+          tipo: row.tipo || 'general',
+          activo: row.activo,
+        };
+      }).filter(r => r.familia_hija_id);
+
+      if (toInsert.length === 0) {
+        toast.error("No se encontraron familias válidas para las recomendaciones");
+        return;
+      }
+
+      const { error } = await supabase.from("recomendaciones").insert(toInsert);
+
+      if (error) throw error;
+
+      toast.success(`Se importaron ${toInsert.length} recomendaciones`);
+      setShowImportDialog(false);
+      setImportData([]);
+      fetchRecomendaciones();
+    } catch (error: any) {
+      toast.error("Error al importar: " + error.message);
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const selectedFamiliaInfo = familiasHijas.find((f) => f.id === selectedFamiliaHija);
 
   if (loading) {
@@ -241,6 +355,19 @@ export default function RecomendacionesFamilias() {
           <p className="text-muted-foreground">
             Vincule recomendaciones con las familias hijas de productos
           </p>
+        </div>
+        <div className="flex gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx,.xls,.csv"
+            onChange={handleFileUpload}
+            className="hidden"
+          />
+          <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
+            <Upload className="h-4 w-4 mr-2" />
+            Importar Excel
+          </Button>
         </div>
       </div>
 
@@ -471,6 +598,58 @@ export default function RecomendacionesFamilias() {
             <Button onClick={handleSaveRecomendacion} disabled={saving}>
               {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               {editingRecomendacion ? "Guardar Cambios" : "Crear Recomendación"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Import Dialog */}
+      <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Importar Recomendaciones desde Excel</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Se encontraron <strong>{importData.length}</strong> recomendaciones para importar.
+              {selectedFamiliaHija ? (
+                <span> Se asignarán a la familia seleccionada: <strong>{selectedFamiliaInfo?.nombre}</strong></span>
+              ) : (
+                <span> Seleccione una familia o incluya una columna "familia" en el Excel.</span>
+              )}
+            </p>
+            <div className="max-h-60 overflow-y-auto border rounded">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Título</TableHead>
+                    <TableHead>Tipo</TableHead>
+                    <TableHead>Familia</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {importData.slice(0, 30).map((row, i) => (
+                    <TableRow key={i}>
+                      <TableCell className="font-medium">{row.titulo}</TableCell>
+                      <TableCell><Badge variant="outline">{row.tipo}</Badge></TableCell>
+                      <TableCell>{row.familia_nombre || selectedFamiliaInfo?.nombre || "-"}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+            {importData.length > 30 && (
+              <p className="text-sm text-muted-foreground">...y {importData.length - 30} más</p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowImportDialog(false)} disabled={importing}>
+              <X className="h-4 w-4 mr-2" />
+              Cancelar
+            </Button>
+            <Button onClick={handleImportRecomendaciones} disabled={importing}>
+              {importing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+              Importar {importData.length} recomendaciones
             </Button>
           </DialogFooter>
         </DialogContent>
