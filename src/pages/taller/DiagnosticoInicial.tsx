@@ -1149,11 +1149,9 @@ export default function DiagnosticoInicial() {
           {paso === 2 && <div className="space-y-4">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Columna Izquierda: Repuestos Disponibles */}
-                <div className="relative pt-3">
-                  <div className="absolute -top-0 left-4 bg-background px-2 z-10">
-                    <span className="text-xs font-medium text-primary">Repuestos Disponibles</span>
-                  </div>
-                  <div className="border-2 border-primary/40 rounded-lg p-4 pt-4 h-full">
+                <div className="relative">
+                  <fieldset className="border-2 border-primary/40 rounded-lg p-4 h-full">
+                    <legend className="mx-3 px-2 text-xs font-medium text-primary">Repuestos Disponibles</legend>
                     {/* Outlined Search Field */}
                     <div className="relative pt-3 mb-4">
                       <div className="absolute -top-0 left-3 bg-background px-1 z-10">
@@ -1207,15 +1205,13 @@ export default function DiagnosticoInicial() {
                         </div>
                       )}
                     </div>
-                  </div>
+                  </fieldset>
                 </div>
 
                 {/* Columna Derecha: Solicitud de Repuestos */}
-                <div className="relative pt-3">
-                  <div className="absolute -top-0 left-4 bg-background px-2 z-10">
-                    <span className="text-xs font-medium text-muted-foreground">Solicitud de Repuestos</span>
-                  </div>
-                  <div className="border-2 border-muted rounded-lg p-4 pt-4 h-full">
+                <div className="relative">
+                  <fieldset className="border-2 border-muted rounded-lg p-4 h-full">
+                    <legend className="mx-3 px-2 text-xs font-medium text-muted-foreground">Solicitud de Repuestos</legend>
                     <div className="space-y-4 max-h-[480px] overflow-y-auto">
                       {/* Repuestos Despachados (Verde) */}
                       {solicitudesAnteriores.filter(s => s.estado === 'entregado').length > 0 && (
@@ -1308,7 +1304,7 @@ export default function DiagnosticoInicial() {
                         </div>
                       )}
                     </div>
-                  </div>
+                  </fieldset>
                 </div>
               </div>
             </div>}
