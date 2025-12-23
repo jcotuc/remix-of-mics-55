@@ -383,11 +383,25 @@ export default function DiagnosticoInicial() {
       setHijoPadreMap(newHijoPadreMap);
       console.log('Mapa hijo→padre:', newHijoPadreMap.size, 'registros');
 
-      // 2. Cargar repuestos del producto
-      const {
-        data,
-        error
-      } = await supabase.from('repuestos').select('*').eq('codigo_producto', incidente.codigo_producto).order('descripcion');
+      // 2. Obtener producto_id desde la tabla productos
+      const { data: producto } = await supabase
+        .from('productos')
+        .select('id')
+        .eq('codigo', incidente.codigo_producto)
+        .maybeSingle();
+      
+      if (!producto?.id) {
+        console.warn('No se encontró producto con código:', incidente.codigo_producto);
+        setRepuestosDisponibles([]);
+        return;
+      }
+
+      // 3. Cargar repuestos usando producto_id (relación normalizada)
+      const { data, error } = await supabase
+        .from('repuestos')
+        .select('*')
+        .eq('producto_id', producto.id)
+        .order('descripcion');
       if (error) throw error;
 
       // 3. Transformar: reemplazar códigos hijo por padre
