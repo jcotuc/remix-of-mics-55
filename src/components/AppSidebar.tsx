@@ -3,6 +3,8 @@ import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { usePermisos, RUTAS_PERMISOS, MENU_PERMISOS } from "@/hooks/usePermisos";
 import { Button } from "@/components/ui/button";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 import {
   Sidebar,
@@ -120,16 +122,33 @@ const menuAreas = {
 };
 
 export function AppSidebar() {
-  const { state, isMobile, setOpenMobile } = useSidebar();
+  const { state, isMobile, setOpenMobile, setOpen } = useSidebar();
   const location = useLocation();
   const currentPath = location.pathname;
   const isCollapsed = state === "collapsed" && !isMobile;
-  const { userRole, signOut } = useAuth();
+  const { user, userRole, signOut } = useAuth();
   const { tienePermiso, tieneAlgunPermiso, loading: permisosLoading } = usePermisos();
+
+  // Obtener perfil del usuario
+  const { data: profile } = useQuery({
+    queryKey: ['user-profile', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const { data } = await supabase
+        .from('profiles')
+        .select('nombre, apellido')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!user?.id,
+  });
 
   const handleNavClick = () => {
     if (isMobile) {
       setOpenMobile(false);
+    } else {
+      setOpen(false);
     }
   };
 
@@ -203,19 +222,34 @@ export function AppSidebar() {
                   Centro de Servicio
                 </h2>
               </div>
-              {userRole && (
-                <div className="ml-10 sm:ml-11">
-                  <span className="text-[10px] sm:text-xs font-medium text-secondary-foreground/80 uppercase tracking-wider px-1.5 sm:px-2 py-0.5 sm:py-1 bg-secondary-foreground/10 rounded">
-                    {userRole === 'mostrador' && 'Mostrador'}
-                    {userRole === 'logistica' && 'Logística'}
-                    {userRole === 'taller' && 'Taller'}
-                    {userRole === 'bodega' && 'Bodega'}
-                    {userRole === 'sac' && 'SAC'}
-                    {userRole === 'control_calidad' && 'Control de Calidad'}
-                    {userRole === 'asesor' && 'Asesor'}
-                    {userRole === 'admin' && 'Administrador'}
-                    {userRole === 'tecnico' && 'Técnico'}
-                  </span>
+              {(profile || userRole) && (
+                <div className="ml-10 sm:ml-11 space-y-0.5">
+                  {profile && (
+                    <p className="text-xs sm:text-sm font-medium text-secondary-foreground truncate">
+                      {profile.nombre} {profile.apellido}
+                    </p>
+                  )}
+                  {userRole && (
+                    <span className="text-[10px] sm:text-xs font-medium text-secondary-foreground/80 uppercase tracking-wider px-1.5 sm:px-2 py-0.5 sm:py-1 bg-secondary-foreground/10 rounded inline-block">
+                      {userRole === 'mostrador' && 'Mostrador'}
+                      {userRole === 'logistica' && 'Logística'}
+                      {userRole === 'taller' && 'Taller'}
+                      {userRole === 'bodega' && 'Bodega'}
+                      {userRole === 'sac' && 'SAC'}
+                      {userRole === 'control_calidad' && 'Control de Calidad'}
+                      {userRole === 'asesor' && 'Asesor'}
+                      {userRole === 'admin' && 'Administrador'}
+                      {userRole === 'tecnico' && 'Técnico'}
+                      {userRole === 'jefe_taller' && 'Jefe Taller'}
+                      {userRole === 'jefe_bodega' && 'Jefe Bodega'}
+                      {userRole === 'jefe_logistica' && 'Jefe Logística'}
+                      {userRole === 'supervisor_sac' && 'Supervisor SAC'}
+                      {userRole === 'supervisor_bodega' && 'Supervisor Bodega'}
+                      {userRole === 'supervisor_calidad' && 'Supervisor Calidad'}
+                      {userRole === 'gerente_centro' && 'Gerente Centro'}
+                      {userRole === 'supervisor_regional' && 'Supervisor Regional'}
+                    </span>
+                  )}
                 </div>
               )}
             </div>
