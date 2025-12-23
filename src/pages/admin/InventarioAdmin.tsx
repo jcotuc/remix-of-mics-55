@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -74,9 +74,16 @@ export default function InventarioAdmin() {
   const [parsedRows, setParsedRows] = useState<any[]>([]);
   const [centrosToCreate, setCentrosToCreate] = useState<string[]>([]);
   const [importSummary, setImportSummary] = useState<ImportSummary | null>(null);
+  const [importStartTime, setImportStartTime] = useState<number | null>(null);
+  const keepAliveRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     fetchCentros();
+    return () => {
+      if (keepAliveRef.current) {
+        clearInterval(keepAliveRef.current);
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -385,12 +392,46 @@ export default function InventarioAdmin() {
     }
   };
 
+  const startKeepAlive = () => {
+    keepAliveRef.current = setInterval(async () => {
+      try {
+        await supabase.auth.refreshSession();
+        console.log("Session refreshed during import");
+      } catch (e) {
+        console.warn("Error refreshing session:", e);
+      }
+    }, 30000);
+  };
+
+  const stopKeepAlive = () => {
+    if (keepAliveRef.current) {
+      clearInterval(keepAliveRef.current);
+      keepAliveRef.current = null;
+    }
+  };
+
+  const formatTimeRemaining = (): string => {
+    if (!importProgress || !importStartTime || importProgress.processed === 0) return "Calculando...";
+    
+    const elapsed = Date.now() - importStartTime;
+    const rate = importProgress.processed / elapsed;
+    const remaining = importProgress.total - importProgress.processed;
+    const msRemaining = remaining / rate;
+    
+    const seconds = Math.ceil(msRemaining / 1000);
+    if (seconds < 60) return `~${seconds}s restantes`;
+    const minutes = Math.ceil(seconds / 60);
+    return `~${minutes}min restantes`;
+  };
+
   // Paso 2: Ejecutar la importación
   const handleImport = async () => {
     if (parsedRows.length === 0) return;
 
     setImportStep("importing");
     setImportProgress({ processed: 0, total: 0 });
+    setImportStartTime(Date.now());
+    startKeepAlive();
 
     try {
       // Refrescar centros para tener los más actualizados
@@ -489,7 +530,8 @@ export default function InventarioAdmin() {
       const errorDetails: string[] = [];
 
       if (totalToUpsert > 0) {
-        const BATCH_SIZE = 300;
+        // Batch más grande para mejor rendimiento
+        const BATCH_SIZE = 500;
         for (let i = 0; i < toUpsert.length; i += BATCH_SIZE) {
           const batch = toUpsert.slice(i, i + BATCH_SIZE);
 
@@ -500,20 +542,22 @@ export default function InventarioAdmin() {
           if (error) {
             console.error("Error upserting batch:", error);
             
-            // Si el batch falla, intentar uno por uno
-            for (const record of batch) {
-              const { error: singleError } = await supabase.from("inventario").upsert([record], {
+            // Si el batch falla, intentar con batches más pequeños (no uno por uno)
+            const SMALL_BATCH = 50;
+            for (let j = 0; j < batch.length; j += SMALL_BATCH) {
+              const smallBatch = batch.slice(j, j + SMALL_BATCH);
+              const { error: smallError } = await supabase.from("inventario").upsert(smallBatch, {
                 onConflict: "centro_servicio_id,codigo_repuesto",
               });
               
-              if (singleError) {
-                errors++;
+              if (smallError) {
+                errors += smallBatch.length;
                 if (errorDetails.length < 20) {
-                  errorDetails.push(`SKU ${record.codigo_repuesto} (${record.bodega}): ${singleError.message}`);
+                  errorDetails.push(`Batch error (${smallBatch.length} items): ${smallError.message}`);
                 }
-                console.error(`Error con SKU ${record.codigo_repuesto}:`, singleError);
+                console.error(`Error en small batch:`, smallError);
               } else {
-                imported++;
+                imported += smallBatch.length;
               }
             }
           } else {
@@ -573,6 +617,9 @@ export default function InventarioAdmin() {
       console.error("Error during import:", error);
       toast.error("Error durante la importación");
       setImportStep("preview");
+    } finally {
+      stopKeepAlive();
+      setImportStartTime(null);
     }
   };
 
@@ -952,17 +999,29 @@ export default function InventarioAdmin() {
             {importStep === "importing" && (
               <div className="flex flex-col items-center justify-center py-8 gap-4">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <p className="text-muted-foreground">
-                  Importando{importProgress?.total ? ` ${importProgress.processed.toLocaleString()} / ${importProgress.total.toLocaleString()}` : "..."}
+                <p className="font-medium">Importando inventario...</p>
+                <p className="text-sm text-muted-foreground">
+                  {importProgress?.total 
+                    ? `${importProgress.processed.toLocaleString()} / ${importProgress.total.toLocaleString()} registros`
+                    : "Preparando..."}
                 </p>
                 {importProgress && importProgress.total > 0 && (
-                  <div className="w-full max-w-xs bg-muted rounded-full h-2">
-                    <div 
-                      className="bg-primary h-2 rounded-full transition-all"
-                      style={{ width: `${(importProgress.processed / importProgress.total) * 100}%` }}
-                    />
+                  <div className="w-full max-w-md space-y-2">
+                    <div className="w-full bg-muted rounded-full h-2">
+                      <div 
+                        className="bg-primary h-2 rounded-full transition-all"
+                        style={{ width: `${(importProgress.processed / importProgress.total) * 100}%` }}
+                      />
+                    </div>
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>{Math.round((importProgress.processed / importProgress.total) * 100)}%</span>
+                      <span>{formatTimeRemaining()}</span>
+                    </div>
                   </div>
                 )}
+                <p className="text-xs text-muted-foreground mt-2">
+                  Por favor no cierre esta ventana durante la importación
+                </p>
               </div>
             )}
 
