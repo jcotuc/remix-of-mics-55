@@ -211,7 +211,7 @@ export function AppSidebar() {
     <Sidebar collapsible="icon" className="border-r-0">
       <SidebarContent className="bg-card">
         {/* Logo y branding responsive */}
-        <div className="p-3 sm:p-4 border-b border-border bg-gradient-to-r from-secondary to-secondary/90">
+        <div className={`border-b border-border bg-gradient-to-r from-secondary to-secondary/90 ${isCollapsed ? 'p-2 flex justify-center' : 'p-3 sm:p-4'}`}>
           {!isCollapsed ? (
             <div>
               <div className="flex items-center gap-2 mb-2">
@@ -254,7 +254,7 @@ export function AppSidebar() {
               )}
             </div>
           ) : (
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center mx-auto shadow-lg">
+            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-lg">
               <Wrench className="h-4 w-4 text-primary-foreground" />
             </div>
           )}
