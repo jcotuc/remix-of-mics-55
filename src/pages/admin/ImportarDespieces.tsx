@@ -13,7 +13,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 interface RepuestoExtraido {
-  numero: string;
   codigo: string;
   clave: string;
   descripcion: string;
@@ -430,7 +429,6 @@ export default function ImportarDespieces() {
                     <TableHeader className="sticky top-0 bg-background">
                       <TableRow>
                         <TableHead className="w-10"></TableHead>
-                        <TableHead className="w-16">No.</TableHead>
                         <TableHead>Código</TableHead>
                         <TableHead>Clave</TableHead>
                         <TableHead>Descripción</TableHead>
@@ -448,10 +446,7 @@ export default function ImportarDespieces() {
                               onCheckedChange={() => toggleRepuestoSelection(index)}
                             />
                           </TableCell>
-                          <TableCell className="font-medium">
-                            {repuesto.numero}
-                          </TableCell>
-                          <TableCell>{repuesto.codigo}</TableCell>
+                          <TableCell className="font-medium">{repuesto.codigo}</TableCell>
                           <TableCell className="text-xs">
                             {repuesto.clave}
                           </TableCell>
