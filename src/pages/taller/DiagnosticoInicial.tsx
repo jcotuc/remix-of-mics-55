@@ -459,13 +459,13 @@ export default function DiagnosticoInicial() {
   // Auto-seleccionar resolución según matriz Reparable/Garantía
   useEffect(() => {
     if (esReparable === null || aplicaGarantia === null) return;
-    
+
     // Matriz de resoluciones:
     // Reparable=0, Garantía=0 → Canje
     // Reparable=0, Garantía=1 → Cambio por Garantía
     // Reparable=1, Garantía=0 → Presupuesto
     // Reparable=1, Garantía=1 → Reparar en Garantía
-    
+
     if (!esReparable && !aplicaGarantia) {
       setTipoResolucion("Canje");
     } else if (!esReparable && aplicaGarantia) {
@@ -911,71 +911,33 @@ export default function DiagnosticoInicial() {
               <div className="grid grid-cols-[auto_1fr_1fr] gap-x-4 gap-y-3 items-center">
                 {/* Fila 1: ¿Es Reparable? */}
                 <Label className="text-lg font-semibold whitespace-nowrap">¿Es Reparable?</Label>
-                <Button 
-                  type="button" 
-                  variant="outline"
-                  onClick={() => {
-                    setEsReparable(true);
-                    setAplicaGarantia(null);
-                  }} 
-                  className={`w-full min-w-[120px] border-2 transition-none hover:bg-transparent ${
-                    esReparable === true 
-                      ? "border-green-500 bg-green-500/20 text-green-700 dark:text-green-400 hover:bg-green-500/20" 
-                      : "bg-background border-border hover:border-border"
-                  }`}
-                >
+                <Button type="button" variant="outline" onClick={() => {
+              setEsReparable(true);
+              setAplicaGarantia(null);
+            }} className={`w-full min-w-[120px] border-2 transition-none hover:bg-transparent ${esReparable === true ? "border-green-500 bg-green-500/20 text-green-700 dark:text-green-400 hover:bg-green-500/20" : "bg-background border-border hover:border-border"}`}>
                   <CheckCircle2 className="h-4 w-4 mr-2" />
                   Sí
                 </Button>
-                <Button 
-                  type="button" 
-                  variant="outline"
-                  onClick={() => {
-                    setEsReparable(false);
-                    setAplicaGarantia(null);
-                  }} 
-                  className={`w-full min-w-[120px] border-2 transition-none hover:bg-transparent ${
-                    esReparable === false 
-                      ? "border-red-500 bg-red-500/20 text-red-700 dark:text-red-400 hover:bg-red-500/20" 
-                      : "bg-background border-border hover:border-border"
-                  }`}
-                >
+                <Button type="button" variant="outline" onClick={() => {
+              setEsReparable(false);
+              setAplicaGarantia(null);
+            }} className={`w-full min-w-[120px] border-2 transition-none hover:bg-transparent ${esReparable === false ? "border-red-500 bg-red-500/20 text-red-700 dark:text-red-400 hover:bg-red-500/20" : "bg-background border-border hover:border-border"}`}>
                   <XCircle className="h-4 w-4 mr-2" />
                   No
                 </Button>
 
                 {/* Fila 2: ¿Aplica Garantía? */}
-                {esReparable !== null && (
-                  <>
+                {esReparable !== null && <>
                     <Label className="text-lg font-semibold whitespace-nowrap">¿Aplica Garantía?</Label>
-                    <Button 
-                      type="button" 
-                      variant="outline"
-                      onClick={() => setAplicaGarantia(true)} 
-                      className={`w-full min-w-[120px] border-2 transition-none hover:bg-transparent ${
-                        aplicaGarantia === true 
-                          ? "border-green-500 bg-green-500/20 text-green-700 dark:text-green-400 hover:bg-green-500/20" 
-                          : "bg-background border-border hover:border-border"
-                      }`}
-                    >
+                    <Button type="button" variant="outline" onClick={() => setAplicaGarantia(true)} className={`w-full min-w-[120px] border-2 transition-none hover:bg-transparent ${aplicaGarantia === true ? "border-green-500 bg-green-500/20 text-green-700 dark:text-green-400 hover:bg-green-500/20" : "bg-background border-border hover:border-border"}`}>
                       <CheckCircle2 className="h-4 w-4 mr-2" />
                       Sí
                     </Button>
-                    <Button 
-                      type="button" 
-                      variant="outline"
-                      onClick={() => setAplicaGarantia(false)}
-                      className={`w-full min-w-[120px] border-2 transition-none hover:bg-transparent ${
-                        aplicaGarantia === false 
-                          ? "border-red-500 bg-red-500/20 text-red-700 dark:text-red-400 hover:bg-red-500/20" 
-                          : "bg-background border-border hover:border-border"
-                      }`}
-                    >
+                    <Button type="button" variant="outline" onClick={() => setAplicaGarantia(false)} className={`w-full min-w-[120px] border-2 transition-none hover:bg-transparent ${aplicaGarantia === false ? "border-red-500 bg-red-500/20 text-red-700 dark:text-red-400 hover:bg-red-500/20" : "bg-background border-border hover:border-border"}`}>
                       <XCircle className="h-4 w-4 mr-2" />
                       No
                     </Button>
-                  </>
-                )}
+                  </>}
               </div>
 
               {/* Mostrar resolución automática basada en la matriz */}
@@ -985,16 +947,13 @@ export default function DiagnosticoInicial() {
                     <div>
                       <Label className="text-lg font-semibold">Resolución</Label>
                       {/* Solo mostrar opciones si es No Reparable + Garantía (puede elegir entre CxG o NC) */}
-                      {!esReparable && aplicaGarantia && (
-                        <p className="text-sm text-muted-foreground">
+                      {!esReparable && aplicaGarantia && <p className="text-sm text-muted-foreground">
                           Selecciona entre Cambio por Garantía o Nota de Crédito
-                        </p>
-                      )}
+                        </p>}
                     </div>
                     
                     {/* Solo mostrar múltiples opciones cuando es No Reparable + Garantía */}
-                    {!esReparable && aplicaGarantia ? (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {!esReparable && aplicaGarantia ? <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <Button type="button" variant={tipoResolucion === "Cambio por Garantía" ? "default" : "outline"} onClick={() => setTipoResolucion("Cambio por Garantía")} className="justify-start h-auto py-3">
                           <CheckCircle2 className="h-4 w-4 mr-2" />
                           Cambio por Garantía
@@ -1003,10 +962,9 @@ export default function DiagnosticoInicial() {
                           <Package className="h-4 w-4 mr-2" />
                           Nota de Crédito
                         </Button>
-                      </div>
-                    ) : (
-                      // Mostrar solo la resolución predeterminada (sin opciones)
-                      <div className="p-4 bg-primary/10 border border-primary/30 rounded-lg">
+                      </div> :
+              // Mostrar solo la resolución predeterminada (sin opciones)
+              <div className="p-4 bg-primary/10 border border-primary/30 rounded-lg">
                         <div className="flex items-center gap-3">
                           <CheckCircle2 className="h-5 w-5 text-green-600" />
                           {tipoResolucion === "Reparar en Garantía" && <Wrench className="h-5 w-5 text-primary" />}
@@ -1017,15 +975,12 @@ export default function DiagnosticoInicial() {
                             Seleccionado
                           </Badge>
                         </div>
-                      </div>
-                    )}
-                    {tipoResolucion === "Presupuesto" && (
-                      <div className="bg-amber-50 border border-amber-200 p-3 rounded-md text-sm">
+                      </div>}
+                    {tipoResolucion === "Presupuesto" && <div className="bg-amber-50 border border-amber-200 p-3 rounded-md text-sm">
                         <p className="text-amber-800">
                           <strong>Nota:</strong> Los repuestos se despacharán una vez que el cliente realice el pago del presupuesto.
                         </p>
-                      </div>
-                    )}
+                      </div>}
                   </div>
                 </>}
             </>}
@@ -1267,30 +1222,14 @@ export default function DiagnosticoInicial() {
             </div>}
 
           {paso === 3 && <>
-              <div className="space-y-4">
-                <div>
-                  <Label className="text-lg font-semibold">Fotos del Diagnóstico</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Evidencia fotográfica del diagnóstico realizado
-                  </p>
-                </div>
-                <Input type="file" accept="image/*" multiple onChange={e => {
-              const files = Array.from(e.target.files || []);
-              setFotos(prev => [...prev, ...files]);
-            }} />
-                {fotos.length > 0 && <div className="text-sm text-muted-foreground">
-                    {fotos.length} foto(s) seleccionada(s)
-                  </div>}
-              </div>
+              
 
               <Separator />
 
               <div className="space-y-4">
                 <div>
                   <Label className="text-lg font-semibold">Observaciones del Técnico</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Comentarios adicionales sobre el diagnóstico
-                  </p>
+                  
                 </div>
                 <Textarea value={observaciones} onChange={e => setObservaciones(e.target.value)} placeholder="Escribe aquí cualquier observación relevante..." rows={6} />
               </div>
