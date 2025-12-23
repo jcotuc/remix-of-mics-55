@@ -6,7 +6,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { ArrowLeft, Search, User, Package, AlertCircle, UserCircle, ChevronRight } from "lucide-react";
+import { ArrowLeft, Search, User, Package, AlertCircle, UserCircle, ChevronRight, Printer } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Producto } from "@/types";
@@ -18,6 +18,7 @@ import { OutlinedInput, OutlinedTextarea, OutlinedSelect } from "@/components/ui
 import { MultiSelectDropdown } from "@/components/ui/multi-select-dropdown";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/contexts/AuthContext";
+import IncidentePrintSheet from "@/components/IncidentePrintSheet";
 const tipologias = ['Mantenimiento', 'Reparación', 'Daños por transporte', 'Venta de repuestos'];
 const DEPARTAMENTOS = ["Guatemala", "Alta Verapaz", "Baja Verapaz", "Chimaltenango", "Chiquimula", "El Progreso", "Escuintla", "Huehuetenango", "Izabal", "Jalapa", "Jutiapa", "Petén", "Quetzaltenango", "Quiché", "Retalhuleu", "Sacatepéquez", "San Marcos", "Santa Rosa", "Sololá", "Suchitepéquez", "Totonicapán", "Zacapa"];
 const MUNICIPIOS: Record<string, string[]> = {
@@ -137,6 +138,22 @@ export default function NuevoIncidente() {
   // Media
   const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([]);
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+  const [incidenteCreado, setIncidenteCreado] = useState<{
+    codigo: string;
+    codigoCliente: string;
+    nombreCliente: string;
+    codigoProducto: string;
+    descripcionProducto: string;
+    skuMaquina: string;
+    descripcionProblema: string;
+    accesorios: string;
+    fechaIngreso: Date;
+    centroServicio: string;
+    personaDejaMaquina: string;
+    tipologia: string;
+    esReingreso: boolean;
+  } | null>(null);
+  const [showPrintDialog, setShowPrintDialog] = useState(false);
   useEffect(() => {
     if (nuevoCliente.departamento) {
       setMunicipiosDisponibles(MUNICIPIOS[nuevoCliente.departamento] || []);
@@ -584,6 +601,24 @@ export default function NuevoIncidente() {
           });
         }
       }
+      
+      // Guardar datos para impresión
+      setIncidenteCreado({
+        codigo: incidenteData.codigo,
+        codigoCliente: codigoCliente!,
+        nombreCliente: clienteSeleccionado?.nombre || nuevoCliente.nombre,
+        codigoProducto: productoSeleccionado!.codigo,
+        descripcionProducto: productoSeleccionado!.descripcion,
+        skuMaquina: skuMaquina,
+        descripcionProblema: descripcionProblema,
+        accesorios: accesoriosSeleccionados.join(", ") || 'Ninguno',
+        fechaIngreso: new Date(),
+        centroServicio: centrosServicioList.find(c => c.id === centroServicio)?.nombre ?? centroServicio,
+        personaDejaMaquina: personaDejaMaquina,
+        tipologia: tipologia,
+        esReingreso: esReingreso
+      });
+      
       setShowSuccessDialog(true);
     } catch (error) {
       console.error('Error al guardar:', error);
@@ -1008,22 +1043,68 @@ export default function NuevoIncidente() {
 
       {/* Dialog de éxito */}
       <AlertDialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
-        <AlertDialogContent>
+        <AlertDialogContent className="max-w-md">
           <AlertDialogHeader>
-            <AlertDialogTitle>¡Incidente creado exitosamente!</AlertDialogTitle>
-            <AlertDialogDescription>
-              ¿Desea agregar otra máquina para el mismo cliente?
+            <AlertDialogTitle className="text-center">¡Incidente creado exitosamente!</AlertDialogTitle>
+            <AlertDialogDescription className="text-center">
+              Código: <span className="font-bold text-foreground">{incidenteCreado?.codigo}</span>
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
+          
+          <div className="flex justify-center my-4">
+            <Button 
+              variant="outline" 
+              className="gap-2"
+              onClick={() => {
+                setShowSuccessDialog(false);
+                setShowPrintDialog(true);
+              }}
+            >
+              <Printer className="h-4 w-4" />
+              Imprimir Incidente
+            </Button>
+          </div>
+          
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
             <AlertDialogCancel onClick={() => navigate("/mostrador/incidentes")}>
-              No, ir a Incidentes
+              Ir a Incidentes
             </AlertDialogCancel>
             <AlertDialogAction onClick={() => {
-            setShowSuccessDialog(false);
-            resetForm();
-          }}>
-              Sí, agregar otra
+              setShowSuccessDialog(false);
+              setIncidenteCreado(null);
+              resetForm();
+            }}>
+              Agregar otra máquina
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Dialog de impresión */}
+      <AlertDialog open={showPrintDialog} onOpenChange={setShowPrintDialog}>
+        <AlertDialogContent className="max-w-4xl max-h-[90vh] overflow-auto">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Vista previa de impresión</AlertDialogTitle>
+          </AlertDialogHeader>
+          
+          {incidenteCreado && (
+            <div className="border rounded-lg overflow-auto max-h-[60vh]">
+              <IncidentePrintSheet data={incidenteCreado} />
+            </div>
+          )}
+          
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setShowPrintDialog(false);
+              setShowSuccessDialog(true);
+            }}>
+              Volver
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+              window.print();
+            }}>
+              <Printer className="h-4 w-4 mr-2" />
+              Imprimir
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
