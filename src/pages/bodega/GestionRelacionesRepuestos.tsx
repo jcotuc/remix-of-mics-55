@@ -14,9 +14,17 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 interface Repuesto {
   codigo: string;
   descripcion: string;
-  codigo_padre: string | null;
-  es_codigo_padre: boolean;
-  prefijo_clasificacion: string | null;
+  codigo_padre?: string | null;
+  es_codigo_padre?: boolean | null;
+  prefijo_clasificacion?: string | null;
+  clave?: string;
+  codigo_producto?: string;
+  created_at?: string;
+  disponible_mostrador?: boolean | null;
+  es_catalogo_truper?: boolean | null;
+  id?: string;
+  updated_at?: string;
+  url_foto?: string | null;
 }
 
 interface Relacion {

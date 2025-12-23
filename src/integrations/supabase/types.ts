@@ -1717,9 +1717,7 @@ export type Database = {
           es_catalogo_truper: boolean | null
           es_codigo_padre: boolean | null
           id: string
-          prefijo_clasificacion: string | null
           updated_at: string
-          url_foto: string | null
         }
         Insert: {
           clave: string
@@ -1732,9 +1730,7 @@ export type Database = {
           es_catalogo_truper?: boolean | null
           es_codigo_padre?: boolean | null
           id?: string
-          prefijo_clasificacion?: string | null
           updated_at?: string
-          url_foto?: string | null
         }
         Update: {
           clave?: string
@@ -1747,9 +1743,7 @@ export type Database = {
           es_catalogo_truper?: boolean | null
           es_codigo_padre?: boolean | null
           id?: string
-          prefijo_clasificacion?: string | null
           updated_at?: string
-          url_foto?: string | null
         }
         Relationships: [
           {

@@ -28,20 +28,24 @@ serve(async (req) => {
 
     console.log("Processing PDF content for spare parts extraction...");
 
-    const systemPrompt = `Eres un experto en análisis de catálogos de repuestos de herramientas eléctricas. 
-Tu tarea es extraer información de tablas de despieces de máquinas.
+    const systemPrompt = `Eres un experto en análisis de catálogos de repuestos de herramientas eléctricas Truper. 
+Tu tarea es extraer TODA la información de tablas de despieces de máquinas.
+
+IMPORTANTE: Debes extraer ABSOLUTAMENTE TODOS los repuestos de la tabla, sin omitir ninguno. Pueden ser 50, 60 o más repuestos.
 
 Debes extraer la siguiente información:
 1. Información del producto (máquina):
-   - CLAVE del producto (ej: ESMA-4-1/2N)
-   - CÓDIGO del producto (ej: 16441)
+   - CLAVE del producto (ej: ESMA-4-1/2N) - usualmente aparece en la parte superior
+   - CÓDIGO del producto (ej: 16441) - usualmente aparece junto a la clave
    - Descripción del producto (ej: ESMERILADORA ANGULAR DE 4 1/2")
 
-2. Lista de repuestos con:
-   - numero: Número de la pieza en el diagrama
-   - codigo: Código del repuesto (ej: 95559)
-   - clave: Clave del repuesto (ej: R1-ESMA-4-1/2N)
-   - descripcion: Descripción del repuesto (ej: Brida exterior)
+2. Lista COMPLETA de repuestos (extrae TODOS sin excepción):
+   - codigo: Código numérico del repuesto (ej: 95559, 95750, etc.)
+   - clave: Clave del repuesto (ej: R1-ESMA-4-1/2N, R2-ESMA-4-1/2N)
+   - descripcion: Descripción del repuesto (ej: Brida exterior, Brida interior)
+
+NO incluyas el número de fila/línea (NO.), solo los datos del repuesto.
+Asegúrate de extraer CADA UNO de los repuestos listados, desde el primero hasta el último.
 
 Responde SOLO con un JSON válido con esta estructura:
 {
@@ -52,7 +56,6 @@ Responde SOLO con un JSON válido con esta estructura:
   },
   "repuestos": [
     {
-      "numero": "string",
       "codigo": "string",
       "clave": "string",
       "descripcion": "string"
@@ -67,12 +70,12 @@ Responde SOLO con un JSON válido con esta estructura:
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "google/gemini-2.5-pro",
         messages: [
           { role: "system", content: systemPrompt },
           { 
             role: "user", 
-            content: `Analiza el siguiente contenido de un PDF de despiece y extrae toda la información de repuestos:\n\n${pdfContent}` 
+            content: `Analiza el siguiente contenido de un PDF de despiece y extrae TODOS los repuestos (pueden ser más de 50). Es crítico que no omitas ninguno:\n\n${pdfContent}` 
           },
         ],
       }),
