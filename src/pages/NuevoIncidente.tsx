@@ -423,7 +423,13 @@ export default function NuevoIncidente() {
     setGuardando(true);
     try {
       let codigoCliente = clienteSeleccionado?.codigo;
-      let direccionEnvioId = direccionSeleccionada;
+      let direccionEnvioId: string | null = null;
+      
+      // Si hay una dirección seleccionada que no es temporal, usarla
+      if (direccionSeleccionada && !direccionSeleccionada.startsWith('temp-')) {
+        direccionEnvioId = direccionSeleccionada;
+      }
+      
       if (mostrarFormNuevoCliente) {
         const {
           data: codigoData,
@@ -488,6 +494,7 @@ export default function NuevoIncidente() {
         }).eq('codigo', clienteSeleccionado!.codigo);
         if (updateError) throw updateError;
       }
+      // Si hay una nueva dirección escrita, crearla
       if (nuevaDireccion.trim() && opcionEnvio !== 'recoger') {
         const {
           data: dirData,
@@ -500,6 +507,23 @@ export default function NuevoIncidente() {
         }).select().single();
         if (dirError) throw dirError;
         direccionEnvioId = dirData.id;
+      } 
+      // Si se seleccionó una dirección temporal (del cliente pero no guardada en direcciones_envio), crearla
+      else if (direccionSeleccionada && direccionSeleccionada.startsWith('temp-') && opcionEnvio !== 'recoger') {
+        const direccionTemp = direccionesEnvio.find(d => d.id === direccionSeleccionada);
+        if (direccionTemp) {
+          const {
+            data: dirData,
+            error: dirError
+          } = await supabase.from('direcciones_envio').insert({
+            codigo_cliente: codigoCliente,
+            direccion: direccionTemp.direccion,
+            nombre_referencia: 'Dirección Principal',
+            es_principal: true
+          }).select().single();
+          if (dirError) throw dirError;
+          direccionEnvioId = dirData.id;
+        }
       }
       const {
         data: {
