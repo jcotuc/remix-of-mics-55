@@ -831,7 +831,7 @@ export default function NuevoIncidente() {
                 </div>
                 <div>
                   <h2 className="font-semibold text-foreground">Información de la Máquina</h2>
-                  <p className="text-sm text-muted-foreground">Datos del equipo y problema</p>
+                  
                 </div>
               </div>
 
