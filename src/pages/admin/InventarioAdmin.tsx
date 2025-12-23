@@ -491,24 +491,24 @@ export default function InventarioAdmin() {
           continue;
         }
 
-        // Detectar duplicados (mismo SKU + mismo centro)
-        const key = `${centroId}|${sku}`;
-        if (seenKeys.has(key)) {
-          duplicateCount++;
-          if (duplicateDetails.length < 10) {
-            duplicateDetails.push(`SKU ${sku} en ${numeroBodega} (filas ${seenKeys.get(key)! + 2} y ${rowIndex + 2})`);
-          }
-        }
-        seenKeys.set(key, rowIndex);
-
-        const ubicacion = findValue(row, "UBICACIÓN", "UBICACION", "ubicacion");
+        const ubicacion = findValue(row, "UBICACIÓN", "UBICACION", "ubicacion") || "";
         const descripcion = findValue(row, "DESCRIPCIÓN", "DESCRIPCION", "descripcion");
         const cantidadRaw = findValue(row, "CANTIDAD", "cantidad", "QTY", "STOCK") || "0";
         const cantidad = parseInt(cantidadRaw.replace(/,/g, "")) || 0;
         const costoRaw = findValue(row, "COSTO UN", "COSTO  UN", "COSTO_UN", "costo_un", "COSTO UNITARIO") || "0";
         const costoUnitario = parseFloat(costoRaw.replace(/,/g, "").replace("Q", "").replace("$", "")) || 0;
 
-        // Usar Map para que el último valor gane (sobrescribe duplicados)
+        // Clave incluye ubicación para permitir mismo SKU en diferentes ubicaciones
+        const key = `${centroId}|${sku}|${ubicacion}`;
+        if (seenKeys.has(key)) {
+          duplicateCount++;
+          if (duplicateDetails.length < 10) {
+            duplicateDetails.push(`SKU ${sku} ubicación ${ubicacion || '(vacía)'} en ${numeroBodega} (filas ${seenKeys.get(key)! + 2} y ${rowIndex + 2})`);
+          }
+        }
+        seenKeys.set(key, rowIndex);
+
+        // Usar Map para que el último valor gane (sobrescribe duplicados exactos)
         upsertMap.set(key, {
           centro_servicio_id: centroId,
           codigo_repuesto: sku,
@@ -540,7 +540,7 @@ export default function InventarioAdmin() {
           const batch = toUpsert.slice(i, i + BATCH_SIZE);
 
           const { error } = await supabase.from("inventario").upsert(batch, {
-            onConflict: "centro_servicio_id,codigo_repuesto",
+            onConflict: "centro_servicio_id,codigo_repuesto,ubicacion",
           });
 
           if (error) {
@@ -551,7 +551,7 @@ export default function InventarioAdmin() {
             for (let j = 0; j < batch.length; j += SMALL_BATCH) {
               const smallBatch = batch.slice(j, j + SMALL_BATCH);
               const { error: smallError } = await supabase.from("inventario").upsert(smallBatch, {
-                onConflict: "centro_servicio_id,codigo_repuesto",
+                onConflict: "centro_servicio_id,codigo_repuesto,ubicacion",
               });
               
               if (smallError) {
