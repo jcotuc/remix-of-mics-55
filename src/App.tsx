@@ -14,6 +14,7 @@ import ActualizarCodigos from "./pages/ActualizarCodigos";
 import Productos from "./pages/Productos";
 import Repuestos from "./pages/Repuestos";
 import NuevoIncidente from "./pages/NuevoIncidente";
+import DetalleIncidente from "./pages/DetalleIncidente";
 import DetalleCliente from "./pages/DetalleCliente";
 import ConsultaPrecios from "./pages/mostrador/ConsultaPrecios";
 import SeguimientoIncidente from "./pages/mostrador/SeguimientoIncidente";
@@ -112,6 +113,7 @@ function App() {
                 <Route path="/mostrador/repuestos" element={<Repuestos />} />
                 <Route path="/mostrador/productos" element={<Productos />} />
                 <Route path="/mostrador/clientes/:codigo" element={<DetalleCliente />} />
+                <Route path="/incidentes/:id" element={<DetalleIncidente />} />
                 <Route path="/detalle-cliente/:codigo" element={<DetalleCliente />} />
                 <Route path="/logistica/embarques" element={<Embarques />} />
                 <Route path="/logistica/garantias-manuales" element={<GarantiasManuales />} />
