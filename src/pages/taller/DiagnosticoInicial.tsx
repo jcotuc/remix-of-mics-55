@@ -1103,7 +1103,7 @@ export default function DiagnosticoInicial() {
                             <div className="flex-1 min-w-0">
                               <p className="font-medium text-sm truncate">{repuesto.descripcion}</p>
                               <p className="text-xs text-muted-foreground">
-                                {repuesto.codigo} | {repuesto.clave}
+                                {repuesto.codigo}
                                 {repuesto.stock_actual !== null && ` | Stock: ${repuesto.stock_actual}`}
                               </p>
                             </div>
