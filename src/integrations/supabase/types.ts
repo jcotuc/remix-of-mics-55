@@ -1180,7 +1180,7 @@ export type Database = {
           created_at: string
           descripcion: string | null
           id: string
-          ubicacion: string | null
+          ubicacion: string
           updated_at: string
         }
         Insert: {
@@ -1192,7 +1192,7 @@ export type Database = {
           created_at?: string
           descripcion?: string | null
           id?: string
-          ubicacion?: string | null
+          ubicacion?: string
           updated_at?: string
         }
         Update: {
@@ -1204,7 +1204,7 @@ export type Database = {
           created_at?: string
           descripcion?: string | null
           id?: string
-          ubicacion?: string | null
+          ubicacion?: string
           updated_at?: string
         }
         Relationships: [
