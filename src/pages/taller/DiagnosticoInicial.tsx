@@ -383,25 +383,11 @@ export default function DiagnosticoInicial() {
       setHijoPadreMap(newHijoPadreMap);
       console.log('Mapa hijo→padre:', newHijoPadreMap.size, 'registros');
 
-      // 2. Obtener producto_id desde la tabla productos
-      const { data: producto } = await supabase
-        .from('productos')
-        .select('id')
-        .eq('codigo', incidente.codigo_producto)
-        .maybeSingle();
-      
-      if (!producto?.id) {
-        console.warn('No se encontró producto con código:', incidente.codigo_producto);
-        setRepuestosDisponibles([]);
-        return;
-      }
-
-      // 3. Cargar repuestos usando producto_id (relación normalizada)
-      const { data, error } = await supabase
-        .from('repuestos')
-        .select('*')
-        .eq('producto_id', producto.id)
-        .order('descripcion');
+      // 2. Cargar repuestos del producto
+      const {
+        data,
+        error
+      } = await supabase.from('repuestos').select('*').eq('codigo_producto', incidente.codigo_producto).order('descripcion');
       if (error) throw error;
 
       // 3. Transformar: reemplazar códigos hijo por padre
@@ -1125,8 +1111,8 @@ export default function DiagnosticoInicial() {
                               <Plus className="w-4 h-4" />
                             </Button>
                           </div>) : <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-                          <Search className="w-12 h-12 mb-2 opacity-50" />
-                          <p>No se encontraron repuestos</p>
+                          
+                          
                         </div>}
                     </div>
                   </CardContent>
@@ -1135,65 +1121,49 @@ export default function DiagnosticoInicial() {
                 {/* Columna Derecha: Repuestos Solicitados */}
                 <Card className="border-muted">
                   <CardHeader className="pb-3">
-                    <div className="relative">
-                      <div className="absolute -top-3 left-3 bg-background px-2">
-                        <span className="text-sm font-medium text-muted-foreground">Repuestos Solicitados</span>
-                      </div>
-                    </div>
+                    
                   </CardHeader>
                   <CardContent className="space-y-4 mt-2">
                     {/* Repuestos Despachados (Verde) */}
-                    {solicitudesAnteriores.filter(s => s.estado === 'entregado').length > 0 && (
-                      <div className="space-y-2">
+                    {solicitudesAnteriores.filter(s => s.estado === 'entregado').length > 0 && <div className="space-y-2">
                         <div className="flex items-center gap-2 text-sm font-medium text-green-700">
                           <CheckCircle2 className="h-4 w-4" />
                           <span>Despachados</span>
                         </div>
-                        {solicitudesAnteriores.filter(s => s.estado === 'entregado').map(solicitud => (
-                          <div key={solicitud.id} className="p-3 bg-green-500/10 rounded-lg border border-green-500/30">
+                        {solicitudesAnteriores.filter(s => s.estado === 'entregado').map(solicitud => <div key={solicitud.id} className="p-3 bg-green-500/10 rounded-lg border border-green-500/30">
                             <p className="text-xs text-muted-foreground mb-1">
                               {new Date(solicitud.created_at).toLocaleDateString('es-GT')}
                             </p>
-                            {solicitud.repuestos?.map((item: any, idx: number) => (
-                              <div key={idx} className="flex items-center justify-between text-sm py-1">
+                            {solicitud.repuestos?.map((item: any, idx: number) => <div key={idx} className="flex items-center justify-between text-sm py-1">
                                 <span className="font-medium truncate flex-1">{item.descripcion}</span>
                                 <Badge variant="outline" className="ml-2 text-xs h-5 bg-green-500/20 border-green-500/50">
                                   {item.cantidad}
                                 </Badge>
-                              </div>
-                            ))}
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                              </div>)}
+                          </div>)}
+                      </div>}
 
                     {/* Repuestos En Proceso (Amarillo) */}
-                    {solicitudesAnteriores.filter(s => s.estado === 'pendiente' || s.estado === 'en_proceso').length > 0 && (
-                      <div className="space-y-2">
+                    {solicitudesAnteriores.filter(s => s.estado === 'pendiente' || s.estado === 'en_proceso').length > 0 && <div className="space-y-2">
                         <div className="flex items-center gap-2 text-sm font-medium text-yellow-700">
                           <Clock className="h-4 w-4" />
                           <span>En Proceso de Despacho</span>
                         </div>
-                        {solicitudesAnteriores.filter(s => s.estado === 'pendiente' || s.estado === 'en_proceso').map(solicitud => (
-                          <div key={solicitud.id} className="p-3 bg-yellow-500/10 rounded-lg border border-yellow-500/30">
+                        {solicitudesAnteriores.filter(s => s.estado === 'pendiente' || s.estado === 'en_proceso').map(solicitud => <div key={solicitud.id} className="p-3 bg-yellow-500/10 rounded-lg border border-yellow-500/30">
                             <div className="flex items-center justify-between mb-1">
                               <p className="text-xs text-muted-foreground">
                                 {new Date(solicitud.created_at).toLocaleDateString('es-GT')}
                               </p>
                               {solicitud.estado === 'en_proceso' && <Loader2 className="h-3 w-3 text-yellow-600 animate-spin" />}
                             </div>
-                            {solicitud.repuestos?.map((item: any, idx: number) => (
-                              <div key={idx} className="flex items-center justify-between text-sm py-1">
+                            {solicitud.repuestos?.map((item: any, idx: number) => <div key={idx} className="flex items-center justify-between text-sm py-1">
                                 <span className="font-medium truncate flex-1">{item.descripcion}</span>
                                 <Badge variant="outline" className="ml-2 text-xs h-5 bg-yellow-500/20 border-yellow-500/50">
                                   {item.cantidad}
                                 </Badge>
-                              </div>
-                            ))}
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                              </div>)}
+                          </div>)}
+                      </div>}
 
                     {/* Nueva Solicitud (Por enviar) */}
                     <div className="space-y-2">
@@ -1201,10 +1171,8 @@ export default function DiagnosticoInicial() {
                         <ShoppingCart className="h-4 w-4" />
                         <span>Por Solicitar ({repuestosSolicitados.length})</span>
                       </div>
-                      {repuestosSolicitados.length > 0 ? (
-                        <div className="space-y-2">
-                          {repuestosSolicitados.map(item => (
-                            <div key={item.codigo} className="p-3 bg-primary/5 rounded-lg border border-primary/30">
+                      {repuestosSolicitados.length > 0 ? <div className="space-y-2">
+                          {repuestosSolicitados.map(item => <div key={item.codigo} className="p-3 bg-primary/5 rounded-lg border border-primary/30">
                               <div className="flex items-start gap-2">
                                 <div className="flex-1 min-w-0">
                                   <p className="font-medium text-sm truncate">{item.descripcion}</p>
@@ -1223,28 +1191,22 @@ export default function DiagnosticoInicial() {
                                   </Button>
                                 </div>
                               </div>
-                            </div>
-                          ))}
+                            </div>)}
                           <Button onClick={handleEnviarSolicitudRepuestos} className="w-full mt-3" size="sm">
                             Enviar a Bodega
                           </Button>
-                        </div>
-                      ) : (
-                        <div className="text-center py-8 text-muted-foreground border border-dashed rounded-lg">
+                        </div> : <div className="text-center py-8 text-muted-foreground border border-dashed rounded-lg">
                           <ShoppingCart className="w-8 h-8 mx-auto mb-2 opacity-30" />
                           <p className="text-xs">Selecciona repuestos de la lista</p>
-                        </div>
-                      )}
+                        </div>}
                     </div>
 
                     {/* Estado vacío cuando no hay nada */}
-                    {solicitudesAnteriores.length === 0 && repuestosSolicitados.length === 0 && (
-                      <div className="text-center py-12 text-muted-foreground">
+                    {solicitudesAnteriores.length === 0 && repuestosSolicitados.length === 0 && <div className="text-center py-12 text-muted-foreground">
                         <Package className="w-12 h-12 mx-auto mb-2 opacity-30" />
                         <p className="text-sm">No hay solicitudes de repuestos</p>
                         <p className="text-xs mt-1">Selecciona repuestos de la columna izquierda</p>
-                      </div>
-                    )}
+                      </div>}
                   </CardContent>
                 </Card>
               </div>
