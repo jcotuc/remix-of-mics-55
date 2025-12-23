@@ -100,7 +100,7 @@ export function GembaDocsCamera({
           className="fixed bottom-6 right-24 h-14 px-4 rounded-full shadow-lg z-50 border-amber-500 text-amber-600 hover:bg-amber-50"
         >
           <MessageSquare className="h-5 w-5 mr-2" />
-          Gemba Docs
+          Media
           {photos.length > 0 && (
             <Badge 
               variant="secondary" 
