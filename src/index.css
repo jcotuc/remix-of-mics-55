@@ -178,25 +178,36 @@
   }
 }
 
-/* Print Styles */
+/* Print Styles - Letter size portrait */
+@page {
+  size: letter portrait;
+  margin: 0.5in;
+}
+
 @media print {
+  html, body {
+    width: 8.5in;
+    height: 11in;
+  }
+  
   body * {
     visibility: hidden;
   }
   
   .print-sheet,
   .print-sheet * {
-    visibility: visible;
+    visibility: visible !important;
   }
   
   .print-sheet {
     position: absolute;
     left: 0;
     top: 0;
-    width: 210mm !important;
-    min-height: 297mm !important;
+    width: 8.5in !important;
+    min-height: auto !important;
     margin: 0 !important;
-    padding: 10mm !important;
+    padding: 0.25in !important;
+    font-size: 11px !important;
   }
   
   /* Hide dialogs backdrop when printing */
