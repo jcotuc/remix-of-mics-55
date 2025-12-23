@@ -201,16 +201,30 @@ const IncidentePrintSheet = forwardRef<HTMLDivElement, Props>(({ data }, ref) =>
         </div>
       </div>
 
-      {/* Estilos de impresión */}
+      {/* Estilos de impresión inline */}
       <style>{`
         @media print {
           .print-sheet {
-            width: 8.5in !important;
-            min-height: auto !important;
-            margin: 0 !important;
-            padding: 0.25in !important;
-            page-break-after: always;
+            display: block !important;
+            position: fixed !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            height: auto !important;
+            padding: 0.2in !important;
+            background: white !important;
+            z-index: 999999 !important;
           }
+          
+          .print-sheet * {
+            visibility: visible !important;
+          }
+          
+          body > *:not([role="dialog"]),
+          [data-radix-dialog-overlay] {
+            display: none !important;
+          }
+          
           body {
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
