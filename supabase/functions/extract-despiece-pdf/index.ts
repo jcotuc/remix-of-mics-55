@@ -33,12 +33,13 @@ Tu tarea es extraer TODA la información de tablas de despieces de máquinas.
 
 REGLAS CRÍTICAS:
 1. Debes extraer ABSOLUTAMENTE TODOS los repuestos de la tabla, sin omitir ninguno.
-2. TODOS los campos son OBLIGATORIOS - cada repuesto DEBE tener codigo, clave y descripcion.
-3. Si un campo parece vacío en el PDF, busca el valor en líneas cercanas o adyacentes.
-4. Los datos pueden estar en columnas separadas: NO. | CÓDIGO | CLAVE | DESCRIPCIÓN
-5. A veces el código y clave están en la misma celda separados por espacio.
+2. INCLUYE el número de fila (NO.) de la tabla original - esto es MUY IMPORTANTE.
+3. Extrae TODOS los campos disponibles: no, codigo, clave, descripcion.
+4. Si un campo está vacío en el PDF, déjalo como string vacío "" pero NO omitas la fila.
+5. Los datos pueden estar en columnas separadas: NO. | CÓDIGO | CLAVE | DESCRIPCIÓN
 
 FORMATO DE DATOS EN EL PDF:
+- NO: Número de fila en la tabla (ej: 1, 2, 3, 34)
 - CÓDIGO: Número de 5-6 dígitos (ej: 95559, 929934)
 - CLAVE: Formato R[número]-[CLAVE_PRODUCTO] (ej: R1-ROTO-1/2A7, R34-ESMA-4-1/2N)
 - DESCRIPCIÓN: Nombre del repuesto en español (ej: Brida exterior, Campo, Tornillo ST 4x16)
@@ -49,14 +50,13 @@ INFORMACIÓN A EXTRAER:
    - CÓDIGO del producto (ej: 16441, 15679)
    - Descripción del producto
 
-2. Lista COMPLETA de repuestos - CADA UNO debe tener los 3 campos:
-   - codigo: Código numérico (OBLIGATORIO - buscar si parece faltar)
-   - clave: Clave alfanumérica (OBLIGATORIO - buscar si parece faltar)  
-   - descripcion: Descripción en español (OBLIGATORIO - buscar si parece faltar)
+2. Lista COMPLETA de repuestos con TODOS sus campos:
+   - no: Número de fila en la tabla original (OBLIGATORIO)
+   - codigo: Código numérico (puede estar vacío "")
+   - clave: Clave alfanumérica (puede estar vacío "")
+   - descripcion: Descripción en español (puede estar vacío "")
 
-IMPORTANTE: Si ves una fila con datos parciales, los datos faltantes probablemente están en la línea anterior o siguiente. Combínalos correctamente.
-
-NO incluyas repuestos con campos vacíos. Si no puedes determinar un valor, NO incluyas ese repuesto.
+IMPORTANTE: Extrae TODAS las filas de la tabla, incluso si algunos campos están vacíos. El usuario decidirá cuáles usar.
 
 Responde SOLO con un JSON válido con esta estructura:
 {
@@ -67,6 +67,7 @@ Responde SOLO con un JSON válido con esta estructura:
   },
   "repuestos": [
     {
+      "no": "string",
       "codigo": "string",
       "clave": "string",
       "descripcion": "string"
