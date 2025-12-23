@@ -27,7 +27,7 @@ const IncidentePrintSheet = forwardRef<HTMLDivElement, Props>(({ data }, ref) =>
   const horaFormateada = format(data.fechaIngreso, "HH:mm", { locale: es });
 
   return (
-    <div ref={ref} className="print-sheet bg-white text-black p-6 w-[210mm] min-h-[297mm] mx-auto font-sans text-sm">
+    <div ref={ref} className="print-sheet bg-white text-black p-4 w-full max-w-[8.5in] mx-auto font-sans text-[11px]">
       {/* Sección 1: Copia Centro de Servicio */}
       <div className="border-2 border-black mb-4">
         {/* Header */}
@@ -205,10 +205,10 @@ const IncidentePrintSheet = forwardRef<HTMLDivElement, Props>(({ data }, ref) =>
       <style>{`
         @media print {
           .print-sheet {
-            width: 210mm !important;
-            min-height: 297mm !important;
+            width: 8.5in !important;
+            min-height: auto !important;
             margin: 0 !important;
-            padding: 10mm !important;
+            padding: 0.25in !important;
             page-break-after: always;
           }
           body {
