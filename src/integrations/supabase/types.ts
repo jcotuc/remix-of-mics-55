@@ -1710,6 +1710,7 @@ export type Database = {
           clave: string
           codigo: string
           codigo_padre: string | null
+          codigo_producto: string | null
           created_at: string
           descripcion: string
           disponible_mostrador: boolean | null
@@ -1723,6 +1724,7 @@ export type Database = {
           clave: string
           codigo: string
           codigo_padre?: string | null
+          codigo_producto?: string | null
           created_at?: string
           descripcion: string
           disponible_mostrador?: boolean | null
@@ -1736,6 +1738,7 @@ export type Database = {
           clave?: string
           codigo?: string
           codigo_padre?: string | null
+          codigo_producto?: string | null
           created_at?: string
           descripcion?: string
           disponible_mostrador?: boolean | null
