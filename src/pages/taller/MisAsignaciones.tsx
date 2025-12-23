@@ -16,13 +16,15 @@ export default function MisAsignaciones() {
   const [incidentes, setIncidentes] = useState<IncidenteDB[]>([]);
   const [notificaciones, setNotificaciones] = useState<NotificacionDB[]>([]);
   const [loading, setLoading] = useState(true);
+  const [userId, setUserId] = useState<string | null>(null);
   const [codigoEmpleado, setCodigoEmpleado] = useState<string | null>(null);
 
   useEffect(() => {
     const init = async () => {
-      // Obtener código de empleado del usuario actual
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+
+      setUserId(user.id);
 
       const { data: profile } = await supabase
         .from('profiles')
@@ -38,7 +40,7 @@ export default function MisAsignaciones() {
   }, []);
 
   useEffect(() => {
-    if (codigoEmpleado) {
+    if (userId) {
       fetchAsignaciones();
     }
     fetchNotificaciones();
@@ -60,17 +62,17 @@ export default function MisAsignaciones() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [codigoEmpleado]);
+  }, [userId]);
 
   const fetchAsignaciones = async () => {
-    if (!codigoEmpleado) {
+    if (!userId) {
       setLoading(false);
       return;
     }
 
     try {
       setLoading(true);
-      // Filtrar incidentes asignados al técnico actual
+      // Filtrar incidentes asignados al técnico actual por tecnico_asignado_id
       const { data, error } = await supabase
         .from('incidentes')
         .select(`
@@ -82,7 +84,7 @@ export default function MisAsignaciones() {
           )
         `)
         .eq('status', 'En diagnostico')
-        .eq('codigo_tecnico', codigoEmpleado)
+        .eq('tecnico_asignado_id', userId)
         .order('fecha_ingreso', { ascending: true });
 
       if (error) throw error;
@@ -150,19 +152,22 @@ export default function MisAsignaciones() {
   const [reingresos, setReingresos] = useState(0);
 
   useEffect(() => {
-    if (!codigoEmpleado) return;
+    if (!userId) return;
     
     const fetchMetricas = async () => {
       try {
         // Productividad del día: diagnósticos completados hoy por este técnico
-        const { data: diagHoy } = await supabase
-          .from('diagnosticos')
-          .select('id')
-          .eq('estado', 'completado')
-          .eq('tecnico_codigo', codigoEmpleado)
-          .gte('updated_at', hoy.toISOString());
-        
-        setProductividadDia(diagHoy?.length || 0);
+        // Usamos el codigo_empleado para diagnósticos ya que esa tabla aún usa tecnico_codigo
+        if (codigoEmpleado) {
+          const { data: diagHoy } = await supabase
+            .from('diagnosticos')
+            .select('id')
+            .eq('estado', 'completado')
+            .eq('tecnico_codigo', codigoEmpleado)
+            .gte('updated_at', hoy.toISOString());
+          
+          setProductividadDia(diagHoy?.length || 0);
+        }
 
         // Reingresos: incidentes marcados como reingreso asignados a este técnico
         const { data: reingresosData } = await supabase
@@ -170,7 +175,7 @@ export default function MisAsignaciones() {
           .select('id')
           .eq('es_reingreso', true)
           .eq('status', 'En diagnostico')
-          .eq('codigo_tecnico', codigoEmpleado);
+          .eq('tecnico_asignado_id', userId);
         
         setReingresos(reingresosData?.length || 0);
       } catch (error) {
@@ -178,7 +183,7 @@ export default function MisAsignaciones() {
       }
     };
     fetchMetricas();
-  }, [codigoEmpleado]);
+  }, [userId, codigoEmpleado]);
 
   return (
     <div className="container mx-auto py-8 space-y-6">
