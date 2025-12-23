@@ -1080,12 +1080,7 @@ export default function DiagnosticoInicial() {
             </div>}
 
           {paso === 2 && <div className="space-y-4">
-              <div>
-                <Label className="text-lg font-semibold">Gestión de Repuestos</Label>
-                <p className="text-sm text-muted-foreground">
-                  Administra las solicitudes de repuestos para esta reparación
-                </p>
-              </div>
+              
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 {/* Columna 1: Solicitudes Despachadas */}
@@ -1246,11 +1241,7 @@ export default function DiagnosticoInicial() {
 
               {/* Observaciones del técnico con outlined input */}
               <div className="space-y-4">
-                <OutlinedTextarea 
-                  label="Observaciones del Técnico"
-                  value={observaciones} 
-                  onChange={e => setObservaciones(e.target.value)} 
-                />
+                <OutlinedTextarea label="Observaciones del Técnico" value={observaciones} onChange={e => setObservaciones(e.target.value)} />
               </div>
 
               <Separator />
