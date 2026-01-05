@@ -10,9 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { TablePagination } from "@/components/TablePagination";
 import type { Database } from "@/integrations/supabase/types";
-
 type Cliente = Database['public']['Tables']['clientes']['Row'];
-
 export default function Clientes() {
   const [searchTerm, setSearchTerm] = useState("");
   const [clientesList, setClientesList] = useState<Cliente[]>([]);
@@ -21,7 +19,6 @@ export default function Clientes() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(50);
-
   useEffect(() => {
     updateCodesAndFetch();
   }, []);
@@ -30,17 +27,21 @@ export default function Clientes() {
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm]);
-
   const updateCodesAndFetch = async () => {
     try {
       setLoading(true);
-
-      const { data: hpcClientes } = await supabase.from('clientes').select('id, codigo').like('codigo', 'HPC-%');
+      const {
+        data: hpcClientes
+      } = await supabase.from('clientes').select('id, codigo').like('codigo', 'HPC-%');
       if (hpcClientes && hpcClientes.length > 0) {
         console.log(`Actualizando ${hpcClientes.length} clientes de HPC a HPS...`);
         for (const cliente of hpcClientes) {
           const newCodigo = cliente.codigo.replace('HPC-', 'HPS-');
-          const { error } = await supabase.from('clientes').update({ codigo: newCodigo }).eq('id', cliente.id);
+          const {
+            error
+          } = await supabase.from('clientes').update({
+            codigo: newCodigo
+          }).eq('id', cliente.id);
           if (error) {
             console.error(`Error actualizando ${cliente.codigo} → ${newCodigo}:`, error);
           } else {
@@ -49,7 +50,6 @@ export default function Clientes() {
         }
         toast.success(`${hpcClientes.length} clientes actualizados a HPS`);
       }
-
       await fetchClientes();
     } catch (error) {
       console.error('Error al actualizar códigos:', error);
@@ -57,14 +57,16 @@ export default function Clientes() {
       setLoading(false);
     }
   };
-
   const fetchClientes = async () => {
     try {
       setLoading(true);
-
-      const { data, error } = await supabase.from('clientes').select('*').like('codigo', 'HPS-%').order('created_at', { ascending: false });
+      const {
+        data,
+        error
+      } = await supabase.from('clientes').select('*').like('codigo', 'HPS-%').order('created_at', {
+        ascending: false
+      });
       if (error) throw error;
-
       const clientesManuales = (data || []).filter(c => /^HPS-\d{6}$/.test(c.codigo));
       setClientesList(clientesManuales);
     } catch (error) {
@@ -74,11 +76,12 @@ export default function Clientes() {
       setLoading(false);
     }
   };
-
   const handleDelete = async (codigo: string) => {
     if (!confirm('¿Estás seguro de eliminar este cliente?')) return;
     try {
-      const { error } = await supabase.from('clientes').delete().eq('codigo', codigo);
+      const {
+        error
+      } = await supabase.from('clientes').delete().eq('codigo', codigo);
       if (error) throw error;
       toast.success('Cliente eliminado exitosamente');
       fetchClientes();
@@ -87,18 +90,18 @@ export default function Clientes() {
       toast.error('Error al eliminar el cliente');
     }
   };
-
   const handleEdit = (cliente: Cliente) => {
     setEditingCliente(cliente);
     setIsEditDialogOpen(true);
   };
-
   const handleSaveEdit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!editingCliente) return;
     const formData = new FormData(e.currentTarget);
     try {
-      const { error } = await supabase.from('clientes').update({
+      const {
+        error
+      } = await supabase.from('clientes').update({
         nombre: formData.get('nombre') as string,
         nit: formData.get('nit') as string,
         celular: formData.get('celular') as string,
@@ -121,28 +124,19 @@ export default function Clientes() {
       toast.error('Error al actualizar el cliente');
     }
   };
-
   const filteredClientes = useMemo(() => {
-    return clientesList.filter(cliente => 
-      cliente.nombre.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      cliente.nit.includes(searchTerm) || 
-      cliente.codigo.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    return clientesList.filter(cliente => cliente.nombre.toLowerCase().includes(searchTerm.toLowerCase()) || cliente.nit.includes(searchTerm) || cliente.codigo.toLowerCase().includes(searchTerm.toLowerCase()));
   }, [clientesList, searchTerm]);
 
   // Pagination
   const totalPages = Math.max(1, Math.ceil(filteredClientes.length / itemsPerPage));
   const startIndex = (currentPage - 1) * itemsPerPage;
   const paginatedClientes = filteredClientes.slice(startIndex, startIndex + itemsPerPage);
-
-  return (
-    <div className="space-y-6">
+  return <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Gestión de Clientes</h1>
-          <p className="text-muted-foreground">
-            Administra la información de los clientes del centro de servicio
-          </p>
+          
         </div>
       </div>
 
@@ -156,12 +150,7 @@ export default function Clientes() {
         <CardContent>
           <div className="flex items-center space-x-2 mb-4">
             <Search className="h-4 w-4 text-muted-foreground" />
-            <Input 
-              placeholder="Buscar por nombre, NIT o código..." 
-              value={searchTerm} 
-              onChange={e => setSearchTerm(e.target.value)} 
-              className="max-w-sm" 
-            />
+            <Input placeholder="Buscar por nombre, NIT o código..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="max-w-sm" />
           </div>
 
           <div className="rounded-md border">
@@ -176,25 +165,15 @@ export default function Clientes() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {loading ? (
-                  <TableRow>
+                {loading ? <TableRow>
                     <TableCell colSpan={5} className="text-center">
                       Cargando...
                     </TableCell>
-                  </TableRow>
-                ) : paginatedClientes.length === 0 ? (
-                  <TableRow>
+                  </TableRow> : paginatedClientes.length === 0 ? <TableRow>
                     <TableCell colSpan={5} className="text-center">
                       No hay clientes registrados
                     </TableCell>
-                  </TableRow>
-                ) : (
-                  paginatedClientes.map(cliente => (
-                    <TableRow 
-                      key={cliente.codigo} 
-                      className="cursor-pointer hover:bg-muted/50" 
-                      onClick={() => window.location.href = `/mostrador/clientes/${cliente.codigo}`}
-                    >
+                  </TableRow> : paginatedClientes.map(cliente => <TableRow key={cliente.codigo} className="cursor-pointer hover:bg-muted/50" onClick={() => window.location.href = `/mostrador/clientes/${cliente.codigo}`}>
                       <TableCell className="font-medium">{cliente.codigo}</TableCell>
                       <TableCell>{cliente.nombre}</TableCell>
                       <TableCell>{cliente.nit}</TableCell>
@@ -209,26 +188,15 @@ export default function Clientes() {
                           </Button>
                         </div>
                       </TableCell>
-                    </TableRow>
-                  ))
-                )}
+                    </TableRow>)}
               </TableBody>
             </Table>
           </div>
 
-          {!loading && filteredClientes.length > 0 && (
-            <TablePagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              totalItems={filteredClientes.length}
-              itemsPerPage={itemsPerPage}
-              onPageChange={setCurrentPage}
-              onItemsPerPageChange={(value) => {
-                setItemsPerPage(value);
-                setCurrentPage(1);
-              }}
-            />
-          )}
+          {!loading && filteredClientes.length > 0 && <TablePagination currentPage={currentPage} totalPages={totalPages} totalItems={filteredClientes.length} itemsPerPage={itemsPerPage} onPageChange={setCurrentPage} onItemsPerPageChange={value => {
+          setItemsPerPage(value);
+          setCurrentPage(1);
+        }} />}
         </CardContent>
       </Card>
 
@@ -241,8 +209,7 @@ export default function Clientes() {
             </DialogDescription>
           </DialogHeader>
           
-          {editingCliente && (
-            <form onSubmit={handleSaveEdit} className="space-y-4">
+          {editingCliente && <form onSubmit={handleSaveEdit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="edit-nombre">Nombre *</Label>
@@ -308,10 +275,8 @@ export default function Clientes() {
                   Guardar Cambios
                 </Button>
               </div>
-            </form>
-          )}
+            </form>}
         </DialogContent>
       </Dialog>
-    </div>
-  );
+    </div>;
 }
