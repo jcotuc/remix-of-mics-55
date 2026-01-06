@@ -27,8 +27,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
-import { Upload, Plus, Pencil, Trash2, Search, Package } from "lucide-react";
+import { Upload, Plus, Pencil, Trash2, Search, Package, CheckCircle, AlertTriangle, XCircle } from "lucide-react";
 import * as XLSX from "xlsx";
 
 interface Accesorio {
@@ -44,10 +46,23 @@ interface Familia {
   Padre: number | null;
 }
 
+interface ImportResult {
+  accesorio: string;
+  categoria: string;
+  subcategoria: string;
+  status: "success" | "no_family" | "error";
+  familiaId: number | null;
+  error?: string;
+}
+
 export default function AccesoriosFamilias() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
+  const [filterCategoria, setFilterCategoria] = useState<string>("all");
+  const [filterVinculacion, setFilterVinculacion] = useState<string>("all");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [importResults, setImportResults] = useState<ImportResult[]>([]);
   const [editingAccesorio, setEditingAccesorio] = useState<Accesorio | null>(null);
   const [formData, setFormData] = useState({ nombre: "", familia_id: "" });
 
@@ -79,6 +94,9 @@ export default function AccesoriosFamilias() {
 
   // Crear mapa de familias para lookup rápido
   const familiasMap = new Map(familias.map((f) => [f.id, f]));
+
+  // Obtener categorías padre únicas (familias sin Padre)
+  const categoriasPadre = familias.filter((f) => f.Padre === null);
 
   // Obtener categoría padre de una familia
   const getCategoriaPadre = (familiaId: number | null): string => {
@@ -227,9 +245,7 @@ export default function AccesoriosFamilias() {
       const normalize = (str: string) => 
         str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 
-      let insertados = 0;
-      let errores = 0;
-      let sinVincular = 0;
+      const results: ImportResult[] = [];
 
       for (const row of rows) {
         const accesorio = (row[colAccesorio] || "").toString().trim();
@@ -240,6 +256,8 @@ export default function AccesoriosFamilias() {
 
         // Buscar la subcategoría que coincida con el nombre y cuyo padre tenga la categoría correcta
         let familiaId: number | null = null;
+        let status: "success" | "no_family" | "error" = "success";
+        let errorMsg: string | undefined;
 
         const subcategoriaEncontrada = familias.find((f) => {
           if (!f.Padre) return false;
@@ -251,27 +269,35 @@ export default function AccesoriosFamilias() {
         if (subcategoriaEncontrada) {
           familiaId = subcategoriaEncontrada.id;
         } else {
-          sinVincular++;
-          console.log(`No se encontró familia para: ${categoriaTexto} > ${subCategoriaTexto}`);
+          status = "no_family";
         }
 
         try {
           const { error } = await supabase.from("CDS_Accesorios").insert([
             { nombre: accesorio, familia_id: familiaId },
           ]);
-          if (error) throw error;
-          insertados++;
-        } catch {
-          errores++;
+          if (error) {
+            status = "error";
+            errorMsg = error.message;
+          }
+        } catch (err) {
+          status = "error";
+          errorMsg = "Error de inserción";
         }
+
+        results.push({
+          accesorio,
+          categoria: categoriaTexto,
+          subcategoria: subCategoriaTexto,
+          status,
+          familiaId,
+          error: errorMsg,
+        });
       }
 
+      setImportResults(results);
+      setImportDialogOpen(true);
       queryClient.invalidateQueries({ queryKey: ["cds-accesorios"] });
-      
-      if (sinVincular > 0) {
-        toast.warning(`${sinVincular} accesorios sin familia vinculada (revisar consola)`);
-      }
-      toast.success(`Importación: ${insertados} insertados, ${errores} errores`);
     } catch (error) {
       toast.error("Error al procesar el archivo");
     }
@@ -280,11 +306,40 @@ export default function AccesoriosFamilias() {
   };
 
   // Filtrar accesorios
-  const filtered = accesorios.filter((a) =>
-    a.nombre.toLowerCase().includes(search.toLowerCase()) ||
-    getSubcategoria(a.familia_id).toLowerCase().includes(search.toLowerCase()) ||
-    getCategoriaPadre(a.familia_id).toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = accesorios.filter((a) => {
+    // Filtro de texto
+    const matchesSearch = 
+      a.nombre.toLowerCase().includes(search.toLowerCase()) ||
+      getSubcategoria(a.familia_id).toLowerCase().includes(search.toLowerCase()) ||
+      getCategoriaPadre(a.familia_id).toLowerCase().includes(search.toLowerCase());
+    
+    if (!matchesSearch) return false;
+
+    // Filtro de vinculación
+    if (filterVinculacion === "vinculados" && !a.familia_id) return false;
+    if (filterVinculacion === "sin_vincular" && a.familia_id) return false;
+
+    // Filtro por categoría padre
+    if (filterCategoria !== "all") {
+      if (!a.familia_id) return false;
+      const familia = familiasMap.get(a.familia_id);
+      if (!familia?.Padre) return false;
+      if (familia.Padre.toString() !== filterCategoria) return false;
+    }
+
+    return true;
+  });
+
+  // Contadores para estadísticas
+  const totalVinculados = accesorios.filter(a => a.familia_id).length;
+  const totalSinVincular = accesorios.filter(a => !a.familia_id).length;
+
+  // Stats del import
+  const importStats = {
+    success: importResults.filter(r => r.status === "success").length,
+    noFamily: importResults.filter(r => r.status === "no_family").length,
+    error: importResults.filter(r => r.status === "error").length,
+  };
 
   return (
     <div className="container mx-auto py-6 space-y-6">
@@ -316,14 +371,63 @@ export default function AccesoriosFamilias() {
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="relative max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar accesorio o familia..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-9"
-            />
+          {/* Filtros */}
+          <div className="flex flex-wrap gap-4 items-end">
+            <div className="relative flex-1 min-w-[200px] max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar accesorio o familia..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            
+            <div className="flex gap-2 items-center">
+              <Select value={filterCategoria} onValueChange={setFilterCategoria}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Todas las categorías" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todas las categorías</SelectItem>
+                  {categoriasPadre.map((cat) => (
+                    <SelectItem key={cat.id} value={cat.id.toString()}>
+                      {cat.Categoria}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              
+              <Select value={filterVinculacion} onValueChange={setFilterVinculacion}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Todos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos ({accesorios.length})</SelectItem>
+                  <SelectItem value="vinculados">
+                    Vinculados ({totalVinculados})
+                  </SelectItem>
+                  <SelectItem value="sin_vincular">
+                    Sin vincular ({totalSinVincular})
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Stats rápidas */}
+          <div className="flex gap-4 text-sm">
+            <Badge variant="secondary">
+              Total: {accesorios.length}
+            </Badge>
+            <Badge variant="default" className="bg-green-600">
+              Vinculados: {totalVinculados}
+            </Badge>
+            {totalSinVincular > 0 && (
+              <Badge variant="destructive">
+                Sin vincular: {totalSinVincular}
+              </Badge>
+            )}
           </div>
 
           <div className="rounded-md border">
@@ -424,6 +528,82 @@ export default function AccesoriosFamilias() {
             </Button>
             <Button onClick={handleSubmit} disabled={createMutation.isPending || updateMutation.isPending}>
               {editingAccesorio ? "Guardar" : "Crear"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de resultados de importación */}
+      <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle>Resultados de Importación</DialogTitle>
+          </DialogHeader>
+          
+          {/* Stats */}
+          <div className="flex gap-4 py-2">
+            <div className="flex items-center gap-2">
+              <CheckCircle className="h-5 w-5 text-green-600" />
+              <span className="font-medium">{importStats.success} exitosos</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-yellow-600" />
+              <span className="font-medium">{importStats.noFamily} sin familia</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <XCircle className="h-5 w-5 text-red-600" />
+              <span className="font-medium">{importStats.error} errores</span>
+            </div>
+          </div>
+
+          <ScrollArea className="h-[400px] border rounded-md">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[50px]">Estado</TableHead>
+                  <TableHead>Accesorio</TableHead>
+                  <TableHead>Categoría</TableHead>
+                  <TableHead>Subcategoría</TableHead>
+                  <TableHead>Familia Vinculada</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {importResults.map((result, idx) => (
+                  <TableRow key={idx}>
+                    <TableCell>
+                      {result.status === "success" && (
+                        <CheckCircle className="h-4 w-4 text-green-600" />
+                      )}
+                      {result.status === "no_family" && (
+                        <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                      )}
+                      {result.status === "error" && (
+                        <XCircle className="h-4 w-4 text-red-600" />
+                      )}
+                    </TableCell>
+                    <TableCell className="font-medium">{result.accesorio}</TableCell>
+                    <TableCell>{result.categoria}</TableCell>
+                    <TableCell>{result.subcategoria}</TableCell>
+                    <TableCell>
+                      {result.familiaId ? (
+                        <Badge variant="secondary">
+                          {familiasMap.get(result.familiaId)?.Categoria}
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">
+                          {result.status === "error" ? result.error : "No encontrada"}
+                        </span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </ScrollArea>
+
+          <DialogFooter>
+            <Button onClick={() => setImportDialogOpen(false)}>
+              Cerrar
             </Button>
           </DialogFooter>
         </DialogContent>
