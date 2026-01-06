@@ -247,14 +247,11 @@ export default function SeguimientoIncidente() {
           </Card>
 
           {/* Detalles del Incidente */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="w-5 h-5" />
-                Detalles del Incidente
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+          <Card className="relative">
+            <div className="absolute top-3 left-3">
+              <FileText className="w-5 h-5 text-orange-500" />
+            </div>
+            <CardContent className="pt-10 pb-4 px-4 space-y-4">
               <div>
                 <h4 className="text-sm font-medium text-muted-foreground mb-1">Problema Reportado</h4>
                 <p className="text-sm bg-muted/50 p-3 rounded-lg">{incidente.descripcion_problema}</p>
@@ -311,17 +308,14 @@ export default function SeguimientoIncidente() {
           </Card>
 
           {/* Diagnóstico existente */}
-          {diagnostico && <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2">
-                  <Wrench className="w-5 h-5" />
-                  Diagnóstico Técnico
-                </CardTitle>
-                <CardDescription>
-                  Estado: {diagnostico.estado}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
+          {diagnostico && <Card className="relative">
+              <div className="absolute top-3 left-3">
+                <Wrench className="w-5 h-5 text-orange-500" />
+              </div>
+              <CardContent className="pt-10 pb-4 px-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Estado: {diagnostico.estado}</span>
+                </div>
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <span className="text-muted-foreground">Técnico:</span>
@@ -382,14 +376,11 @@ export default function SeguimientoIncidente() {
         {/* Right Column - Sidebar (1/3) */}
         <div className="space-y-6">
           {/* Cliente Card */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <User className="w-4 h-4" />
-                Cliente
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
+          <Card className="relative">
+            <div className="absolute top-3 left-3">
+              <User className="w-4 h-4 text-orange-500" />
+            </div>
+            <CardContent className="pt-10 pb-4 px-4 space-y-3">
               {cliente ? <>
                   <div>
                     <p className="font-semibold">{cliente.nombre}</p>
@@ -427,14 +418,11 @@ export default function SeguimientoIncidente() {
           {id && <CompactPhotoGallery incidenteId={id} />}
 
           {/* Técnico Asignado */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Wrench className="w-4 h-4" />
-                Técnico Asignado
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
+          <Card className="relative">
+            <div className="absolute top-3 left-3">
+              <Wrench className="w-4 h-4 text-orange-500" />
+            </div>
+            <CardContent className="pt-10 pb-4 px-4">
               {tecnico && !['Ingresado', 'En ruta', 'Pendiente de diagnostico'].includes(incidente.status) ? <div className="space-y-2">
                   <p className="font-semibold">{tecnico.nombre} {tecnico.apellido}</p>
                   <p className="text-xs text-muted-foreground">Código: {tecnico.codigo}</p>
@@ -447,14 +435,11 @@ export default function SeguimientoIncidente() {
           </Card>
 
           {/* Opción de Entrega */}
-          {incidente.quiere_envio && direccionEnvio && <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <Truck className="w-4 h-4" />
-                  Dirección de Envío
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
+          {incidente.quiere_envio && direccionEnvio && <Card className="relative">
+              <div className="absolute top-3 left-3">
+                <Truck className="w-4 h-4 text-orange-500" />
+              </div>
+              <CardContent className="pt-10 pb-4 px-4">
                 <div className="flex items-start gap-2">
                   <MapPin className="w-4 h-4 text-muted-foreground mt-0.5" />
                   <div>
