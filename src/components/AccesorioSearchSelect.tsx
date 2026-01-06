@@ -127,7 +127,10 @@ export const AccesorioSearchSelect: React.FC<AccesorioSearchSelectProps> = ({
           type="text"
           placeholder="Buscar accesorio..."
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+          onChange={(e) => {
+            setSearchTerm(e.target.value);
+            if (e.target.value) setIsOpen(true);
+          }}
           disabled={disabled}
           className="pl-9"
         />
