@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { 
-  ArrowLeft, Package, User, Calendar, MapPin, FileText, CheckCircle, 
+  ArrowLeft, Package, User, MapPin, FileText, CheckCircle, 
   Printer, AlertTriangle, Wrench, Phone, Mail, Home, Truck, Edit, Save, Box, Clock, History
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -10,8 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { StatusBadge } from "@/components/StatusBadge";
-import { IncidentTimeline } from "@/components/IncidentTimeline";
-import { ObservacionesLog } from "@/components/ObservacionesLog";
+import { HistorialConObservaciones } from "@/components/HistorialConObservaciones";
 import { CompactPhotoGallery } from "@/components/CompactPhotoGallery";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -441,14 +440,13 @@ export default function SeguimientoIncidente() {
             </Card>
           )}
 
-          {/* Historial y Observaciones - Side by Side */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Historial de Eventos - Timeline */}
-            {id && <IncidentTimeline incidenteId={id} />}
-
-            {/* Log de Observaciones */}
-            <ObservacionesLog logObservaciones={incidente.log_observaciones} />
-          </div>
+          {/* Historial y Observaciones - Combinado */}
+          {id && (
+            <HistorialConObservaciones 
+              incidenteId={id} 
+              logObservaciones={incidente.log_observaciones} 
+            />
+          )}
         </div>
 
         {/* Right Column - Sidebar (1/3) */}
