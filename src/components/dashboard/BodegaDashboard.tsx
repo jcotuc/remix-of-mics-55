@@ -9,7 +9,7 @@ type InventarioItem = {
   codigo_repuesto: string;
   descripcion: string | null;
   cantidad: number;
-  ubicacion: string | null;
+  ubicacion_legacy: string | null;
   bodega: string | null;
 };
 
@@ -30,7 +30,7 @@ export function BodegaDashboard() {
 
   // Métricas para bodega
   const stockBajo = inventario.filter(item => item.cantidad < 5).length;
-  const sinUbicacion = inventario.filter(item => !item.ubicacion).length;
+  const sinUbicacion = inventario.filter(item => !item.ubicacion_legacy).length;
   const totalItems = inventario.length;
   const totalUnidades = inventario.reduce((acc, item) => acc + item.cantidad, 0);
 

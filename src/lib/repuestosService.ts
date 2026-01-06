@@ -74,7 +74,7 @@ export async function buscarAlternativaDisponible(
         codigo_encontrado: stockDirecto.codigo_repuesto,
         descripcion: stockDirecto.descripcion || '',
         stock_disponible: stockDirecto.cantidad,
-        ubicacion: stockDirecto.ubicacion || '',
+        ubicacion: stockDirecto.ubicacion_legacy || '',
         tipo_coincidencia: 'solicitado',
         prioridad: 1
       };
@@ -95,7 +95,7 @@ export async function buscarAlternativaDisponible(
           codigo_encontrado: stockPadre.codigo_repuesto,
           descripcion: stockPadre.descripcion || padre.descripcionPadre || '',
           stock_disponible: stockPadre.cantidad,
-          ubicacion: stockPadre.ubicacion || '',
+          ubicacion: stockPadre.ubicacion_legacy || '',
           tipo_coincidencia: 'padre',
           prioridad: 2
         };
@@ -130,12 +130,12 @@ export async function obtenerUbicacionRepuesto(
 
   const { data: stock } = await supabase
     .from('inventario')
-    .select('ubicacion')
+    .select('ubicacion_legacy')
     .eq('codigo_repuesto', codigoParaUbicacion)
     .eq('centro_servicio_id', centroServicioId)
     .maybeSingle();
 
-  return stock?.ubicacion || null;
+  return stock?.ubicacion_legacy || null;
 }
 
 /**

@@ -14,7 +14,7 @@ type InventarioItem = {
   codigo_repuesto: string;
   descripcion: string | null;
   cantidad: number;
-  ubicacion: string | null;
+  ubicacion_legacy: string | null;
 };
 
 export default function InventarioNuevo() {
@@ -58,7 +58,7 @@ export default function InventarioNuevo() {
       setLoading(true);
       const { data, error } = await supabase
         .from("inventario")
-        .select("codigo_repuesto, descripcion, cantidad, ubicacion")
+        .select("codigo_repuesto, descripcion, cantidad, ubicacion_legacy")
         .eq("centro_servicio_id", centroId)
         .order("codigo_repuesto");
 
@@ -75,7 +75,7 @@ export default function InventarioNuevo() {
   const filteredInventario = inventario.filter(item =>
     item.codigo_repuesto.toLowerCase().includes(searchTerm.toLowerCase()) ||
     item.descripcion?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.ubicacion?.toLowerCase().includes(searchTerm.toLowerCase())
+    item.ubicacion_legacy?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const stockTotal = inventario.reduce((acc, item) => acc + item.cantidad, 0);
@@ -175,7 +175,7 @@ export default function InventarioNuevo() {
                       <TableRow key={idx}>
                         <TableCell className="font-mono">{item.codigo_repuesto}</TableCell>
                         <TableCell className="max-w-xs truncate">{item.descripcion || "-"}</TableCell>
-                        <TableCell>{item.ubicacion || "-"}</TableCell>
+                        <TableCell>{item.ubicacion_legacy || "-"}</TableCell>
                         <TableCell className="text-right">{item.cantidad}</TableCell>
                         <TableCell>
                           {item.cantidad === 0 ? (
