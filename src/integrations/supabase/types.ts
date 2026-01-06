@@ -1263,7 +1263,8 @@ export type Database = {
           created_at: string
           descripcion: string | null
           id: string
-          ubicacion: string
+          ubicacion_id: number | null
+          ubicacion_legacy: string
           updated_at: string
         }
         Insert: {
@@ -1275,7 +1276,8 @@ export type Database = {
           created_at?: string
           descripcion?: string | null
           id?: string
-          ubicacion?: string
+          ubicacion_id?: number | null
+          ubicacion_legacy?: string
           updated_at?: string
         }
         Update: {
@@ -1287,7 +1289,8 @@ export type Database = {
           created_at?: string
           descripcion?: string | null
           id?: string
-          ubicacion?: string
+          ubicacion_id?: number | null
+          ubicacion_legacy?: string
           updated_at?: string
         }
         Relationships: [
@@ -1296,6 +1299,13 @@ export type Database = {
             columns: ["centro_servicio_id"]
             isOneToOne: false
             referencedRelation: "centros_servicio"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventario_ubicacion_id_fkey"
+            columns: ["ubicacion_id"]
+            isOneToOne: false
+            referencedRelation: "Ubicación_CDS"
             referencedColumns: ["id"]
           },
         ]
