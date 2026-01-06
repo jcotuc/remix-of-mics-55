@@ -1,34 +1,27 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { 
-  ArrowLeft, Package, User, MapPin, FileText, CheckCircle, 
-  Printer, AlertTriangle, Wrench, Phone, Mail, Home, Truck, Edit, Save, Box, Clock, History
-} from "lucide-react";
+import { ArrowLeft, Package, User, Calendar, MapPin, FileText, DollarSign, CheckCircle2, Printer, AlertTriangle, Wrench, TrendingUp, Phone, Mail, Home, Truck, FileCheck, Edit, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { StatusBadge } from "@/components/StatusBadge";
-import { HistorialConObservaciones } from "@/components/HistorialConObservaciones";
-import { CompactPhotoGallery } from "@/components/CompactPhotoGallery";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/hooks/use-toast";
-import { format } from "date-fns";
-import { es } from "date-fns/locale";
+import { IncidentPhotoGallery } from "@/components/IncidentPhotoGallery";
 import type { Database } from "@/integrations/supabase/types";
-
 type IncidenteDB = Database['public']['Tables']['incidentes']['Row'];
 type ClienteDB = Database['public']['Tables']['clientes']['Row'];
 type ProductoDB = Database['public']['Tables']['productos']['Row'];
 type TecnicoDB = Database['public']['Tables']['tecnicos']['Row'];
 type DiagnosticoDB = Database['public']['Tables']['diagnosticos']['Row'];
 type DireccionEnvio = Database['public']['Tables']['direcciones_envio']['Row'];
-
 export default function SeguimientoIncidente() {
-  const { id } = useParams();
+  const {
+    id
+  } = useParams();
   const navigate = useNavigate();
   const [incidente, setIncidente] = useState<IncidenteDB | null>(null);
   const [cliente, setCliente] = useState<ClienteDB | null>(null);
@@ -36,79 +29,57 @@ export default function SeguimientoIncidente() {
   const [tecnico, setTecnico] = useState<TecnicoDB | null>(null);
   const [diagnostico, setDiagnostico] = useState<DiagnosticoDB | null>(null);
   const [direccionEnvio, setDireccionEnvio] = useState<DireccionEnvio | null>(null);
-  const [clienteHistorial, setClienteHistorial] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [isEditingProductCode, setIsEditingProductCode] = useState(false);
   const [editedProductCode, setEditedProductCode] = useState("");
-
   useEffect(() => {
     fetchData();
   }, [id]);
-
   const fetchData = async () => {
     try {
       // Fetch incident
-      const { data: incData, error: incError } = await supabase
-        .from('incidentes')
-        .select('*')
-        .eq('id', id)
-        .single();
-
+      const {
+        data: incData,
+        error: incError
+      } = await supabase.from('incidentes').select('*').eq('id', id).single();
       if (incError) throw incError;
       setIncidente(incData);
 
       // Fetch client
       if (incData.codigo_cliente) {
-        const { data: clienteData } = await supabase
-          .from('clientes')
-          .select('*')
-          .eq('codigo', incData.codigo_cliente)
-          .maybeSingle();
+        const {
+          data: clienteData
+        } = await supabase.from('clientes').select('*').eq('codigo', incData.codigo_cliente).maybeSingle();
         setCliente(clienteData);
-
-        // Fetch client history
-        const { count } = await supabase
-          .from('incidentes')
-          .select('*', { count: 'exact', head: true })
-          .eq('codigo_cliente', incData.codigo_cliente);
-        setClienteHistorial(count || 0);
       }
 
       // Fetch product
       if (incData.codigo_producto) {
-        const { data: prodData } = await supabase
-          .from('productos')
-          .select('*')
-          .eq('codigo', incData.codigo_producto)
-          .maybeSingle();
+        const {
+          data: prodData
+        } = await supabase.from('productos').select('*').eq('codigo', incData.codigo_producto).maybeSingle();
         setProducto(prodData);
       }
 
       // Fetch technician
       if (incData.codigo_tecnico) {
-        const { data: tecData } = await supabase
-          .from('tecnicos')
-          .select('*')
-          .eq('codigo', incData.codigo_tecnico)
-          .maybeSingle();
+        const {
+          data: tecData
+        } = await supabase.from('tecnicos').select('*').eq('codigo', incData.codigo_tecnico).maybeSingle();
         setTecnico(tecData);
       }
 
       // Fetch diagnostico
-      const { data: diagData } = await supabase
-        .from('diagnosticos')
-        .select('*')
-        .eq('incidente_id', id)
-        .maybeSingle();
+      const {
+        data: diagData
+      } = await supabase.from('diagnosticos').select('*').eq('incidente_id', id).maybeSingle();
       setDiagnostico(diagData);
 
       // Fetch direccion de envio si existe
       if (incData.direccion_envio_id) {
-        const { data: dirData } = await supabase
-          .from('direcciones_envio')
-          .select('*')
-          .eq('id', incData.direccion_envio_id)
-          .maybeSingle();
+        const {
+          data: dirData
+        } = await supabase.from('direcciones_envio').select('*').eq('id', incData.direccion_envio_id).maybeSingle();
         setDireccionEnvio(dirData);
       }
     } catch (error) {
@@ -117,444 +88,425 @@ export default function SeguimientoIncidente() {
       setLoading(false);
     }
   };
-
-  // Loading state
   if (loading) {
-    return (
-      <div className="container mx-auto p-6 max-w-7xl">
-        <div className="flex items-center gap-4 mb-6">
-          <Skeleton className="h-10 w-32" />
-          <Skeleton className="h-8 w-48" />
-        </div>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 space-y-6">
-            <Skeleton className="h-48 w-full" />
-            <Skeleton className="h-32 w-full" />
-            <Skeleton className="h-64 w-full" />
-          </div>
-          <div className="space-y-6">
-            <Skeleton className="h-48 w-full" />
-            <Skeleton className="h-64 w-full" />
-          </div>
-        </div>
-      </div>
-    );
+    return <div className="container mx-auto p-6">
+        <p>Cargando información del incidente...</p>
+      </div>;
   }
-
   if (!incidente) {
-    return (
-      <div className="container mx-auto p-6">
+    return <div className="container mx-auto p-6">
         <p>Incidente no encontrado</p>
         <Button onClick={() => navigate(-1)}>Volver</Button>
-      </div>
-    );
+      </div>;
   }
-
+  const getStatusProgress = (status: string) => {
+    const statuses = ["Ingresado", "En ruta", "Pendiente de diagnostico", "En diagnostico", "Pendiente por repuestos", "Presupuesto", "Porcentaje", "Reparado"];
+    const index = statuses.indexOf(status);
+    return index >= 0 ? (index + 1) / statuses.length * 100 : 0;
+  };
+  const progress = getStatusProgress(incidente.status);
+  const getOpcionEnvioLabel = () => {
+    if (!incidente.quiere_envio) return "Recoger en mostrador";
+    const confirmacion = incidente.confirmacion_cliente as any;
+    if (confirmacion?.opcion_envio === 'directo') return "Envío directo";
+    if (confirmacion?.opcion_envio === 'llamar') return "Llamar antes de enviar";
+    return "Envío a domicilio";
+  };
+  const getOpcionEnvioIcon = () => {
+    if (!incidente.quiere_envio) return Home;
+    return Truck;
+  };
+  const OpcionEnvioIcon = getOpcionEnvioIcon();
+  const handlePrint = () => {
+    window.print();
+  };
   const handleEditProductCode = () => {
     setEditedProductCode(incidente?.codigo_producto || "");
     setIsEditingProductCode(true);
   };
-
   const handleSaveProductCode = async () => {
     const codePattern = /^[a-zA-Z0-9-_]+$/;
-    if (!editedProductCode.trim() || !codePattern.test(editedProductCode)) {
+    if (!editedProductCode.trim()) {
       toast({
         title: "Error de validación",
-        description: "El código solo puede contener letras, números, guiones y guiones bajos",
+        description: "El código de producto no puede estar vacío",
         variant: "destructive"
       });
       return;
     }
-
+    if (!codePattern.test(editedProductCode)) {
+      toast({
+        title: "Error de validación",
+        description: "El código de producto solo puede contener letras, números, guiones y guiones bajos (sin espacios)",
+        variant: "destructive"
+      });
+      return;
+    }
     try {
-      const { error } = await supabase
-        .from('incidentes')
-        .update({ codigo_producto: editedProductCode })
-        .eq('id', id);
-
+      const {
+        error
+      } = await supabase.from('incidentes').update({
+        codigo_producto: editedProductCode
+      }).eq('id', id);
       if (error) throw error;
       setIsEditingProductCode(false);
       toast({
-        title: "Código actualizado",
-        description: `Nuevo código: ${editedProductCode}`,
+        title: "Código de producto actualizado correctamente",
+        description: `El código se ha actualizado a: ${editedProductCode}`
       });
+
+      // Recargar los datos
       fetchData();
     } catch (error) {
       console.error('Error updating product code:', error);
       toast({
         title: "Error",
-        description: "No se pudo actualizar el código",
+        description: "No se pudo actualizar el código de producto. Inténtalo de nuevo.",
         variant: "destructive"
       });
     }
   };
-
-  const handlePrint = () => {
-    window.print();
-  };
-
-  return (
-    <div className="container mx-auto p-6 max-w-7xl">
+  return <div className="container mx-auto p-6 max-w-7xl space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Button variant="ghost" onClick={() => navigate(-1)}>
             <ArrowLeft className="w-4 h-4 mr-2" />
             Volver
           </Button>
           <div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold">Incidente {incidente.codigo}</h1>
-              <StatusBadge status={incidente.status} />
-            </div>
-            <p className="text-sm text-muted-foreground mt-1">
-              Ingresado: {format(new Date(incidente.fecha_ingreso), "dd 'de' MMMM 'de' yyyy", { locale: es })}
-            </p>
+            <h1 className="text-3xl font-bold">Detalle del Incidente</h1>
+            <p className="text-muted-foreground text-lg">{incidente.codigo}</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          {incidente.cobertura_garantia ? (
-            <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300">
-              <CheckCircle className="w-3 h-3 mr-1" />
-              Con Garantía
-            </Badge>
-          ) : (
-            <Badge variant="outline" className="text-muted-foreground">
-              <Clock className="w-3 h-3 mr-1" />
-              Sin Garantía
-            </Badge>
-          )}
-          <Button onClick={handlePrint} variant="outline" size="sm">
-            <Printer className="w-4 h-4 mr-2" />
-            Imprimir
-          </Button>
-        </div>
+        <Button onClick={handlePrint} variant="outline">
+          <Printer className="w-4 h-4 mr-2" />
+          Imprimir
+        </Button>
       </div>
 
-      {/* Main Content - 2 Column Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column - Main Content (2/3) */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Producto/Máquina Card - TOP PRIORITY */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2">
-                <Package className="w-5 h-5" />
-                Máquina / Producto
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex gap-6">
-                {/* Product Image */}
-                <div className="w-32 h-32 bg-muted rounded-lg flex items-center justify-center shrink-0">
-                  {producto?.url_foto ? (
-                    <img 
-                      src={producto.url_foto} 
-                      alt={producto.descripcion}
-                      className="w-full h-full object-cover rounded-lg"
-                    />
-                  ) : (
-                    <Box className="w-12 h-12 text-muted-foreground" />
-                  )}
-                </div>
-                
-                {/* Product Info */}
-                <div className="flex-1 space-y-3">
-                  <div>
-                    <h3 className="font-semibold text-lg">
-                      {producto?.descripcion || `Producto: ${incidente.codigo_producto}`}
-                    </h3>
-                    {producto?.clave && (
-                      <p className="text-sm text-muted-foreground">Clave: {producto.clave}</p>
-                    )}
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <span className="text-muted-foreground">Código SKU:</span>
-                      <div className="flex items-center gap-2 mt-1">
-                        <code className="bg-muted px-2 py-1 rounded text-xs font-mono">
-                          {incidente.codigo_producto}
-                        </code>
-                        <Button variant="ghost" size="sm" className="h-6" onClick={handleEditProductCode}>
-                          <Edit className="w-3 h-3" />
-                        </Button>
-                      </div>
-                    </div>
-                    {incidente.sku_maquina && (
-                      <div>
-                        <span className="text-muted-foreground">SKU Máquina:</span>
-                        <p className="font-mono text-xs mt-1">{incidente.sku_maquina}</p>
-                      </div>
-                    )}
-                  </div>
+      {/* Estado y Progreso */}
+      <Card className="border-2 border-primary/20">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Package className="w-5 h-5" />
+            Estado Actual
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <StatusBadge status={incidente.status} />
+            <span className="text-sm text-muted-foreground font-medium">
+              {Math.round(progress)}% completado
+            </span>
+          </div>
+          
+          {/* Progress Bar */}
+          <div className="w-full bg-muted rounded-full h-4">
+            <div className="bg-primary h-4 rounded-full transition-all" style={{
+            width: `${progress}%`
+          }} />
+          </div>
+        </CardContent>
+      </Card>
 
-                  {producto?.descontinuado && (
-                    <Badge variant="destructive" className="mt-2">
-                      <AlertTriangle className="w-3 h-3 mr-1" />
-                      Producto Descontinuado
-                    </Badge>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Detalles del Incidente */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="w-5 h-5" />
-                Detalles del Incidente
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <h4 className="text-sm font-medium text-muted-foreground mb-1">Problema Reportado</h4>
-                <p className="text-sm bg-muted/50 p-3 rounded-lg">{incidente.descripcion_problema}</p>
-              </div>
-              
-              {incidente.accesorios && (
+      {/* Grid de información */}
+      <div className="grid gap-6 md:grid-cols-2">
+        
+        {/* Información del Cliente */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <User className="w-5 h-5" />
+              Información del Cliente
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {cliente ? <>
                 <div>
-                  <h4 className="text-sm font-medium text-muted-foreground mb-1">Accesorios Incluidos</h4>
-                  <p className="text-sm bg-muted/50 p-3 rounded-lg">{incidente.accesorios}</p>
+                  <p className="text-sm text-muted-foreground">Nombre</p>
+                  <p className="text-lg font-semibold">{cliente.nombre}</p>
                 </div>
-              )}
-
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t">
-                <div>
-                  <p className="text-xs text-muted-foreground">Centro de Servicio</p>
-                  <p className="text-sm font-medium">{incidente.centro_servicio || 'No especificado'}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Tipología</p>
-                  <p className="text-sm font-medium">{incidente.tipologia || 'N/A'}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Reingreso</p>
-                  <Badge variant={incidente.es_reingreso ? "destructive" : "outline"} className="text-xs">
-                    {incidente.es_reingreso ? 'Sí' : 'No'}
-                  </Badge>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Envío</p>
-                  <div className="flex items-center gap-1">
-                    {incidente.quiere_envio ? (
-                      <>
-                        <Truck className="w-3 h-3 text-muted-foreground" />
-                        <span className="text-sm">Sí</span>
-                      </>
-                    ) : (
-                      <>
-                        <Home className="w-3 h-3 text-muted-foreground" />
-                        <span className="text-sm">Recoge</span>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Diagnóstico existente */}
-          {diagnostico && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2">
-                  <Wrench className="w-5 h-5" />
-                  Diagnóstico Técnico
-                </CardTitle>
-                <CardDescription>
-                  Estado: {diagnostico.estado}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4 text-sm">
+                <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <span className="text-muted-foreground">Técnico:</span>
-                    <p className="font-medium">{diagnostico.tecnico_codigo}</p>
+                    <p className="text-sm text-muted-foreground">Código</p>
+                    <p className="font-medium">{cliente.codigo}</p>
                   </div>
                   <div>
-                    <span className="text-muted-foreground">Fecha:</span>
-                    <p className="font-medium">
-                      {diagnostico.created_at 
-                        ? format(new Date(diagnostico.created_at), "dd/MM/yyyy HH:mm", { locale: es })
-                        : "N/A"
-                      }
-                    </p>
+                    <p className="text-sm text-muted-foreground">NIT</p>
+                    <p className="font-medium">{cliente.nit}</p>
                   </div>
                 </div>
-                
-                {diagnostico.fallas && diagnostico.fallas.length > 0 && (
-                  <div>
-                    <h4 className="text-sm font-medium text-muted-foreground mb-2">Fallas Identificadas</h4>
-                    <div className="flex flex-wrap gap-2">
-                      {diagnostico.fallas.map((falla: string, idx: number) => (
-                        <Badge key={idx} variant="outline" className="bg-red-50 text-red-700 border-red-200">
-                          {falla}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {diagnostico.causas && diagnostico.causas.length > 0 && (
-                  <div>
-                    <h4 className="text-sm font-medium text-muted-foreground mb-2">Causas</h4>
-                    <div className="flex flex-wrap gap-2">
-                      {diagnostico.causas.map((causa: string, idx: number) => (
-                        <Badge key={idx} variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
-                          {causa}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {diagnostico.resolucion && (
-                  <div>
-                    <h4 className="text-sm font-medium text-muted-foreground mb-1">Resolución</h4>
-                    <p className="text-sm bg-muted/50 p-3 rounded-lg">{diagnostico.resolucion}</p>
-                  </div>
-                )}
-
-                {(diagnostico.costo_estimado || diagnostico.tiempo_estimado) && (
-                  <div className="grid grid-cols-2 gap-4 pt-4 border-t">
-                    {diagnostico.costo_estimado && (
-                      <div>
-                        <p className="text-xs text-muted-foreground">Costo Estimado</p>
-                        <p className="text-lg font-semibold text-primary">
-                          Q {Number(diagnostico.costo_estimado).toFixed(2)}
-                        </p>
-                      </div>
-                    )}
-                    {diagnostico.tiempo_estimado && (
-                      <div>
-                        <p className="text-xs text-muted-foreground">Tiempo Estimado</p>
-                        <p className="font-medium">{diagnostico.tiempo_estimado}</p>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Historial y Observaciones - Combinado */}
-          {id && (
-            <HistorialConObservaciones 
-              incidenteId={id} 
-              logObservaciones={incidente.log_observaciones} 
-            />
-          )}
-        </div>
-
-        {/* Right Column - Sidebar (1/3) */}
-        <div className="space-y-6">
-          {/* Cliente Card */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <User className="w-4 h-4" />
-                Cliente
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {cliente ? (
-                <>
-                  <div>
-                    <p className="font-semibold">{cliente.nombre}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {cliente.codigo} • NIT: {cliente.nit}
-                    </p>
-                  </div>
-                  <Separator />
-                  <div className="space-y-2 text-sm">
-                    <div className="flex items-center gap-2">
-                      <Phone className="w-3 h-3 text-muted-foreground" />
-                      <span>{cliente.celular}</span>
-                    </div>
-                    {cliente.correo && (
-                      <div className="flex items-center gap-2">
-                        <Mail className="w-3 h-3 text-muted-foreground" />
-                        <span className="truncate">{cliente.correo}</span>
-                      </div>
-                    )}
-                    {cliente.direccion && (
-                      <div className="flex items-start gap-2">
-                        <MapPin className="w-3 h-3 text-muted-foreground mt-0.5" />
-                        <span className="text-xs">{cliente.direccion}</span>
-                      </div>
-                    )}
-                  </div>
-                  {clienteHistorial > 1 && (
-                    <>
-                      <Separator />
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <History className="w-3 h-3" />
-                        <span>{clienteHistorial} incidentes en historial</span>
-                      </div>
-                    </>
-                  )}
-                </>
-              ) : (
-                <p className="text-muted-foreground text-sm">Cliente no encontrado</p>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Fotos del Incidente */}
-          {id && <CompactPhotoGallery incidenteId={id} />}
-
-          {/* Técnico Asignado */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Wrench className="w-4 h-4" />
-                Técnico Asignado
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {tecnico && !['Ingresado', 'En ruta', 'Pendiente de diagnostico'].includes(incidente.status) ? (
+                <Separator />
                 <div className="space-y-2">
-                  <p className="font-semibold">{tecnico.nombre} {tecnico.apellido}</p>
-                  <p className="text-xs text-muted-foreground">Código: {tecnico.codigo}</p>
-                  {tecnico.email && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <Mail className="w-3 h-3 text-muted-foreground" />
-                      <span className="truncate">{tecnico.email}</span>
-                    </div>
-                  )}
+                  <div className="flex items-center gap-2">
+                    <Phone className="w-4 h-4 text-muted-foreground" />
+                    <p className="font-medium">{cliente.celular}</p>
+                  </div>
+                  {cliente.correo && <div className="flex items-center gap-2">
+                      <Mail className="w-4 h-4 text-muted-foreground" />
+                      <p className="font-medium">{cliente.correo}</p>
+                    </div>}
+                  {cliente.direccion && <div className="flex items-start gap-2">
+                      <MapPin className="w-4 h-4 text-muted-foreground mt-1" />
+                      <p className="text-sm">{cliente.direccion}</p>
+                    </div>}
                 </div>
-              ) : (
-                <p className="text-muted-foreground text-sm">—</p>
-              )}
-            </CardContent>
-          </Card>
+              </> : <p className="text-muted-foreground">No se encontró información del cliente</p>}
+          </CardContent>
+        </Card>
 
-          {/* Opción de Entrega */}
-          {incidente.quiere_envio && direccionEnvio && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <Truck className="w-4 h-4" />
-                  Dirección de Envío
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-start gap-2">
-                  <MapPin className="w-4 h-4 text-muted-foreground mt-0.5" />
+        {/* Información de la Máquina */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Wrench className="w-5 h-5" />
+              Información de la Máquina
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground font-medium">Código de Producto (SKU)</p>
+                <Button variant="ghost" size="sm" onClick={handleEditProductCode} className="h-7 text-xs">
+                  <Edit className="w-3 h-3 mr-1" />
+                  Editar
+                </Button>
+              </div>
+              <div className="bg-muted/50 px-3 py-2 rounded-md">
+                <p className="text-lg font-mono font-semibold">{incidente.codigo_producto}</p>
+              </div>
+            </div>
+            
+            {producto && <>
+                <Separator />
+                <div>
+                  <p className="text-sm text-muted-foreground">Descripción</p>
+                  
+                </div>
+                {producto.familia_padre_id}
+                {producto.descontinuado && <Badge variant="destructive">
+                    <AlertTriangle className="w-3 h-3 mr-1" />
+                    Producto Descontinuado
+                  </Badge>}
+              </>}
+
+            {incidente.sku_maquina && <>
+                <Separator />
+                <div>
+                  
+                  
+                </div>
+              </>}
+
+            {incidente.accesorios && <>
+                <Separator />
+                <div>
+                  <p className="text-sm text-muted-foreground">Accesorios</p>
+                  <p className="text-sm">{incidente.accesorios}</p>
+                </div>
+              </>}
+          </CardContent>
+        </Card>
+
+        {/* Detalles del Incidente */}
+        <Card className="md:col-span-2">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="w-5 h-5" />
+              Detalles del Incidente
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <p className="text-sm text-muted-foreground">Fecha de Ingreso</p>
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-muted-foreground" />
+                  <p className="font-medium">
+                    {new Date(incidente.fecha_ingreso).toLocaleDateString('es-GT', {
+                    day: '2-digit',
+                    month: 'long',
+                    year: 'numeric'
+                  })}
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-sm text-muted-foreground">Centro de Servicio</p>
+                <p className="font-medium">{incidente.centro_servicio || 'No especificado'}</p>
+              </div>
+
+              <div>
+                <p className="text-sm text-muted-foreground">Ingresado en</p>
+                <Badge variant={incidente.ingresado_en_mostrador ? "default" : "secondary"}>
+                  {incidente.ingresado_en_mostrador ? "Mostrador" : "Otro"}
+                </Badge>
+              </div>
+            </div>
+
+            <Separator />
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <p className="text-sm text-muted-foreground flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4" />
+                  Reingreso
+                </p>
+                <Badge variant={incidente.es_reingreso ? "destructive" : "outline"}>
+                  {incidente.es_reingreso ? 'Sí, es Reingreso' : 'No, Primera Vez'}
+                </Badge>
+              </div>
+
+              {incidente.tipologia && <div>
+                  <p className="text-sm text-muted-foreground">Tipología</p>
+                  <p className="font-medium">{incidente.tipologia}</p>
+                </div>}
+
+              {incidente.persona_deja_maquina && <div>
+                  
+                  
+                </div>}
+            </div>
+
+            <Separator />
+
+            <div>
+              <p className="text-sm text-muted-foreground mb-2">Descripción del Problema</p>
+              <p className="text-base bg-muted p-4 rounded-md">{incidente.descripcion_problema}</p>
+            </div>
+
+            {incidente.persona_deja_maquina && <div>
+                <p className="text-sm text-muted-foreground">Persona que dejó la máquina</p>
+                <p className="font-medium">{incidente.persona_deja_maquina}</p>
+              </div>}
+          </CardContent>
+        </Card>
+
+        {/* Opción de Entrega */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <OpcionEnvioIcon className="w-5 h-5" />
+              Opción de Entrega
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Badge variant="outline" className="text-base py-2 px-4">
+                {getOpcionEnvioLabel()}
+              </Badge>
+            </div>
+
+            {incidente.quiere_envio && direccionEnvio && <div>
+                <p className="text-sm text-muted-foreground mb-2">Dirección de Envío</p>
+                <div className="flex items-start gap-2 bg-muted p-3 rounded-md">
+                  <MapPin className="w-4 h-4 text-muted-foreground mt-1" />
                   <div>
-                    {direccionEnvio.nombre_referencia && (
-                      <p className="font-medium text-sm">{direccionEnvio.nombre_referencia}</p>
-                    )}
+                    {direccionEnvio.nombre_referencia && <p className="font-medium">{direccionEnvio.nombre_referencia}</p>}
                     <p className="text-sm">{direccionEnvio.direccion}</p>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          )}
-        </div>
+              </div>}
+          </CardContent>
+        </Card>
+
+        {/* Técnico Asignado */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <User className="w-5 h-5" />
+              Técnico Asignado
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {tecnico ? <div className="space-y-2">
+                <p className="text-lg font-semibold">
+                  {tecnico.nombre} {tecnico.apellido}
+                </p>
+                <p className="text-sm text-muted-foreground">Código: {tecnico.codigo}</p>
+                {tecnico.email && <div className="flex items-center gap-2">
+                    <Mail className="w-4 h-4 text-muted-foreground" />
+                    <p className="text-sm">{tecnico.email}</p>
+                  </div>}
+              </div> : <p className="text-muted-foreground">No asignado</p>}
+          </CardContent>
+        </Card>
+
+        {/* Diagnóstico */}
+        {diagnostico && <Card className="md:col-span-2">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileCheck className="w-5 h-5" />
+                Diagnóstico Técnico
+              </CardTitle>
+              <CardDescription>
+                Estado: {diagnostico.estado}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {diagnostico.fallas && diagnostico.fallas.length > 0 && <div>
+                    <p className="text-sm text-muted-foreground mb-2">Fallas Detectadas</p>
+                    <ul className="list-disc list-inside space-y-1">
+                      {diagnostico.fallas.map((falla, idx) => <li key={idx} className="text-sm">{falla}</li>)}
+                    </ul>
+                  </div>}
+
+                {diagnostico.causas && diagnostico.causas.length > 0 && <div>
+                    <p className="text-sm text-muted-foreground mb-2">Causas Identificadas</p>
+                    <ul className="list-disc list-inside space-y-1">
+                      {diagnostico.causas.map((causa, idx) => <li key={idx} className="text-sm">{causa}</li>)}
+                    </ul>
+                  </div>}
+              </div>
+
+              {diagnostico.resolucion && <div>
+                  <p className="text-sm text-muted-foreground mb-2">Resolución</p>
+                  <p className="text-sm bg-muted p-3 rounded-md">{diagnostico.resolucion}</p>
+                </div>}
+
+              {diagnostico.recomendaciones && <div>
+                  <p className="text-sm text-muted-foreground mb-2">Recomendaciones</p>
+                  <p className="text-sm bg-muted p-3 rounded-md">{diagnostico.recomendaciones}</p>
+                </div>}
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t">
+                {diagnostico.costo_estimado && <div>
+                    <p className="text-sm text-muted-foreground">Costo Estimado</p>
+                    <p className="text-lg font-semibold text-primary">
+                      Q {Number(diagnostico.costo_estimado).toFixed(2)}
+                    </p>
+                  </div>}
+
+                {diagnostico.tiempo_estimado && <div>
+                    <p className="text-sm text-muted-foreground">Tiempo Estimado</p>
+                    <p className="font-medium">{diagnostico.tiempo_estimado}</p>
+                  </div>}
+
+                <div>
+                  <p className="text-sm text-muted-foreground">Técnico</p>
+                  <p className="font-medium">{diagnostico.tecnico_codigo}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>}
+
+        {/* Observaciones */}
+        {incidente.log_observaciones && <Card className="md:col-span-2">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="w-5 h-5" />
+                Observaciones
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm bg-muted p-4 rounded-md whitespace-pre-wrap">
+                {incidente.log_observaciones}
+              </p>
+          </CardContent>
+        </Card>}
       </div>
 
       {/* Dialog para editar código de producto */}
@@ -571,15 +523,7 @@ export default function SeguimientoIncidente() {
               <label htmlFor="product-code-input" className="text-sm font-medium">
                 Código de Producto
               </label>
-              <Input 
-                id="product-code-input" 
-                type="text" 
-                value={editedProductCode} 
-                onChange={e => setEditedProductCode(e.target.value.replace(/\s/g, ''))} 
-                placeholder="Ej: PROD-12345" 
-                className="font-mono" 
-                autoFocus 
-              />
+              <Input id="product-code-input" type="text" value={editedProductCode} onChange={e => setEditedProductCode(e.target.value.replace(/\s/g, ''))} placeholder="Ej: PROD-12345" className="font-mono" autoFocus />
               <p className="text-xs text-muted-foreground">
                 Formato: Solo alfanuméricos, guiones y guiones bajos (sin espacios)
               </p>
@@ -589,13 +533,15 @@ export default function SeguimientoIncidente() {
             <Button variant="outline" onClick={() => setIsEditingProductCode(false)}>
               Cancelar
             </Button>
-            <Button onClick={handleSaveProductCode}>
+            <Button onClick={handleSaveProductCode} className="bg-success hover:bg-success/90 text-success-foreground">
               <Save className="w-4 h-4 mr-2" />
-              Guardar
+              Guardar cambios
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
-  );
+
+      {/* Galería de Fotos del Incidente */}
+      <IncidentPhotoGallery incidenteId={id!} />
+    </div>;
 }
