@@ -200,21 +200,19 @@ export default function SeguimientoIncidente() {
         <div className="lg:col-span-2 space-y-6">
           {/* Producto/Máquina Card - TOP PRIORITY */}
           <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2">
-                <Package className="w-5 h-5" />
-                Máquina / Producto
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex gap-6">
-                {/* Product Image */}
-                <div className="w-32 h-32 bg-muted rounded-lg flex items-center justify-center shrink-0">
-                  {producto?.url_foto ? <img src={producto.url_foto} alt={producto.descripcion} className="w-full h-full object-cover rounded-lg" /> : <Box className="w-12 h-12 text-muted-foreground" />}
+            <CardContent className="p-4">
+              <div className="grid grid-cols-[auto_1fr] gap-4 items-start">
+                {/* Tool Icon */}
+                <div className="w-20 h-20 bg-muted rounded-lg flex items-center justify-center shrink-0">
+                  {producto?.url_foto ? (
+                    <img src={producto.url_foto} alt={producto.descripcion} className="w-full h-full object-cover rounded-lg" />
+                  ) : (
+                    <Wrench className="w-10 h-10 text-muted-foreground" />
+                  )}
                 </div>
                 
                 {/* Product Info */}
-                <div className="flex-1 space-y-3">
+                <div className="space-y-2">
                   <div>
                     <h3 className="font-semibold text-lg">
                       {producto?.descripcion || `Producto: ${incidente.codigo_producto}`}
@@ -222,25 +220,27 @@ export default function SeguimientoIncidente() {
                     {producto?.clave && <p className="text-sm text-muted-foreground">Clave: {producto.clave}</p>}
                   </div>
                   
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <span className="text-muted-foreground">Código SKU:</span>
-                      <div className="flex items-center gap-2 mt-1">
-                        <code className="bg-muted px-2 py-1 rounded text-xs font-mono">
-                          {incidente.codigo_producto}
-                        </code>
-                        <Button variant="ghost" size="sm" className="h-6" onClick={handleEditProductCode}>
-                          <Edit className="w-3 h-3" />
-                        </Button>
-                      </div>
+                  <div className="flex items-center gap-4 text-sm">
+                    <div className="flex items-center gap-2">
+                      <span className="text-muted-foreground">SKU:</span>
+                      <code className="bg-muted px-2 py-1 rounded text-xs font-mono">
+                        {incidente.codigo_producto}
+                      </code>
+                      <Button variant="ghost" size="sm" className="h-6" onClick={handleEditProductCode}>
+                        <Edit className="w-3 h-3" />
+                      </Button>
                     </div>
-                    {incidente.sku_maquina}
+                    {incidente.sku_maquina && (
+                      <span className="text-muted-foreground">Serie: {incidente.sku_maquina}</span>
+                    )}
                   </div>
 
-                  {producto?.descontinuado && <Badge variant="destructive" className="mt-2">
+                  {producto?.descontinuado && (
+                    <Badge variant="destructive">
                       <AlertTriangle className="w-3 h-3 mr-1" />
                       Producto Descontinuado
-                    </Badge>}
+                    </Badge>
+                  )}
                 </div>
               </div>
             </CardContent>
