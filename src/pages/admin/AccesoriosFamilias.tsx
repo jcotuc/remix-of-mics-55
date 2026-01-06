@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -93,32 +93,20 @@ export default function AccesoriosFamilias() {
   });
 
   // Crear mapa de familias para lookup rápido
-  const familiasMap = new Map(familias.map((f) => [f.id, f]));
+  const familiasMap = useMemo(() => new Map(familias.map((f) => [f.id, f])), [familias]);
+
+  const normalizeText = (str: string) =>
+    str
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim();
 
   // Obtener categorías padre únicas (familias sin Padre)
-  const categoriasPadre = familias.filter((f) => f.Padre === null);
-
-  // Obtener categoría padre de una familia
-  const getCategoriaPadre = (familiaId: number | null): string => {
-    if (!familiaId) return "—";
-    const familia = familiasMap.get(familiaId);
-    if (!familia) return "—";
-    if (familia.Padre) {
-      const padre = familiasMap.get(familia.Padre);
-      return padre?.Categoria || "—";
-    }
-    return "—";
-  };
-
-  // Obtener subcategoría
-  const getSubcategoria = (familiaId: number | null): string => {
-    if (!familiaId) return "—";
-    const familia = familiasMap.get(familiaId);
-    return familia?.Categoria || "—";
-  };
+  const categoriasPadre = useMemo(() => familias.filter((f) => f.Padre === null), [familias]);
 
   // Familias que son subcategorías (tienen Padre)
-  const subcategorias = familias.filter((f) => f.Padre !== null);
+  const subcategorias = useMemo(() => familias.filter((f) => f.Padre !== null), [familias]);
 
   // Crear accesorio
   const createMutation = useMutation({
