@@ -400,46 +400,44 @@ export function HistorialConObservaciones({ incidenteId, logObservaciones }: His
         ) : (
           <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2">
             {filteredEvents.map((event) => (
-              <div key={event.id} className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {/* Left - Event */}
-                <div className="flex gap-3">
+              <div key={event.id} className="flex gap-4">
+                {/* Left - Event (50%) */}
+                <div className="flex gap-3 flex-1 min-w-0">
                   {/* Timeline dot */}
-                  <div className={`flex items-center justify-center w-8 h-8 rounded-full ${event.color} text-white shrink-0`}>
+                  <div className={`flex items-center justify-center w-7 h-7 rounded-full ${event.color} text-white shrink-0`}>
                     {event.icon}
                   </div>
                   
                   {/* Event Content */}
-                  <div className="flex-1 min-w-0">
-                    <div className="bg-muted/40 rounded-lg p-3 border border-border/50 h-full">
-                      <div className="flex items-start justify-between gap-2 mb-1">
-                        <p className="text-sm font-medium">{event.title}</p>
-                        <time className="text-xs text-muted-foreground whitespace-nowrap">
-                          {format(new Date(event.timestamp), "dd MMM HH:mm", { locale: es })}
-                        </time>
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        {event.description}
-                      </p>
-                      <div className="flex items-center gap-1 mt-2">
-                        <User className="w-3 h-3 text-muted-foreground" />
-                        <span className="text-xs text-muted-foreground">{event.user}</span>
-                      </div>
+                  <div className="flex-1 min-w-0 bg-muted/40 rounded-lg p-2.5 border border-border/50">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-xs font-medium truncate">{event.title}</p>
+                      <time className="text-[10px] text-muted-foreground whitespace-nowrap">
+                        {format(new Date(event.timestamp), "dd/MM HH:mm", { locale: es })}
+                      </time>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-2">
+                      {event.description}
+                    </p>
+                    <div className="flex items-center gap-1 mt-1">
+                      <User className="w-2.5 h-2.5 text-muted-foreground" />
+                      <span className="text-[10px] text-muted-foreground truncate">{event.user}</span>
                     </div>
                   </div>
                 </div>
 
-                {/* Right - Observation */}
-                <div className="flex items-stretch">
+                {/* Right - Observation (50%) */}
+                <div className="flex-1 min-w-0">
                   {event.observacion ? (
-                    <div className="flex-1 bg-primary/5 border border-primary/20 rounded-lg p-3 flex items-start gap-2">
-                      <MessageSquare className="w-4 h-4 text-primary mt-0.5 shrink-0" />
-                      <p className="text-sm text-foreground/80">
+                    <div className="h-full bg-primary/5 border border-primary/20 rounded-lg p-2.5 flex items-start gap-2">
+                      <MessageSquare className="w-3.5 h-3.5 text-primary mt-0.5 shrink-0" />
+                      <p className="text-xs text-foreground/80 line-clamp-3">
                         {event.observacion}
                       </p>
                     </div>
                   ) : (
-                    <div className="flex-1 bg-muted/20 border border-dashed border-border/50 rounded-lg p-3 flex items-center justify-center">
-                      <p className="text-xs text-muted-foreground/50 italic">Sin observación</p>
+                    <div className="h-full bg-muted/10 border border-dashed border-border/30 rounded-lg p-2.5 flex items-center justify-center">
+                      <p className="text-[10px] text-muted-foreground/40 italic">—</p>
                     </div>
                   )}
                 </div>
