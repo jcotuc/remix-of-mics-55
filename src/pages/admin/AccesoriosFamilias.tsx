@@ -48,9 +48,14 @@ interface Familia {
 
 interface ImportRow {
   accesorio: string;
+  // Valores crudos leídos del Excel (para mostrar al usuario qué venía en el archivo)
+  categoriaRaw: string;
+  subcategoriaRaw: string;
+  // ID que realmente se insertará en CDS_Accesorios.familia_id (idealmente: ID de la subcategoría)
   familiaId: number | null;
   familiaTexto: string;
   valid: boolean;
+  warning?: string;
 }
 
 interface ImportResult {
@@ -226,6 +231,15 @@ export default function AccesoriosFamilias() {
     }
   };
 
+  const parseId = (value: unknown): number | null => {
+    if (value === null || value === undefined) return null;
+    const raw = String(value).trim();
+    if (!raw) return null;
+    const n = Number(raw);
+    if (!Number.isFinite(n)) return null;
+    return Math.trunc(n);
+  };
+
   // Importar Excel - Paso 1: Previsualizar
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -235,7 +249,7 @@ export default function AccesoriosFamilias() {
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data);
       const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json<Record<string, string>>(sheet);
+      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: "" });
 
       if (rows.length === 0) {
         toast.error("El archivo está vacío");
@@ -244,50 +258,127 @@ export default function AccesoriosFamilias() {
 
       const firstRow = rows[0];
       const keys = Object.keys(firstRow);
-      
-      const findColumn = (variants: string[]) => 
-        keys.find(k => variants.some(v => k.toLowerCase().replace(/[-_\s]/g, '') === v.toLowerCase().replace(/[-_\s]/g, '')));
-      
+
+      const findColumn = (variants: string[]) =>
+        keys.find((k) =>
+          variants.some(
+            (v) =>
+              k.toLowerCase().replace(/[-_\s]/g, "") ===
+              v.toLowerCase().replace(/[-_\s]/g, "")
+          )
+        );
+
       const colAccesorio = findColumn(["Accesorio", "Accesorios", "ACCESORIO", "Nombre", "nombre"]);
-      const colCategoria = findColumn(["Categoría", "Categoria", "CATEGORIA", "ID", "id", "familia_id", "FamiliaId"]);
+
+      // Nota: En este módulo, CDS_Accesorios.familia_id debe apuntar a la SUBCATEGORÍA (hija),
+      // para que luego podamos derivar la categoría padre correctamente.
+      const colCategoria = findColumn([
+        "Categoría",
+        "Categoria",
+        "CATEGORIA",
+        "CategoriaId",
+        "categoria_id",
+        "id_categoria",
+        "IDCategoria",
+        "Padre",
+        "padre",
+        "PadreId",
+        "padre_id",
+      ]);
+      const colSubcategoria = findColumn([
+        "Subcategoría",
+        "Subcategoria",
+        "SUBCATEGORIA",
+        "SubCategoria",
+        "subcategoria",
+        "SubcategoriaId",
+        "subcategoria_id",
+        "id_subcategoria",
+        "Familia",
+        "familia",
+        "familia_id",
+      ]);
 
       if (!colAccesorio) {
         toast.error("El archivo debe tener columna: Accesorio o Nombre");
         return;
       }
 
-      if (!colCategoria) {
-        toast.error("El archivo debe tener columna: Categoría (con el ID de la familia)");
+      if (!colCategoria && !colSubcategoria) {
+        toast.error(
+          "El archivo debe tener una columna de Categoría (ID padre) y/o Subcategoría (nombre o ID)"
+        );
         return;
       }
-
-      // Crear mapa de IDs existentes
-      const familiaIdsSet = new Set(familias.map(f => f.id));
 
       const parsed: ImportRow[] = [];
       const seen = new Set<string>();
 
       for (const row of rows) {
-        const accesorio = (row[colAccesorio] || "").toString().trim();
-        const categoriaRaw = (row[colCategoria] || "").toString().trim();
-        
+        const accesorio = (row[colAccesorio] ?? "").toString().trim();
         if (!accesorio) continue;
-        
-        // Evitar duplicados por nombre
-        const key = accesorio.toLowerCase();
-        if (seen.has(key)) continue;
-        seen.add(key);
 
-        // Parsear el ID de la categoría
-        const familiaId = categoriaRaw ? parseInt(categoriaRaw, 10) : null;
-        const valid = familiaId !== null && !isNaN(familiaId) && familiaIdsSet.has(familiaId);
-        const familia = familiaId && valid ? familiasMap.get(familiaId) : null;
+        // Evitar duplicados por nombre
+        const dedupeKey = accesorio.toLowerCase();
+        if (seen.has(dedupeKey)) continue;
+        seen.add(dedupeKey);
+
+        const categoriaRaw = colCategoria ? (row[colCategoria] ?? "").toString().trim() : "";
+        const subcategoriaRaw = colSubcategoria ? (row[colSubcategoria] ?? "").toString().trim() : "";
+
+        const categoriaId = parseId(categoriaRaw);
+        const subcategoriaId = parseId(subcategoriaRaw);
+
+        let familiaId: number | null = null;
+        let warning: string | undefined;
+
+        // 1) Si la Subcategoría ya viene como ID (muchas veces el usuario pone aquí el ID)
+        if (subcategoriaId && familiasMap.has(subcategoriaId)) {
+          familiaId = subcategoriaId;
+          const fam = familiasMap.get(subcategoriaId);
+          if (fam?.Padre === null) {
+            warning = "El ID corresponde a una categoría padre (sin subcategoría)";
+          }
+        }
+        // 2) Si viene Categoria como ID (padre) + Subcategoría como texto: resolver hija
+        else if (categoriaId && subcategoriaRaw) {
+          const match = familias.find(
+            (f) => f.Padre === categoriaId && normalizeText(f.Categoria || "") === normalizeText(subcategoriaRaw)
+          );
+          if (match) {
+            familiaId = match.id;
+          }
+        }
+        // 3) Fallback: si solo viene un ID en Categoría, usamos ese ID (pero puede quedar como padre)
+        else if (categoriaId && familiasMap.has(categoriaId)) {
+          familiaId = categoriaId;
+          const fam = familiasMap.get(categoriaId);
+          if (fam?.Padre === null) {
+            warning = "Solo se encontró ID de categoría; falta subcategoría";
+          }
+        }
+
+        const valid = !!familiaId || (!categoriaRaw && !subcategoriaRaw);
+
+        const familiaTexto = familiaId
+          ? (() => {
+              const fam = familiasMap.get(familiaId);
+              if (fam?.Padre) {
+                const padre = familiasMap.get(fam.Padre);
+                return `${padre?.Categoria || "—"} → ${fam.Categoria || "—"} (ID: ${familiaId})`;
+              }
+              return `${fam?.Categoria || "—"} (ID: ${familiaId})`;
+            })()
+          : subcategoriaRaw || categoriaRaw || "Sin vincular";
 
         parsed.push({
           accesorio,
-          familiaId: valid && familiaId ? familiaId : null,
-          familiaTexto: familia ? `${familia.Categoria} (ID: ${familiaId})` : categoriaRaw || "Sin familia",
-          valid: valid || !categoriaRaw,
+          categoriaRaw,
+          subcategoriaRaw,
+          familiaId,
+          familiaTexto,
+          valid,
+          warning,
         });
       }
 
@@ -298,10 +389,11 @@ export default function AccesoriosFamilias() {
 
       setImportData(parsed);
       setImportPreviewOpen(true);
-      
-      const vinculados = parsed.filter(p => p.familiaId).length;
-      const sinVincular = parsed.filter(p => !p.familiaId).length;
-      toast.info(`${parsed.length} accesorios: ${vinculados} con familia, ${sinVincular} sin vincular`);
+
+      const vinculados = parsed.filter((p) => p.familiaId && !p.warning).length;
+      const conAdvertencia = parsed.filter((p) => p.familiaId && p.warning).length;
+      const sinVincular = parsed.filter((p) => !p.familiaId).length;
+      toast.info(`${parsed.length} accesorios: ${vinculados} vinculados, ${conAdvertencia} con advertencia, ${sinVincular} sin vincular`);
     } catch (error) {
       toast.error("Error al procesar el archivo");
     }
@@ -318,7 +410,7 @@ export default function AccesoriosFamilias() {
 
     try {
       // Preparar registros para insertar
-      const records = importData.map(item => ({
+      const records = importData.map((item) => ({
         nombre: item.accesorio,
         familia_id: item.familiaId,
       }));
@@ -328,30 +420,37 @@ export default function AccesoriosFamilias() {
       for (let i = 0; i < records.length; i += batchSize) {
         const batch = records.slice(i, i + batchSize);
         const { error } = await supabase.from("CDS_Accesorios").insert(batch);
-        
+
+        const pushBatchResult = (rec: { nombre: string; familia_id: number | null }, idx: number, status: ImportResult["status"], errMsg?: string) => {
+          const source = importData[i + idx];
+          const fam = rec.familia_id ? familiasMap.get(rec.familia_id) : null;
+          const categoria = fam
+            ? fam.Padre
+              ? familiasMap.get(fam.Padre)?.Categoria || "—"
+              : fam.Categoria || "—"
+            : source.categoriaRaw || "—";
+          const subcategoria = fam
+            ? fam.Padre
+              ? fam.Categoria || "—"
+              : "—"
+            : source.subcategoriaRaw || "—";
+
+          results.push({
+            accesorio: rec.nombre,
+            categoria,
+            subcategoria,
+            status,
+            familiaId: rec.familia_id,
+            ...(errMsg ? { error: errMsg } : {}),
+          });
+        };
+
         if (error) {
-          // Si hay error, marcar todos del batch como error
-          batch.forEach((rec, idx) => {
-            results.push({
-              accesorio: rec.nombre,
-              categoria: importData[i + idx].familiaTexto,
-              subcategoria: "",
-              status: "error",
-              familiaId: rec.familia_id,
-              error: error.message,
-            });
-          });
+          batch.forEach((rec, idx) => pushBatchResult(rec, idx, "error", error.message));
         } else {
-          // Éxito
-          batch.forEach((rec, idx) => {
-            results.push({
-              accesorio: rec.nombre,
-              categoria: importData[i + idx].familiaTexto,
-              subcategoria: "",
-              status: rec.familia_id ? "success" : "no_family",
-              familiaId: rec.familia_id,
-            });
-          });
+          batch.forEach((rec, idx) =>
+            pushBatchResult(rec, idx, rec.familia_id ? "success" : "no_family")
+          );
         }
       }
 
@@ -360,8 +459,8 @@ export default function AccesoriosFamilias() {
       setImportResultsOpen(true);
       setImportData([]);
       queryClient.invalidateQueries({ queryKey: ["cds-accesorios"] });
-      
-      const successCount = results.filter(r => r.status === "success").length;
+
+      const successCount = results.filter((r) => r.status === "success").length;
       toast.success(`Se importaron ${successCount} accesorios`);
     } catch (error) {
       toast.error("Error durante la importación");
@@ -621,7 +720,9 @@ export default function AccesoriosFamilias() {
                 <TableRow>
                   <TableHead className="w-[50px]">Estado</TableHead>
                   <TableHead>Accesorio</TableHead>
-                  <TableHead>Familia (ID)</TableHead>
+                  <TableHead>Categoría (Excel)</TableHead>
+                  <TableHead>Subcategoría (Excel)</TableHead>
+                  <TableHead>ID vinculado</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -629,17 +730,28 @@ export default function AccesoriosFamilias() {
                   <TableRow key={idx}>
                     <TableCell>
                       {item.familiaId ? (
-                        <CheckCircle className="h-4 w-4 text-success" />
+                        item.warning ? (
+                          <AlertTriangle className="h-4 w-4 text-warning" />
+                        ) : (
+                          <CheckCircle className="h-4 w-4 text-success" />
+                        )
                       ) : (
-                        <AlertTriangle className="h-4 w-4 text-warning" />
+                        <XCircle className="h-4 w-4 text-destructive" />
                       )}
                     </TableCell>
                     <TableCell className="font-medium">{item.accesorio}</TableCell>
+                    <TableCell className="text-sm">{item.categoriaRaw || "—"}</TableCell>
+                    <TableCell className="text-sm">{item.subcategoriaRaw || "—"}</TableCell>
                     <TableCell>
                       {item.familiaId ? (
-                        <Badge variant="secondary">{item.familiaTexto}</Badge>
+                        <div className="space-y-1">
+                          <Badge variant="secondary">{item.familiaTexto}</Badge>
+                          {item.warning && (
+                            <div className="text-xs text-muted-foreground">{item.warning}</div>
+                          )}
+                        </div>
                       ) : (
-                        <span className="text-muted-foreground text-sm">{item.familiaTexto}</span>
+                        <span className="text-muted-foreground text-sm">Sin vincular</span>
                       )}
                     </TableCell>
                   </TableRow>
@@ -681,46 +793,48 @@ export default function AccesoriosFamilias() {
             </div>
           </div>
 
-          <ScrollArea className="h-[400px] border rounded-md">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[50px]">Estado</TableHead>
-                  <TableHead>Accesorio</TableHead>
-                  <TableHead>Familia</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {importResults.map((result, idx) => (
-                  <TableRow key={idx}>
-                    <TableCell>
-                      {result.status === "success" && (
-                        <CheckCircle className="h-4 w-4 text-success" />
-                      )}
-                      {result.status === "no_family" && (
-                        <AlertTriangle className="h-4 w-4 text-warning" />
-                      )}
-                      {result.status === "error" && (
-                        <XCircle className="h-4 w-4 text-destructive" />
-                      )}
-                    </TableCell>
-                    <TableCell className="font-medium">{result.accesorio}</TableCell>
-                    <TableCell>
-                      {result.familiaId ? (
-                        <Badge variant="secondary">
-                          {familiasMap.get(result.familiaId)?.Categoria}
-                        </Badge>
-                      ) : (
-                        <span className="text-muted-foreground text-sm">
-                          {result.status === "error" ? result.error : "Sin vincular"}
-                        </span>
-                      )}
-                    </TableCell>
+            <ScrollArea className="h-[400px] border rounded-md">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[50px]">Estado</TableHead>
+                    <TableHead>Accesorio</TableHead>
+                    <TableHead>Categoría</TableHead>
+                    <TableHead>Subcategoría</TableHead>
+                    <TableHead>Vínculo</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </ScrollArea>
+                </TableHeader>
+                <TableBody>
+                  {importResults.map((result, idx) => (
+                    <TableRow key={idx}>
+                      <TableCell>
+                        {result.status === "success" && (
+                          <CheckCircle className="h-4 w-4 text-success" />
+                        )}
+                        {result.status === "no_family" && (
+                          <AlertTriangle className="h-4 w-4 text-warning" />
+                        )}
+                        {result.status === "error" && (
+                          <XCircle className="h-4 w-4 text-destructive" />
+                        )}
+                      </TableCell>
+                      <TableCell className="font-medium">{result.accesorio}</TableCell>
+                      <TableCell className="text-sm">{result.categoria}</TableCell>
+                      <TableCell className="text-sm">{result.subcategoria}</TableCell>
+                      <TableCell>
+                        {result.familiaId ? (
+                          <Badge variant="secondary">ID: {result.familiaId}</Badge>
+                        ) : (
+                          <span className="text-muted-foreground text-sm">
+                            {result.status === "error" ? result.error : "Sin vincular"}
+                          </span>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </ScrollArea>
 
           <DialogFooter>
             <Button onClick={() => setImportResultsOpen(false)}>
