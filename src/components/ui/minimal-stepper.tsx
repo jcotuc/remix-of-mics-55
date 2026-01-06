@@ -29,32 +29,51 @@ const MinimalStepper = React.forwardRef<HTMLDivElement, MinimalStepperProps>(
               <React.Fragment key={step.id}>
                 {/* Step Item */}
                 <div className="flex flex-col items-center relative">
-                  {/* Circle */}
-                  <div
-                    className={cn(
-                      "w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 border-2",
-                      isCompleted && "bg-primary border-primary text-primary-foreground",
-                      isCurrent && "bg-primary border-primary text-primary-foreground shadow-lg shadow-primary/30",
-                      isPending && "bg-muted border-muted-foreground/20 text-muted-foreground"
+                  {/* Circle Container */}
+                  <div className="relative">
+                    {/* Pulsing ring for current step */}
+                    {isCurrent && (
+                      <>
+                        <div className="absolute inset-0 rounded-full bg-primary/40 animate-ping" />
+                        <div className="absolute -inset-1 rounded-full bg-primary/20 animate-pulse" />
+                      </>
                     )}
-                  >
-                    {isCompleted ? (
-                      <Check className="w-5 h-5" strokeWidth={3} />
-                    ) : (
-                      <span className="[&>svg]:w-5 [&>svg]:h-5">{step.icon}</span>
-                    )}
+
+                    {/* Main Circle */}
+                    <div
+                      className={cn(
+                        "relative w-12 h-12 rounded-full flex items-center justify-center transition-all duration-500 border-2",
+                        isCompleted && "bg-primary border-primary text-primary-foreground scale-100",
+                        isCurrent && "bg-primary border-primary text-primary-foreground scale-110 shadow-lg shadow-primary/50",
+                        isPending && "bg-muted border-muted-foreground/30 text-muted-foreground"
+                      )}
+                      style={{
+                        transform: isCurrent ? 'scale(1.1)' : 'scale(1)',
+                      }}
+                    >
+                      {isCompleted ? (
+                        <Check 
+                          className="w-5 h-5 animate-[scale-in_0.3s_ease-out]" 
+                          strokeWidth={3} 
+                        />
+                      ) : (
+                        <span className="[&>svg]:w-5 [&>svg]:h-5 transition-transform duration-300">
+                          {step.icon}
+                        </span>
+                      )}
+                    </div>
                   </div>
 
-                  {/* Label - Only show for current step on mobile, all on desktop */}
+                  {/* Label */}
                   <div
                     className={cn(
-                      "mt-3 text-center transition-all duration-300",
-                      isCurrent ? "opacity-100" : "opacity-0 sm:opacity-100"
+                      "mt-3 text-center transition-all duration-500",
+                      isCurrent ? "opacity-100 translate-y-0" : "opacity-0 sm:opacity-100 translate-y-1 sm:translate-y-0"
                     )}
                   >
                     <p
                       className={cn(
-                        "text-sm font-semibold transition-colors",
+                        "text-sm font-semibold transition-all duration-300",
                         isCurrent && "text-primary",
                         isCompleted && "text-foreground",
                         isPending && "text-muted-foreground"
@@ -62,27 +81,59 @@ const MinimalStepper = React.forwardRef<HTMLDivElement, MinimalStepperProps>(
                     >
                       {step.title}
                     </p>
+                    
+                    {/* Current step badge */}
+                    {isCurrent && (
+                      <span className="inline-block mt-1 px-2 py-0.5 text-[10px] font-medium bg-primary/10 text-primary rounded-full animate-fade-in">
+                        Paso actual
+                      </span>
+                    )}
+                    
+                    {/* Completed badge */}
+                    {isCompleted && (
+                      <span className="inline-block mt-1 px-2 py-0.5 text-[10px] font-medium bg-green-500/10 text-green-600 dark:text-green-400 rounded-full">
+                        ✓ Listo
+                      </span>
+                    )}
+
                     {step.description && isCurrent && (
-                      <p className="text-xs text-muted-foreground mt-0.5 max-w-[120px]">
+                      <p className="text-xs text-muted-foreground mt-1 max-w-[120px] animate-fade-in">
                         {step.description}
                       </p>
                     )}
                   </div>
                 </div>
 
-                {/* Connector Line */}
+                {/* Connector Line with Progress Animation */}
                 {index < steps.length - 1 && (
-                  <div
-                    className={cn(
-                      "flex-1 h-0.5 mx-4 transition-all duration-300 rounded-full max-w-[100px]",
-                      currentStep > step.id + 1 ? "bg-primary" : 
-                      currentStep > step.id ? "bg-primary" : "bg-muted-foreground/20"
+                  <div className="relative flex-1 mx-3 sm:mx-4 max-w-[80px] sm:max-w-[100px] h-1 rounded-full bg-muted-foreground/20 overflow-hidden">
+                    {/* Animated progress bar */}
+                    <div
+                      className={cn(
+                        "absolute inset-y-0 left-0 bg-primary rounded-full transition-all duration-700 ease-out",
+                        currentStep > step.id ? "w-full" : "w-0"
+                      )}
+                    />
+                    
+                    {/* Shimmer effect for current step's line */}
+                    {isCurrent && (
+                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/30 to-transparent animate-[shimmer_2s_infinite] -translate-x-full" />
                     )}
-                  />
+                  </div>
                 )}
               </React.Fragment>
             );
           })}
+        </div>
+
+        {/* Progress indicator */}
+        <div className="flex justify-center mt-4">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <span className="font-medium text-foreground">{currentStep}</span>
+            <span>de</span>
+            <span className="font-medium text-foreground">{steps.length}</span>
+            <span className="text-muted-foreground">pasos</span>
+          </div>
         </div>
       </div>
     );

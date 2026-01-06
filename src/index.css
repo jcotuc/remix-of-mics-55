@@ -3,6 +3,12 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Custom keyframes */
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+
 /* Modern SaaS + Minimal Design System
    Corporate Colors: Orange (#FF7A00) & Dark Blue (#1E3A5F)
    All colors MUST be HSL
