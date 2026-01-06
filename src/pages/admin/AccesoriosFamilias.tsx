@@ -283,18 +283,20 @@ export default function AccesoriosFamilias() {
             Accesorios por Familia
           </CardTitle>
           <div className="flex gap-2">
-            <Button variant="outline" asChild className="cursor-pointer">
-              <label>
-                <Upload className="h-4 w-4 mr-2" />
-                Importar Excel
-                <input
-                  type="file"
-                  accept=".xlsx,.xls"
-                  onChange={handleFileUpload}
-                  className="hidden"
-                />
-              </label>
-            </Button>
+            <label className="cursor-pointer">
+              <Button variant="outline" asChild>
+                <span>
+                  <Upload className="h-4 w-4 mr-2" />
+                  Importar Excel
+                </span>
+              </Button>
+              <input
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={handleFileUpload}
+                className="hidden"
+              />
+            </label>
             <Button onClick={handleOpenCreate}>
               <Plus className="h-4 w-4 mr-2" />
               Agregar
