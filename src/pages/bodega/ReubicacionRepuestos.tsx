@@ -16,7 +16,8 @@ type InventarioItem = {
   codigo_repuesto: string;
   centro_servicio_id: string;
   cantidad: number;
-  ubicacion: string | null;
+  ubicacion_legacy: string | null;
+  ubicacion_id: number | null;
   descripcion: string | null;
   centros_servicio: {
     nombre: string;
@@ -77,13 +78,14 @@ export default function ReubicacionRepuestos() {
           codigo_repuesto,
           centro_servicio_id,
           cantidad,
-          ubicacion,
+          ubicacion_legacy,
+          ubicacion_id,
           descripcion,
           centros_servicio (
             nombre
           )
         `)
-        .is("ubicacion", null);
+        .is("ubicacion_id", null);
 
       if (centroSeleccionado && centroSeleccionado !== "todos") {
         query = query.eq("centro_servicio_id", centroSeleccionado);
@@ -114,14 +116,14 @@ export default function ReubicacionRepuestos() {
     }
 
     try {
-      const ubicacionFinal = `${nuevaUbicacion.pasillo}-${nuevaUbicacion.rack}-${nuevaUbicacion.nivel}`;
+      const ubicacionFinal = `${nuevaUbicacion.pasillo}.${nuevaUbicacion.rack}.${nuevaUbicacion.nivel}`;
       const user = await supabase.auth.getUser();
 
-      // Actualizar inventario con nueva ubicación
+      // Actualizar inventario con nueva ubicación legacy
       const { error: updateError } = await supabase
         .from("inventario")
         .update({
-          ubicacion: ubicacionFinal,
+          ubicacion_legacy: ubicacionFinal,
         })
         .eq("id", itemAUbicar.id);
 

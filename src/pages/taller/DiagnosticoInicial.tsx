@@ -427,7 +427,7 @@ export default function DiagnosticoInicial() {
         if (profile?.centro_servicio_id) {
           const { data: inventarioData } = await supabase
             .from('inventario')
-            .select('codigo_repuesto, cantidad, ubicacion')
+            .select('codigo_repuesto, cantidad, ubicacion_legacy')
             .eq('centro_servicio_id', profile.centro_servicio_id)
             .in('codigo_repuesto', todosLosCodigos);
 
@@ -437,12 +437,12 @@ export default function DiagnosticoInicial() {
             if (existing) {
               stockMap.set(item.codigo_repuesto, {
                 cantidad: existing.cantidad + item.cantidad,
-                ubicacion: existing.ubicacion + ', ' + item.ubicacion
+                ubicacion: existing.ubicacion + ', ' + item.ubicacion_legacy
               });
             } else {
               stockMap.set(item.codigo_repuesto, {
                 cantidad: item.cantidad,
-                ubicacion: item.ubicacion || ''
+                ubicacion: item.ubicacion_legacy || ''
               });
             }
           });

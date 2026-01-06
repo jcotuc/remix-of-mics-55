@@ -46,7 +46,7 @@ export default function ConsultaExistencias() {
       const codigos = repuestosData?.map(r => r.codigo) || [];
       const { data: inventarioData } = await supabase
         .from('inventario')
-        .select('codigo_repuesto, cantidad, ubicacion')
+        .select('codigo_repuesto, cantidad, ubicacion_legacy')
         .in('codigo_repuesto', codigos);
 
       // Combinar datos
@@ -59,7 +59,7 @@ export default function ConsultaExistencias() {
           descripcion: rep.descripcion,
           disponible_mostrador: rep.disponible_mostrador ?? false,
           stock: inv?.cantidad || 0,
-          ubicacion: inv?.ubicacion || null
+          ubicacion: inv?.ubicacion_legacy || null
         };
       });
 

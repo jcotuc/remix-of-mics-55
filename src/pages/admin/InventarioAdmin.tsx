@@ -27,7 +27,7 @@ interface InventarioItem {
   codigo_repuesto: string;
   descripcion: string | null;
   cantidad: number;
-  ubicacion: string | null;
+  ubicacion_legacy: string | null;
   bodega: string | null;
   costo_unitario: number | null;
   centro_servicio_id: string;
@@ -169,7 +169,7 @@ export default function InventarioAdmin() {
       // Apply search filter on server
       if (debouncedSearch) {
         query = query.or(
-          `codigo_repuesto.ilike.%${debouncedSearch}%,descripcion.ilike.%${debouncedSearch}%,ubicacion.ilike.%${debouncedSearch}%,bodega.ilike.%${debouncedSearch}%`
+          `codigo_repuesto.ilike.%${debouncedSearch}%,descripcion.ilike.%${debouncedSearch}%,ubicacion_legacy.ilike.%${debouncedSearch}%,bodega.ilike.%${debouncedSearch}%`
         );
       }
 
@@ -452,7 +452,7 @@ export default function InventarioAdmin() {
         codigo_repuesto: string;
         descripcion: string | null;
         cantidad: number;
-        ubicacion: string | null;
+        ubicacion_legacy: string | null;
         bodega: string | null;
         costo_unitario: number | null;
       };
@@ -517,7 +517,7 @@ export default function InventarioAdmin() {
           codigo_repuesto: sku,
           descripcion: descripcion || null,
           cantidad,
-          ubicacion: ubicacion || null,
+          ubicacion_legacy: ubicacion || null,
           bodega: numeroBodega || null,
           costo_unitario: costoUnitario || null,
         });
@@ -543,7 +543,7 @@ export default function InventarioAdmin() {
           const batch = toUpsert.slice(i, i + BATCH_SIZE);
 
           const { error } = await supabase.from("inventario").upsert(batch, {
-            onConflict: "centro_servicio_id,codigo_repuesto,ubicacion",
+            onConflict: "centro_servicio_id,codigo_repuesto,ubicacion_legacy",
           });
 
           if (error) {
@@ -554,7 +554,7 @@ export default function InventarioAdmin() {
             for (let j = 0; j < batch.length; j += SMALL_BATCH) {
               const smallBatch = batch.slice(j, j + SMALL_BATCH);
               const { error: smallError } = await supabase.from("inventario").upsert(smallBatch, {
-                onConflict: "centro_servicio_id,codigo_repuesto,ubicacion",
+                onConflict: "centro_servicio_id,codigo_repuesto,ubicacion_legacy",
               });
               
               if (smallError) {
@@ -797,7 +797,7 @@ export default function InventarioAdmin() {
                   <TableBody>
                     {inventario.map((item) => (
                       <TableRow key={item.id}>
-                        <TableCell>{item.ubicacion || "-"}</TableCell>
+                        <TableCell>{item.ubicacion_legacy || "-"}</TableCell>
                         <TableCell className="font-mono">{item.codigo_repuesto}</TableCell>
                         <TableCell className="max-w-xs truncate">{item.descripcion || "-"}</TableCell>
                         <TableCell className="text-right">{item.cantidad}</TableCell>

@@ -21,7 +21,7 @@ type InventarioItem = {
   codigo_repuesto: string;
   descripcion: string | null;
   cantidad: number;
-  ubicacion: string;
+  ubicacion_legacy: string;
   bodega: string | null;
   costo_unitario: number | null;
   centro_servicio_id: string;
@@ -116,7 +116,7 @@ export default function Inventario() {
 
       // Apply search filter on server side
       if (debouncedSearch) {
-        query = query.or(`codigo_repuesto.ilike.%${debouncedSearch}%,descripcion.ilike.%${debouncedSearch}%,ubicacion.ilike.%${debouncedSearch}%`);
+        query = query.or(`codigo_repuesto.ilike.%${debouncedSearch}%,descripcion.ilike.%${debouncedSearch}%,ubicacion_legacy.ilike.%${debouncedSearch}%`);
       }
 
       // Apply pagination and ordering
@@ -131,7 +131,7 @@ export default function Inventario() {
         codigo_repuesto: item.codigo_repuesto,
         descripcion: item.descripcion,
         cantidad: item.cantidad || 0,
-        ubicacion: item.ubicacion,
+        ubicacion_legacy: item.ubicacion_legacy,
         bodega: item.bodega,
         costo_unitario: item.costo_unitario,
         centro_servicio_id: item.centro_servicio_id,
@@ -336,7 +336,7 @@ export default function Inventario() {
                   ) : (
                     inventario.map((item) => (
                       <TableRow key={item.id}>
-                        <TableCell>{item.ubicacion || "-"}</TableCell>
+                        <TableCell>{item.ubicacion_legacy || "-"}</TableCell>
                         <TableCell className="font-mono">{item.codigo_repuesto}</TableCell>
                         <TableCell className="max-w-xs truncate">{item.descripcion || "-"}</TableCell>
                         <TableCell>

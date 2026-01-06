@@ -82,7 +82,7 @@ export default function FaltanteAccesorios() {
       const codigos = repuestosData?.map(r => r.codigo) || [];
       const { data: inventarioData } = await supabase
         .from('inventario')
-        .select('codigo_repuesto, cantidad, ubicacion')
+        .select('codigo_repuesto, cantidad, ubicacion_legacy')
         .in('codigo_repuesto', codigos);
 
       // Combinar datos
@@ -93,7 +93,7 @@ export default function FaltanteAccesorios() {
           codigo: rep.codigo,
           descripcion: rep.descripcion,
           stock: inv?.cantidad || 0,
-          ubicacion: inv?.ubicacion || null
+          ubicacion: inv?.ubicacion_legacy || null
         };
       });
 
