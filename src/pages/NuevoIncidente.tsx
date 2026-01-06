@@ -1,12 +1,11 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { ArrowLeft, Search, User, Package, AlertCircle, UserCircle, ChevronRight, Printer, Plus } from "lucide-react";
+import { ArrowLeft, Search, User, Package, AlertCircle, UserCircle, ChevronRight, Printer } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Producto } from "@/types";
@@ -15,7 +14,7 @@ import { FloatingCameraWidget } from "@/components/FloatingCameraWidget";
 import { uploadMediaToStorage, saveIncidentePhotos } from "@/lib/uploadMedia";
 import { MinimalStepper } from "@/components/ui/minimal-stepper";
 import { OutlinedInput, OutlinedTextarea, OutlinedSelect } from "@/components/ui/outlined-input";
-import { MultiSelectDropdown } from "@/components/ui/multi-select-dropdown";
+import { AccesorioSearchSelect } from "@/components/AccesorioSearchSelect";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/contexts/AuthContext";
 import IncidentePrintSheet from "@/components/IncidentePrintSheet";
@@ -117,9 +116,7 @@ export default function NuevoIncidente() {
   const [productosEncontrados, setProductosEncontrados] = useState<Producto[]>([]);
   const [descripcionProblema, setDescripcionProblema] = useState("");
   const [accesoriosSeleccionados, setAccesoriosSeleccionados] = useState<string[]>([]);
-  const [accesoriosDisponibles, setAccesoriosDisponibles] = useState<any[]>([]);
-  const [nuevoAccesorioNombre, setNuevoAccesorioNombre] = useState("");
-  const [agregandoAccesorio, setAgregandoAccesorio] = useState(false);
+  const [accesoriosDisponibles, setAccesoriosDisponibles] = useState<{id: number; nombre: string}[]>([]);
   const [centrosServicioList, setCentrosServicioList] = useState<{
     id: string;
     nombre: string;
@@ -384,10 +381,9 @@ export default function NuevoIncidente() {
   };
 
   // Función para agregar nuevo accesorio a CDS_Accesorios
-  const handleAgregarNuevoAccesorio = async () => {
-    if (!nuevoAccesorioNombre.trim() || !productoSeleccionado) return;
+  const handleAgregarNuevoAccesorio = async (nombre: string) => {
+    if (!nombre.trim() || !productoSeleccionado) return;
 
-    setAgregandoAccesorio(true);
     try {
       // Obtener familia_padre_id del producto
       const { data: productoData } = await supabase
@@ -402,7 +398,7 @@ export default function NuevoIncidente() {
       const { data: nuevoAcc, error } = await supabase
         .from('CDS_Accesorios')
         .insert({
-          nombre: nuevoAccesorioNombre.trim(),
+          nombre: nombre.trim(),
           familia_id: familiaId
         })
         .select()
@@ -413,7 +409,6 @@ export default function NuevoIncidente() {
       // Agregarlo a la lista de disponibles y seleccionarlo automáticamente
       setAccesoriosDisponibles(prev => [...prev, nuevoAcc]);
       setAccesoriosSeleccionados(prev => [...prev, nuevoAcc.nombre]);
-      setNuevoAccesorioNombre("");
 
       toast({
         title: "Accesorio agregado",
@@ -426,8 +421,6 @@ export default function NuevoIncidente() {
         description: "No se pudo agregar el accesorio",
         variant: "destructive"
       });
-    } finally {
-      setAgregandoAccesorio(false);
     }
   };
 
@@ -1036,47 +1029,14 @@ export default function NuevoIncidente() {
                 <OutlinedTextarea label="Comentario del cliente (fallas de la máquina)" value={descripcionProblema} onChange={e => setDescripcionProblema(e.target.value)} required />
 
                 {/* Accesorios */}
-                <div className="space-y-3">
-                  <MultiSelectDropdown label="Accesorios con los que ingresa" options={accesoriosDisponibles.map(acc => ({
-                    value: acc.nombre,
-                    label: acc.nombre
-                  }))} selected={accesoriosSeleccionados} onSelectionChange={setAccesoriosSeleccionados} placeholder={productoSeleccionado ? "Seleccionar accesorios..." : "Primero seleccione un producto"} disabled={!productoSeleccionado} />
-                  
-                  {/* Agregar nuevo accesorio */}
-                  {productoSeleccionado && (
-                    <div className="flex items-center gap-2 pl-2 border-l-2 border-primary/20">
-                      <Input
-                        placeholder="¿No está en la lista? Escriba el nombre..."
-                        value={nuevoAccesorioNombre}
-                        onChange={(e) => setNuevoAccesorioNombre(e.target.value)}
-                        className="flex-1 h-9 text-sm"
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            handleAgregarNuevoAccesorio();
-                          }
-                        }}
-                      />
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={handleAgregarNuevoAccesorio}
-                        disabled={!nuevoAccesorioNombre.trim() || agregandoAccesorio}
-                        className="shrink-0"
-                      >
-                        {agregandoAccesorio ? (
-                          <span className="animate-spin">...</span>
-                        ) : (
-                          <>
-                            <Plus className="w-4 h-4 mr-1" />
-                            Agregar
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  )}
-                </div>
+                <AccesorioSearchSelect
+                  label="Accesorios con los que ingresa"
+                  accesorios={accesoriosDisponibles}
+                  selected={accesoriosSeleccionados}
+                  onSelectionChange={setAccesoriosSeleccionados}
+                  onAddNew={handleAgregarNuevoAccesorio}
+                  disabled={!productoSeleccionado}
+                />
 
                 {/* Centro de Servicio y Reingreso */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
