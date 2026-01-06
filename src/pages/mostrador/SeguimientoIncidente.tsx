@@ -247,60 +247,68 @@ export default function SeguimientoIncidente() {
           </Card>
 
           {/* Detalles del Incidente */}
-          <Card className="relative">
-            <div className="absolute top-3 left-3">
-              <FileText className="w-5 h-5 text-orange-500" />
-            </div>
-            <CardContent className="pt-10 pb-4 px-4 space-y-4">
-              <div>
-                <h4 className="text-sm font-medium text-muted-foreground mb-1">Problema Reportado</h4>
-                <p className="text-sm bg-muted/50 p-3 rounded-lg">{incidente.descripcion_problema}</p>
-              </div>
-              
-              {incidente.accesorios && <div>
-                  <h4 className="text-sm font-medium text-muted-foreground mb-1">Accesorios Incluidos</h4>
-                  <p className="text-sm bg-muted/50 p-3 rounded-lg">{incidente.accesorios}</p>
-                </div>}
+          <Card>
+            <CardContent className="p-4">
+              <div className="grid grid-cols-[auto_1fr] gap-3 items-start">
+                <FileText className="w-5 h-5 text-primary mt-1" />
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="text-sm font-medium text-muted-foreground mb-1">Problema Reportado</h4>
+                    <p className="text-sm bg-muted/50 p-3 rounded-lg">{incidente.descripcion_problema}</p>
+                  </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-4 pt-4 border-t">
-                <div>
-                  <p className="text-xs text-muted-foreground">Centro de Servicio</p>
-                  <p className="text-sm font-medium">{incidente.centro_servicio || 'No especificado'}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Tipología</p>
-                  <p className="text-sm font-medium">{incidente.tipologia || 'N/A'}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Garantía</p>
-                  {incidente.cobertura_garantia ? (
-                    <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-xs">
-                      <CheckCircle className="w-3 h-3 mr-1" />
-                      Con Garantía
-                    </Badge>
-                  ) : (
-                    <Badge variant="outline" className="text-muted-foreground text-xs">
-                      <Clock className="w-3 h-3 mr-1" />
-                      Sin Garantía
-                    </Badge>
+                  {incidente.accesorios && (
+                    <div>
+                      <h4 className="text-sm font-medium text-muted-foreground mb-1">Accesorios Incluidos</h4>
+                      <p className="text-sm bg-muted/50 p-3 rounded-lg">{incidente.accesorios}</p>
+                    </div>
                   )}
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Reingreso</p>
-                  <Badge variant={incidente.es_reingreso ? "destructive" : "outline"} className="text-xs">
-                    {incidente.es_reingreso ? 'Sí' : 'No'}
-                  </Badge>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Envío</p>
-                  <div className="flex items-center gap-1">
-                    {incidente.quiere_envio ? <>
-                        <Truck className="w-3 h-3 text-muted-foreground" />
-                        <span className="text-sm">Sí</span>
-                      </> : <>
-                        <Home className="w-3 h-3 text-muted-foreground" />
-                        <span className="text-sm">Recoge</span>
-                      </>}
+
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4 pt-4 border-t">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Centro de Servicio</p>
+                      <p className="text-sm font-medium">{incidente.centro_servicio || 'No especificado'}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Tipología</p>
+                      <p className="text-sm font-medium">{incidente.tipologia || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Garantía</p>
+                      {incidente.cobertura_garantia ? (
+                        <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-xs">
+                          <CheckCircle className="w-3 h-3 mr-1" />
+                          Con Garantía
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-muted-foreground text-xs">
+                          <Clock className="w-3 h-3 mr-1" />
+                          Sin Garantía
+                        </Badge>
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Reingreso</p>
+                      <Badge variant={incidente.es_reingreso ? "destructive" : "outline"} className="text-xs">
+                        {incidente.es_reingreso ? 'Sí' : 'No'}
+                      </Badge>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Envío</p>
+                      <div className="flex items-center gap-1">
+                        {incidente.quiere_envio ? (
+                          <>
+                            <Truck className="w-3 h-3 text-muted-foreground" />
+                            <span className="text-sm">Sí</span>
+                          </>
+                        ) : (
+                          <>
+                            <Home className="w-3 h-3 text-muted-foreground" />
+                            <span className="text-sm">Recoge</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -308,147 +316,194 @@ export default function SeguimientoIncidente() {
           </Card>
 
           {/* Diagnóstico existente */}
-          {diagnostico && <Card className="relative">
-              <div className="absolute top-3 left-3">
-                <Wrench className="w-5 h-5 text-orange-500" />
-              </div>
-              <CardContent className="pt-10 pb-4 px-4 space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Estado: {diagnostico.estado}</span>
-                </div>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="text-muted-foreground">Técnico:</span>
-                    <p className="font-medium">{diagnostico.tecnico_codigo}</p>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Fecha:</span>
-                    <p className="font-medium">
-                      {diagnostico.created_at ? format(new Date(diagnostico.created_at), "dd/MM/yyyy HH:mm", {
-                    locale: es
-                  }) : "N/A"}
-                    </p>
-                  </div>
-                </div>
-                
-                {diagnostico.fallas && diagnostico.fallas.length > 0 && <div>
-                    <h4 className="text-sm font-medium text-muted-foreground mb-2">Fallas Identificadas</h4>
-                    <div className="flex flex-wrap gap-2">
-                      {diagnostico.fallas.map((falla: string, idx: number) => <Badge key={idx} variant="outline" className="bg-red-50 text-red-700 border-red-200">
-                          {falla}
-                        </Badge>)}
-                    </div>
-                  </div>}
+          {diagnostico && (
+            <Card>
+              <CardContent className="p-4">
+                <div className="grid grid-cols-[auto_1fr] gap-3 items-start">
+                  <Wrench className="w-5 h-5 text-primary mt-1" />
+                  <div className="space-y-4">
+                    <div className="text-sm text-muted-foreground">Estado: {diagnostico.estado}</div>
 
-                {diagnostico.causas && diagnostico.causas.length > 0 && <div>
-                    <h4 className="text-sm font-medium text-muted-foreground mb-2">Causas</h4>
-                    <div className="flex flex-wrap gap-2">
-                      {diagnostico.causas.map((causa: string, idx: number) => <Badge key={idx} variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
-                          {causa}
-                        </Badge>)}
-                    </div>
-                  </div>}
-
-                {diagnostico.resolucion && <div>
-                    <h4 className="text-sm font-medium text-muted-foreground mb-1">Resolución</h4>
-                    <p className="text-sm bg-muted/50 p-3 rounded-lg">{diagnostico.resolucion}</p>
-                  </div>}
-
-                {(diagnostico.costo_estimado || diagnostico.tiempo_estimado) && <div className="grid grid-cols-2 gap-4 pt-4 border-t">
-                    {diagnostico.costo_estimado && <div>
-                        <p className="text-xs text-muted-foreground">Costo Estimado</p>
-                        <p className="text-lg font-semibold text-primary">
-                          Q {Number(diagnostico.costo_estimado).toFixed(2)}
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="text-muted-foreground">Técnico:</span>
+                        <p className="font-medium">{diagnostico.tecnico_codigo}</p>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Fecha:</span>
+                        <p className="font-medium">
+                          {diagnostico.created_at
+                            ? format(new Date(diagnostico.created_at), "dd/MM/yyyy HH:mm", { locale: es })
+                            : "N/A"}
                         </p>
-                      </div>}
-                    {diagnostico.tiempo_estimado && <div>
-                        <p className="text-xs text-muted-foreground">Tiempo Estimado</p>
-                        <p className="font-medium">{diagnostico.tiempo_estimado}</p>
-                      </div>}
-                  </div>}
+                      </div>
+                    </div>
+
+                    {diagnostico.fallas && diagnostico.fallas.length > 0 && (
+                      <div>
+                        <h4 className="text-sm font-medium text-muted-foreground mb-2">Fallas Identificadas</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {diagnostico.fallas.map((falla: string, idx: number) => (
+                            <Badge key={idx} variant="outline" className="bg-red-50 text-red-700 border-red-200">
+                              {falla}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {diagnostico.causas && diagnostico.causas.length > 0 && (
+                      <div>
+                        <h4 className="text-sm font-medium text-muted-foreground mb-2">Causas</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {diagnostico.causas.map((causa: string, idx: number) => (
+                            <Badge key={idx} variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+                              {causa}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {diagnostico.resolucion && (
+                      <div>
+                        <h4 className="text-sm font-medium text-muted-foreground mb-1">Resolución</h4>
+                        <p className="text-sm bg-muted/50 p-3 rounded-lg">{diagnostico.resolucion}</p>
+                      </div>
+                    )}
+
+                    {(diagnostico.costo_estimado || diagnostico.tiempo_estimado) && (
+                      <div className="grid grid-cols-2 gap-4 pt-4 border-t">
+                        {diagnostico.costo_estimado && (
+                          <div>
+                            <p className="text-xs text-muted-foreground">Costo Estimado</p>
+                            <p className="text-lg font-semibold text-primary">Q {Number(diagnostico.costo_estimado).toFixed(2)}</p>
+                          </div>
+                        )}
+                        {diagnostico.tiempo_estimado && (
+                          <div>
+                            <p className="text-xs text-muted-foreground">Tiempo Estimado</p>
+                            <p className="font-medium">{diagnostico.tiempo_estimado}</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
               </CardContent>
-            </Card>}
+            </Card>
+          )}
 
           {/* Historial y Observaciones - Combinado */}
-          {id && <HistorialConObservaciones incidenteId={id} logObservaciones={incidente.log_observaciones} />}
+          {id && (
+            <HistorialConObservaciones
+              incidenteId={id}
+              logObservaciones={incidente.log_observaciones}
+              headerVariant="clean"
+            />
+          )}
         </div>
 
         {/* Right Column - Sidebar (1/3) */}
         <div className="space-y-6">
           {/* Cliente Card */}
-          <Card className="relative">
-            <div className="absolute top-3 left-3">
-              <User className="w-4 h-4 text-orange-500" />
-            </div>
-            <CardContent className="pt-10 pb-4 px-4 space-y-3">
-              {cliente ? <>
-                  <div>
-                    <p className="font-semibold">{cliente.nombre}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {cliente.codigo} • NIT: {cliente.nit}
-                    </p>
-                  </div>
-                  <Separator />
-                  <div className="space-y-2 text-sm">
-                    <div className="flex items-center gap-2">
-                      <Phone className="w-3 h-3 text-muted-foreground" />
-                      <span>{cliente.celular}</span>
-                    </div>
-                    {cliente.correo && <div className="flex items-center gap-2">
-                        <Mail className="w-3 h-3 text-muted-foreground" />
-                        <span className="truncate">{cliente.correo}</span>
-                      </div>}
-                    {cliente.direccion && <div className="flex items-start gap-2">
-                        <MapPin className="w-3 h-3 text-muted-foreground mt-0.5" />
-                        <span className="text-xs">{cliente.direccion}</span>
-                      </div>}
-                  </div>
-                  {clienteHistorial > 1 && <>
-                      <Separator />
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <History className="w-3 h-3" />
-                        <span>{clienteHistorial} incidentes en historial</span>
+          <Card>
+            <CardContent className="p-4">
+              <div className="grid grid-cols-[auto_1fr] gap-3 items-start">
+                <User className="w-4 h-4 text-primary mt-1" />
+                <div className="space-y-3">
+                  {cliente ? (
+                    <>
+                      <div>
+                        <p className="font-semibold">{cliente.nombre}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {cliente.codigo} • NIT: {cliente.nit}
+                        </p>
                       </div>
-                    </>}
-                </> : <p className="text-muted-foreground text-sm">Cliente no encontrado</p>}
+                      <Separator />
+                      <div className="space-y-2 text-sm">
+                        <div className="flex items-center gap-2">
+                          <Phone className="w-3 h-3 text-muted-foreground" />
+                          <span>{cliente.celular}</span>
+                        </div>
+                        {cliente.correo && (
+                          <div className="flex items-center gap-2">
+                            <Mail className="w-3 h-3 text-muted-foreground" />
+                            <span className="truncate">{cliente.correo}</span>
+                          </div>
+                        )}
+                        {cliente.direccion && (
+                          <div className="flex items-start gap-2">
+                            <MapPin className="w-3 h-3 text-muted-foreground mt-0.5" />
+                            <span className="text-xs">{cliente.direccion}</span>
+                          </div>
+                        )}
+                      </div>
+                      {clienteHistorial > 1 && (
+                        <>
+                          <Separator />
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                            <History className="w-3 h-3" />
+                            <span>{clienteHistorial} incidentes en historial</span>
+                          </div>
+                        </>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-muted-foreground text-sm">Cliente no encontrado</p>
+                  )}
+                </div>
+              </div>
             </CardContent>
           </Card>
 
           {/* Fotos del Incidente */}
-          {id && <CompactPhotoGallery incidenteId={id} />}
+          {id && <CompactPhotoGallery incidenteId={id} headerVariant="clean" />}
 
           {/* Técnico Asignado */}
-          <Card className="relative">
-            <div className="absolute top-3 left-3">
-              <Wrench className="w-4 h-4 text-orange-500" />
-            </div>
-            <CardContent className="pt-10 pb-4 px-4">
-              {tecnico && !['Ingresado', 'En ruta', 'Pendiente de diagnostico'].includes(incidente.status) ? <div className="space-y-2">
-                  <p className="font-semibold">{tecnico.nombre} {tecnico.apellido}</p>
-                  <p className="text-xs text-muted-foreground">Código: {tecnico.codigo}</p>
-                  {tecnico.email && <div className="flex items-center gap-2 text-sm">
-                      <Mail className="w-3 h-3 text-muted-foreground" />
-                      <span className="truncate">{tecnico.email}</span>
-                    </div>}
-                </div> : <p className="text-muted-foreground text-sm">—</p>}
+          <Card>
+            <CardContent className="p-4">
+              <div className="grid grid-cols-[auto_1fr] gap-3 items-start">
+                <Wrench className="w-4 h-4 text-primary mt-1" />
+                <div>
+                  {tecnico && !['Ingresado', 'En ruta', 'Pendiente de diagnostico'].includes(incidente.status) ? (
+                    <div className="space-y-2">
+                      <p className="font-semibold">{tecnico.nombre} {tecnico.apellido}</p>
+                      <p className="text-xs text-muted-foreground">Código: {tecnico.codigo}</p>
+                      {tecnico.email && (
+                        <div className="flex items-center gap-2 text-sm">
+                          <Mail className="w-3 h-3 text-muted-foreground" />
+                          <span className="_toggle truncate">{tecnico.email}</span>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-muted-foreground text-sm">—</p>
+                  )}
+                </div>
+              </div>
             </CardContent>
           </Card>
 
           {/* Opción de Entrega */}
-          {incidente.quiere_envio && direccionEnvio && <Card className="relative">
-              <div className="absolute top-3 left-3">
-                <Truck className="w-4 h-4 text-orange-500" />
-              </div>
-              <CardContent className="pt-10 pb-4 px-4">
-                <div className="flex items-start gap-2">
-                  <MapPin className="w-4 h-4 text-muted-foreground mt-0.5" />
-                  <div>
-                    {direccionEnvio.nombre_referencia && <p className="font-medium text-sm">{direccionEnvio.nombre_referencia}</p>}
-                    <p className="text-sm">{direccionEnvio.direccion}</p>
+          {incidente.quiere_envio && direccionEnvio && (
+            <Card>
+              <CardContent className="p-4">
+                <div className="grid grid-cols-[auto_1fr] gap-3 items-start">
+                  <Truck className="w-4 h-4 text-primary mt-1" />
+                  <div className="flex items-start gap-2">
+                    <MapPin className="w-4 h-4 text-muted-foreground mt-0.5" />
+                    <div>
+                      {direccionEnvio.nombre_referencia && (
+                        <p className="font-medium text-sm">{direccionEnvio.nombre_referencia}</p>
+                      )}
+                      <p className="text-sm">{direccionEnvio.direccion}</p>
+                    </div>
                   </div>
                 </div>
               </CardContent>
-            </Card>}
+            </Card>
+          )}
         </div>
       </div>
 

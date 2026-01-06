@@ -17,6 +17,7 @@ interface IncidentPhoto {
 
 interface CompactPhotoGalleryProps {
   incidenteId: string;
+  headerVariant?: "default" | "clean";
 }
 
 const tipoLabels: Record<string, { label: string; color: string; bgSection: string; borderColor: string }> = {
@@ -25,7 +26,7 @@ const tipoLabels: Record<string, { label: string; color: string; bgSection: stri
   salida: { label: "Salida", color: "bg-green-200 text-green-900", bgSection: "bg-green-50", borderColor: "border-green-200" },
 };
 
-export function CompactPhotoGallery({ incidenteId }: CompactPhotoGalleryProps) {
+export function CompactPhotoGallery({ incidenteId, headerVariant = "default" }: CompactPhotoGalleryProps) {
   const [photos, setPhotos] = useState<IncidentPhoto[]>([]);
   const [selectedPhoto, setSelectedPhoto] = useState<IncidentPhoto | null>(null);
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
@@ -79,10 +80,14 @@ export function CompactPhotoGallery({ incidenteId }: CompactPhotoGalleryProps) {
     return (
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Camera className="w-4 h-4" />
-            Fotos
-          </CardTitle>
+          {headerVariant === "default" ? (
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Camera className="w-4 h-4" />
+              Fotos
+            </CardTitle>
+          ) : (
+            <Camera className="w-4 h-4 text-primary" />
+          )}
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground">Cargando fotos...</p>
@@ -95,13 +100,17 @@ export function CompactPhotoGallery({ incidenteId }: CompactPhotoGalleryProps) {
     <>
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Camera className="w-4 h-4" />
-            Fotos del Incidente
-            <span className="text-sm font-normal text-muted-foreground">
-              ({photos.length})
-            </span>
-          </CardTitle>
+          {headerVariant === "default" ? (
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Camera className="w-4 h-4" />
+              Fotos del Incidente
+              <span className="text-sm font-normal text-muted-foreground">
+                ({photos.length})
+              </span>
+            </CardTitle>
+          ) : (
+            <Camera className="w-4 h-4 text-primary" />
+          )}
         </CardHeader>
         <CardContent className="p-0">
           {photos.length === 0 ? (

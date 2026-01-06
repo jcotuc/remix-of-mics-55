@@ -34,6 +34,7 @@ interface TimelineEvent {
 interface HistorialConObservacionesProps {
   incidenteId: string;
   logObservaciones: string | null;
+  headerVariant?: "default" | "clean";
 }
 
 const actionConfig = {
@@ -172,7 +173,7 @@ function assignObservacionesToEvents(
   });
 }
 
-export function HistorialConObservaciones({ incidenteId, logObservaciones }: HistorialConObservacionesProps) {
+export function HistorialConObservaciones({ incidenteId, logObservaciones, headerVariant = "default" }: HistorialConObservacionesProps) {
   const [events, setEvents] = useState<TimelineEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
@@ -339,10 +340,14 @@ export function HistorialConObservaciones({ incidenteId, logObservaciones }: His
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Clock className="w-5 h-5" />
-            Historial y Observaciones
-          </CardTitle>
+          {headerVariant === "default" ? (
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="w-5 h-5" />
+              Historial y Observaciones
+            </CardTitle>
+          ) : (
+            <Clock className="w-5 h-5 text-primary" />
+          )}
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
@@ -365,13 +370,17 @@ export function HistorialConObservaciones({ incidenteId, logObservaciones }: His
     <Card>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between flex-wrap gap-2">
-          <CardTitle className="flex items-center gap-2">
-            <Clock className="w-5 h-5" />
-            Historial y Observaciones
-            <span className="text-sm font-normal text-muted-foreground">
-              ({filteredEvents.length})
-            </span>
-          </CardTitle>
+          {headerVariant === "default" ? (
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="w-5 h-5" />
+              Historial y Observaciones
+              <span className="text-sm font-normal text-muted-foreground">
+                ({filteredEvents.length})
+              </span>
+            </CardTitle>
+          ) : (
+            <Clock className="w-5 h-5 text-primary" />
+          )}
           <div className="flex items-center gap-2">
             <Select value={filterType} onValueChange={setFilterType}>
               <SelectTrigger className="w-[130px] h-8 text-xs">
