@@ -131,6 +131,9 @@ export const AccesorioSearchSelect: React.FC<AccesorioSearchSelectProps> = ({
             setSearchTerm(e.target.value);
             if (e.target.value) setIsOpen(true);
           }}
+          onBlur={() => {
+            setTimeout(() => setIsOpen(false), 150);
+          }}
           disabled={disabled}
           className="pl-9"
         />
