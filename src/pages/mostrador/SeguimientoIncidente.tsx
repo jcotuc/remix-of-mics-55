@@ -506,31 +506,33 @@ export default function SeguimientoIncidente() {
           {/* Fotos del Incidente */}
           {id && <CompactPhotoGallery incidenteId={id} />}
 
-          {/* Técnico Asignado */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Wrench className="w-4 h-4" />
-                Técnico Asignado
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {tecnico ? (
-                <div className="space-y-2">
-                  <p className="font-semibold">{tecnico.nombre} {tecnico.apellido}</p>
-                  <p className="text-xs text-muted-foreground">Código: {tecnico.codigo}</p>
-                  {tecnico.email && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <Mail className="w-3 h-3 text-muted-foreground" />
-                      <span className="truncate">{tecnico.email}</span>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <p className="text-muted-foreground text-sm">No asignado</p>
-              )}
-            </CardContent>
-          </Card>
+          {/* Técnico Asignado - Solo mostrar si hay técnico */}
+          {(tecnico || incidente.tecnico_asignado_id || incidente.codigo_tecnico) && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Wrench className="w-4 h-4" />
+                  Técnico Asignado
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {tecnico ? (
+                  <div className="space-y-2">
+                    <p className="font-semibold">{tecnico.nombre} {tecnico.apellido}</p>
+                    <p className="text-xs text-muted-foreground">Código: {tecnico.codigo}</p>
+                    {tecnico.email && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <Mail className="w-3 h-3 text-muted-foreground" />
+                        <span className="truncate">{tecnico.email}</span>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground text-sm">Pendiente de asignación</p>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Opción de Entrega */}
           {incidente.quiere_envio && direccionEnvio && (
