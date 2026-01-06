@@ -120,22 +120,56 @@ function parseObservaciones(log: string | null): ParsedObservacion[] {
   return observaciones;
 }
 
-function findMatchingObservacion(
-  eventTimestamp: string, 
+function assignObservacionesToEvents(
+  timelineEvents: TimelineEvent[], 
   observaciones: ParsedObservacion[]
-): ParsedObservacion | null {
-  const eventDate = new Date(eventTimestamp);
-  
-  // Find observation within 5 minute window
-  for (const obs of observaciones) {
-    if (obs.timestamp) {
-      const diff = Math.abs(eventDate.getTime() - obs.timestamp.getTime());
-      if (diff < 5 * 60 * 1000) { // 5 minutes
-        return obs;
+): void {
+  if (observaciones.length === 0 || timelineEvents.length === 0) return;
+
+  // Sort events by timestamp ascending
+  const sortedEvents = [...timelineEvents].sort((a, b) => 
+    new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+  );
+
+  // For each observation, find the closest event
+  observaciones.forEach(obs => {
+    let bestMatch: TimelineEvent | null = null;
+    let smallestDiff = Infinity;
+
+    sortedEvents.forEach(event => {
+      if (event.observacion) return; // Already has an observation
+      
+      const eventDate = new Date(event.timestamp);
+      let obsDatenew: Date;
+      
+      if (obs.timestamp) {
+        obsDatenew = obs.timestamp;
+      } else {
+        // For observations without timestamp, assign to earliest event without observation
+        if (!bestMatch) {
+          bestMatch = event;
+        }
+        return;
+      }
+
+      const diff = Math.abs(eventDate.getTime() - obsDatenew.getTime());
+      // Within 1 hour window
+      if (diff < 60 * 60 * 1000 && diff < smallestDiff) {
+        smallestDiff = diff;
+        bestMatch = event;
+      }
+    });
+
+    if (bestMatch) {
+      bestMatch.observacion = obs.message;
+    } else if (sortedEvents.length > 0) {
+      // Assign to the first event without observation
+      const eventWithoutObs = sortedEvents.find(e => !e.observacion);
+      if (eventWithoutObs) {
+        eventWithoutObs.observacion = obs.message;
       }
     }
-  }
-  return null;
+  });
 }
 
 export function HistorialConObservaciones({ incidenteId, logObservaciones }: HistorialConObservacionesProps) {
@@ -209,8 +243,6 @@ export function HistorialConObservaciones({ incidenteId, logObservaciones }: His
           description = `${tableLabels[log.tabla_afectada] || log.tabla_afectada} eliminado`;
         }
 
-        const matchingObs = findMatchingObservacion(log.created_at, observaciones);
-
         timelineEvents.push({
           id: log.id,
           type: log.accion === 'INSERT' ? 'create' : log.accion === 'UPDATE' ? 'update' : 'delete',
@@ -220,12 +252,11 @@ export function HistorialConObservaciones({ incidenteId, logObservaciones }: His
           timestamp: log.created_at,
           icon: <config.icon className="w-3 h-3" />,
           color: config.color,
-          observacion: matchingObs?.message || null,
+          observacion: null,
         });
       });
 
       (diagnosticos || []).forEach(diag => {
-        const matchingObs = findMatchingObservacion(diag.created_at || new Date().toISOString(), observaciones);
         timelineEvents.push({
           id: `diag-${diag.id}`,
           type: 'diagnostico',
@@ -235,14 +266,13 @@ export function HistorialConObservaciones({ incidenteId, logObservaciones }: His
           timestamp: diag.created_at || new Date().toISOString(),
           icon: <Wrench className="w-3 h-3" />,
           color: "bg-blue-500",
-          observacion: matchingObs?.message || null,
+          observacion: null,
         });
       });
 
       (solicitudes || []).forEach(sol => {
         const repuestos = sol.repuestos as any[];
         const count = Array.isArray(repuestos) ? repuestos.length : 0;
-        const matchingObs = findMatchingObservacion(sol.created_at || new Date().toISOString(), observaciones);
         timelineEvents.push({
           id: `sol-${sol.id}`,
           type: 'repuesto',
@@ -252,7 +282,7 @@ export function HistorialConObservaciones({ incidenteId, logObservaciones }: His
           timestamp: sol.created_at || new Date().toISOString(),
           icon: <Package className="w-3 h-3" />,
           color: "bg-violet-500",
-          observacion: matchingObs?.message || null,
+          observacion: null,
         });
       });
 
@@ -265,7 +295,6 @@ export function HistorialConObservaciones({ incidenteId, logObservaciones }: His
       Object.entries(fotosByType).forEach(([tipo, photos]) => {
         if (photos && photos.length > 0) {
           const firstPhoto = photos[0];
-          const matchingObs = findMatchingObservacion(firstPhoto.created_at, observaciones);
           timelineEvents.push({
             id: `foto-${tipo}-${firstPhoto.id}`,
             type: 'foto',
@@ -275,38 +304,15 @@ export function HistorialConObservaciones({ incidenteId, logObservaciones }: His
             timestamp: firstPhoto.created_at,
             icon: <Camera className="w-3 h-3" />,
             color: "bg-cyan-500",
-            observacion: matchingObs?.message || null,
-          });
-        }
-      });
-
-      // Add standalone observations that don't match any event
-      const usedObservaciones = new Set<string>();
-      timelineEvents.forEach(e => {
-        if (e.observacion) {
-          observaciones.forEach(o => {
-            if (o.message === e.observacion) usedObservaciones.add(o.raw);
-          });
-        }
-      });
-
-      observaciones.forEach(obs => {
-        if (!usedObservaciones.has(obs.raw)) {
-          timelineEvents.push({
-            id: `obs-${obs.raw.substring(0, 20)}-${Math.random()}`,
-            type: 'update',
-            title: "Observación",
-            description: obs.message,
-            user: obs.user || "Usuario",
-            timestamp: obs.timestamp?.toISOString() || new Date().toISOString(),
-            icon: <MessageSquare className="w-3 h-3" />,
-            color: "bg-slate-500",
             observacion: null,
           });
         }
       });
 
-      timelineEvents.sort((a, b) => 
+      // Assign observations to events (no separate observation events)
+      assignObservacionesToEvents(timelineEvents, observaciones);
+
+      timelineEvents.sort((a, b) =>
         new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
       );
 
