@@ -506,16 +506,16 @@ export default function SeguimientoIncidente() {
           {/* Fotos del Incidente */}
           {id && <CompactPhotoGallery incidenteId={id} />}
 
-          {/* Técnico Asignado - Solo mostrar si está en diagnóstico o posterior */}
-          {tecnico && !['Ingresado', 'En ruta', 'Pendiente de diagnostico'].includes(incidente.status) && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <Wrench className="w-4 h-4" />
-                  Técnico Asignado
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
+          {/* Técnico Asignado */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Wrench className="w-4 h-4" />
+                Técnico Asignado
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {tecnico && !['Ingresado', 'En ruta', 'Pendiente de diagnostico'].includes(incidente.status) ? (
                 <div className="space-y-2">
                   <p className="font-semibold">{tecnico.nombre} {tecnico.apellido}</p>
                   <p className="text-xs text-muted-foreground">Código: {tecnico.codigo}</p>
@@ -526,9 +526,11 @@ export default function SeguimientoIncidente() {
                     </div>
                   )}
                 </div>
-              </CardContent>
-            </Card>
-          )}
+              ) : (
+                <p className="text-muted-foreground text-sm">—</p>
+              )}
+            </CardContent>
+          </Card>
 
           {/* Opción de Entrega */}
           {incidente.quiere_envio && direccionEnvio && (
