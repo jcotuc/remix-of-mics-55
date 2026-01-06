@@ -184,6 +184,35 @@ export type Database = {
         }
         Relationships: []
       }
+      CDS_Accesorios: {
+        Row: {
+          created_at: string | null
+          familia_id: number | null
+          id: number
+          nombre: string
+        }
+        Insert: {
+          created_at?: string | null
+          familia_id?: number | null
+          id?: number
+          nombre: string
+        }
+        Update: {
+          created_at?: string | null
+          familia_id?: number | null
+          id?: number
+          nombre?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "CDS_Accesorios_familia_id_fkey"
+            columns: ["familia_id"]
+            isOneToOne: false
+            referencedRelation: "CDS_Familias"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       CDS_Causas: {
         Row: {
           created_at: string
