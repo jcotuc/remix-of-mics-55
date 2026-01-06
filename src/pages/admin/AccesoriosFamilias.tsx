@@ -108,6 +108,25 @@ export default function AccesoriosFamilias() {
   // Familias que son subcategorías (tienen Padre)
   const subcategorias = useMemo(() => familias.filter((f) => f.Padre !== null), [familias]);
 
+  // Obtener categoría padre de una familia
+  const getCategoriaPadre = (familiaId: number | null): string => {
+    if (!familiaId) return "—";
+    const familia = familiasMap.get(familiaId);
+    if (!familia) return "—";
+    if (familia.Padre) {
+      const padre = familiasMap.get(familia.Padre);
+      return padre?.Categoria || "—";
+    }
+    return "—";
+  };
+
+  // Obtener subcategoría
+  const getSubcategoria = (familiaId: number | null): string => {
+    if (!familiaId) return "—";
+    const familia = familiasMap.get(familiaId);
+    return familia?.Categoria || "—";
+  };
+
   // Crear accesorio
   const createMutation = useMutation({
     mutationFn: async (data: { nombre: string; familia_id: number | null }) => {
