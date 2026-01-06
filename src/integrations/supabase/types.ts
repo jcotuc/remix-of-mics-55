@@ -186,27 +186,39 @@ export type Database = {
       }
       Bodegas_CDS: {
         Row: {
-          cds_id: string | null
+          activo: boolean | null
+          cds_id: string
+          centro_servicio_id: string | null
+          codigo: string | null
           created_at: string
           id: number
           nombre: string | null
+          updated_at: string | null
         }
         Insert: {
-          cds_id?: string | null
+          activo?: boolean | null
+          cds_id?: string
+          centro_servicio_id?: string | null
+          codigo?: string | null
           created_at?: string
           id?: number
           nombre?: string | null
+          updated_at?: string | null
         }
         Update: {
-          cds_id?: string | null
+          activo?: boolean | null
+          cds_id?: string
+          centro_servicio_id?: string | null
+          codigo?: string | null
           created_at?: string
           id?: number
           nombre?: string | null
+          updated_at?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "Bodegas_CDS_cds_id_fkey"
-            columns: ["cds_id"]
+            foreignKeyName: "Bodegas_CDS_centro_servicio_id_fkey"
+            columns: ["centro_servicio_id"]
             isOneToOne: false
             referencedRelation: "centros_servicio"
             referencedColumns: ["id"]
@@ -329,6 +341,7 @@ export type Database = {
       centros_servicio: {
         Row: {
           activo: boolean | null
+          bodega_id: string | null
           created_at: string
           direccion: string | null
           email: string | null
@@ -342,6 +355,7 @@ export type Database = {
         }
         Insert: {
           activo?: boolean | null
+          bodega_id?: string | null
           created_at?: string
           direccion?: string | null
           email?: string | null
@@ -355,6 +369,7 @@ export type Database = {
         }
         Update: {
           activo?: boolean | null
+          bodega_id?: string | null
           created_at?: string
           direccion?: string | null
           email?: string | null
@@ -367,6 +382,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "centros_servicio_bodega_id_fkey"
+            columns: ["bodega_id"]
+            isOneToOne: false
+            referencedRelation: "Bodegas_CDS"
+            referencedColumns: ["cds_id"]
+          },
           {
             foreignKeyName: "centros_servicio_responsable_id_fkey"
             columns: ["responsable_id"]
@@ -2484,18 +2506,47 @@ export type Database = {
       }
       Ubicación_CDS: {
         Row: {
+          activo: boolean | null
+          bodega_id: string | null
+          codigo: string | null
           created_at: string
           id: number
+          nivel: string | null
+          pasillo: string | null
+          rack: string | null
+          updated_at: string | null
         }
         Insert: {
+          activo?: boolean | null
+          bodega_id?: string | null
+          codigo?: string | null
           created_at?: string
           id?: number
+          nivel?: string | null
+          pasillo?: string | null
+          rack?: string | null
+          updated_at?: string | null
         }
         Update: {
+          activo?: boolean | null
+          bodega_id?: string | null
+          codigo?: string | null
           created_at?: string
           id?: number
+          nivel?: string | null
+          pasillo?: string | null
+          rack?: string | null
+          updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "Ubicación_CDS_bodega_id_fkey"
+            columns: ["bodega_id"]
+            isOneToOne: false
+            referencedRelation: "Bodegas_CDS"
+            referencedColumns: ["cds_id"]
+          },
+        ]
       }
       ubicaciones_historicas: {
         Row: {
