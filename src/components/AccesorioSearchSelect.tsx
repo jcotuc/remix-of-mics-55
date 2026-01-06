@@ -33,13 +33,16 @@ export const AccesorioSearchSelect: React.FC<AccesorioSearchSelectProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [isOpen, setIsOpen] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
+  const [animatingOut, setAnimatingOut] = useState<string[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const filteredAccesorios = searchTerm.trim()
+  // Filter by search and exclude already selected items
+  const filteredAccesorios = (searchTerm.trim()
     ? accesorios.filter((acc) =>
         acc.nombre.toLowerCase().includes(searchTerm.toLowerCase())
       )
-    : accesorios;
+    : accesorios
+  ).filter((acc) => !selected.includes(acc.nombre));
 
   const exactMatch = accesorios.some(
     (acc) => acc.nombre.toLowerCase() === searchTerm.toLowerCase()
@@ -51,7 +54,12 @@ export const AccesorioSearchSelect: React.FC<AccesorioSearchSelectProps> = ({
     if (selected.includes(nombre)) {
       onSelectionChange(selected.filter((s) => s !== nombre));
     } else {
-      onSelectionChange([...selected, nombre]);
+      // Animate out before selecting
+      setAnimatingOut((prev) => [...prev, nombre]);
+      setTimeout(() => {
+        onSelectionChange([...selected, nombre]);
+        setAnimatingOut((prev) => prev.filter((n) => n !== nombre));
+      }, 200);
     }
   };
 
@@ -119,11 +127,7 @@ export const AccesorioSearchSelect: React.FC<AccesorioSearchSelectProps> = ({
           type="text"
           placeholder="Buscar accesorio..."
           value={searchTerm}
-          onChange={(e) => {
-            setSearchTerm(e.target.value);
-            if (e.target.value) setIsOpen(true);
-          }}
-          onFocus={() => setIsOpen(true)}
+          onChange={(e) => setSearchTerm(e.target.value)}
           disabled={disabled}
           className="pl-9"
         />
@@ -136,13 +140,13 @@ export const AccesorioSearchSelect: React.FC<AccesorioSearchSelectProps> = ({
             filteredAccesorios.map((acc) => (
               <div
                 key={acc.id}
-                className="flex items-center gap-2 px-3 py-2 hover:bg-accent cursor-pointer"
+                className={cn(
+                  "flex items-center gap-2 px-3 py-2 hover:bg-accent cursor-pointer transition-all duration-200",
+                  animatingOut.includes(acc.nombre) && "opacity-0 -translate-x-2 scale-95"
+                )}
                 onClick={() => handleToggle(acc.nombre)}
               >
-                <Checkbox
-                  checked={selected.includes(acc.nombre)}
-                  onCheckedChange={() => handleToggle(acc.nombre)}
-                />
+                <Checkbox checked={false} onCheckedChange={() => handleToggle(acc.nombre)} />
                 <span className="text-sm">{acc.nombre}</span>
               </div>
             ))
