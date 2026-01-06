@@ -46,6 +46,13 @@ interface Familia {
   Padre: number | null;
 }
 
+interface ImportRow {
+  accesorio: string;
+  familiaId: number | null;
+  familiaTexto: string;
+  valid: boolean;
+}
+
 interface ImportResult {
   accesorio: string;
   categoria: string;
@@ -61,8 +68,11 @@ export default function AccesoriosFamilias() {
   const [filterCategoria, setFilterCategoria] = useState<string>("all");
   const [filterVinculacion, setFilterVinculacion] = useState<string>("all");
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [importPreviewOpen, setImportPreviewOpen] = useState(false);
+  const [importResultsOpen, setImportResultsOpen] = useState(false);
+  const [importData, setImportData] = useState<ImportRow[]>([]);
   const [importResults, setImportResults] = useState<ImportResult[]>([]);
+  const [importing, setImporting] = useState(false);
   const [editingAccesorio, setEditingAccesorio] = useState<Accesorio | null>(null);
   const [formData, setFormData] = useState({ nombre: "", familia_id: "" });
 
@@ -216,7 +226,7 @@ export default function AccesoriosFamilias() {
     }
   };
 
-  // Importar Excel
+  // Importar Excel - Paso 1: Previsualizar
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -232,84 +242,132 @@ export default function AccesoriosFamilias() {
         return;
       }
 
-      // Validar columnas (con variantes de nombres)
       const firstRow = rows[0];
       const keys = Object.keys(firstRow);
       
       const findColumn = (variants: string[]) => 
         keys.find(k => variants.some(v => k.toLowerCase().replace(/[-_\s]/g, '') === v.toLowerCase().replace(/[-_\s]/g, '')));
       
-      const colAccesorio = findColumn(["Accesorio", "Accesorios", "ACCESORIO"]);
-      const colSubCategoria = findColumn(["Sub-categoría", "Subcategoría", "Sub categoria", "Subcategoria"]);
-      const colCategoria = findColumn(["Categoría", "Categoria", "CATEGORIA"]);
+      const colAccesorio = findColumn(["Accesorio", "Accesorios", "ACCESORIO", "Nombre", "nombre"]);
+      const colCategoria = findColumn(["Categoría", "Categoria", "CATEGORIA", "ID", "id", "familia_id", "FamiliaId"]);
 
-      if (!colAccesorio || !colSubCategoria || !colCategoria) {
-        toast.error("El archivo debe tener columnas: Accesorio, Sub-categoría, Categoría");
+      if (!colAccesorio) {
+        toast.error("El archivo debe tener columna: Accesorio o Nombre");
         return;
       }
 
-      // Función para normalizar texto para comparación
-      const normalize = (str: string) => 
-        str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+      if (!colCategoria) {
+        toast.error("El archivo debe tener columna: Categoría (con el ID de la familia)");
+        return;
+      }
 
-      const results: ImportResult[] = [];
+      // Crear mapa de IDs existentes
+      const familiaIdsSet = new Set(familias.map(f => f.id));
+
+      const parsed: ImportRow[] = [];
+      const seen = new Set<string>();
 
       for (const row of rows) {
         const accesorio = (row[colAccesorio] || "").toString().trim();
-        const subCategoriaTexto = (row[colSubCategoria] || "").toString().trim();
-        const categoriaTexto = (row[colCategoria] || "").toString().trim();
-
+        const categoriaRaw = (row[colCategoria] || "").toString().trim();
+        
         if (!accesorio) continue;
+        
+        // Evitar duplicados por nombre
+        const key = accesorio.toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
 
-        // Buscar la subcategoría que coincida con el nombre y cuyo padre tenga la categoría correcta
-        let familiaId: number | null = null;
-        let status: "success" | "no_family" | "error" = "success";
-        let errorMsg: string | undefined;
+        // Parsear el ID de la categoría
+        const familiaId = categoriaRaw ? parseInt(categoriaRaw, 10) : null;
+        const valid = familiaId !== null && !isNaN(familiaId) && familiaIdsSet.has(familiaId);
+        const familia = familiaId && valid ? familiasMap.get(familiaId) : null;
 
-        const subcategoriaEncontrada = familias.find((f) => {
-          if (!f.Padre) return false;
-          if (normalize(f.Categoria || "") !== normalize(subCategoriaTexto)) return false;
-          const padre = familiasMap.get(f.Padre);
-          return normalize(padre?.Categoria || "") === normalize(categoriaTexto);
-        });
-
-        if (subcategoriaEncontrada) {
-          familiaId = subcategoriaEncontrada.id;
-        } else {
-          status = "no_family";
-        }
-
-        try {
-          const { error } = await supabase.from("CDS_Accesorios").insert([
-            { nombre: accesorio, familia_id: familiaId },
-          ]);
-          if (error) {
-            status = "error";
-            errorMsg = error.message;
-          }
-        } catch (err) {
-          status = "error";
-          errorMsg = "Error de inserción";
-        }
-
-        results.push({
+        parsed.push({
           accesorio,
-          categoria: categoriaTexto,
-          subcategoria: subCategoriaTexto,
-          status,
-          familiaId,
-          error: errorMsg,
+          familiaId: valid && familiaId ? familiaId : null,
+          familiaTexto: familia ? `${familia.Categoria} (ID: ${familiaId})` : categoriaRaw || "Sin familia",
+          valid: valid || !categoriaRaw,
         });
       }
 
-      setImportResults(results);
-      setImportDialogOpen(true);
-      queryClient.invalidateQueries({ queryKey: ["cds-accesorios"] });
+      if (parsed.length === 0) {
+        toast.error("No se encontraron accesorios válidos en el archivo");
+        return;
+      }
+
+      setImportData(parsed);
+      setImportPreviewOpen(true);
+      
+      const vinculados = parsed.filter(p => p.familiaId).length;
+      const sinVincular = parsed.filter(p => !p.familiaId).length;
+      toast.info(`${parsed.length} accesorios: ${vinculados} con familia, ${sinVincular} sin vincular`);
     } catch (error) {
       toast.error("Error al procesar el archivo");
     }
 
     e.target.value = "";
+  };
+
+  // Importar Excel - Paso 2: Confirmar e insertar
+  const handleConfirmImport = async () => {
+    if (importData.length === 0) return;
+
+    setImporting(true);
+    const results: ImportResult[] = [];
+
+    try {
+      // Preparar registros para insertar
+      const records = importData.map(item => ({
+        nombre: item.accesorio,
+        familia_id: item.familiaId,
+      }));
+
+      // Insertar en batches de 100
+      const batchSize = 100;
+      for (let i = 0; i < records.length; i += batchSize) {
+        const batch = records.slice(i, i + batchSize);
+        const { error } = await supabase.from("CDS_Accesorios").insert(batch);
+        
+        if (error) {
+          // Si hay error, marcar todos del batch como error
+          batch.forEach((rec, idx) => {
+            results.push({
+              accesorio: rec.nombre,
+              categoria: importData[i + idx].familiaTexto,
+              subcategoria: "",
+              status: "error",
+              familiaId: rec.familia_id,
+              error: error.message,
+            });
+          });
+        } else {
+          // Éxito
+          batch.forEach((rec, idx) => {
+            results.push({
+              accesorio: rec.nombre,
+              categoria: importData[i + idx].familiaTexto,
+              subcategoria: "",
+              status: rec.familia_id ? "success" : "no_family",
+              familiaId: rec.familia_id,
+            });
+          });
+        }
+      }
+
+      setImportResults(results);
+      setImportPreviewOpen(false);
+      setImportResultsOpen(true);
+      setImportData([]);
+      queryClient.invalidateQueries({ queryKey: ["cds-accesorios"] });
+      
+      const successCount = results.filter(r => r.status === "success").length;
+      toast.success(`Se importaron ${successCount} accesorios`);
+    } catch (error) {
+      toast.error("Error durante la importación");
+    } finally {
+      setImporting(false);
+    }
   };
 
   // Filtrar accesorios
@@ -540,25 +598,85 @@ export default function AccesoriosFamilias() {
         </DialogContent>
       </Dialog>
 
+      {/* Dialog de previsualización de importación */}
+      <Dialog open={importPreviewOpen} onOpenChange={setImportPreviewOpen}>
+        <DialogContent className="max-w-4xl max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle>Previsualización de Importación</DialogTitle>
+          </DialogHeader>
+          
+          <div className="flex gap-4 py-2">
+            <Badge variant="secondary">Total: {importData.length}</Badge>
+            <Badge className="bg-success text-success-foreground">
+              Con familia: {importData.filter(d => d.familiaId).length}
+            </Badge>
+            <Badge variant="destructive">
+              Sin vincular: {importData.filter(d => !d.familiaId).length}
+            </Badge>
+          </div>
+
+          <ScrollArea className="h-[350px] border rounded-md">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[50px]">Estado</TableHead>
+                  <TableHead>Accesorio</TableHead>
+                  <TableHead>Familia (ID)</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {importData.map((item, idx) => (
+                  <TableRow key={idx}>
+                    <TableCell>
+                      {item.familiaId ? (
+                        <CheckCircle className="h-4 w-4 text-success" />
+                      ) : (
+                        <AlertTriangle className="h-4 w-4 text-warning" />
+                      )}
+                    </TableCell>
+                    <TableCell className="font-medium">{item.accesorio}</TableCell>
+                    <TableCell>
+                      {item.familiaId ? (
+                        <Badge variant="secondary">{item.familiaTexto}</Badge>
+                      ) : (
+                        <span className="text-muted-foreground text-sm">{item.familiaTexto}</span>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </ScrollArea>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setImportPreviewOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleConfirmImport} disabled={importing}>
+              {importing ? "Importando..." : `Importar ${importData.length} accesorios`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Dialog de resultados de importación */}
-      <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
+      <Dialog open={importResultsOpen} onOpenChange={setImportResultsOpen}>
         <DialogContent className="max-w-4xl max-h-[80vh]">
           <DialogHeader>
             <DialogTitle>Resultados de Importación</DialogTitle>
           </DialogHeader>
           
-          {/* Stats */}
           <div className="flex gap-4 py-2">
             <div className="flex items-center gap-2">
-              <CheckCircle className="h-5 w-5 text-green-600" />
+              <CheckCircle className="h-5 w-5 text-success" />
               <span className="font-medium">{importStats.success} exitosos</span>
             </div>
             <div className="flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-yellow-600" />
+              <AlertTriangle className="h-5 w-5 text-warning" />
               <span className="font-medium">{importStats.noFamily} sin familia</span>
             </div>
             <div className="flex items-center gap-2">
-              <XCircle className="h-5 w-5 text-red-600" />
+              <XCircle className="h-5 w-5 text-destructive" />
               <span className="font-medium">{importStats.error} errores</span>
             </div>
           </div>
@@ -569,9 +687,7 @@ export default function AccesoriosFamilias() {
                 <TableRow>
                   <TableHead className="w-[50px]">Estado</TableHead>
                   <TableHead>Accesorio</TableHead>
-                  <TableHead>Categoría</TableHead>
-                  <TableHead>Subcategoría</TableHead>
-                  <TableHead>Familia Vinculada</TableHead>
+                  <TableHead>Familia</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -579,18 +695,16 @@ export default function AccesoriosFamilias() {
                   <TableRow key={idx}>
                     <TableCell>
                       {result.status === "success" && (
-                        <CheckCircle className="h-4 w-4 text-green-600" />
+                        <CheckCircle className="h-4 w-4 text-success" />
                       )}
                       {result.status === "no_family" && (
-                        <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                        <AlertTriangle className="h-4 w-4 text-warning" />
                       )}
                       {result.status === "error" && (
-                        <XCircle className="h-4 w-4 text-red-600" />
+                        <XCircle className="h-4 w-4 text-destructive" />
                       )}
                     </TableCell>
                     <TableCell className="font-medium">{result.accesorio}</TableCell>
-                    <TableCell>{result.categoria}</TableCell>
-                    <TableCell>{result.subcategoria}</TableCell>
                     <TableCell>
                       {result.familiaId ? (
                         <Badge variant="secondary">
@@ -598,7 +712,7 @@ export default function AccesoriosFamilias() {
                         </Badge>
                       ) : (
                         <span className="text-muted-foreground text-sm">
-                          {result.status === "error" ? result.error : "No encontrada"}
+                          {result.status === "error" ? result.error : "Sin vincular"}
                         </span>
                       )}
                     </TableCell>
@@ -609,7 +723,7 @@ export default function AccesoriosFamilias() {
           </ScrollArea>
 
           <DialogFooter>
-            <Button onClick={() => setImportDialogOpen(false)}>
+            <Button onClick={() => setImportResultsOpen(false)}>
               Cerrar
             </Button>
           </DialogFooter>
