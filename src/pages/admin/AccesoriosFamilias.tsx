@@ -207,14 +207,19 @@ export default function AccesoriosFamilias() {
         return;
       }
 
-      // Validar columnas
+      // Validar columnas (con variantes de nombres)
       const firstRow = rows[0];
-      const hasCategoria = "Categoria" in firstRow || "CATEGORIA" in firstRow;
-      const hasSubCategoria = "Sub categoria" in firstRow || "SUB CATEGORIA" in firstRow || "Subcategoria" in firstRow;
-      const hasAccesorios = "Accesorios" in firstRow || "ACCESORIOS" in firstRow;
+      const keys = Object.keys(firstRow);
+      
+      const findColumn = (variants: string[]) => 
+        keys.find(k => variants.some(v => k.toLowerCase().replace(/[-_\s]/g, '') === v.toLowerCase().replace(/[-_\s]/g, '')));
+      
+      const colAccesorio = findColumn(["Accesorio", "Accesorios", "ACCESORIO"]);
+      const colSubCategoria = findColumn(["Sub-categoría", "Subcategoría", "Sub categoria", "Subcategoria"]);
+      const colCategoria = findColumn(["Categoría", "Categoria", "CATEGORIA"]);
 
-      if (!hasCategoria || !hasSubCategoria || !hasAccesorios) {
-        toast.error("El archivo debe tener columnas: Categoria, Sub categoria, Accesorios");
+      if (!colAccesorio || !colSubCategoria || !colCategoria) {
+        toast.error("El archivo debe tener columnas: Accesorio, Sub-categoría, Categoría");
         return;
       }
 
@@ -222,9 +227,9 @@ export default function AccesoriosFamilias() {
       let errores = 0;
 
       for (const row of rows) {
-        const categoria = (row["Categoria"] || row["CATEGORIA"] || "").toString().trim();
-        const subCategoria = (row["Sub categoria"] || row["SUB CATEGORIA"] || row["Subcategoria"] || "").toString().trim();
-        const accesorio = (row["Accesorios"] || row["ACCESORIOS"] || "").toString().trim();
+        const accesorio = (row[colAccesorio] || "").toString().trim();
+        const subCategoria = (row[colSubCategoria] || "").toString().trim();
+        const categoria = (row[colCategoria] || "").toString().trim();
 
         if (!accesorio) continue;
 
