@@ -264,14 +264,11 @@ export default function DetalleIncidente() {
         {/* Left Column - Main Content (2/3) */}
         <div className="lg:col-span-2 space-y-6">
           {/* Producto/Máquina Card - TOP PRIORITY */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2">
-                <Package className="w-5 h-5" />
-                Máquina / Producto
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
+          <Card className="relative">
+            <div className="absolute top-3 left-3">
+              <Package className="w-5 h-5 text-orange-500" />
+            </div>
+            <CardContent className="pt-10 pb-4 px-4">
               <div className="flex gap-6">
                 {/* Product Image */}
                 <div className="w-32 h-32 bg-muted rounded-lg flex items-center justify-center shrink-0">
@@ -329,14 +326,11 @@ export default function DetalleIncidente() {
           </Card>
 
           {/* Detalles del Incidente */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="w-5 h-5" />
-                Detalles del Incidente
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+          <Card className="relative">
+            <div className="absolute top-3 left-3">
+              <FileText className="w-5 h-5 text-orange-500" />
+            </div>
+            <CardContent className="pt-10 pb-4 px-4 space-y-4">
               <div>
                 <h4 className="text-sm font-medium text-muted-foreground mb-1">Problema Reportado</h4>
                 <p className="text-sm bg-muted/50 p-3 rounded-lg">{descripcionProblema}</p>
@@ -384,14 +378,11 @@ export default function DetalleIncidente() {
 
           {/* Diagnóstico existente */}
           {diagnosticoInfo && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2">
-                  <Wrench className="w-5 h-5" />
-                  Diagnóstico Técnico
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+            <Card className="relative">
+              <div className="absolute top-3 left-3">
+                <Wrench className="w-5 h-5 text-orange-500" />
+              </div>
+              <CardContent className="pt-10 pb-4 px-4 space-y-4">
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <span className="text-muted-foreground">Técnico:</span>
@@ -441,14 +432,11 @@ export default function DetalleIncidente() {
         {/* Right Column - Sidebar (1/3) */}
         <div className="space-y-6">
           {/* Cliente Card */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <User className="w-4 h-4" />
-                Cliente
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
+          <Card className="relative">
+            <div className="absolute top-3 left-3">
+              <User className="w-4 h-4 text-orange-500" />
+            </div>
+            <CardContent className="pt-10 pb-4 px-4 space-y-3">
               <div>
                 <h4 className="font-semibold">
                   {clienteInfo?.nombre || getClienteName(codigoCliente)}
@@ -514,14 +502,11 @@ export default function DetalleIncidente() {
 
           {/* Técnico Asignado */}
           {(incidenteDB?.codigo_tecnico || incidente?.codigoTecnico) && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <Wrench className="w-4 h-4" />
-                  Técnico Asignado
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
+            <Card className="relative">
+              <div className="absolute top-3 left-3">
+                <Wrench className="w-4 h-4 text-orange-500" />
+              </div>
+              <CardContent className="pt-10 pb-4 px-4">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
                     <User className="w-5 h-5 text-primary" />
@@ -540,14 +525,11 @@ export default function DetalleIncidente() {
           )}
 
           {/* Estado Rápido */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Calendar className="w-4 h-4" />
-                Información
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3 text-sm">
+          <Card className="relative">
+            <div className="absolute top-3 left-3">
+              <Calendar className="w-4 h-4 text-orange-500" />
+            </div>
+            <CardContent className="pt-10 pb-4 px-4 space-y-3 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Centro de Servicio</span>
                 <span className="font-medium">{incidenteDB?.centro_servicio || "Central"}</span>
