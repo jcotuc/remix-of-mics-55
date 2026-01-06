@@ -188,19 +188,10 @@ export default function SeguimientoIncidente() {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          {incidente.cobertura_garantia ? <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300">
-              <CheckCircle className="w-3 h-3 mr-1" />
-              Con Garantía
-            </Badge> : <Badge variant="outline" className="text-muted-foreground">
-              <Clock className="w-3 h-3 mr-1" />
-              Sin Garantía
-            </Badge>}
-          <Button onClick={handlePrint} variant="outline" size="sm">
-            <Printer className="w-4 h-4 mr-2" />
-            Imprimir
-          </Button>
-        </div>
+        <Button onClick={handlePrint} variant="outline" size="sm">
+          <Printer className="w-4 h-4 mr-2" />
+          Imprimir
+        </Button>
       </div>
 
       {/* Main Content - 2 Column Layout */}
@@ -274,7 +265,7 @@ export default function SeguimientoIncidente() {
                   <p className="text-sm bg-muted/50 p-3 rounded-lg">{incidente.accesorios}</p>
                 </div>}
 
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 border-t">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4 pt-4 border-t">
                 <div>
                   <p className="text-xs text-muted-foreground">Centro de Servicio</p>
                   <p className="text-sm font-medium">{incidente.centro_servicio || 'No especificado'}</p>
@@ -282,6 +273,20 @@ export default function SeguimientoIncidente() {
                 <div>
                   <p className="text-xs text-muted-foreground">Tipología</p>
                   <p className="text-sm font-medium">{incidente.tipologia || 'N/A'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Garantía</p>
+                  {incidente.cobertura_garantia ? (
+                    <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-xs">
+                      <CheckCircle className="w-3 h-3 mr-1" />
+                      Con Garantía
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="text-muted-foreground text-xs">
+                      <Clock className="w-3 h-3 mr-1" />
+                      Sin Garantía
+                    </Badge>
+                  )}
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Reingreso</p>
