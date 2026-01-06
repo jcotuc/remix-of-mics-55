@@ -312,6 +312,8 @@ export default function AccesoriosFamilias() {
       }
 
       const parsed: ImportRow[] = [];
+      // Nota: NO deduplicamos por nombre. Si el Excel trae el mismo accesorio varias veces,
+      // se importarán todas las filas tal como vienen.
       const seen = new Set<string>();
       let filasVacias = 0;
       let filasDuplicadas = 0;
@@ -323,13 +325,13 @@ export default function AccesoriosFamilias() {
           continue;
         }
 
-        // Evitar duplicados por nombre
+        // Contabilizar duplicados (solo informativo; NO se filtra)
         const dedupeKey = accesorio.toLowerCase();
         if (seen.has(dedupeKey)) {
           filasDuplicadas++;
-          continue;
+        } else {
+          seen.add(dedupeKey);
         }
-        seen.add(dedupeKey);
 
         const categoriaRaw = colCategoria ? (row[colCategoria] ?? "").toString().trim() : "";
         const subcategoriaRaw = colSubcategoria ? (row[colSubcategoria] ?? "").toString().trim() : "";
@@ -404,7 +406,7 @@ export default function AccesoriosFamilias() {
       
       let mensaje = `Excel: ${rows.length} filas → ${parsed.length} a importar`;
       if (filasVacias > 0) mensaje += `, ${filasVacias} vacías`;
-      if (filasDuplicadas > 0) mensaje += `, ${filasDuplicadas} duplicadas`;
+      if (filasDuplicadas > 0) mensaje += `, ${filasDuplicadas} duplicadas (incluidas)`;
       mensaje += ` | ${vinculados} vinculados, ${conAdvertencia} con advertencia, ${sinVincular} sin familia`;
       toast.info(mensaje);
     } catch (error) {
