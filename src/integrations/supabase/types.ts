@@ -184,6 +184,35 @@ export type Database = {
         }
         Relationships: []
       }
+      Bodegas_CDS: {
+        Row: {
+          cds_id: string | null
+          created_at: string
+          id: number
+          nombre: string | null
+        }
+        Insert: {
+          cds_id?: string | null
+          created_at?: string
+          id?: number
+          nombre?: string | null
+        }
+        Update: {
+          cds_id?: string | null
+          created_at?: string
+          id?: number
+          nombre?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "Bodegas_CDS_cds_id_fkey"
+            columns: ["cds_id"]
+            isOneToOne: false
+            referencedRelation: "centros_servicio"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       CDS_Accesorios: {
         Row: {
           created_at: string | null
