@@ -20,10 +20,11 @@ export interface MultiSelectDropdownProps {
   onSelectionChange: (selected: string[]) => void;
   placeholder?: string;
   className?: string;
+  disabled?: boolean;
 }
 
 const MultiSelectDropdown = React.forwardRef<HTMLDivElement, MultiSelectDropdownProps>(
-  ({ label, options, selected, onSelectionChange, placeholder = "Seleccionar...", className }, ref) => {
+  ({ label, options, selected, onSelectionChange, placeholder = "Seleccionar...", className, disabled = false }, ref) => {
     const [open, setOpen] = React.useState(false);
 
     const handleToggle = (value: string) => {
@@ -43,14 +44,15 @@ const MultiSelectDropdown = React.forwardRef<HTMLDivElement, MultiSelectDropdown
 
     return (
       <div ref={ref} className={cn("relative w-full", className)}>
-        <Popover open={open} onOpenChange={setOpen}>
+        <Popover open={disabled ? false : open} onOpenChange={disabled ? undefined : setOpen}>
           <PopoverTrigger asChild>
             <button
               type="button"
               className={cn(
                 "w-full min-h-[56px] px-4 pt-5 pb-2 text-left bg-transparent rounded-lg border-2 border-input outline-none transition-all duration-200 flex items-center gap-2 flex-wrap",
                 "hover:border-muted-foreground/50 focus:border-primary",
-                hasValue && "border-muted-foreground/40"
+                hasValue && "border-muted-foreground/40",
+                disabled && "opacity-50 cursor-not-allowed hover:border-input"
               )}
             >
               {hasValue ? (

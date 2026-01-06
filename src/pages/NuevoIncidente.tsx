@@ -163,21 +163,64 @@ export default function NuevoIncidente() {
       }));
     }
   }, [nuevoCliente.departamento]);
+  // Cargar accesorios de CDS_Accesorios filtrados por la familia del producto seleccionado
   useEffect(() => {
     const fetchAccesorios = async () => {
+      if (!productoSeleccionado) {
+        setAccesoriosDisponibles([]);
+        return;
+      }
+
       try {
-        const {
-          data,
-          error
-        } = await supabase.from('productos').select('*').eq('clave', 'ACC');
+        // Obtener el familia_padre_id del producto desde la BD
+        const { data: productoData } = await supabase
+          .from('productos')
+          .select('familia_padre_id')
+          .eq('codigo', productoSeleccionado.codigo)
+          .single();
+
+        if (!productoData?.familia_padre_id) {
+          // Si no tiene familia, cargar todos los accesorios
+          const { data, error } = await supabase
+            .from('CDS_Accesorios')
+            .select('id, nombre, familia_id')
+            .order('nombre');
+          if (error) throw error;
+          setAccesoriosDisponibles(data || []);
+          return;
+        }
+
+        const familiaProductoId = productoData.familia_padre_id;
+
+        // Obtener la jerarquía de familias (padre y abuelo) para buscar accesorios
+        const { data: familiaData } = await supabase
+          .from('CDS_Familias')
+          .select('id, Padre')
+          .eq('id', familiaProductoId)
+          .single();
+
+        // Construir lista de IDs de familia a buscar (la familia del producto y su padre/abuelo)
+        const familiaIds: number[] = [familiaProductoId];
+        if (familiaData?.Padre) {
+          familiaIds.push(familiaData.Padre);
+        }
+
+        // Buscar accesorios que pertenezcan a cualquiera de estas familias
+        const { data: accesoriosData, error } = await supabase
+          .from('CDS_Accesorios')
+          .select('id, nombre, familia_id')
+          .in('familia_id', familiaIds)
+          .order('nombre');
+
         if (error) throw error;
-        setAccesoriosDisponibles(data || []);
+        setAccesoriosDisponibles(accesoriosData || []);
       } catch (error) {
         console.error('Error fetching accesorios:', error);
+        setAccesoriosDisponibles([]);
       }
     };
     fetchAccesorios();
-  }, []);
+  }, [productoSeleccionado]);
 
   // Cargar centros de servicio y establecer el predeterminado del usuario
   useEffect(() => {
@@ -943,9 +986,9 @@ export default function NuevoIncidente() {
 
                 {/* Accesorios */}
                 <MultiSelectDropdown label="Accesorios con los que ingresa" options={accesoriosDisponibles.map(acc => ({
-              value: acc.descripcion,
-              label: acc.descripcion
-            }))} selected={accesoriosSeleccionados} onSelectionChange={setAccesoriosSeleccionados} placeholder="Seleccionar accesorios..." />
+              value: acc.nombre,
+              label: acc.nombre
+            }))} selected={accesoriosSeleccionados} onSelectionChange={setAccesoriosSeleccionados} placeholder={productoSeleccionado ? "Seleccionar accesorios..." : "Primero seleccione un producto"} disabled={!productoSeleccionado} />
 
                 {/* Centro de Servicio y Reingreso */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
