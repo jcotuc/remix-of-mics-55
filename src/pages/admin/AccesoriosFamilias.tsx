@@ -313,14 +313,22 @@ export default function AccesoriosFamilias() {
 
       const parsed: ImportRow[] = [];
       const seen = new Set<string>();
+      let filasVacias = 0;
+      let filasDuplicadas = 0;
 
       for (const row of rows) {
         const accesorio = (row[colAccesorio] ?? "").toString().trim();
-        if (!accesorio) continue;
+        if (!accesorio) {
+          filasVacias++;
+          continue;
+        }
 
         // Evitar duplicados por nombre
         const dedupeKey = accesorio.toLowerCase();
-        if (seen.has(dedupeKey)) continue;
+        if (seen.has(dedupeKey)) {
+          filasDuplicadas++;
+          continue;
+        }
         seen.add(dedupeKey);
 
         const categoriaRaw = colCategoria ? (row[colCategoria] ?? "").toString().trim() : "";
@@ -393,7 +401,12 @@ export default function AccesoriosFamilias() {
       const vinculados = parsed.filter((p) => p.familiaId && !p.warning).length;
       const conAdvertencia = parsed.filter((p) => p.familiaId && p.warning).length;
       const sinVincular = parsed.filter((p) => !p.familiaId).length;
-      toast.info(`${parsed.length} accesorios: ${vinculados} vinculados, ${conAdvertencia} con advertencia, ${sinVincular} sin vincular`);
+      
+      let mensaje = `Excel: ${rows.length} filas → ${parsed.length} a importar`;
+      if (filasVacias > 0) mensaje += `, ${filasVacias} vacías`;
+      if (filasDuplicadas > 0) mensaje += `, ${filasDuplicadas} duplicadas`;
+      mensaje += ` | ${vinculados} vinculados, ${conAdvertencia} con advertencia, ${sinVincular} sin familia`;
+      toast.info(mensaje);
     } catch (error) {
       toast.error("Error al procesar el archivo");
     }
