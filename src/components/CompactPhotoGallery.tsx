@@ -19,10 +19,10 @@ interface CompactPhotoGalleryProps {
   incidenteId: string;
 }
 
-const tipoLabels: Record<string, { label: string; color: string }> = {
-  ingreso: { label: "Ingreso", color: "bg-blue-100 text-blue-800" },
-  diagnostico: { label: "Diagnóstico", color: "bg-amber-100 text-amber-800" },
-  salida: { label: "Salida", color: "bg-green-100 text-green-800" },
+const tipoLabels: Record<string, { label: string; color: string; bgSection: string; borderColor: string }> = {
+  ingreso: { label: "Ingreso", color: "bg-blue-200 text-blue-900", bgSection: "bg-blue-50", borderColor: "border-blue-200" },
+  diagnostico: { label: "Diagnóstico", color: "bg-amber-200 text-amber-900", bgSection: "bg-amber-50", borderColor: "border-amber-200" },
+  salida: { label: "Salida", color: "bg-green-200 text-green-900", bgSection: "bg-green-50", borderColor: "border-green-200" },
 };
 
 export function CompactPhotoGallery({ incidenteId }: CompactPhotoGalleryProps) {
@@ -103,55 +103,72 @@ export function CompactPhotoGallery({ incidenteId }: CompactPhotoGalleryProps) {
             </span>
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           {photos.length === 0 ? (
-            <div className="text-center py-6 text-muted-foreground">
+            <div className="text-center py-6 text-muted-foreground px-4">
               <ImageIcon className="w-10 h-10 mx-auto mb-2 opacity-30" />
               <p className="text-sm">No hay fotos disponibles</p>
             </div>
           ) : (
-            <div className="space-y-4">
-              {Object.entries(photosByType).map(([tipo, typePhotos]) => (
-                <div key={tipo}>
-                  <div className="flex items-center gap-2 mb-2">
-                    <Badge 
-                      variant="secondary" 
-                      className={`${tipoLabels[tipo]?.color || "bg-gray-100 text-gray-800"} text-xs`}
-                    >
-                      {tipoLabels[tipo]?.label || tipo}
-                    </Badge>
-                    <span className="text-xs text-muted-foreground">
-                      ({typePhotos.length})
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-3 gap-2">
-                    {typePhotos.slice(0, 6).map((photo, idx) => {
-                      const globalIndex = photos.findIndex(p => p.id === photo.id);
-                      return (
-                        <div
-                          key={photo.id}
-                          className="aspect-square rounded-lg overflow-hidden cursor-pointer border border-border hover:border-primary transition-colors relative group"
-                          onClick={() => handlePhotoClick(photo, globalIndex)}
-                        >
-                          <img
-                            src={photo.url}
-                            alt={`Foto de ${tipo}`}
-                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                            loading="lazy"
-                          />
-                          {idx === 5 && typePhotos.length > 6 && (
-                            <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-                              <span className="text-white text-sm font-medium">
-                                +{typePhotos.length - 6}
-                              </span>
+            <div className="divide-y divide-border">
+              {/* Always show all 3 sections */}
+              {(['ingreso', 'diagnostico', 'salida'] as const).map((tipo) => {
+                const typePhotos = photosByType[tipo] || [];
+                const config = tipoLabels[tipo];
+                
+                return (
+                  <div 
+                    key={tipo} 
+                    className={`p-3 ${config.bgSection}`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <Badge 
+                        variant="secondary" 
+                        className={`${config.color} text-xs font-medium`}
+                      >
+                        {config.label}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground font-medium">
+                        {typePhotos.length} foto{typePhotos.length !== 1 ? 's' : ''}
+                      </span>
+                    </div>
+                    
+                    {typePhotos.length === 0 ? (
+                      <div className={`border-2 border-dashed ${config.borderColor} rounded-lg p-3 text-center`}>
+                        <ImageIcon className="w-6 h-6 mx-auto text-muted-foreground/40" />
+                        <p className="text-xs text-muted-foreground mt-1">Sin fotos</p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-3 gap-2">
+                        {typePhotos.slice(0, 6).map((photo, idx) => {
+                          const globalIndex = photos.findIndex(p => p.id === photo.id);
+                          return (
+                            <div
+                              key={photo.id}
+                              className={`aspect-square rounded-lg overflow-hidden cursor-pointer border-2 ${config.borderColor} hover:border-primary transition-colors relative group`}
+                              onClick={() => handlePhotoClick(photo, globalIndex)}
+                            >
+                              <img
+                                src={photo.url}
+                                alt={`Foto de ${tipo}`}
+                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                                loading="lazy"
+                              />
+                              {idx === 5 && typePhotos.length > 6 && (
+                                <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                                  <span className="text-white text-sm font-medium">
+                                    +{typePhotos.length - 6}
+                                  </span>
+                                </div>
+                              )}
                             </div>
-                          )}
-                        </div>
-                      );
-                    })}
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </CardContent>

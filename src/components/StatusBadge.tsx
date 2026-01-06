@@ -7,22 +7,22 @@ interface StatusBadgeProps {
 }
 
 const statusConfig: Record<StatusIncidente, { bg: string; text: string; border?: string }> = {
-  "Ingresado": { bg: "bg-slate-100", text: "text-slate-700", border: "border-slate-300" },
-  "En ruta": { bg: "bg-sky-100", text: "text-sky-700", border: "border-sky-300" },
-  "Pendiente de diagnostico": { bg: "bg-amber-100", text: "text-amber-800", border: "border-amber-300" },
-  "En diagnostico": { bg: "bg-orange-100", text: "text-orange-800", border: "border-orange-300" },
-  "Pendiente por repuestos": { bg: "bg-violet-100", text: "text-violet-800", border: "border-violet-300" },
-  "Presupuesto": { bg: "bg-blue-100", text: "text-blue-800", border: "border-blue-300" },
-  "Porcentaje": { bg: "bg-pink-100", text: "text-pink-800", border: "border-pink-300" },
-  "Reparado": { bg: "bg-emerald-100", text: "text-emerald-800", border: "border-emerald-300" },
-  "Cambio por garantia": { bg: "bg-teal-100", text: "text-teal-800", border: "border-teal-300" },
-  "Nota de credito": { bg: "bg-purple-100", text: "text-purple-800", border: "border-purple-300" },
-  "Bodega pedido": { bg: "bg-indigo-100", text: "text-indigo-800", border: "border-indigo-300" },
-  "Rechazado": { bg: "bg-red-100", text: "text-red-800", border: "border-red-300" },
-  "Pendiente entrega": { bg: "bg-cyan-100", text: "text-cyan-800", border: "border-cyan-300" },
-  "Logistica envio": { bg: "bg-fuchsia-100", text: "text-fuchsia-800", border: "border-fuchsia-300" },
-  "Pendiente de aprobación NC": { bg: "bg-rose-100", text: "text-rose-800", border: "border-rose-300" },
-  "Entregado": { bg: "bg-green-100", text: "text-green-800", border: "border-green-300" },
+  "Ingresado": { bg: "bg-slate-200", text: "text-slate-900", border: "border-slate-400" },
+  "En ruta": { bg: "bg-sky-200", text: "text-sky-900", border: "border-sky-400" },
+  "Pendiente de diagnostico": { bg: "bg-amber-200", text: "text-amber-900", border: "border-amber-400" },
+  "En diagnostico": { bg: "bg-orange-200", text: "text-orange-900", border: "border-orange-400" },
+  "Pendiente por repuestos": { bg: "bg-violet-200", text: "text-violet-900", border: "border-violet-400" },
+  "Presupuesto": { bg: "bg-blue-200", text: "text-blue-900", border: "border-blue-400" },
+  "Porcentaje": { bg: "bg-pink-200", text: "text-pink-900", border: "border-pink-400" },
+  "Reparado": { bg: "bg-emerald-200", text: "text-emerald-900", border: "border-emerald-400" },
+  "Cambio por garantia": { bg: "bg-teal-200", text: "text-teal-900", border: "border-teal-400" },
+  "Nota de credito": { bg: "bg-purple-200", text: "text-purple-900", border: "border-purple-400" },
+  "Bodega pedido": { bg: "bg-indigo-200", text: "text-indigo-900", border: "border-indigo-400" },
+  "Rechazado": { bg: "bg-red-200", text: "text-red-900", border: "border-red-400" },
+  "Pendiente entrega": { bg: "bg-cyan-200", text: "text-cyan-900", border: "border-cyan-400" },
+  "Logistica envio": { bg: "bg-fuchsia-200", text: "text-fuchsia-900", border: "border-fuchsia-400" },
+  "Pendiente de aprobación NC": { bg: "bg-rose-200", text: "text-rose-900", border: "border-rose-400" },
+  "Entregado": { bg: "bg-green-300", text: "text-green-900", border: "border-green-500" },
 };
 
 export function StatusBadge({ status, size = "default" }: StatusBadgeProps) {
