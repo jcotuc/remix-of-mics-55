@@ -223,28 +223,36 @@ export default function AccesoriosFamilias() {
         return;
       }
 
+      // Función para normalizar texto para comparación
+      const normalize = (str: string) => 
+        str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+
       let insertados = 0;
       let errores = 0;
+      let sinVincular = 0;
 
       for (const row of rows) {
         const accesorio = (row[colAccesorio] || "").toString().trim();
-        const subCategoria = (row[colSubCategoria] || "").toString().trim();
-        const categoria = (row[colCategoria] || "").toString().trim();
+        const subCategoriaTexto = (row[colSubCategoria] || "").toString().trim();
+        const categoriaTexto = (row[colCategoria] || "").toString().trim();
 
         if (!accesorio) continue;
 
         // Buscar la subcategoría que coincida con el nombre y cuyo padre tenga la categoría correcta
         let familiaId: number | null = null;
 
-        const subcategoria = familias.find((f) => {
+        const subcategoriaEncontrada = familias.find((f) => {
           if (!f.Padre) return false;
-          if (f.Categoria?.toLowerCase() !== subCategoria.toLowerCase()) return false;
+          if (normalize(f.Categoria || "") !== normalize(subCategoriaTexto)) return false;
           const padre = familiasMap.get(f.Padre);
-          return padre?.Categoria?.toLowerCase() === categoria.toLowerCase();
+          return normalize(padre?.Categoria || "") === normalize(categoriaTexto);
         });
 
-        if (subcategoria) {
-          familiaId = subcategoria.id;
+        if (subcategoriaEncontrada) {
+          familiaId = subcategoriaEncontrada.id;
+        } else {
+          sinVincular++;
+          console.log(`No se encontró familia para: ${categoriaTexto} > ${subCategoriaTexto}`);
         }
 
         try {
@@ -259,7 +267,11 @@ export default function AccesoriosFamilias() {
       }
 
       queryClient.invalidateQueries({ queryKey: ["cds-accesorios"] });
-      toast.success(`Importación completada: ${insertados} accesorios insertados, ${errores} errores`);
+      
+      if (sinVincular > 0) {
+        toast.warning(`${sinVincular} accesorios sin familia vinculada (revisar consola)`);
+      }
+      toast.success(`Importación: ${insertados} insertados, ${errores} errores`);
     } catch (error) {
       toast.error("Error al procesar el archivo");
     }
