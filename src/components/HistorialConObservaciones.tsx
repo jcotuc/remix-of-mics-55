@@ -398,51 +398,57 @@ export function HistorialConObservaciones({ incidenteId, logObservaciones }: His
             <p className="text-sm">No hay eventos registrados</p>
           </div>
         ) : (
-          <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2">
-            {filteredEvents.map((event) => (
-              <div key={event.id} className="flex gap-4">
-                {/* Left - Event (50%) */}
-                <div className="flex gap-3 flex-1 min-w-0">
-                  {/* Timeline dot */}
-                  <div className={`flex items-center justify-center w-7 h-7 rounded-full ${event.color} text-white shrink-0`}>
-                    {event.icon}
-                  </div>
-                  
-                  {/* Event Content */}
-                  <div className="flex-1 min-w-0 bg-muted/40 rounded-lg p-2.5 border border-border/50">
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="text-xs font-medium truncate">{event.title}</p>
-                      <time className="text-[10px] text-muted-foreground whitespace-nowrap">
-                        {format(new Date(event.timestamp), "dd/MM HH:mm", { locale: es })}
-                      </time>
+          <div className="max-h-[500px] overflow-y-auto">
+            {/* Header row */}
+            <div className="flex gap-3 mb-3 pb-2 border-b border-border sticky top-0 bg-background z-10">
+              <div className="w-1/2 text-xs font-medium text-muted-foreground">Evento</div>
+              <div className="w-1/2 text-xs font-medium text-muted-foreground">Observación</div>
+            </div>
+            
+            {/* Events */}
+            <div className="space-y-2">
+              {filteredEvents.map((event) => (
+                <div key={event.id} className="flex gap-3">
+                  {/* Left - Event (50%) */}
+                  <div className="w-1/2 flex gap-2">
+                    <div className={`flex items-center justify-center w-6 h-6 rounded-full ${event.color} text-white shrink-0 mt-1`}>
+                      {event.icon}
                     </div>
-                    <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-2">
-                      {event.description}
-                    </p>
-                    <div className="flex items-center gap-1 mt-1">
-                      <User className="w-2.5 h-2.5 text-muted-foreground" />
-                      <span className="text-[10px] text-muted-foreground truncate">{event.user}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Right - Observation (50%) */}
-                <div className="flex-1 min-w-0">
-                  {event.observacion ? (
-                    <div className="h-full bg-primary/5 border border-primary/20 rounded-lg p-2.5 flex items-start gap-2">
-                      <MessageSquare className="w-3.5 h-3.5 text-primary mt-0.5 shrink-0" />
-                      <p className="text-xs text-foreground/80 line-clamp-3">
-                        {event.observacion}
+                    <div className="flex-1 min-w-0 bg-muted/40 rounded-lg p-2 border border-border/50">
+                      <div className="flex items-start justify-between gap-1">
+                        <p className="text-xs font-medium leading-tight">{event.title}</p>
+                        <time className="text-[10px] text-muted-foreground whitespace-nowrap">
+                          {format(new Date(event.timestamp), "dd/MM HH:mm", { locale: es })}
+                        </time>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-2">
+                        {event.description}
                       </p>
+                      <div className="flex items-center gap-1 mt-1">
+                        <User className="w-2.5 h-2.5 text-muted-foreground" />
+                        <span className="text-[10px] text-muted-foreground truncate">{event.user}</span>
+                      </div>
                     </div>
-                  ) : (
-                    <div className="h-full bg-muted/10 border border-dashed border-border/30 rounded-lg p-2.5 flex items-center justify-center">
-                      <p className="text-[10px] text-muted-foreground/40 italic">—</p>
-                    </div>
-                  )}
+                  </div>
+
+                  {/* Right - Observation (50%) */}
+                  <div className="w-1/2">
+                    {event.observacion ? (
+                      <div className="h-full bg-primary/5 border border-primary/20 rounded-lg p-2 flex items-start gap-2">
+                        <MessageSquare className="w-3 h-3 text-primary mt-0.5 shrink-0" />
+                        <p className="text-xs text-foreground/80">
+                          {event.observacion}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="h-full bg-muted/10 border border-dashed border-border/30 rounded-lg p-2 flex items-center justify-center min-h-[40px]">
+                        <span className="text-[10px] text-muted-foreground/40">—</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         )}
       </CardContent>
