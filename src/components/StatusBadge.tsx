@@ -3,75 +3,37 @@ import { StatusIncidente } from "@/types";
 
 interface StatusBadgeProps {
   status: StatusIncidente;
+  size?: "sm" | "default";
 }
 
-export function StatusBadge({ status }: StatusBadgeProps) {
-  const getStatusVariant = (status: StatusIncidente) => {
-    switch (status) {
-      case "Pendiente de diagnostico":
-        return "secondary";
-      case "En diagnostico":
-        return "outline";
-      case "Pendiente por repuestos":
-        return "outline";
-      case "Reparado":
-        return "default";
-      case "Presupuesto":
-        return "outline";
-      case "Porcentaje":
-        return "outline";
-      case "Bodega pedido":
-        return "default";
-      case "Rechazado":
-        return "destructive";
-      case "Nota de credito":
-        return "default";
-      case "Cambio por garantia":
-        return "default";
-      case "Pendiente entrega":
-        return "default";
-      case "Logistica envio":
-        return "outline";
-      default:
-        return "secondary";
-    }
-  };
+const statusConfig: Record<StatusIncidente, { bg: string; text: string; border?: string }> = {
+  "Ingresado": { bg: "bg-slate-100", text: "text-slate-700", border: "border-slate-300" },
+  "En ruta": { bg: "bg-sky-100", text: "text-sky-700", border: "border-sky-300" },
+  "Pendiente de diagnostico": { bg: "bg-amber-100", text: "text-amber-800", border: "border-amber-300" },
+  "En diagnostico": { bg: "bg-orange-100", text: "text-orange-800", border: "border-orange-300" },
+  "Pendiente por repuestos": { bg: "bg-violet-100", text: "text-violet-800", border: "border-violet-300" },
+  "Presupuesto": { bg: "bg-blue-100", text: "text-blue-800", border: "border-blue-300" },
+  "Porcentaje": { bg: "bg-pink-100", text: "text-pink-800", border: "border-pink-300" },
+  "Reparado": { bg: "bg-emerald-100", text: "text-emerald-800", border: "border-emerald-300" },
+  "Cambio por garantia": { bg: "bg-teal-100", text: "text-teal-800", border: "border-teal-300" },
+  "Nota de credito": { bg: "bg-purple-100", text: "text-purple-800", border: "border-purple-300" },
+  "Bodega pedido": { bg: "bg-indigo-100", text: "text-indigo-800", border: "border-indigo-300" },
+  "Rechazado": { bg: "bg-red-100", text: "text-red-800", border: "border-red-300" },
+  "Pendiente entrega": { bg: "bg-cyan-100", text: "text-cyan-800", border: "border-cyan-300" },
+  "Logistica envio": { bg: "bg-fuchsia-100", text: "text-fuchsia-800", border: "border-fuchsia-300" },
+  "Pendiente de aprobación NC": { bg: "bg-rose-100", text: "text-rose-800", border: "border-rose-300" },
+  "Entregado": { bg: "bg-green-100", text: "text-green-800", border: "border-green-300" },
+};
 
-  const getStatusColor = (status: StatusIncidente) => {
-    switch (status) {
-      case "Pendiente de diagnostico":
-        return "bg-info text-info-foreground";
-      case "En diagnostico":
-        return "bg-warning text-warning-foreground";
-      case "Pendiente por repuestos":
-        return "bg-warning text-warning-foreground";
-      case "Reparado":
-        return "bg-success text-success-foreground";
-      case "Presupuesto":
-        return "bg-blue-500 text-white";
-      case "Porcentaje":
-        return "bg-orange-500 text-white";
-      case "Bodega pedido":
-        return "bg-purple-500 text-white";
-      case "Rechazado":
-        return "bg-destructive text-destructive-foreground";
-      case "Nota de credito":
-        return "bg-purple-500 text-white";
-      case "Cambio por garantia":
-        return "bg-green-600 text-white";
-      case "Pendiente entrega":
-        return "bg-blue-600 text-white";
-      case "Logistica envio":
-        return "bg-indigo-500 text-white";
-      default:
-        return "bg-muted text-muted-foreground";
-    }
-  };
-
+export function StatusBadge({ status, size = "default" }: StatusBadgeProps) {
+  const config = statusConfig[status] || { bg: "bg-muted", text: "text-muted-foreground", border: "border-border" };
+  
   return (
     <Badge 
-      variant={getStatusVariant(status)}
-      className={getStatusColor(status)}
+      variant="outline"
+      className={`${config.bg} ${config.text} ${config.border} border font-medium ${
+        size === "sm" ? "text-xs px-2 py-0.5" : "px-2.5 py-1"
+      }`}
     >
       {status}
     </Badge>
