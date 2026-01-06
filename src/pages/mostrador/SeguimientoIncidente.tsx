@@ -506,8 +506,8 @@ export default function SeguimientoIncidente() {
           {/* Fotos del Incidente */}
           {id && <CompactPhotoGallery incidenteId={id} />}
 
-          {/* Técnico Asignado - Solo mostrar si hay técnico */}
-          {(tecnico || incidente.tecnico_asignado_id || incidente.codigo_tecnico) && (
+          {/* Técnico Asignado - Solo mostrar si está en diagnóstico o posterior */}
+          {tecnico && !['Ingresado', 'En ruta', 'Pendiente de diagnostico'].includes(incidente.status) && (
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="flex items-center gap-2 text-base">
@@ -516,20 +516,16 @@ export default function SeguimientoIncidente() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {tecnico ? (
-                  <div className="space-y-2">
-                    <p className="font-semibold">{tecnico.nombre} {tecnico.apellido}</p>
-                    <p className="text-xs text-muted-foreground">Código: {tecnico.codigo}</p>
-                    {tecnico.email && (
-                      <div className="flex items-center gap-2 text-sm">
-                        <Mail className="w-3 h-3 text-muted-foreground" />
-                        <span className="truncate">{tecnico.email}</span>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <p className="text-muted-foreground text-sm">Pendiente de asignación</p>
-                )}
+                <div className="space-y-2">
+                  <p className="font-semibold">{tecnico.nombre} {tecnico.apellido}</p>
+                  <p className="text-xs text-muted-foreground">Código: {tecnico.codigo}</p>
+                  {tecnico.email && (
+                    <div className="flex items-center gap-2 text-sm">
+                      <Mail className="w-3 h-3 text-muted-foreground" />
+                      <span className="truncate">{tecnico.email}</span>
+                    </div>
+                  )}
+                </div>
               </CardContent>
             </Card>
           )}
