@@ -74,6 +74,7 @@ import CentrosServicio from "./pages/admin/CentrosServicio";
 import RecomendacionesFamilias from "./pages/admin/RecomendacionesFamilias";
 import ImportarDespieces from "./pages/admin/ImportarDespieces";
 import GestionPermisos from "./pages/admin/GestionPermisos";
+import AccesoriosFamilias from "./pages/admin/AccesoriosFamilias";
 import RevisionStockCemaco from "./pages/taller/RevisionStockCemaco";
 import AprobacionesStockCemaco from "./pages/taller/AprobacionesStockCemaco";
 import MisGarantias from "./pages/asesor/MisGarantias";
@@ -178,6 +179,7 @@ function App() {
                 <Route path="/admin/recomendaciones-familias" element={<RecomendacionesFamilias />} />
                 <Route path="/admin/importar-despieces" element={<ImportarDespieces />} />
                 <Route path="/admin/permisos" element={<GestionPermisos />} />
+                <Route path="/admin/accesorios-familias" element={<AccesoriosFamilias />} />
                 
                 {/* Asesor Routes */}
                 <Route path="/mis-garantias" element={<MisGarantias />} />

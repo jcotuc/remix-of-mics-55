@@ -95,6 +95,7 @@ const menuAreas = {
     { title: "Gestión de Productos", url: "/admin/productos", icon: Package },
     { title: "Familias Productos", url: "/admin/familias-productos", icon: FolderTree },
     { title: "Fallas y Causas", url: "/admin/fallas-causas", icon: ListChecks },
+    { title: "Accesorios Familias", url: "/admin/accesorios-familias", icon: Package },
     { title: "Sustitutos Repuestos", url: "/admin/sustitutos-repuestos", icon: Network },
     { title: "Importar Despieces", url: "/admin/importar-despieces", icon: FileUp },
     { title: "Inventario Admin", url: "/admin/inventario", icon: ClipboardCheck },
