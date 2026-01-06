@@ -398,21 +398,19 @@ export function HistorialConObservaciones({ incidenteId, logObservaciones }: His
             <p className="text-sm">No hay eventos registrados</p>
           </div>
         ) : (
-          <div className="relative">
-            {/* Timeline line */}
-            <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-border" />
-            
-            <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2">
-              {filteredEvents.map((event) => (
-                <div key={event.id} className="relative flex gap-4 pl-2">
+          <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2">
+            {filteredEvents.map((event) => (
+              <div key={event.id} className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {/* Left - Event */}
+                <div className="flex gap-3">
                   {/* Timeline dot */}
-                  <div className={`relative z-10 flex items-center justify-center w-8 h-8 rounded-full ${event.color} text-white shrink-0`}>
+                  <div className={`flex items-center justify-center w-8 h-8 rounded-full ${event.color} text-white shrink-0`}>
                     {event.icon}
                   </div>
                   
-                  {/* Content */}
-                  <div className="flex-1 min-w-0 pb-2">
-                    <div className="bg-muted/30 rounded-lg p-3 border border-border/50">
+                  {/* Event Content */}
+                  <div className="flex-1 min-w-0">
+                    <div className="bg-muted/40 rounded-lg p-3 border border-border/50 h-full">
                       <div className="flex items-start justify-between gap-2 mb-1">
                         <p className="text-sm font-medium">{event.title}</p>
                         <time className="text-xs text-muted-foreground whitespace-nowrap">
@@ -426,23 +424,27 @@ export function HistorialConObservaciones({ incidenteId, logObservaciones }: His
                         <User className="w-3 h-3 text-muted-foreground" />
                         <span className="text-xs text-muted-foreground">{event.user}</span>
                       </div>
-                      
-                      {/* Observación asociada */}
-                      {event.observacion && (
-                        <div className="mt-2 pt-2 border-t border-border/50">
-                          <div className="flex items-start gap-2">
-                            <MessageSquare className="w-3 h-3 text-primary mt-0.5 shrink-0" />
-                            <p className="text-xs text-foreground/80 italic">
-                              "{event.observacion}"
-                            </p>
-                          </div>
-                        </div>
-                      )}
                     </div>
                   </div>
                 </div>
-              ))}
-            </div>
+
+                {/* Right - Observation */}
+                <div className="flex items-stretch">
+                  {event.observacion ? (
+                    <div className="flex-1 bg-primary/5 border border-primary/20 rounded-lg p-3 flex items-start gap-2">
+                      <MessageSquare className="w-4 h-4 text-primary mt-0.5 shrink-0" />
+                      <p className="text-sm text-foreground/80">
+                        {event.observacion}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="flex-1 bg-muted/20 border border-dashed border-border/50 rounded-lg p-3 flex items-center justify-center">
+                      <p className="text-xs text-muted-foreground/50 italic">Sin observación</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </CardContent>
