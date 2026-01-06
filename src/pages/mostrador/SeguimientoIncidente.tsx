@@ -204,11 +204,7 @@ export default function SeguimientoIncidente() {
               <div className="grid grid-cols-[auto_1fr] gap-4 items-start">
                 {/* Tool Icon */}
                 <div className="w-20 h-20 bg-muted rounded-lg flex items-center justify-center shrink-0">
-                  {producto?.url_foto ? (
-                    <img src={producto.url_foto} alt={producto.descripcion} className="w-full h-full object-cover rounded-lg" />
-                  ) : (
-                    <Wrench className="w-10 h-10 text-muted-foreground" />
-                  )}
+                  {producto?.url_foto ? <img src={producto.url_foto} alt={producto.descripcion} className="w-full h-full object-cover rounded-lg" /> : <Wrench className="w-10 h-10 text-muted-foreground" />}
                 </div>
                 
                 {/* Product Info */}
@@ -230,17 +226,13 @@ export default function SeguimientoIncidente() {
                         <Edit className="w-3 h-3" />
                       </Button>
                     </div>
-                    {incidente.sku_maquina && (
-                      <span className="text-muted-foreground">Serie: {incidente.sku_maquina}</span>
-                    )}
+                    {incidente.sku_maquina}
                   </div>
 
-                  {producto?.descontinuado && (
-                    <Badge variant="destructive">
+                  {producto?.descontinuado && <Badge variant="destructive">
                       <AlertTriangle className="w-3 h-3 mr-1" />
                       Producto Descontinuado
-                    </Badge>
-                  )}
+                    </Badge>}
                 </div>
               </div>
             </CardContent>
@@ -257,12 +249,10 @@ export default function SeguimientoIncidente() {
                     <p className="text-sm bg-muted/50 p-3 rounded-lg">{incidente.descripcion_problema}</p>
                   </div>
 
-                  {incidente.accesorios && (
-                    <div>
+                  {incidente.accesorios && <div>
                       <h4 className="text-sm font-medium text-muted-foreground mb-1">Accesorios Incluidos</h4>
                       <p className="text-sm bg-muted/50 p-3 rounded-lg">{incidente.accesorios}</p>
-                    </div>
-                  )}
+                    </div>}
 
                   <div className="grid grid-cols-2 md:grid-cols-5 gap-4 pt-4 border-t">
                     <div>
@@ -275,17 +265,13 @@ export default function SeguimientoIncidente() {
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground">Garantía</p>
-                      {incidente.cobertura_garantia ? (
-                        <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-xs">
+                      {incidente.cobertura_garantia ? <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-xs">
                           <CheckCircle className="w-3 h-3 mr-1" />
                           Con Garantía
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="text-muted-foreground text-xs">
+                        </Badge> : <Badge variant="outline" className="text-muted-foreground text-xs">
                           <Clock className="w-3 h-3 mr-1" />
                           Sin Garantía
-                        </Badge>
-                      )}
+                        </Badge>}
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground">Reingreso</p>
@@ -296,17 +282,13 @@ export default function SeguimientoIncidente() {
                     <div>
                       <p className="text-xs text-muted-foreground">Envío</p>
                       <div className="flex items-center gap-1">
-                        {incidente.quiere_envio ? (
-                          <>
+                        {incidente.quiere_envio ? <>
                             <Truck className="w-3 h-3 text-muted-foreground" />
                             <span className="text-sm">Sí</span>
-                          </>
-                        ) : (
-                          <>
+                          </> : <>
                             <Home className="w-3 h-3 text-muted-foreground" />
                             <span className="text-sm">Recoge</span>
-                          </>
-                        )}
+                          </>}
                       </div>
                     </div>
                   </div>
@@ -316,8 +298,7 @@ export default function SeguimientoIncidente() {
           </Card>
 
           {/* Diagnóstico existente */}
-          {diagnostico && (
-            <Card>
+          {diagnostico && <Card>
               <CardContent className="p-4">
                 <div className="grid grid-cols-[auto_1fr] gap-3 items-start">
                   <Wrench className="w-5 h-5 text-primary mt-1" />
@@ -332,76 +313,53 @@ export default function SeguimientoIncidente() {
                       <div>
                         <span className="text-muted-foreground">Fecha:</span>
                         <p className="font-medium">
-                          {diagnostico.created_at
-                            ? format(new Date(diagnostico.created_at), "dd/MM/yyyy HH:mm", { locale: es })
-                            : "N/A"}
+                          {diagnostico.created_at ? format(new Date(diagnostico.created_at), "dd/MM/yyyy HH:mm", {
+                        locale: es
+                      }) : "N/A"}
                         </p>
                       </div>
                     </div>
 
-                    {diagnostico.fallas && diagnostico.fallas.length > 0 && (
-                      <div>
+                    {diagnostico.fallas && diagnostico.fallas.length > 0 && <div>
                         <h4 className="text-sm font-medium text-muted-foreground mb-2">Fallas Identificadas</h4>
                         <div className="flex flex-wrap gap-2">
-                          {diagnostico.fallas.map((falla: string, idx: number) => (
-                            <Badge key={idx} variant="outline" className="bg-red-50 text-red-700 border-red-200">
+                          {diagnostico.fallas.map((falla: string, idx: number) => <Badge key={idx} variant="outline" className="bg-red-50 text-red-700 border-red-200">
                               {falla}
-                            </Badge>
-                          ))}
+                            </Badge>)}
                         </div>
-                      </div>
-                    )}
+                      </div>}
 
-                    {diagnostico.causas && diagnostico.causas.length > 0 && (
-                      <div>
+                    {diagnostico.causas && diagnostico.causas.length > 0 && <div>
                         <h4 className="text-sm font-medium text-muted-foreground mb-2">Causas</h4>
                         <div className="flex flex-wrap gap-2">
-                          {diagnostico.causas.map((causa: string, idx: number) => (
-                            <Badge key={idx} variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+                          {diagnostico.causas.map((causa: string, idx: number) => <Badge key={idx} variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
                               {causa}
-                            </Badge>
-                          ))}
+                            </Badge>)}
                         </div>
-                      </div>
-                    )}
+                      </div>}
 
-                    {diagnostico.resolucion && (
-                      <div>
+                    {diagnostico.resolucion && <div>
                         <h4 className="text-sm font-medium text-muted-foreground mb-1">Resolución</h4>
                         <p className="text-sm bg-muted/50 p-3 rounded-lg">{diagnostico.resolucion}</p>
-                      </div>
-                    )}
+                      </div>}
 
-                    {(diagnostico.costo_estimado || diagnostico.tiempo_estimado) && (
-                      <div className="grid grid-cols-2 gap-4 pt-4 border-t">
-                        {diagnostico.costo_estimado && (
-                          <div>
+                    {(diagnostico.costo_estimado || diagnostico.tiempo_estimado) && <div className="grid grid-cols-2 gap-4 pt-4 border-t">
+                        {diagnostico.costo_estimado && <div>
                             <p className="text-xs text-muted-foreground">Costo Estimado</p>
                             <p className="text-lg font-semibold text-primary">Q {Number(diagnostico.costo_estimado).toFixed(2)}</p>
-                          </div>
-                        )}
-                        {diagnostico.tiempo_estimado && (
-                          <div>
+                          </div>}
+                        {diagnostico.tiempo_estimado && <div>
                             <p className="text-xs text-muted-foreground">Tiempo Estimado</p>
                             <p className="font-medium">{diagnostico.tiempo_estimado}</p>
-                          </div>
-                        )}
-                      </div>
-                    )}
+                          </div>}
+                      </div>}
                   </div>
                 </div>
               </CardContent>
-            </Card>
-          )}
+            </Card>}
 
           {/* Historial y Observaciones - Combinado */}
-          {id && (
-            <HistorialConObservaciones
-              incidenteId={id}
-              logObservaciones={incidente.log_observaciones}
-              headerVariant="clean"
-            />
-          )}
+          {id && <HistorialConObservaciones incidenteId={id} logObservaciones={incidente.log_observaciones} headerVariant="clean" />}
         </div>
 
         {/* Right Column - Sidebar (1/3) */}
@@ -412,8 +370,7 @@ export default function SeguimientoIncidente() {
               <div className="grid grid-cols-[auto_1fr] gap-3 items-start">
                 <User className="w-4 h-4 text-primary mt-1" />
                 <div className="space-y-3">
-                  {cliente ? (
-                    <>
+                  {cliente ? <>
                       <div>
                         <p className="font-semibold">{cliente.nombre}</p>
                         <p className="text-xs text-muted-foreground">
@@ -426,32 +383,23 @@ export default function SeguimientoIncidente() {
                           <Phone className="w-3 h-3 text-muted-foreground" />
                           <span>{cliente.celular}</span>
                         </div>
-                        {cliente.correo && (
-                          <div className="flex items-center gap-2">
+                        {cliente.correo && <div className="flex items-center gap-2">
                             <Mail className="w-3 h-3 text-muted-foreground" />
                             <span className="truncate">{cliente.correo}</span>
-                          </div>
-                        )}
-                        {cliente.direccion && (
-                          <div className="flex items-start gap-2">
+                          </div>}
+                        {cliente.direccion && <div className="flex items-start gap-2">
                             <MapPin className="w-3 h-3 text-muted-foreground mt-0.5" />
                             <span className="text-xs">{cliente.direccion}</span>
-                          </div>
-                        )}
+                          </div>}
                       </div>
-                      {clienteHistorial > 1 && (
-                        <>
+                      {clienteHistorial > 1 && <>
                           <Separator />
                           <div className="flex items-center gap-2 text-xs text-muted-foreground">
                             <History className="w-3 h-3" />
                             <span>{clienteHistorial} incidentes en historial</span>
                           </div>
-                        </>
-                      )}
-                    </>
-                  ) : (
-                    <p className="text-muted-foreground text-sm">Cliente no encontrado</p>
-                  )}
+                        </>}
+                    </> : <p className="text-muted-foreground text-sm">Cliente no encontrado</p>}
                 </div>
               </div>
             </CardContent>
@@ -466,44 +414,34 @@ export default function SeguimientoIncidente() {
               <div className="grid grid-cols-[auto_1fr] gap-3 items-start">
                 <Wrench className="w-4 h-4 text-primary mt-1" />
                 <div>
-                  {tecnico && !['Ingresado', 'En ruta', 'Pendiente de diagnostico'].includes(incidente.status) ? (
-                    <div className="space-y-2">
+                  {tecnico && !['Ingresado', 'En ruta', 'Pendiente de diagnostico'].includes(incidente.status) ? <div className="space-y-2">
                       <p className="font-semibold">{tecnico.nombre} {tecnico.apellido}</p>
                       <p className="text-xs text-muted-foreground">Código: {tecnico.codigo}</p>
-                      {tecnico.email && (
-                        <div className="flex items-center gap-2 text-sm">
+                      {tecnico.email && <div className="flex items-center gap-2 text-sm">
                           <Mail className="w-3 h-3 text-muted-foreground" />
                           <span className="_toggle truncate">{tecnico.email}</span>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <p className="text-muted-foreground text-sm">—</p>
-                  )}
+                        </div>}
+                    </div> : <p className="text-muted-foreground text-sm">—</p>}
                 </div>
               </div>
             </CardContent>
           </Card>
 
           {/* Opción de Entrega */}
-          {incidente.quiere_envio && direccionEnvio && (
-            <Card>
+          {incidente.quiere_envio && direccionEnvio && <Card>
               <CardContent className="p-4">
                 <div className="grid grid-cols-[auto_1fr] gap-3 items-start">
                   <Truck className="w-4 h-4 text-primary mt-1" />
                   <div className="flex items-start gap-2">
                     <MapPin className="w-4 h-4 text-muted-foreground mt-0.5" />
                     <div>
-                      {direccionEnvio.nombre_referencia && (
-                        <p className="font-medium text-sm">{direccionEnvio.nombre_referencia}</p>
-                      )}
+                      {direccionEnvio.nombre_referencia && <p className="font-medium text-sm">{direccionEnvio.nombre_referencia}</p>}
                       <p className="text-sm">{direccionEnvio.direccion}</p>
                     </div>
                   </div>
                 </div>
               </CardContent>
-            </Card>
-          )}
+            </Card>}
         </div>
       </div>
 
