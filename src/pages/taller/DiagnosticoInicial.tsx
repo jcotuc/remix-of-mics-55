@@ -448,6 +448,7 @@ export default function DiagnosticoInicial() {
         .eq("codigo_producto", producto.codigo)
         .order("descripcion");
       if (error) throw error;
+      console.log("AQUI1", data, error);
 
       // 2.5. Extraer códigos de repuestos para consultar inventario
       const codigosRepuestos = (data || []).map((r) => r.codigo);
