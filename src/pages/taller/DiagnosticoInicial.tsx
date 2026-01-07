@@ -1,7 +1,23 @@
 import { useEffect, useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Camera, CheckCircle2, Package, Plus, Minus, Search, ShoppingCart, X, Clock, Loader2, AlertCircle, Wrench, Ban, XCircle } from "lucide-react";
+import {
+  ArrowLeft,
+  Camera,
+  CheckCircle2,
+  Package,
+  Plus,
+  Minus,
+  Search,
+  ShoppingCart,
+  X,
+  Clock,
+  Loader2,
+  AlertCircle,
+  Wrench,
+  Ban,
+  XCircle,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -15,13 +31,18 @@ import { toast } from "sonner";
 // Fallas y Causas ahora se cargan desde la base de datos
 import { Textarea } from "@/components/ui/textarea";
 import { OutlinedInput, OutlinedTextarea } from "@/components/ui/outlined-input";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { GembaDocsCamera, GembaPhoto } from "@/components/GembaDocsCamera";
 export default function DiagnosticoInicial() {
-  const {
-    id
-  } = useParams();
+  const { id } = useParams();
   const navigate = useNavigate();
   const [incidente, setIncidente] = useState<any>(null);
   const [productoInfo, setProductoInfo] = useState<any>(null);
@@ -45,13 +66,15 @@ export default function DiagnosticoInicial() {
   // Paso 2: Solicitud de Repuestos
   const [necesitaRepuestos, setNecesitaRepuestos] = useState(false);
   const [repuestosDisponibles, setRepuestosDisponibles] = useState<any[]>([]);
-  const [repuestosSolicitados, setRepuestosSolicitados] = useState<Array<{
-    codigo: string;
-    codigoOriginal?: string;
-    descripcion: string;
-    cantidad: number;
-    ubicacion?: string;
-  }>>([]);
+  const [repuestosSolicitados, setRepuestosSolicitados] = useState<
+    Array<{
+      codigo: string;
+      codigoOriginal?: string;
+      descripcion: string;
+      cantidad: number;
+      ubicacion?: string;
+    }>
+  >([]);
   const [searchRepuesto, setSearchRepuesto] = useState("");
   const [solicitudesAnteriores, setSolicitudesAnteriores] = useState<Array<any>>([]);
   const [solicitudRepuestosId, setSolicitudRepuestosId] = useState<string | null>(null);
@@ -62,21 +85,27 @@ export default function DiagnosticoInicial() {
   const [estadoSolicitud, setEstadoSolicitud] = useState<string | null>(null);
 
   // Fallas y Causas desde base de datos
-  const [fallasDB, setFallasDB] = useState<Array<{
-    id: number;
-    nombre: string;
-    familia_id: number | null;
-  }>>([]);
-  const [causasDB, setCausasDB] = useState<Array<{
-    id: number;
-    nombre: string;
-    familia_id: number | null;
-  }>>([]);
-  const [familiasDB, setFamiliasDB] = useState<Array<{
-    id: number;
-    Categoria: string | null;
-    Padre: number | null;
-  }>>([]);
+  const [fallasDB, setFallasDB] = useState<
+    Array<{
+      id: number;
+      nombre: string;
+      familia_id: number | null;
+    }>
+  >([]);
+  const [causasDB, setCausasDB] = useState<
+    Array<{
+      id: number;
+      nombre: string;
+      familia_id: number | null;
+    }>
+  >([]);
+  const [familiasDB, setFamiliasDB] = useState<
+    Array<{
+      id: number;
+      Categoria: string | null;
+      Padre: number | null;
+    }>
+  >([]);
 
   // Paso 3: Fotos y Observaciones
   const [fotos, setFotos] = useState<File[]>([]);
@@ -105,7 +134,7 @@ export default function DiagnosticoInicial() {
   const familiaAbueloId = useMemo(() => {
     if (!productoInfo?.familia_padre_id) return null;
     const familiaPadreId = Number(productoInfo.familia_padre_id);
-    const familia = familiasDB.find(f => Number(f.id) === familiaPadreId);
+    const familia = familiasDB.find((f) => Number(f.id) === familiaPadreId);
     return familia?.Padre ? Number(familia.Padre) : null;
   }, [productoInfo?.familia_padre_id, familiasDB]);
 
@@ -116,17 +145,17 @@ export default function DiagnosticoInicial() {
 
     // 1. Fallas del PADRE (subcategoría específica, ej: Rotomartillos)
     if (familiaPadreId) {
-      fallasDB.filter(f => Number(f.familia_id) === familiaPadreId).forEach(f => fallasSet.add(f.nombre));
+      fallasDB.filter((f) => Number(f.familia_id) === familiaPadreId).forEach((f) => fallasSet.add(f.nombre));
     }
 
     // 2. Fallas del ABUELO (categoría general, ej: Electrica) - obtenido de CDS_Familias.Padre
     if (familiaAbueloId) {
-      fallasDB.filter(f => Number(f.familia_id) === familiaAbueloId).forEach(f => fallasSet.add(f.nombre));
+      fallasDB.filter((f) => Number(f.familia_id) === familiaAbueloId).forEach((f) => fallasSet.add(f.nombre));
     }
 
     // 3. Si no hay nada, mostrar fallas sin familia asignada
     if (fallasSet.size === 0) {
-      fallasDB.filter(f => !f.familia_id).forEach(f => fallasSet.add(f.nombre));
+      fallasDB.filter((f) => !f.familia_id).forEach((f) => fallasSet.add(f.nombre));
     }
     return Array.from(fallasSet).sort();
   }, [productoInfo?.familia_padre_id, familiaAbueloId, fallasDB]);
@@ -139,18 +168,21 @@ export default function DiagnosticoInicial() {
 
     // 1. Intentar con causas del ABUELO
     if (familiaAbueloId) {
-      const causasAbuelo = causasDB.filter(c => Number(c.familia_id) === familiaAbueloId).map(c => c.nombre);
+      const causasAbuelo = causasDB.filter((c) => Number(c.familia_id) === familiaAbueloId).map((c) => c.nombre);
       if (causasAbuelo.length > 0) return causasAbuelo.sort();
 
       // 2. FALLBACK: Si es Compresor o Soldadora, usar causas de Eléctrica
       if (familiaAbueloId === ID_COMPRESOR || familiaAbueloId === ID_SOLDADORAS) {
-        const causasElectrica = causasDB.filter(c => Number(c.familia_id) === ID_ELECTRICA).map(c => c.nombre);
+        const causasElectrica = causasDB.filter((c) => Number(c.familia_id) === ID_ELECTRICA).map((c) => c.nombre);
         if (causasElectrica.length > 0) return causasElectrica.sort();
       }
     }
 
     // 3. Fallback final: causas sin familia asignada
-    return causasDB.filter(c => !c.familia_id).map(c => c.nombre).sort();
+    return causasDB
+      .filter((c) => !c.familia_id)
+      .map((c) => c.nombre)
+      .sort();
   }, [familiaAbueloId, causasDB]);
   useEffect(() => {
     const initDiagnostico = async () => {
@@ -163,12 +195,16 @@ export default function DiagnosticoInicial() {
   // Cargar fallas y causas desde la base de datos
   const fetchFallasYCausas = async () => {
     try {
-      const [fallasRes, causasRes, familiasRes] = await Promise.all([supabase.from('CDS_Fallas').select('id, nombre, familia_id').order('nombre'), supabase.from('CDS_Causas').select('id, nombre, familia_id').order('nombre'), supabase.from('CDS_Familias').select('id, Categoria, Padre')]);
+      const [fallasRes, causasRes, familiasRes] = await Promise.all([
+        supabase.from("CDS_Fallas").select("id, nombre, familia_id").order("nombre"),
+        supabase.from("CDS_Causas").select("id, nombre, familia_id").order("nombre"),
+        supabase.from("CDS_Familias").select("id, Categoria, Padre"),
+      ]);
       if (fallasRes.data) setFallasDB(fallasRes.data);
       if (causasRes.data) setCausasDB(causasRes.data);
       if (familiasRes.data) setFamiliasDB(familiasRes.data);
     } catch (error) {
-      console.error('Error cargando fallas y causas:', error);
+      console.error("Error cargando fallas y causas:", error);
     }
   };
   useEffect(() => {
@@ -190,10 +226,12 @@ export default function DiagnosticoInicial() {
   // Cargar borrador existente
   const cargarBorradorDiagnostico = async () => {
     try {
-      const {
-        data,
-        error
-      } = await supabase.from('diagnosticos').select('*').eq('incidente_id', id).eq('estado', 'borrador').maybeSingle();
+      const { data, error } = await supabase
+        .from("diagnosticos")
+        .select("*")
+        .eq("incidente_id", id)
+        .eq("estado", "borrador")
+        .maybeSingle();
       if (error) throw error;
       if (data) {
         // Restaurar estado del diagnóstico
@@ -228,65 +266,70 @@ export default function DiagnosticoInicial() {
         toast.success("Se recuperó el borrador del diagnóstico");
       }
     } catch (error) {
-      console.error('Error cargando borrador:', error);
+      console.error("Error cargando borrador:", error);
     }
   };
   const guardarBorradorSilencioso = async () => {
     if (!incidente) return;
-    console.log('🔄 Auto-guardando diagnóstico...', {
+    console.log("🔄 Auto-guardando diagnóstico...", {
       paso,
       fallas: fallas.length,
-      causas: causas.length
+      causas: causas.length,
     });
     try {
       const {
-        data: {
-          user
-        }
+        data: { user },
       } = await supabase.auth.getUser();
       if (!user) return;
-      const {
-        data: profile
-      } = await supabase.from('profiles').select('nombre, apellido').eq('user_id', user.id).maybeSingle();
-      const tecnicoNombre = profile ? `${profile.nombre} ${profile.apellido}` : user.email || 'Técnico';
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("nombre, apellido")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      const tecnicoNombre = profile ? `${profile.nombre} ${profile.apellido}` : user.email || "Técnico";
 
       // Guardar metadata en el campo resolucion como JSON
       const metadata = {
         aplicaGarantia,
         tipoResolucion,
-        productoAlternativo: productoSeleccionado ? {
-          codigo: productoSeleccionado.codigo,
-          descripcion: productoSeleccionado.descripcion
-        } : null,
-        porcentajeDescuento
+        productoAlternativo: productoSeleccionado
+          ? {
+              codigo: productoSeleccionado.codigo,
+              descripcion: productoSeleccionado.descripcion,
+            }
+          : null,
+        porcentajeDescuento,
       };
       const borradorData = {
         incidente_id: id,
-        tecnico_codigo: incidente.codigo_tecnico || 'TEMP',
+        tecnico_codigo: incidente.codigo_tecnico || "TEMP",
         fallas,
         causas,
         recomendaciones: observaciones,
-        estado: 'borrador',
+        estado: "borrador",
         tiempo_estimado: paso.toString(),
         // Guardar el paso actual
-        resolucion: JSON.stringify(metadata)
+        resolucion: JSON.stringify(metadata),
       };
 
       // Verificar si ya existe un borrador
-      const {
-        data: existingDraft
-      } = await supabase.from('diagnosticos').select('id').eq('incidente_id', id).eq('estado', 'borrador').maybeSingle();
+      const { data: existingDraft } = await supabase
+        .from("diagnosticos")
+        .select("id")
+        .eq("incidente_id", id)
+        .eq("estado", "borrador")
+        .maybeSingle();
       if (existingDraft) {
         // Actualizar borrador existente
-        await supabase.from('diagnosticos').update(borradorData).eq('id', existingDraft.id);
-        console.log('✅ Borrador actualizado automáticamente');
+        await supabase.from("diagnosticos").update(borradorData).eq("id", existingDraft.id);
+        console.log("✅ Borrador actualizado automáticamente");
       } else {
         // Crear nuevo borrador
-        await supabase.from('diagnosticos').insert(borradorData);
-        console.log('✅ Borrador creado automáticamente');
+        await supabase.from("diagnosticos").insert(borradorData);
+        console.log("✅ Borrador creado automáticamente");
       }
     } catch (error) {
-      console.error('❌ Error guardando borrador:', error);
+      console.error("❌ Error guardando borrador:", error);
     }
   };
   useEffect(() => {
@@ -298,19 +341,20 @@ export default function DiagnosticoInicial() {
   // Verificar si ya existe una solicitud de repuestos para este incidente
   const verificarSolicitudRepuestos = async () => {
     try {
-      console.log('🔍 Verificando solicitudes de repuestos para incidente:', id);
-      const {
-        data,
-        error
-      } = await supabase.from('solicitudes_repuestos').select('*').eq('incidente_id', id).order('created_at', {
-        ascending: false
-      });
+      console.log("🔍 Verificando solicitudes de repuestos para incidente:", id);
+      const { data, error } = await supabase
+        .from("solicitudes_repuestos")
+        .select("*")
+        .eq("incidente_id", id)
+        .order("created_at", {
+          ascending: false,
+        });
       if (error) {
-        console.error('Error verificando solicitud:', error);
+        console.error("Error verificando solicitud:", error);
         throw error;
       }
       if (data && data.length > 0) {
-        console.log('✅ Solicitudes encontradas:', data.length);
+        console.log("✅ Solicitudes encontradas:", data.length);
 
         // Guardar todas las solicitudes anteriores
         setSolicitudesAnteriores(data);
@@ -319,13 +363,13 @@ export default function DiagnosticoInicial() {
         const solicitudMasReciente = data[0];
         setSolicitudRepuestosId(solicitudMasReciente.id);
         setEstadoSolicitud(solicitudMasReciente.estado);
-        console.log('📦 Solicitud más reciente:', solicitudMasReciente);
+        console.log("📦 Solicitud más reciente:", solicitudMasReciente);
       } else {
-        console.log('ℹ️ No hay solicitudes de repuestos para este incidente');
+        console.log("ℹ️ No hay solicitudes de repuestos para este incidente");
         setSolicitudesAnteriores([]);
       }
     } catch (error) {
-      console.error('❌ Error verificando solicitud:', error);
+      console.error("❌ Error verificando solicitud:", error);
     }
   };
   const fetchRepuestos = async () => {
@@ -336,12 +380,12 @@ export default function DiagnosticoInicial() {
       let from = 0;
       const pageSize = 1000;
       while (true) {
-        const {
-          data: relacionesData,
-          error: relError
-        } = await supabase.from('repuestos_relaciones').select('*').range(from, from + pageSize - 1);
+        const { data: relacionesData, error: relError } = await supabase
+          .from("repuestos_relaciones")
+          .select("*")
+          .range(from, from + pageSize - 1);
         if (relError) {
-          console.error('Error cargando relaciones:', relError);
+          console.error("Error cargando relaciones:", relError);
           break;
         }
         if (!relacionesData || relacionesData.length === 0) break;
@@ -349,7 +393,7 @@ export default function DiagnosticoInicial() {
         if (relacionesData.length < pageSize) break;
         from += pageSize;
       }
-      console.log('Total relaciones cargadas:', allRelaciones.length);
+      console.log("Total relaciones cargadas:", allRelaciones.length);
 
       // Crear mapa id→código para resolver referencias de Padre (que es un ID, no código)
       const idToCodigoMap = new Map<number, string>();
@@ -384,13 +428,13 @@ export default function DiagnosticoInicial() {
         }
       });
       setHijoPadreMap(newHijoPadreMap);
-      console.log('Mapa hijo→padre:', newHijoPadreMap.size, 'registros');
+      console.log("Mapa hijo→padre:", newHijoPadreMap.size, "registros");
 
       // 2. Obtener producto_id y cargar repuestos
       const { data: producto } = await supabase
-        .from('productos')
-        .select('id')
-        .eq('codigo', incidente.codigo_producto)
+        .from("productos")
+        .select("id")
+        .eq("codigo", incidente.codigo_producto)
         .maybeSingle();
 
       if (!producto) {
@@ -399,61 +443,67 @@ export default function DiagnosticoInicial() {
       }
 
       const { data, error } = await supabase
-        .from('repuestos')
-        .select('*')
-        .eq('producto_id', producto.id)
-        .order('descripcion');
+        .from("repuestos")
+        .select("*")
+        .eq("codigo_producto", producto.codigo)
+        .order("descripcion");
       if (error) throw error;
 
       // 2.5. Extraer códigos de repuestos para consultar inventario
-      const codigosRepuestos = (data || []).map(r => r.codigo);
+      const codigosRepuestos = (data || []).map((r) => r.codigo);
       // También incluir códigos padre para buscar stock
-      const codigosPadre = codigosRepuestos
-        .map(codigo => newHijoPadreMap.get(codigo))
-        .filter(Boolean) as string[];
+      const codigosPadre = codigosRepuestos.map((codigo) => newHijoPadreMap.get(codigo)).filter(Boolean) as string[];
       const todosLosCodigos = [...new Set([...codigosRepuestos, ...codigosPadre])];
 
       // 2.6. Obtener centro_servicio_id del usuario y consultar inventario SOLO para los códigos necesarios
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       let stockMap = new Map<string, { cantidad: number; ubicacion: string }>();
-      
+
       if (user && todosLosCodigos.length > 0) {
         const { data: profile } = await supabase
-          .from('profiles')
-          .select('centro_servicio_id')
-          .eq('user_id', user.id)
+          .from("profiles")
+          .select("centro_servicio_id")
+          .eq("user_id", user.id)
           .maybeSingle();
 
         if (profile?.centro_servicio_id) {
           const { data: inventarioData } = await supabase
-            .from('inventario')
-            .select('codigo_repuesto, cantidad, ubicacion_legacy')
-            .eq('centro_servicio_id', profile.centro_servicio_id)
-            .in('codigo_repuesto', todosLosCodigos);
+            .from("inventario")
+            .select("codigo_repuesto, cantidad, ubicacion_legacy")
+            .eq("centro_servicio_id", profile.centro_servicio_id)
+            .in("codigo_repuesto", todosLosCodigos);
 
           // Crear mapa de stock (sumando si hay múltiples ubicaciones)
-          inventarioData?.forEach(item => {
+          inventarioData?.forEach((item) => {
             const existing = stockMap.get(item.codigo_repuesto);
             if (existing) {
               stockMap.set(item.codigo_repuesto, {
                 cantidad: existing.cantidad + item.cantidad,
-                ubicacion: existing.ubicacion + ', ' + item.ubicacion_legacy
+                ubicacion: existing.ubicacion + ", " + item.ubicacion_legacy,
               });
             } else {
               stockMap.set(item.codigo_repuesto, {
                 cantidad: item.cantidad,
-                ubicacion: item.ubicacion_legacy || ''
+                ubicacion: item.ubicacion_legacy || "",
               });
             }
           });
-          console.log('Stock cargado para', inventarioData?.length || 0, 'repuestos de', todosLosCodigos.length, 'códigos buscados');
+          console.log(
+            "Stock cargado para",
+            inventarioData?.length || 0,
+            "repuestos de",
+            todosLosCodigos.length,
+            "códigos buscados",
+          );
         }
       }
 
       // 3. Transformar: reemplazar códigos hijo por padre
       const repuestosTransformados: any[] = [];
       const codigosVistos = new Set<string>();
-      (data || []).forEach(repuesto => {
+      (data || []).forEach((repuesto) => {
         const codigoPadre = newHijoPadreMap.get(repuesto.codigo);
         const codigoFinal = codigoPadre || repuesto.codigo;
 
@@ -463,13 +513,13 @@ export default function DiagnosticoInicial() {
 
           // Obtener descripción del padre si existe
           const descripcionPadre = padreDescripcionMap.get(codigoFinal);
-          
+
           // Obtener stock del inventario - buscar por código final O código original
           let stockInfo = stockMap.get(codigoFinal);
           if (!stockInfo && repuesto.codigo !== codigoFinal) {
             stockInfo = stockMap.get(repuesto.codigo);
           }
-          
+
           repuestosTransformados.push({
             ...repuesto,
             codigo: codigoFinal,
@@ -477,7 +527,7 @@ export default function DiagnosticoInicial() {
             descripcion: descripcionPadre || repuesto.descripcion,
             esCodigoPadre: !!codigoPadre,
             stock_actual: stockInfo?.cantidad || 0,
-            ubicacion_inventario: stockInfo?.ubicacion || null
+            ubicacion_inventario: stockInfo?.ubicacion || null,
           });
           if (codigoPadre) {
             console.log(`Transformado: ${repuesto.codigo} → ${codigoFinal}`);
@@ -486,28 +536,27 @@ export default function DiagnosticoInicial() {
       });
       setRepuestosDisponibles(repuestosTransformados);
     } catch (error) {
-      console.error('Error fetching repuestos:', error);
+      console.error("Error fetching repuestos:", error);
       toast.error("Error al cargar los repuestos");
     }
   };
   const fetchIncidente = async () => {
     try {
-      const {
-        data,
-        error
-      } = await supabase.from('incidentes').select('*').eq('id', id).single();
+      const { data, error } = await supabase.from("incidentes").select("*").eq("id", id).single();
       if (error) throw error;
       setIncidente(data);
 
       // Obtener información del producto
       if (data?.codigo_producto) {
-        const {
-          data: producto
-        } = await supabase.from('productos').select('*').eq('codigo', data.codigo_producto).maybeSingle();
+        const { data: producto } = await supabase
+          .from("productos")
+          .select("*")
+          .eq("codigo", data.codigo_producto)
+          .maybeSingle();
         if (producto) setProductoInfo(producto);
       }
     } catch (error) {
-      console.error('Error:', error);
+      console.error("Error:", error);
       toast.error("Error al cargar el incidente");
     } finally {
       setLoading(false);
@@ -556,23 +605,24 @@ export default function DiagnosticoInicial() {
   }, [tipoResolucion]);
   const fetchProductosAlternativos = async () => {
     try {
-      const {
-        data,
-        error
-      } = await supabase.from('productos').select('*').eq('descontinuado', false).order('descripcion');
+      const { data, error } = await supabase
+        .from("productos")
+        .select("*")
+        .eq("descontinuado", false)
+        .order("descripcion");
       if (error) throw error;
       setProductosAlternativos(data || []);
 
       // Si el producto actual es vigente, pre-seleccionarlo como alternativo
       if (productoInfo && !productoInfo.descontinuado && incidente?.codigo_producto) {
-        const productoActual = data?.find(p => p.codigo === incidente.codigo_producto);
+        const productoActual = data?.find((p) => p.codigo === incidente.codigo_producto);
         if (productoActual) {
           setProductoSeleccionado(productoActual);
           toast.info("Producto vigente pre-seleccionado como alternativa");
         }
       }
     } catch (error) {
-      console.error('Error fetching productos:', error);
+      console.error("Error fetching productos:", error);
       toast.error("Error al cargar productos alternativos");
     }
   };
@@ -624,25 +674,39 @@ export default function DiagnosticoInicial() {
     // Pasar al siguiente paso (fotos y observaciones)
     setPaso(3);
   };
-  const filteredRepuestos = repuestosDisponibles.filter(repuesto => repuesto.descripcion.toLowerCase().includes(searchRepuesto.toLowerCase()) || repuesto.codigo.toLowerCase().includes(searchRepuesto.toLowerCase()) || repuesto.clave.toLowerCase().includes(searchRepuesto.toLowerCase()));
+  const filteredRepuestos = repuestosDisponibles.filter(
+    (repuesto) =>
+      repuesto.descripcion.toLowerCase().includes(searchRepuesto.toLowerCase()) ||
+      repuesto.codigo.toLowerCase().includes(searchRepuesto.toLowerCase()) ||
+      repuesto.clave.toLowerCase().includes(searchRepuesto.toLowerCase()),
+  );
   const agregarRepuesto = (repuesto: any) => {
     // Siempre usar el código padre si existe
     const codigoPadre = hijoPadreMap.get(repuesto.codigo);
     const codigoFinal = codigoPadre || repuesto.codigo;
-    const yaExiste = repuestosSolicitados.find(r => r.codigo === codigoFinal);
+    const yaExiste = repuestosSolicitados.find((r) => r.codigo === codigoFinal);
     if (yaExiste) {
-      setRepuestosSolicitados(repuestosSolicitados.map(r => r.codigo === codigoFinal ? {
-        ...r,
-        cantidad: r.cantidad + 1
-      } : r));
+      setRepuestosSolicitados(
+        repuestosSolicitados.map((r) =>
+          r.codigo === codigoFinal
+            ? {
+                ...r,
+                cantidad: r.cantidad + 1,
+              }
+            : r,
+        ),
+      );
     } else {
-      setRepuestosSolicitados([...repuestosSolicitados, {
-        codigo: codigoFinal,
-        codigoOriginal: codigoPadre ? repuesto.codigo : undefined,
-        descripcion: repuesto.descripcion,
-        cantidad: 1,
-        ubicacion: repuesto.ubicacion_inventario || ''
-      }]);
+      setRepuestosSolicitados([
+        ...repuestosSolicitados,
+        {
+          codigo: codigoFinal,
+          codigoOriginal: codigoPadre ? repuesto.codigo : undefined,
+          descripcion: repuesto.descripcion,
+          cantidad: 1,
+          ubicacion: repuesto.ubicacion_inventario || "",
+        },
+      ]);
 
       // Notificar si hubo sustitución
       if (codigoPadre) {
@@ -652,54 +716,61 @@ export default function DiagnosticoInicial() {
       }
     }
   };
-  
+
   // Ubicaciones de autoservicio
-  const UBICACIONES_AUTOSERVICIO = ['T09.001.01', 'T07.001.01'];
-  
+  const UBICACIONES_AUTOSERVICIO = ["T09.001.01", "T07.001.01"];
+
   // Verificar si algún repuesto solicitado está en ubicación de autoservicio
-  const tieneRepuestosAutoservicio = repuestosSolicitados.some(r => {
-    const ubicaciones = (r.ubicacion || '').split(',').map((u: string) => u.trim());
+  const tieneRepuestosAutoservicio = repuestosSolicitados.some((r) => {
+    const ubicaciones = (r.ubicacion || "").split(",").map((u: string) => u.trim());
     return ubicaciones.some((u: string) => UBICACIONES_AUTOSERVICIO.includes(u));
   });
   const actualizarCantidad = (codigo: string, nuevaCantidad: number) => {
     if (nuevaCantidad <= 0) {
-      setRepuestosSolicitados(repuestosSolicitados.filter(r => r.codigo !== codigo));
+      setRepuestosSolicitados(repuestosSolicitados.filter((r) => r.codigo !== codigo));
     } else {
-      setRepuestosSolicitados(repuestosSolicitados.map(r => r.codigo === codigo ? {
-        ...r,
-        cantidad: nuevaCantidad
-      } : r));
+      setRepuestosSolicitados(
+        repuestosSolicitados.map((r) =>
+          r.codigo === codigo
+            ? {
+                ...r,
+                cantidad: nuevaCantidad,
+              }
+            : r,
+        ),
+      );
     }
   };
   const eliminarRepuesto = (codigo: string) => {
-    setRepuestosSolicitados(repuestosSolicitados.filter(r => r.codigo !== codigo));
+    setRepuestosSolicitados(repuestosSolicitados.filter((r) => r.codigo !== codigo));
   };
-  const handleEnviarSolicitudRepuestos = async (tipoDespacho: 'bodega' | 'autoservicio') => {
+  const handleEnviarSolicitudRepuestos = async (tipoDespacho: "bodega" | "autoservicio") => {
     if (repuestosSolicitados.length === 0) {
       toast.error("Debes agregar al menos un repuesto");
       return;
     }
     try {
       const {
-        data: {
-          user
-        }
+        data: { user },
       } = await supabase.auth.getUser();
       if (!user) throw new Error("No user found");
-      const {
-        data: profile
-      } = await supabase.from('profiles').select('nombre, apellido').eq('user_id', user.id).maybeSingle();
-      const tecnicoNombre = profile ? `${profile.nombre} ${profile.apellido}` : user.email || 'Técnico';
-      const {
-        data,
-        error
-      } = await supabase.from('solicitudes_repuestos').insert({
-        incidente_id: id,
-        tecnico_solicitante: tecnicoNombre,
-        repuestos: repuestosSolicitados,
-        estado: 'pendiente',
-        tipo_despacho: tipoDespacho
-      }).select().single();
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("nombre, apellido")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      const tecnicoNombre = profile ? `${profile.nombre} ${profile.apellido}` : user.email || "Técnico";
+      const { data, error } = await supabase
+        .from("solicitudes_repuestos")
+        .insert({
+          incidente_id: id,
+          tecnico_solicitante: tecnicoNombre,
+          repuestos: repuestosSolicitados,
+          estado: "pendiente",
+          tipo_despacho: tipoDespacho,
+        })
+        .select()
+        .single();
       if (error) throw error;
 
       // Limpiar la lista de repuestos seleccionados para nueva solicitud
@@ -710,38 +781,43 @@ export default function DiagnosticoInicial() {
 
       // Guardar borrador después de enviar solicitud
       await guardarBorradorSilencioso();
-      toast.success(tipoDespacho === 'autoservicio' 
-        ? "Solicitud creada - Retira en estación de autoservicio" 
-        : "Solicitud de repuestos enviada a bodega");
+      toast.success(
+        tipoDespacho === "autoservicio"
+          ? "Solicitud creada - Retira en estación de autoservicio"
+          : "Solicitud de repuestos enviada a bodega",
+      );
     } catch (error) {
-      console.error('Error:', error);
+      console.error("Error:", error);
       toast.error("Error al enviar la solicitud");
     }
   };
   const verificarEstadoSolicitud = async () => {
     if (!solicitudRepuestosId) return;
     try {
-      console.log('🔄 Actualizando estado de solicitud:', solicitudRepuestosId);
-      const {
-        data,
-        error
-      } = await supabase.from('solicitudes_repuestos').select('estado, repuestos').eq('id', solicitudRepuestosId).single();
+      console.log("🔄 Actualizando estado de solicitud:", solicitudRepuestosId);
+      const { data, error } = await supabase
+        .from("solicitudes_repuestos")
+        .select("estado, repuestos")
+        .eq("id", solicitudRepuestosId)
+        .single();
       if (error) throw error;
-      console.log('✅ Estado actualizado:', data.estado);
+      console.log("✅ Estado actualizado:", data.estado);
       setEstadoSolicitud(data.estado);
 
       // Actualizar repuestos también por si cambiaron
       if (Array.isArray(data.repuestos)) {
-        setRepuestosSolicitados(data.repuestos as Array<{
-          codigo: string;
-          descripcion: string;
-          cantidad: number;
-        }>);
+        setRepuestosSolicitados(
+          data.repuestos as Array<{
+            codigo: string;
+            descripcion: string;
+            cantidad: number;
+          }>,
+        );
       }
-      toast.success('Estado actualizado');
+      toast.success("Estado actualizado");
     } catch (error) {
-      console.error('❌ Error verificando estado:', error);
-      toast.error('Error al verificar estado');
+      console.error("❌ Error verificando estado:", error);
+      toast.error("Error al verificar estado");
     }
   };
   const handleFinalizarDiagnostico = async () => {
@@ -755,24 +831,21 @@ export default function DiagnosticoInicial() {
       // Subir fotos si hay
       let fotosUrls: string[] = [];
       if (fotos.length > 0) {
-        fotosUrls = await Promise.all(fotos.map(async foto => {
-          const fileName = `${id}/diagnostico/${Date.now()}-${foto.name}`;
-          const {
-            data,
-            error
-          } = await supabase.storage.from("incident-photos").upload(fileName, foto);
-          if (error) throw error;
-          const {
-            data: {
-              publicUrl
-            }
-          } = supabase.storage.from("incident-photos").getPublicUrl(fileName);
-          return publicUrl;
-        }));
+        fotosUrls = await Promise.all(
+          fotos.map(async (foto) => {
+            const fileName = `${id}/diagnostico/${Date.now()}-${foto.name}`;
+            const { data, error } = await supabase.storage.from("incident-photos").upload(fileName, foto);
+            if (error) throw error;
+            const {
+              data: { publicUrl },
+            } = supabase.storage.from("incident-photos").getPublicUrl(fileName);
+            return publicUrl;
+          }),
+        );
       }
       const diagnosticoData = {
         incidente_id: id,
-        tecnico_codigo: incidente.codigo_tecnico || 'TEMP',
+        tecnico_codigo: incidente.codigo_tecnico || "TEMP",
         fallas,
         causas,
         recomendaciones: observaciones,
@@ -781,27 +854,45 @@ export default function DiagnosticoInicial() {
           aplicaGarantia,
           tipoResolucion,
           tipoTrabajo,
-          productoAlternativo: productoSeleccionado ? {
-            codigo: productoSeleccionado.codigo,
-            descripcion: productoSeleccionado.descripcion
-          } : null,
-          porcentajeDescuento
+          productoAlternativo: productoSeleccionado
+            ? {
+                codigo: productoSeleccionado.codigo,
+                descripcion: productoSeleccionado.descripcion,
+              }
+            : null,
+          porcentajeDescuento,
         }),
-        estado: 'finalizado'
+        estado: "finalizado",
       };
 
       // Actualizar o crear diagnóstico final
-      const {
-        data: existingDraft
-      } = await supabase.from('diagnosticos').select('id').eq('incidente_id', id).maybeSingle();
+      const { data: existingDraft } = await supabase
+        .from("diagnosticos")
+        .select("id")
+        .eq("incidente_id", id)
+        .maybeSingle();
       if (existingDraft) {
-        await supabase.from('diagnosticos').update(diagnosticoData).eq('id', existingDraft.id);
+        await supabase.from("diagnosticos").update(diagnosticoData).eq("id", existingDraft.id);
       } else {
-        await supabase.from('diagnosticos').insert(diagnosticoData);
+        await supabase.from("diagnosticos").insert(diagnosticoData);
       }
 
       // Actualizar el incidente - cambiar status según el tipo de resolución
-      type StatusIncidente = "Ingresado" | "En ruta" | "Pendiente de diagnostico" | "En diagnostico" | "Pendiente por repuestos" | "Presupuesto" | "Porcentaje" | "Reparado" | "Cambio por garantia" | "Nota de credito" | "Bodega pedido" | "Rechazado" | "Pendiente entrega" | "Logistica envio";
+      type StatusIncidente =
+        | "Ingresado"
+        | "En ruta"
+        | "Pendiente de diagnostico"
+        | "En diagnostico"
+        | "Pendiente por repuestos"
+        | "Presupuesto"
+        | "Porcentaje"
+        | "Reparado"
+        | "Cambio por garantia"
+        | "Nota de credito"
+        | "Bodega pedido"
+        | "Rechazado"
+        | "Pendiente entrega"
+        | "Logistica envio";
       let nuevoStatus: StatusIncidente = "Reparado";
 
       // Determinar el siguiente status basado en el tipo de resolución
@@ -818,16 +909,14 @@ export default function DiagnosticoInicial() {
       }
       const updateData: any = {
         status: nuevoStatus,
-        cobertura_garantia: aplicaGarantia
+        cobertura_garantia: aplicaGarantia,
       };
 
       // Si es canje, guardar el producto alternativo
       if (tipoResolucion === "Canje" && productoSeleccionado) {
         updateData.producto_sugerido_alternativo = productoSeleccionado.codigo;
       }
-      const {
-        error: incidenteError
-      } = await supabase.from("incidentes").update(updateData).eq("id", id);
+      const { error: incidenteError } = await supabase.from("incidentes").update(updateData).eq("id", id);
       if (incidenteError) throw incidenteError;
       toast.success("Diagnóstico finalizado exitosamente");
       setShowTipoTrabajoDialog(false);
@@ -852,11 +941,14 @@ export default function DiagnosticoInicial() {
     return <div className="container mx-auto p-6">Cargando...</div>;
   }
   if (!incidente) {
-    return <div className="container mx-auto p-6">
+    return (
+      <div className="container mx-auto p-6">
         <p>Incidente no encontrado</p>
-      </div>;
+      </div>
+    );
   }
-  return <div className="container mx-auto p-6 max-w-4xl">
+  return (
+    <div className="container mx-auto p-6 max-w-4xl">
       <Button variant="ghost" onClick={() => navigate("/taller/mis-asignaciones")} className="mb-4">
         <ArrowLeft className="w-4 h-4 mr-2" />
         Volver
@@ -878,57 +970,76 @@ export default function DiagnosticoInicial() {
         <CardContent className="pt-6">
           <div className="grid grid-cols-1 lg:grid-cols-[200px_1fr] gap-6">
             {/* Foto de la máquina */}
-            {productoInfo?.url_foto && <div className="flex justify-center lg:justify-start">
+            {productoInfo?.url_foto && (
+              <div className="flex justify-center lg:justify-start">
                 <div className="w-48 h-48 rounded-lg overflow-hidden border-2 border-border bg-muted flex items-center justify-center">
-                  <img src={productoInfo.url_foto} alt={productoInfo.descripcion} className="w-full h-full object-contain" onError={e => {
-                e.currentTarget.src = '/placeholder.svg';
-              }} />
+                  <img
+                    src={productoInfo.url_foto}
+                    alt={productoInfo.descripcion}
+                    className="w-full h-full object-contain"
+                    onError={(e) => {
+                      e.currentTarget.src = "/placeholder.svg";
+                    }}
+                  />
                 </div>
-              </div>}
-            
+              </div>
+            )}
+
             {/* Información del incidente */}
             <div className="space-y-4">
-              {productoInfo && <div className="flex items-start justify-between gap-4">
+              {productoInfo && (
+                <div className="flex items-start justify-between gap-4">
                   <div className="flex-1">
                     <Label className="text-sm text-muted-foreground">Descripción de la Máquina</Label>
                     <p className="text-lg font-semibold mt-1">{productoInfo.descripcion}</p>
                   </div>
-                  {productoInfo.descontinuado ? <Badge variant="destructive" className="text-sm">
+                  {productoInfo.descontinuado ? (
+                    <Badge variant="destructive" className="text-sm">
                       <AlertCircle className="w-4 h-4 mr-1" />
                       Descontinuado
-                    </Badge> : <Badge className="bg-green-500 text-white text-sm">
+                    </Badge>
+                  ) : (
+                    <Badge className="bg-green-500 text-white text-sm">
                       <CheckCircle2 className="w-4 h-4 mr-1" />
                       Vigente
-                    </Badge>}
-                </div>}
-              
+                    </Badge>
+                  )}
+                </div>
+              )}
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label className="text-sm text-muted-foreground">Cliente</Label>
                   <p className="text-base font-medium">{incidente.codigo_cliente}</p>
                 </div>
-                
+
                 <div>
                   <Label className="text-sm text-muted-foreground">Código Producto</Label>
                   <p className="text-base font-medium">{incidente.codigo_producto}</p>
                 </div>
-                
-                {incidente.familia_padre_id && <div>
+
+                {incidente.familia_padre_id && (
+                  <div>
                     <Label className="text-sm text-muted-foreground">Familia ID</Label>
                     <p className="text-base font-medium">{incidente.familia_padre_id}</p>
-                  </div>}
-                
-                {productoInfo?.clave && <div>
+                  </div>
+                )}
+
+                {productoInfo?.clave && (
+                  <div>
                     <Label className="text-sm text-muted-foreground">Clave</Label>
                     <p className="text-base font-medium">{productoInfo.clave}</p>
-                  </div>}
+                  </div>
+                )}
               </div>
-              
-              {incidente.accesorios && <div>
+
+              {incidente.accesorios && (
+                <div>
                   <Label className="text-sm text-muted-foreground">Accesorios Incluidos</Label>
                   <p className="text-base">{incidente.accesorios}</p>
-                </div>}
-              
+                </div>
+              )}
+
               <div>
                 <Label className="text-sm text-muted-foreground">Descripción del Problema (Cliente)</Label>
                 <p className="text-base bg-muted p-3 rounded-md mt-1">{incidente.descripcion_problema}</p>
@@ -948,24 +1059,41 @@ export default function DiagnosticoInicial() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
-          {paso === 1 && <>
+          {paso === 1 && (
+            <>
               {/* Fallas y Causas en paralelo */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Fallas - Navy Blue */}
                 <div className="space-y-4 bg-blue-900/10 p-4 rounded-lg border border-blue-900/20">
                   <div className="flex items-center justify-between">
                     <Label className="text-lg font-semibold text-blue-900 dark:text-blue-300">Fallas</Label>
-                    <Button type="button" variant="outline" size="sm" onClick={() => setShowAddFallaDialog(true)} className="h-8 w-8 p-0 border-blue-900/30 hover:bg-blue-900/10">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowAddFallaDialog(true)}
+                      className="h-8 w-8 p-0 border-blue-900/30 hover:bg-blue-900/10"
+                    >
                       <Plus className="h-4 w-4" />
                     </Button>
                   </div>
                   <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
-                    {[...fallasDisponibles, ...fallasPersonalizadas].map(falla => <label key={falla} className={`flex items-center space-x-3 p-3 rounded-lg border-2 cursor-pointer transition-all bg-white dark:bg-background ${fallas.includes(falla) ? "border-blue-600 bg-blue-50 dark:bg-blue-900/20" : "border-blue-200 dark:border-blue-900/30 hover:border-blue-400"}`}>
-                        <Checkbox checked={fallas.includes(falla)} onCheckedChange={() => {
-                    setFallas(prev => prev.includes(falla) ? prev.filter(f => f !== falla) : [...prev, falla]);
-                  }} />
+                    {[...fallasDisponibles, ...fallasPersonalizadas].map((falla) => (
+                      <label
+                        key={falla}
+                        className={`flex items-center space-x-3 p-3 rounded-lg border-2 cursor-pointer transition-all bg-white dark:bg-background ${fallas.includes(falla) ? "border-blue-600 bg-blue-50 dark:bg-blue-900/20" : "border-blue-200 dark:border-blue-900/30 hover:border-blue-400"}`}
+                      >
+                        <Checkbox
+                          checked={fallas.includes(falla)}
+                          onCheckedChange={() => {
+                            setFallas((prev) =>
+                              prev.includes(falla) ? prev.filter((f) => f !== falla) : [...prev, falla],
+                            );
+                          }}
+                        />
                         <span className="text-sm">{falla}</span>
-                      </label>)}
+                      </label>
+                    ))}
                   </div>
                 </div>
 
@@ -973,17 +1101,33 @@ export default function DiagnosticoInicial() {
                 <div className="space-y-4 bg-orange-500/10 p-4 rounded-lg border border-orange-500/20">
                   <div className="flex items-center justify-between">
                     <Label className="text-lg font-semibold text-orange-700 dark:text-orange-300">Causas</Label>
-                    <Button type="button" variant="outline" size="sm" onClick={() => setShowAddCausaDialog(true)} className="h-8 w-8 p-0 border-orange-500/30 hover:bg-orange-500/10">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowAddCausaDialog(true)}
+                      className="h-8 w-8 p-0 border-orange-500/30 hover:bg-orange-500/10"
+                    >
                       <Plus className="h-4 w-4" />
                     </Button>
                   </div>
                   <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
-                    {[...causasDisponibles, ...causasPersonalizadas].map(causa => <label key={causa} className={`flex items-center space-x-3 p-3 rounded-lg border-2 cursor-pointer transition-all bg-white dark:bg-background ${causas.includes(causa) ? "border-orange-500 bg-orange-50 dark:bg-orange-900/20" : "border-orange-200 dark:border-orange-900/30 hover:border-orange-400"}`}>
-                        <Checkbox checked={causas.includes(causa)} onCheckedChange={() => {
-                    setCausas(prev => prev.includes(causa) ? prev.filter(c => c !== causa) : [...prev, causa]);
-                  }} />
+                    {[...causasDisponibles, ...causasPersonalizadas].map((causa) => (
+                      <label
+                        key={causa}
+                        className={`flex items-center space-x-3 p-3 rounded-lg border-2 cursor-pointer transition-all bg-white dark:bg-background ${causas.includes(causa) ? "border-orange-500 bg-orange-50 dark:bg-orange-900/20" : "border-orange-200 dark:border-orange-900/30 hover:border-orange-400"}`}
+                      >
+                        <Checkbox
+                          checked={causas.includes(causa)}
+                          onCheckedChange={() => {
+                            setCausas((prev) =>
+                              prev.includes(causa) ? prev.filter((c) => c !== causa) : [...prev, causa],
+                            );
+                          }}
+                        />
                         <span className="text-sm">{causa}</span>
-                      </label>)}
+                      </label>
+                    ))}
                   </div>
                 </div>
               </div>
@@ -994,60 +1138,97 @@ export default function DiagnosticoInicial() {
               <div className="grid grid-cols-[auto_1fr_1fr] gap-x-4 gap-y-3 items-center">
                 {/* Fila 1: ¿Es Reparable? */}
                 <Label className="text-lg font-semibold whitespace-nowrap">¿Es Reparable?</Label>
-                <Button type="button" variant="outline" onClick={() => {
-              setEsReparable(true);
-              setAplicaGarantia(null);
-            }} className={`w-full min-w-[120px] border-2 transition-none hover:bg-transparent ${esReparable === true ? "border-green-500 bg-green-500/20 text-green-700 dark:text-green-400 hover:bg-green-500/20" : "bg-background border-border hover:border-border"}`}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setEsReparable(true);
+                    setAplicaGarantia(null);
+                  }}
+                  className={`w-full min-w-[120px] border-2 transition-none hover:bg-transparent ${esReparable === true ? "border-green-500 bg-green-500/20 text-green-700 dark:text-green-400 hover:bg-green-500/20" : "bg-background border-border hover:border-border"}`}
+                >
                   <CheckCircle2 className="h-4 w-4 mr-2" />
                   Sí
                 </Button>
-                <Button type="button" variant="outline" onClick={() => {
-              setEsReparable(false);
-              setAplicaGarantia(null);
-            }} className={`w-full min-w-[120px] border-2 transition-none hover:bg-transparent ${esReparable === false ? "border-red-500 bg-red-500/20 text-red-700 dark:text-red-400 hover:bg-red-500/20" : "bg-background border-border hover:border-border"}`}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setEsReparable(false);
+                    setAplicaGarantia(null);
+                  }}
+                  className={`w-full min-w-[120px] border-2 transition-none hover:bg-transparent ${esReparable === false ? "border-red-500 bg-red-500/20 text-red-700 dark:text-red-400 hover:bg-red-500/20" : "bg-background border-border hover:border-border"}`}
+                >
                   <XCircle className="h-4 w-4 mr-2" />
                   No
                 </Button>
 
                 {/* Fila 2: ¿Aplica Garantía? */}
-                {esReparable !== null && <>
+                {esReparable !== null && (
+                  <>
                     <Label className="text-lg font-semibold whitespace-nowrap">¿Aplica Garantía?</Label>
-                    <Button type="button" variant="outline" onClick={() => setAplicaGarantia(true)} className={`w-full min-w-[120px] border-2 transition-none hover:bg-transparent ${aplicaGarantia === true ? "border-green-500 bg-green-500/20 text-green-700 dark:text-green-400 hover:bg-green-500/20" : "bg-background border-border hover:border-border"}`}>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setAplicaGarantia(true)}
+                      className={`w-full min-w-[120px] border-2 transition-none hover:bg-transparent ${aplicaGarantia === true ? "border-green-500 bg-green-500/20 text-green-700 dark:text-green-400 hover:bg-green-500/20" : "bg-background border-border hover:border-border"}`}
+                    >
                       <CheckCircle2 className="h-4 w-4 mr-2" />
                       Sí
                     </Button>
-                    <Button type="button" variant="outline" onClick={() => setAplicaGarantia(false)} className={`w-full min-w-[120px] border-2 transition-none hover:bg-transparent ${aplicaGarantia === false ? "border-red-500 bg-red-500/20 text-red-700 dark:text-red-400 hover:bg-red-500/20" : "bg-background border-border hover:border-border"}`}>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setAplicaGarantia(false)}
+                      className={`w-full min-w-[120px] border-2 transition-none hover:bg-transparent ${aplicaGarantia === false ? "border-red-500 bg-red-500/20 text-red-700 dark:text-red-400 hover:bg-red-500/20" : "bg-background border-border hover:border-border"}`}
+                    >
                       <XCircle className="h-4 w-4 mr-2" />
                       No
                     </Button>
-                  </>}
+                  </>
+                )}
               </div>
 
               {/* Mostrar resolución automática basada en la matriz */}
-              {esReparable !== null && aplicaGarantia !== null && <>
+              {esReparable !== null && aplicaGarantia !== null && (
+                <>
                   <Separator />
                   <div className="space-y-4">
                     <div>
                       <Label className="text-lg font-semibold">Resolución</Label>
                       {/* Solo mostrar opciones si es No Reparable + Garantía (puede elegir entre CxG o NC) */}
-                      {!esReparable && aplicaGarantia && <p className="text-sm text-muted-foreground">
+                      {!esReparable && aplicaGarantia && (
+                        <p className="text-sm text-muted-foreground">
                           Selecciona entre Cambio por Garantía o Nota de Crédito
-                        </p>}
+                        </p>
+                      )}
                     </div>
-                    
+
                     {/* Solo mostrar múltiples opciones cuando es No Reparable + Garantía */}
-                    {!esReparable && aplicaGarantia ? <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <Button type="button" variant={tipoResolucion === "Cambio por Garantía" ? "default" : "outline"} onClick={() => setTipoResolucion("Cambio por Garantía")} className="justify-start h-auto py-3">
+                    {!esReparable && aplicaGarantia ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <Button
+                          type="button"
+                          variant={tipoResolucion === "Cambio por Garantía" ? "default" : "outline"}
+                          onClick={() => setTipoResolucion("Cambio por Garantía")}
+                          className="justify-start h-auto py-3"
+                        >
                           <CheckCircle2 className="h-4 w-4 mr-2" />
                           Cambio por Garantía
                         </Button>
-                        <Button type="button" variant={tipoResolucion === "Nota de Crédito" ? "default" : "outline"} onClick={() => setTipoResolucion("Nota de Crédito")} className="justify-start h-auto py-3">
+                        <Button
+                          type="button"
+                          variant={tipoResolucion === "Nota de Crédito" ? "default" : "outline"}
+                          onClick={() => setTipoResolucion("Nota de Crédito")}
+                          className="justify-start h-auto py-3"
+                        >
                           <Package className="h-4 w-4 mr-2" />
                           Nota de Crédito
                         </Button>
-                      </div> :
-              // Mostrar solo la resolución predeterminada (sin opciones)
-              <div className="p-4 bg-primary/10 border border-primary/30 rounded-lg">
+                      </div>
+                    ) : (
+                      // Mostrar solo la resolución predeterminada (sin opciones)
+                      <div className="p-4 bg-primary/10 border border-primary/30 rounded-lg">
                         <div className="flex items-center gap-3">
                           <CheckCircle2 className="h-5 w-5 text-green-600" />
                           {tipoResolucion === "Reparar en Garantía" && <Wrench className="h-5 w-5 text-primary" />}
@@ -1058,17 +1239,24 @@ export default function DiagnosticoInicial() {
                             Seleccionado
                           </Badge>
                         </div>
-                      </div>}
-                    {tipoResolucion === "Presupuesto" && <div className="bg-amber-50 border border-amber-200 p-3 rounded-md text-sm">
+                      </div>
+                    )}
+                    {tipoResolucion === "Presupuesto" && (
+                      <div className="bg-amber-50 border border-amber-200 p-3 rounded-md text-sm">
                         <p className="text-amber-800">
-                          <strong>Nota:</strong> Los repuestos se despacharán una vez que el cliente realice el pago del presupuesto.
+                          <strong>Nota:</strong> Los repuestos se despacharán una vez que el cliente realice el pago del
+                          presupuesto.
                         </p>
-                      </div>}
+                      </div>
+                    )}
                   </div>
-                </>}
-            </>}
+                </>
+              )}
+            </>
+          )}
 
-          {paso === 1.5 && <div className="space-y-6">
+          {paso === 1.5 && (
+            <div className="space-y-6">
               <div>
                 <Label className="text-lg font-semibold">Cotización de Canje</Label>
                 <p className="text-sm text-muted-foreground">
@@ -1080,10 +1268,20 @@ export default function DiagnosticoInicial() {
               <div className="space-y-3">
                 <Label className="text-base font-medium">Porcentaje de Descuento</Label>
                 <div className="flex gap-4">
-                  <Button type="button" variant={porcentajeDescuento === 10 ? "default" : "outline"} onClick={() => setPorcentajeDescuento(10)} className="flex-1">
+                  <Button
+                    type="button"
+                    variant={porcentajeDescuento === 10 ? "default" : "outline"}
+                    onClick={() => setPorcentajeDescuento(10)}
+                    className="flex-1"
+                  >
                     10% de Descuento
                   </Button>
-                  <Button type="button" variant={porcentajeDescuento === 40 ? "default" : "outline"} onClick={() => setPorcentajeDescuento(40)} className="flex-1">
+                  <Button
+                    type="button"
+                    variant={porcentajeDescuento === 40 ? "default" : "outline"}
+                    onClick={() => setPorcentajeDescuento(40)}
+                    className="flex-1"
+                  >
                     40% de Descuento
                   </Button>
                 </div>
@@ -1096,25 +1294,49 @@ export default function DiagnosticoInicial() {
                 <Label className="text-base font-medium">Buscar Producto Alternativo</Label>
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-                  <Input placeholder="Buscar por código, clave o descripción..." value={searchProducto} onChange={e => setSearchProducto(e.target.value)} className="pl-10" />
+                  <Input
+                    placeholder="Buscar por código, clave o descripción..."
+                    value={searchProducto}
+                    onChange={(e) => setSearchProducto(e.target.value)}
+                    className="pl-10"
+                  />
                 </div>
               </div>
 
               {/* Lista de Productos */}
               <div className="border rounded-lg max-h-[400px] overflow-y-auto">
-                {productosAlternativos.filter(p => p.descripcion.toLowerCase().includes(searchProducto.toLowerCase()) || p.codigo.toLowerCase().includes(searchProducto.toLowerCase()) || p.clave.toLowerCase().includes(searchProducto.toLowerCase())).map(producto => <div key={producto.id} className={`p-4 border-b last:border-b-0 cursor-pointer transition-colors ${productoSeleccionado?.id === producto.id ? "bg-primary/10 border-l-4 border-l-primary" : "hover:bg-muted/50"}`} onClick={() => setProductoSeleccionado(producto)}>
+                {productosAlternativos
+                  .filter(
+                    (p) =>
+                      p.descripcion.toLowerCase().includes(searchProducto.toLowerCase()) ||
+                      p.codigo.toLowerCase().includes(searchProducto.toLowerCase()) ||
+                      p.clave.toLowerCase().includes(searchProducto.toLowerCase()),
+                  )
+                  .map((producto) => (
+                    <div
+                      key={producto.id}
+                      className={`p-4 border-b last:border-b-0 cursor-pointer transition-colors ${productoSeleccionado?.id === producto.id ? "bg-primary/10 border-l-4 border-l-primary" : "hover:bg-muted/50"}`}
+                      onClick={() => setProductoSeleccionado(producto)}
+                    >
                       <div className="flex items-start gap-4">
-                        {producto.url_foto && <div className="w-16 h-16 rounded border bg-muted flex-shrink-0">
-                            <img src={producto.url_foto} alt={producto.descripcion} className="w-full h-full object-contain" onError={e => {
-                    e.currentTarget.src = '/placeholder.svg';
-                  }} />
-                          </div>}
+                        {producto.url_foto && (
+                          <div className="w-16 h-16 rounded border bg-muted flex-shrink-0">
+                            <img
+                              src={producto.url_foto}
+                              alt={producto.descripcion}
+                              className="w-full h-full object-contain"
+                              onError={(e) => {
+                                e.currentTarget.src = "/placeholder.svg";
+                              }}
+                            />
+                          </div>
+                        )}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between gap-2 mb-1">
                             <p className="font-semibold">{producto.descripcion}</p>
-                            {producto.codigo === incidente?.codigo_producto && <Badge className="bg-blue-500 text-white text-xs shrink-0">
-                                Modelo Actual
-                              </Badge>}
+                            {producto.codigo === incidente?.codigo_producto && (
+                              <Badge className="bg-blue-500 text-white text-xs shrink-0">Modelo Actual</Badge>
+                            )}
                           </div>
                           <div className="flex gap-3 mt-1 text-sm text-muted-foreground">
                             <span>Código: {producto.codigo}</span>
@@ -1127,13 +1349,17 @@ export default function DiagnosticoInicial() {
                             </Badge>
                           </div>
                         </div>
-                        {productoSeleccionado?.id === producto.id && <CheckCircle2 className="w-6 h-6 text-primary flex-shrink-0" />}
+                        {productoSeleccionado?.id === producto.id && (
+                          <CheckCircle2 className="w-6 h-6 text-primary flex-shrink-0" />
+                        )}
                       </div>
-                    </div>)}
+                    </div>
+                  ))}
               </div>
 
               {/* Resumen de la Cotización */}
-              {productoSeleccionado && porcentajeDescuento && <Card className="bg-primary/5 border-primary">
+              {productoSeleccionado && porcentajeDescuento && (
+                <Card className="bg-primary/5 border-primary">
                   <CardHeader>
                     <CardTitle className="text-base">Resumen de Cotización</CardTitle>
                   </CardHeader>
@@ -1154,14 +1380,18 @@ export default function DiagnosticoInicial() {
                     </div>
                     <div className="pt-3 border-t">
                       <p className="text-xs text-muted-foreground">
-                        El cliente recibirá un descuento del {porcentajeDescuento}% sobre el precio regular del producto seleccionado.
+                        El cliente recibirá un descuento del {porcentajeDescuento}% sobre el precio regular del producto
+                        seleccionado.
                       </p>
                     </div>
                   </CardContent>
-                </Card>}
-            </div>}
+                </Card>
+              )}
+            </div>
+          )}
 
-          {paso === 2 && <div className="space-y-4">
+          {paso === 2 && (
+            <div className="space-y-4">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Columna Izquierda: Repuestos Disponibles */}
                 <div className="relative pt-2">
@@ -1175,43 +1405,45 @@ export default function DiagnosticoInicial() {
                         label="Buscar"
                         placeholder="Código, clave o descripción..."
                         value={searchRepuesto}
-                        onChange={e => setSearchRepuesto(e.target.value)}
+                        onChange={(e) => setSearchRepuesto(e.target.value)}
                         icon={<Search className="h-4 w-4" />}
                         className="h-12"
                       />
                     </div>
                     <div className="max-h-[400px] overflow-y-auto space-y-2">
-                      {filteredRepuestos.length > 0 ? filteredRepuestos.map(repuesto => (
-                        <div 
-                          key={repuesto.id} 
-                          className="flex items-center gap-3 p-2.5 border rounded-lg hover:bg-primary/5 hover:border-primary/40 cursor-pointer transition-all group" 
-                          onClick={() => agregarRepuesto(repuesto)}
-                        >
-                          <div className="w-8 h-8 bg-muted rounded flex items-center justify-center flex-shrink-0">
-                            <Package className="w-4 h-4 text-muted-foreground" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-sm truncate">{repuesto.descripcion}</p>
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                              <span className="font-mono">{repuesto.codigo}</span>
-                              {repuesto.stock_actual !== undefined && repuesto.stock_actual !== null && (
-                                <Badge 
-                                  variant="outline" 
-                                  className={cn(
-                                    "text-[10px] h-4 px-1.5",
-                                    repuesto.stock_actual > 0 
-                                      ? "bg-green-500/10 text-green-700 border-green-500/30" 
-                                      : "bg-red-500/10 text-red-700 border-red-500/30"
-                                  )}
-                                >
-                                  {repuesto.stock_actual}
-                                </Badge>
-                              )}
+                      {filteredRepuestos.length > 0 ? (
+                        filteredRepuestos.map((repuesto) => (
+                          <div
+                            key={repuesto.id}
+                            className="flex items-center gap-3 p-2.5 border rounded-lg hover:bg-primary/5 hover:border-primary/40 cursor-pointer transition-all group"
+                            onClick={() => agregarRepuesto(repuesto)}
+                          >
+                            <div className="w-8 h-8 bg-muted rounded flex items-center justify-center flex-shrink-0">
+                              <Package className="w-4 h-4 text-muted-foreground" />
                             </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-sm truncate">{repuesto.descripcion}</p>
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <span className="font-mono">{repuesto.codigo}</span>
+                                {repuesto.stock_actual !== undefined && repuesto.stock_actual !== null && (
+                                  <Badge
+                                    variant="outline"
+                                    className={cn(
+                                      "text-[10px] h-4 px-1.5",
+                                      repuesto.stock_actual > 0
+                                        ? "bg-green-500/10 text-green-700 border-green-500/30"
+                                        : "bg-red-500/10 text-red-700 border-red-500/30",
+                                    )}
+                                  >
+                                    {repuesto.stock_actual}
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                            <Plus className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
                           </div>
-                          <Plus className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
-                        </div>
-                      )) : (
+                        ))
+                      ) : (
                         <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
                           <Package className="w-8 h-8 mb-2 opacity-30" />
                           <p className="text-sm">No se encontraron repuestos</p>
@@ -1228,7 +1460,6 @@ export default function DiagnosticoInicial() {
                   </div>
                   <div className="border-2 border-muted rounded-lg p-4 h-full">
                     <div className="space-y-4 max-h-[480px] overflow-y-auto">
-                      
                       {/* Pestañas de solicitudes anteriores con semáforo */}
                       {solicitudesAnteriores.length > 0 && (
                         <div className="space-y-3">
@@ -1238,31 +1469,31 @@ export default function DiagnosticoInicial() {
                           </div>
                           <div className="flex flex-wrap gap-2">
                             {solicitudesAnteriores.map((solicitud, index) => {
-                              const isEntregado = solicitud.estado === 'entregado';
-                              const isError = solicitud.estado === 'rechazado' || solicitud.estado === 'error';
-                              const isPendiente = solicitud.estado === 'pendiente' || solicitud.estado === 'en_proceso';
-                              
-                              const bgColor = isEntregado 
-                                ? 'bg-green-500 hover:bg-green-600' 
-                                : isError 
-                                  ? 'bg-red-500 hover:bg-red-600' 
-                                  : 'bg-yellow-500 hover:bg-yellow-600';
-                              
+                              const isEntregado = solicitud.estado === "entregado";
+                              const isError = solicitud.estado === "rechazado" || solicitud.estado === "error";
+                              const isPendiente = solicitud.estado === "pendiente" || solicitud.estado === "en_proceso";
+
+                              const bgColor = isEntregado
+                                ? "bg-green-500 hover:bg-green-600"
+                                : isError
+                                  ? "bg-red-500 hover:bg-red-600"
+                                  : "bg-yellow-500 hover:bg-yellow-600";
+
                               const isActive = tabSolicitudActiva === index + 1;
-                              
+
                               return (
                                 <button
                                   key={solicitud.id}
                                   onClick={() => setTabSolicitudActiva(isActive ? 0 : index + 1)}
-                                  className={`w-8 h-8 rounded-md text-white font-bold text-sm transition-all ${bgColor} ${isActive ? 'ring-2 ring-offset-2 ring-primary scale-110' : ''}`}
-                                  title={`Solicitud #${index + 1} - ${solicitud.estado} (${solicitud.tipo_despacho || 'bodega'})`}
+                                  className={`w-8 h-8 rounded-md text-white font-bold text-sm transition-all ${bgColor} ${isActive ? "ring-2 ring-offset-2 ring-primary scale-110" : ""}`}
+                                  title={`Solicitud #${index + 1} - ${solicitud.estado} (${solicitud.tipo_despacho || "bodega"})`}
                                 >
                                   {index + 1}
                                 </button>
                               );
                             })}
                           </div>
-                          
+
                           {/* Contenido de la pestaña activa */}
                           {tabSolicitudActiva > 0 && solicitudesAnteriores[tabSolicitudActiva - 1] && (
                             <div className="p-3 bg-muted/30 rounded-lg border">
@@ -1270,29 +1501,34 @@ export default function DiagnosticoInicial() {
                                 <span className="text-xs font-medium">Solicitud #{tabSolicitudActiva}</span>
                                 <div className="flex items-center gap-2">
                                   <Badge variant="outline" className="text-[10px]">
-                                    {solicitudesAnteriores[tabSolicitudActiva - 1].tipo_despacho === 'autoservicio' ? '🛒 Autoservicio' : '📦 Bodega'}
+                                    {solicitudesAnteriores[tabSolicitudActiva - 1].tipo_despacho === "autoservicio"
+                                      ? "🛒 Autoservicio"
+                                      : "📦 Bodega"}
                                   </Badge>
-                                  <Badge 
+                                  <Badge
                                     className={`text-[10px] ${
-                                      solicitudesAnteriores[tabSolicitudActiva - 1].estado === 'entregado' 
-                                        ? 'bg-green-500' 
-                                        : solicitudesAnteriores[tabSolicitudActiva - 1].estado === 'rechazado' || solicitudesAnteriores[tabSolicitudActiva - 1].estado === 'error'
-                                          ? 'bg-red-500'
-                                          : 'bg-yellow-500'
+                                      solicitudesAnteriores[tabSolicitudActiva - 1].estado === "entregado"
+                                        ? "bg-green-500"
+                                        : solicitudesAnteriores[tabSolicitudActiva - 1].estado === "rechazado" ||
+                                            solicitudesAnteriores[tabSolicitudActiva - 1].estado === "error"
+                                          ? "bg-red-500"
+                                          : "bg-yellow-500"
                                     }`}
                                   >
                                     {solicitudesAnteriores[tabSolicitudActiva - 1].estado}
                                   </Badge>
                                 </div>
                               </div>
-                              {solicitudesAnteriores[tabSolicitudActiva - 1].repuestos?.map((item: any, idx: number) => (
-                                <div key={idx} className="flex items-center justify-between text-sm py-0.5">
-                                  <span className="truncate flex-1 text-xs">{item.descripcion}</span>
-                                  <Badge variant="outline" className="ml-2 text-[10px] h-4 px-1.5">
-                                    x{item.cantidad}
-                                  </Badge>
-                                </div>
-                              ))}
+                              {solicitudesAnteriores[tabSolicitudActiva - 1].repuestos?.map(
+                                (item: any, idx: number) => (
+                                  <div key={idx} className="flex items-center justify-between text-sm py-0.5">
+                                    <span className="truncate flex-1 text-xs">{item.descripcion}</span>
+                                    <Badge variant="outline" className="ml-2 text-[10px] h-4 px-1.5">
+                                      x{item.cantidad}
+                                    </Badge>
+                                  </div>
+                                ),
+                              )}
                             </div>
                           )}
                         </div>
@@ -1306,8 +1542,11 @@ export default function DiagnosticoInicial() {
                         </div>
                         {repuestosSolicitados.length > 0 ? (
                           <div className="space-y-1.5">
-                            {repuestosSolicitados.map(item => (
-                              <div key={item.codigo} className="flex items-center gap-2 p-2 bg-primary/5 rounded-lg border border-primary/30">
+                            {repuestosSolicitados.map((item) => (
+                              <div
+                                key={item.codigo}
+                                className="flex items-center gap-2 p-2 bg-primary/5 rounded-lg border border-primary/30"
+                              >
                                 <div className="flex-1 min-w-0">
                                   <p className="text-xs font-medium truncate">{item.descripcion}</p>
                                   <p className="text-[10px] text-muted-foreground font-mono">{item.codigo}</p>
@@ -1315,7 +1554,7 @@ export default function DiagnosticoInicial() {
                                 <Badge className="bg-primary/20 text-primary border-0 text-[10px] h-5 px-2">
                                   x{item.cantidad}
                                 </Badge>
-                                <button 
+                                <button
                                   onClick={() => eliminarRepuesto(item.codigo)}
                                   className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
                                 >
@@ -1323,7 +1562,7 @@ export default function DiagnosticoInicial() {
                                 </button>
                               </div>
                             ))}
-                            
+
                             {/* Botones de despacho - condicional según ubicación */}
                             <div className="mt-3 space-y-2">
                               {tieneRepuestosAutoservicio ? (
@@ -1332,8 +1571,8 @@ export default function DiagnosticoInicial() {
                                     Repuestos disponibles en estación de autoservicio
                                   </p>
                                   <div className="grid grid-cols-2 gap-2">
-                                    <Button 
-                                      onClick={() => handleEnviarSolicitudRepuestos('bodega')} 
+                                    <Button
+                                      onClick={() => handleEnviarSolicitudRepuestos("bodega")}
                                       variant="outline"
                                       size="sm"
                                       className="w-full"
@@ -1341,8 +1580,8 @@ export default function DiagnosticoInicial() {
                                       <Package className="w-4 h-4 mr-1" />
                                       Bodega
                                     </Button>
-                                    <Button 
-                                      onClick={() => handleEnviarSolicitudRepuestos('autoservicio')} 
+                                    <Button
+                                      onClick={() => handleEnviarSolicitudRepuestos("autoservicio")}
                                       variant="default"
                                       size="sm"
                                       className="w-full bg-green-600 hover:bg-green-700"
@@ -1353,8 +1592,8 @@ export default function DiagnosticoInicial() {
                                   </div>
                                 </>
                               ) : (
-                                <Button 
-                                  onClick={() => handleEnviarSolicitudRepuestos('bodega')} 
+                                <Button
+                                  onClick={() => handleEnviarSolicitudRepuestos("bodega")}
                                   variant="default"
                                   size="sm"
                                   className="w-full"
@@ -1385,9 +1624,11 @@ export default function DiagnosticoInicial() {
                   </div>
                 </div>
               </div>
-            </div>}
+            </div>
+          )}
 
-          {paso === 3 && <>
+          {paso === 3 && (
+            <>
               {/* Resolución del diagnóstico */}
               <div className="space-y-3">
                 <Label className="text-lg font-semibold">Resolución del Diagnóstico</Label>
@@ -1411,7 +1652,11 @@ export default function DiagnosticoInicial() {
 
               {/* Observaciones del técnico con outlined input */}
               <div className="space-y-4">
-                <OutlinedTextarea label="Observaciones del Técnico" value={observaciones} onChange={e => setObservaciones(e.target.value)} />
+                <OutlinedTextarea
+                  label="Observaciones del Técnico"
+                  value={observaciones}
+                  onChange={(e) => setObservaciones(e.target.value)}
+                />
               </div>
 
               <Separator />
@@ -1438,61 +1683,64 @@ export default function DiagnosticoInicial() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <Label className="text-xs text-muted-foreground uppercase">Accesorios</Label>
-                      <p className="text-sm font-medium mt-1">
-                        {incidente?.accesorios || "Sin accesorios"}
-                      </p>
+                      <p className="text-sm font-medium mt-1">{incidente?.accesorios || "Sin accesorios"}</p>
                     </div>
                     <div>
                       <Label className="text-xs text-muted-foreground uppercase">Resolución</Label>
-                      <p className="text-sm font-medium mt-1">
-                        {tipoResolucion || "Sin definir"}
-                      </p>
+                      <p className="text-sm font-medium mt-1">{tipoResolucion || "Sin definir"}</p>
                     </div>
                   </div>
                 </div>
               </div>
-            </>}
+            </>
+          )}
         </CardContent>
         <CardFooter className="flex justify-between gap-2">
-          <Button variant="outline" onClick={() => {
-          if (paso === 1) {
-            navigate("/taller/mis-asignaciones");
-          } else if (paso === 1.5) {
-            setPaso(1);
-          } else if (paso === 2) {
-            setPaso(1);
-          } else if (paso === 3) {
-            // Si viene de canje, regresar al paso de canje
-            if (tipoResolucion === "Canje") {
-              setPaso(1.5);
-            } else if (necesitaRepuestos) {
-              setPaso(2);
-            } else {
-              setPaso(1);
-            }
-          }
-        }}>
+          <Button
+            variant="outline"
+            onClick={() => {
+              if (paso === 1) {
+                navigate("/taller/mis-asignaciones");
+              } else if (paso === 1.5) {
+                setPaso(1);
+              } else if (paso === 2) {
+                setPaso(1);
+              } else if (paso === 3) {
+                // Si viene de canje, regresar al paso de canje
+                if (tipoResolucion === "Canje") {
+                  setPaso(1.5);
+                } else if (necesitaRepuestos) {
+                  setPaso(2);
+                } else {
+                  setPaso(1);
+                }
+              }
+            }}
+          >
             {paso === 1 ? "Cancelar" : "Anterior"}
           </Button>
-          <Button onClick={() => {
-          if (paso === 1) {
-            handleContinuarAPaso2();
-          } else if (paso === 1.5) {
-            handleContinuarDesdeCanje();
-          } else if (paso === 2) {
-            // En garantía, los repuestos son opcionales
-            if (!aplicaGarantia && necesitaRepuestos) {
-              const hayRepuestosDespachados = solicitudesAnteriores.some(s => s.estado === 'entregado');
-              if (!hayRepuestosDespachados) {
-                toast.error("Debes esperar a que se despachen los repuestos solicitados");
-                return;
+          <Button
+            onClick={() => {
+              if (paso === 1) {
+                handleContinuarAPaso2();
+              } else if (paso === 1.5) {
+                handleContinuarDesdeCanje();
+              } else if (paso === 2) {
+                // En garantía, los repuestos son opcionales
+                if (!aplicaGarantia && necesitaRepuestos) {
+                  const hayRepuestosDespachados = solicitudesAnteriores.some((s) => s.estado === "entregado");
+                  if (!hayRepuestosDespachados) {
+                    toast.error("Debes esperar a que se despachen los repuestos solicitados");
+                    return;
+                  }
+                }
+                setPaso(3);
+              } else {
+                handleClickFinalizarDiagnostico();
               }
-            }
-            setPaso(3);
-          } else {
-            handleClickFinalizarDiagnostico();
-          }
-        }} disabled={saving}>
+            }}
+            disabled={saving}
+          >
             {paso === 3 ? "Finalizar Diagnóstico" : "Continuar"}
           </Button>
         </CardFooter>
@@ -1503,29 +1751,26 @@ export default function DiagnosticoInicial() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Tipo de Trabajo Realizado</DialogTitle>
-            <DialogDescription>
-              Selecciona si el trabajo realizado fue mantenimiento o reparación
-            </DialogDescription>
+            <DialogDescription>Selecciona si el trabajo realizado fue mantenimiento o reparación</DialogDescription>
           </DialogHeader>
-          
+
           <div className="py-4">
-            <RadioGroup value={tipoTrabajo || ""} onValueChange={value => setTipoTrabajo(value as "mantenimiento" | "reparacion")}>
+            <RadioGroup
+              value={tipoTrabajo || ""}
+              onValueChange={(value) => setTipoTrabajo(value as "mantenimiento" | "reparacion")}
+            >
               <div className="flex items-center space-x-2 p-4 border rounded-lg hover:bg-muted/50 cursor-pointer">
                 <RadioGroupItem value="mantenimiento" id="mantenimiento" />
                 <Label htmlFor="mantenimiento" className="flex-1 cursor-pointer">
                   <div className="font-semibold">Mantenimiento</div>
-                  <div className="text-sm text-muted-foreground">
-                    Trabajo preventivo o de limpieza
-                  </div>
+                  <div className="text-sm text-muted-foreground">Trabajo preventivo o de limpieza</div>
                 </Label>
               </div>
               <div className="flex items-center space-x-2 p-4 border rounded-lg hover:bg-muted/50 cursor-pointer">
                 <RadioGroupItem value="reparacion" id="reparacion" />
                 <Label htmlFor="reparacion" className="flex-1 cursor-pointer">
                   <div className="font-semibold">Reparación</div>
-                  <div className="text-sm text-muted-foreground">
-                    Trabajo correctivo por falla o daño
-                  </div>
+                  <div className="text-sm text-muted-foreground">Trabajo correctivo por falla o daño</div>
                 </Label>
               </div>
             </RadioGroup>
@@ -1547,28 +1792,37 @@ export default function DiagnosticoInicial() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Agregar Nueva Falla</DialogTitle>
-            <DialogDescription>
-              Ingresa una nueva falla que no esté en la lista
-            </DialogDescription>
+            <DialogDescription>Ingresa una nueva falla que no esté en la lista</DialogDescription>
           </DialogHeader>
           <div className="py-4">
-            <Textarea value={nuevaFalla} onChange={e => setNuevaFalla(e.target.value)} placeholder="Describe la falla..." rows={3} />
+            <Textarea
+              value={nuevaFalla}
+              onChange={(e) => setNuevaFalla(e.target.value)}
+              placeholder="Describe la falla..."
+              rows={3}
+            />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => {
-            setShowAddFallaDialog(false);
-            setNuevaFalla("");
-          }}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowAddFallaDialog(false);
+                setNuevaFalla("");
+              }}
+            >
               Cancelar
             </Button>
-            <Button onClick={() => {
-            if (nuevaFalla.trim()) {
-              setFallasPersonalizadas(prev => [...prev, nuevaFalla.trim()]);
-              setFallas(prev => [...prev, nuevaFalla.trim()]);
-              setNuevaFalla("");
-              setShowAddFallaDialog(false);
-            }
-          }} disabled={!nuevaFalla.trim()}>
+            <Button
+              onClick={() => {
+                if (nuevaFalla.trim()) {
+                  setFallasPersonalizadas((prev) => [...prev, nuevaFalla.trim()]);
+                  setFallas((prev) => [...prev, nuevaFalla.trim()]);
+                  setNuevaFalla("");
+                  setShowAddFallaDialog(false);
+                }
+              }}
+              disabled={!nuevaFalla.trim()}
+            >
               Agregar
             </Button>
           </DialogFooter>
@@ -1580,28 +1834,37 @@ export default function DiagnosticoInicial() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Agregar Nueva Causa</DialogTitle>
-            <DialogDescription>
-              Ingresa una nueva causa que no esté en la lista
-            </DialogDescription>
+            <DialogDescription>Ingresa una nueva causa que no esté en la lista</DialogDescription>
           </DialogHeader>
           <div className="py-4">
-            <Textarea value={nuevaCausa} onChange={e => setNuevaCausa(e.target.value)} placeholder="Describe la causa..." rows={3} />
+            <Textarea
+              value={nuevaCausa}
+              onChange={(e) => setNuevaCausa(e.target.value)}
+              placeholder="Describe la causa..."
+              rows={3}
+            />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => {
-            setShowAddCausaDialog(false);
-            setNuevaCausa("");
-          }}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowAddCausaDialog(false);
+                setNuevaCausa("");
+              }}
+            >
               Cancelar
             </Button>
-            <Button onClick={() => {
-            if (nuevaCausa.trim()) {
-              setCausasPersonalizadas(prev => [...prev, nuevaCausa.trim()]);
-              setCausas(prev => [...prev, nuevaCausa.trim()]);
-              setNuevaCausa("");
-              setShowAddCausaDialog(false);
-            }
-          }} disabled={!nuevaCausa.trim()}>
+            <Button
+              onClick={() => {
+                if (nuevaCausa.trim()) {
+                  setCausasPersonalizadas((prev) => [...prev, nuevaCausa.trim()]);
+                  setCausas((prev) => [...prev, nuevaCausa.trim()]);
+                  setNuevaCausa("");
+                  setShowAddCausaDialog(false);
+                }
+              }}
+              disabled={!nuevaCausa.trim()}
+            >
               Agregar
             </Button>
           </DialogFooter>
@@ -1610,5 +1873,6 @@ export default function DiagnosticoInicial() {
 
       {/* Widget flotante Gemba Docs - disponible en cualquier paso */}
       <GembaDocsCamera photos={gembaPhotos} onPhotosChange={setGembaPhotos} maxPhotos={20} />
-    </div>;
+    </div>
+  );
 }
