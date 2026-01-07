@@ -1,14 +1,36 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { 
-  ArrowLeft, Edit, Calendar, User, Package, AlertTriangle, CheckCircle, 
-  Clock, Truck, FileText, Wrench, Save, MapPin, Phone, Mail, History, Box
+import {
+  ArrowLeft,
+  Edit,
+  Calendar,
+  User,
+  Package,
+  AlertTriangle,
+  CheckCircle,
+  Clock,
+  Truck,
+  FileText,
+  Wrench,
+  Save,
+  MapPin,
+  Phone,
+  Mail,
+  History,
+  Box,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { StatusBadge } from "@/components/StatusBadge";
 import { DiagnosticoTecnico } from "@/components/DiagnosticoTecnico";
 import { IncidentTimeline } from "@/components/IncidentTimeline";
@@ -23,7 +45,7 @@ import { es } from "date-fns/locale";
 import type { Database } from "@/integrations/supabase/types";
 import { Skeleton } from "@/components/ui/skeleton";
 
-type IncidenteDB = Database['public']['Tables']['incidentes']['Row'];
+type IncidenteDB = Database["public"]["Tables"]["incidentes"]["Row"];
 
 export default function DetalleIncidente() {
   const { id } = useParams<{ id: string }>();
@@ -36,7 +58,7 @@ export default function DetalleIncidente() {
   const [guiasEnvio, setGuiasEnvio] = useState<any[]>([]);
   const [clienteHistorial, setClienteHistorial] = useState<number>(0);
   const [loading, setLoading] = useState(true);
-  
+
   // Estado para editar código de producto
   const [isEditingProductCode, setIsEditingProductCode] = useState(false);
   const [editedProductCode, setEditedProductCode] = useState("");
@@ -51,73 +73,68 @@ export default function DetalleIncidente() {
     setLoading(true);
     try {
       // Obtener incidente de la base de datos
-      const { data: dbIncidente, error } = await supabase
-        .from('incidentes')
-        .select('*')
-        .eq('id', id)
-        .maybeSingle();
+      const { data: dbIncidente, error } = await supabase.from("incidentes").select("*").eq("id", id).maybeSingle();
 
       if (dbIncidente && !error) {
         setIncidenteDB(dbIncidente);
-        
+
         // Fetch producto
         const { data: producto } = await supabase
-          .from('productos')
-          .select('*')
-          .eq('codigo', dbIncidente.codigo_producto)
+          .from("productos")
+          .select("*")
+          .eq("codigo", dbIncidente.codigo_producto)
           .maybeSingle();
         if (producto) setProductoInfo(producto);
 
         // Fetch cliente
         const { data: cliente } = await supabase
-          .from('clientes')
-          .select('*')
-          .eq('codigo', dbIncidente.codigo_cliente)
+          .from("clientes")
+          .select("*")
+          .eq("codigo", dbIncidente.codigo_cliente)
           .maybeSingle();
         if (cliente) setClienteInfo(cliente);
 
         // Fetch diagnóstico
         const { data: diagnostico } = await supabase
-          .from('diagnosticos')
-          .select('*')
-          .eq('incidente_id', id)
+          .from("diagnosticos")
+          .select("*")
+          .eq("incidente_id", id)
           .maybeSingle();
         if (diagnostico) setDiagnosticoInfo(diagnostico);
 
         // Fetch guías de envío
         const { data: guias } = await supabase
-          .from('guias_envio')
-          .select('*')
-          .contains('incidentes_codigos', [dbIncidente.codigo])
-          .order('fecha_guia', { ascending: false });
+          .from("guias_envio")
+          .select("*")
+          .contains("incidentes_codigos", [dbIncidente.codigo])
+          .order("fecha_guia", { ascending: false });
         if (guias) setGuiasEnvio(guias);
 
         // Fetch historial del cliente (count de incidentes anteriores)
         const { count } = await supabase
-          .from('incidentes')
-          .select('*', { count: 'exact', head: true })
-          .eq('codigo_cliente', dbIncidente.codigo_cliente);
+          .from("incidentes")
+          .select("*", { count: "exact", head: true })
+          .eq("codigo_cliente", dbIncidente.codigo_cliente);
         setClienteHistorial(count || 0);
-
       } else {
         // Fallback a mock data
-        const incidenteEncontrado = incidentes.find(i => i.id === id);
+        const incidenteEncontrado = incidentes.find((i) => i.id === id);
         setIncidente(incidenteEncontrado || null);
       }
     } catch (error) {
-      console.error('Error:', error);
+      console.error("Error:", error);
     } finally {
       setLoading(false);
     }
   };
 
   const getClienteName = (codigo: string) => {
-    const cliente = clientes.find(c => c.codigo === codigo);
+    const cliente = clientes.find((c) => c.codigo === codigo);
     return cliente ? cliente.nombre : "Cliente no encontrado";
   };
 
   const getTecnicoName = (codigo: string) => {
-    const tecnico = tecnicos.find(t => t.codigo === codigo);
+    const tecnico = tecnicos.find((t) => t.codigo === codigo);
     return tecnico ? `${tecnico.nombre} ${tecnico.apellido}` : "No asignado";
   };
 
@@ -133,27 +150,24 @@ export default function DetalleIncidente() {
       toast({
         title: "Error de validación",
         description: "El código solo puede contener letras, números, guiones y guiones bajos",
-        variant: "destructive"
+        variant: "destructive",
       });
       return;
     }
 
     try {
-      const { error } = await supabase
-        .from('incidentes')
-        .update({ codigo_producto: editedProductCode })
-        .eq('id', id);
+      const { error } = await supabase.from("incidentes").update({ codigo_producto: editedProductCode }).eq("id", id);
 
       if (error) throw error;
 
-      setIncidenteDB(prev => prev ? { ...prev, codigo_producto: editedProductCode } : null);
-      
+      setIncidenteDB((prev) => (prev ? { ...prev, codigo_producto: editedProductCode } : null));
+
       const { data: nuevoProducto } = await supabase
-        .from('productos')
-        .select('*')
-        .eq('codigo', editedProductCode)
+        .from("productos")
+        .select("*")
+        .eq("codigo", editedProductCode)
         .maybeSingle();
-      
+
       if (nuevoProducto) setProductoInfo(nuevoProducto);
       setIsEditingProductCode(false);
 
@@ -162,11 +176,11 @@ export default function DetalleIncidente() {
         description: `Nuevo código: ${editedProductCode}`,
       });
     } catch (error) {
-      console.error('Error:', error);
+      console.error("Error:", error);
       toast({
         title: "Error",
         description: "No se pudo actualizar el código",
-        variant: "destructive"
+        variant: "destructive",
       });
     }
   };
@@ -236,11 +250,12 @@ export default function DetalleIncidente() {
           </Button>
           <div>
             <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold">Incidente {currentCodigo}</h1>
+              <h1 className="text-2xl font-bold">{currentCodigo}</h1>
               <StatusBadge status={currentStatus as any} />
             </div>
             <p className="text-sm text-muted-foreground mt-1">
-              Ingresado: {fechaIngreso ? format(new Date(fechaIngreso), "dd 'de' MMMM 'de' yyyy", { locale: es }) : "N/A"}
+              Ingresado:{" "}
+              {fechaIngreso ? format(new Date(fechaIngreso), "dd 'de' MMMM 'de' yyyy", { locale: es }) : "N/A"}
             </p>
           </div>
         </div>
@@ -272,8 +287,8 @@ export default function DetalleIncidente() {
                   {/* Product Image */}
                   <div className="w-32 h-32 bg-muted rounded-lg flex items-center justify-center shrink-0">
                     {productoInfo?.url_foto ? (
-                      <img 
-                        src={productoInfo.url_foto} 
+                      <img
+                        src={productoInfo.url_foto}
                         alt={productoInfo.descripcion}
                         className="w-full h-full object-cover rounded-lg"
                       />
@@ -353,11 +368,11 @@ export default function DetalleIncidente() {
                           <div key={guia.id} className="bg-muted/50 p-3 rounded-lg flex items-center justify-between">
                             <div>
                               <span className="font-medium text-sm">{guia.numero_guia}</span>
-                              <p className="text-xs text-muted-foreground">{guia.destinatario} - {guia.ciudad_destino}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {guia.destinatario} - {guia.ciudad_destino}
+                              </p>
                             </div>
-                            <Badge variant={guia.estado === 'entregado' ? 'default' : 'secondary'}>
-                              {guia.estado}
-                            </Badge>
+                            <Badge variant={guia.estado === "entregado" ? "default" : "secondary"}>{guia.estado}</Badge>
                           </div>
                         ))}
                       </div>
@@ -369,11 +384,8 @@ export default function DetalleIncidente() {
           </Card>
 
           {/* Diagnóstico Section (si está en diagnóstico) */}
-          {incidenteDB && incidenteDB.status === 'En diagnostico' && (
-            <DiagnosticoTecnico 
-              incidente={incidenteDB} 
-              onDiagnosticoCompleto={fetchIncidente}
-            />
+          {incidenteDB && incidenteDB.status === "En diagnostico" && (
+            <DiagnosticoTecnico incidente={incidenteDB} onDiagnosticoCompleto={fetchIncidente} />
           )}
 
           {/* Diagnóstico existente */}
@@ -425,9 +437,7 @@ export default function DetalleIncidente() {
           {id && <IncidentTimeline incidenteId={id} />}
 
           {/* Log de Observaciones */}
-          {logObservaciones && (
-            <ObservacionesLog logObservaciones={logObservaciones} />
-          )}
+          {logObservaciones && <ObservacionesLog logObservaciones={logObservaciones} />}
         </div>
 
         {/* Right Column - Sidebar (1/3) */}
@@ -439,9 +449,7 @@ export default function DetalleIncidente() {
                 <User className="w-4 h-4 text-primary mt-1" />
                 <div className="space-y-3">
                   <div>
-                    <h4 className="font-semibold">
-                      {clienteInfo?.nombre || getClienteName(codigoCliente)}
-                    </h4>
+                    <h4 className="font-semibold">{clienteInfo?.nombre || getClienteName(codigoCliente)}</h4>
                     <p className="text-sm text-muted-foreground">Código: {codigoCliente}</p>
                   </div>
 
@@ -482,7 +490,7 @@ export default function DetalleIncidente() {
                       <div className="flex items-center gap-2 text-sm">
                         <History className="w-4 h-4 text-muted-foreground" />
                         <span className="text-muted-foreground">
-                          {clienteHistorial} incidente{clienteHistorial > 1 ? 's' : ''} en total
+                          {clienteHistorial} incidente{clienteHistorial > 1 ? "s" : ""} en total
                         </span>
                       </div>
                       <Button
@@ -569,11 +577,9 @@ export default function DetalleIncidente() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Editar Código de Producto</DialogTitle>
-            <DialogDescription>
-              Modifica el código de producto asociado a este incidente.
-            </DialogDescription>
+            <DialogDescription>Modifica el código de producto asociado a este incidente.</DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <label className="text-sm font-medium">Nuevo Código</label>
@@ -582,12 +588,10 @@ export default function DetalleIncidente() {
                 onChange={(e) => setEditedProductCode(e.target.value.toUpperCase())}
                 placeholder="Ej: PROD-001"
               />
-              <p className="text-xs text-muted-foreground">
-                Solo letras, números, guiones y guiones bajos
-              </p>
+              <p className="text-xs text-muted-foreground">Solo letras, números, guiones y guiones bajos</p>
             </div>
           </div>
-          
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsEditingProductCode(false)}>
               Cancelar
