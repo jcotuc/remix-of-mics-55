@@ -433,7 +433,7 @@ export default function DiagnosticoInicial() {
       // 2. Obtener producto_id y cargar repuestos
       const { data: producto } = await supabase
         .from("productos")
-        .select("id")
+        .select("id,codigo")
         .eq("codigo", incidente.codigo_producto)
         .maybeSingle();
 
