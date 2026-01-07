@@ -9,8 +9,7 @@ import { ArrowLeft, Search, User, Package, AlertCircle, UserCircle, ChevronRight
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Producto } from "@/types";
-import { MediaFile } from "@/components/WhatsAppStyleMediaCapture";
-import { FloatingCameraWidget } from "@/components/FloatingCameraWidget";
+import { SidebarMediaCapture, SidebarPhoto } from "@/components/SidebarMediaCapture";
 import { uploadMediaToStorage, saveIncidentePhotos } from "@/lib/uploadMedia";
 import { MinimalStepper } from "@/components/ui/minimal-stepper";
 import { OutlinedInput, OutlinedTextarea, OutlinedSelect } from "@/components/ui/outlined-input";
@@ -135,7 +134,7 @@ export default function NuevoIncidente() {
   const [guardando, setGuardando] = useState(false);
 
   // Media
-  const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([]);
+  const [mediaPhotos, setMediaPhotos] = useState<SidebarPhoto[]>([]);
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
   const [incidenteCreado, setIncidenteCreado] = useState<{
     codigo: string;
@@ -376,7 +375,7 @@ export default function NuevoIncidente() {
     setEsReingreso(false);
     setLogObservaciones("");
     setTipologia("");
-    setMediaFiles([]);
+    setMediaPhotos([]);
     setPaso(2);
   };
 
@@ -670,10 +669,22 @@ export default function NuevoIncidente() {
         created_by: user?.id || null
       }).select().single();
       if (incidenteError) throw incidenteError;
-      if (mediaFiles.length > 0) {
+      if (mediaPhotos.length > 0) {
         try {
-          const uploadedMedia = await uploadMediaToStorage(mediaFiles, incidenteData.id);
-          await saveIncidentePhotos(incidenteData.id, uploadedMedia, 'ingreso');
+          // Convert SidebarPhoto to MediaFile format for upload
+          const mediaFilesForUpload = mediaPhotos.map(p => ({
+            id: p.id,
+            file: p.file,
+            preview: p.preview,
+            tipo: 'foto' as const,
+          }));
+          const uploadedMedia = await uploadMediaToStorage(mediaFilesForUpload, incidenteData.id);
+          // Add comments to uploaded media
+          const uploadedWithComments = uploadedMedia.map((media, idx) => ({
+            ...media,
+            comment: mediaPhotos[idx]?.comment,
+          }));
+          await saveIncidentePhotos(incidenteData.id, uploadedWithComments, 'ingreso');
           toast({
             title: "Fotos subidas",
             description: `${uploadedMedia.length} archivo(s) subido(s) correctamente`
@@ -1127,8 +1138,13 @@ export default function NuevoIncidente() {
           </>}
       </div>
 
-      {/* Widget flotante de cámara */}
-      <FloatingCameraWidget media={mediaFiles} onMediaChange={setMediaFiles} />
+      {/* Sidebar de cámara */}
+      <SidebarMediaCapture 
+        photos={mediaPhotos} 
+        onPhotosChange={setMediaPhotos} 
+        tipo="ingreso"
+        commentRequired={false}
+      />
 
       {/* Dialog de éxito */}
       <AlertDialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>

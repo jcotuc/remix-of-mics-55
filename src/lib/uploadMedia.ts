@@ -6,6 +6,7 @@ export interface UploadedMedia {
   storage_path: string;
   tipo: 'foto' | 'video';
   orden: number;
+  comment?: string;
 }
 
 /**
@@ -71,7 +72,7 @@ export async function uploadMediaToStorage(
  */
 export async function saveIncidentePhotos(
   incidenteId: string,
-  uploadedMedia: UploadedMedia[],
+  uploadedMedia: (UploadedMedia & { comment?: string })[],
   tipo: 'ingreso' | 'salida' | 'diagnostico' | 'reparacion'
 ) {
   const { data: userData } = await supabase.auth.getUser();
@@ -82,7 +83,9 @@ export async function saveIncidentePhotos(
     url: media.url,
     storage_path: media.storage_path,
     orden: media.orden,
-    created_by: userData.user?.id
+    created_by: userData.user?.id,
+    // Note: comments are not stored in incidente_fotos table yet
+    // You may want to add a 'comentario' column to the table
   }));
 
   // Using any to bypass type checking until Supabase types are regenerated
