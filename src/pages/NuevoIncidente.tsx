@@ -5,7 +5,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { ArrowLeft, Search, User, Package, AlertCircle, UserCircle, ChevronRight, Printer } from "lucide-react";
+import { ArrowLeft, Search, User, Package, AlertCircle, UserCircle, ChevronRight, Printer, Copy } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Producto } from "@/types";
@@ -952,7 +952,34 @@ export default function NuevoIncidente() {
 
               <div className="p-6">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <OutlinedInput label="Nombre Completo" value={personaDejaMaquina} onChange={e => setPersonaDejaMaquina(e.target.value)} required />
+                  <div className="relative">
+                    <OutlinedInput label="Nombre Completo" value={personaDejaMaquina} onChange={e => setPersonaDejaMaquina(e.target.value)} required />
+                    {/* Botón para copiar nombre del propietario */}
+                    {(clienteSeleccionado || (mostrarFormNuevoCliente && nuevoCliente.nombre)) && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-1 top-1/2 -translate-y-1/2 h-8 px-2 text-xs gap-1 text-muted-foreground hover:text-primary"
+                        onClick={() => {
+                          const nombrePropietario = mostrarFormNuevoCliente 
+                            ? nuevoCliente.nombre 
+                            : datosClienteExistente.nombre || clienteSeleccionado?.nombre || "";
+                          if (nombrePropietario) {
+                            setPersonaDejaMaquina(nombrePropietario);
+                            toast({
+                              title: "Nombre copiado",
+                              description: "Se copió el nombre del propietario"
+                            });
+                          }
+                        }}
+                        title="Copiar nombre del propietario"
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">Propietario</span>
+                      </Button>
+                    )}
+                  </div>
                   <OutlinedInput label="DPI" value={dpiPersonaDeja} onChange={e => setDpiPersonaDeja(e.target.value)} maxLength={13} required />
                 </div>
               </div>
