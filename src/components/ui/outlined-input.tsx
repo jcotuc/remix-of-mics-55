@@ -40,17 +40,18 @@ const OutlinedInput = React.forwardRef<HTMLInputElement, OutlinedInputProps>(
           <label
             htmlFor={inputId}
             className={cn(
-              "absolute text-muted-foreground bg-background px-1 transition-all duration-200 pointer-events-none",
+              "absolute bg-background px-1 transition-all duration-200 pointer-events-none",
               "peer-placeholder-shown:text-base peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2",
-              "peer-focus:text-xs peer-focus:top-0 peer-focus:-translate-y-1/2 peer-focus:text-primary",
-              hasValue && "text-xs top-0 -translate-y-1/2",
+              "peer-focus:text-xs peer-focus:top-0 peer-focus:-translate-y-1/2",
+              hasValue && "text-xs top-0 -translate-y-1/2 text-muted-foreground",
               !hasValue && "text-base top-1/2 -translate-y-1/2",
+              !hasValue && props.required ? "text-primary" : !hasValue ? "text-muted-foreground" : "",
+              "peer-focus:text-primary",
               icon ? "left-10 peer-placeholder-shown:left-10 peer-focus:left-3" : "left-3",
               error && "peer-focus:text-destructive"
             )}
           >
             {label}
-            {props.required && <span className="text-destructive ml-0.5">*</span>}
           </label>
         </div>
         {error && (
@@ -94,16 +95,16 @@ const OutlinedTextarea = React.forwardRef<HTMLTextAreaElement, OutlinedTextareaP
           <label
             htmlFor={textareaId}
             className={cn(
-              "absolute left-3 bg-background px-1 transition-all duration-200 pointer-events-none text-muted-foreground",
+              "absolute left-3 bg-background px-1 transition-all duration-200 pointer-events-none",
               "peer-placeholder-shown:text-base peer-placeholder-shown:top-4",
               "peer-focus:text-xs peer-focus:top-0 peer-focus:-translate-y-1/2 peer-focus:text-primary",
-              hasValue && "text-xs top-0 -translate-y-1/2",
+              hasValue && "text-xs top-0 -translate-y-1/2 text-muted-foreground",
               !hasValue && "text-base top-4",
+              !hasValue && props.required ? "text-primary" : !hasValue ? "text-muted-foreground" : "",
               error && "peer-focus:text-destructive"
             )}
           >
             {label}
-            {props.required && <span className="text-destructive ml-0.5">*</span>}
           </label>
         </div>
         {error && (
@@ -157,14 +158,13 @@ const OutlinedSelect = React.forwardRef<HTMLDivElement, OutlinedSelectProps>(
           </select>
           <label
             className={cn(
-              "absolute left-3 bg-background px-1 transition-all duration-200 pointer-events-none text-muted-foreground",
-              hasValue && "text-xs top-0 -translate-y-1/2",
-              !hasValue && "text-xs top-0 -translate-y-1/2",
+              "absolute left-3 bg-background px-1 transition-all duration-200 pointer-events-none",
+              "text-xs top-0 -translate-y-1/2",
+              hasValue ? "text-muted-foreground" : required ? "text-primary" : "text-muted-foreground",
               error && "text-destructive"
             )}
           >
             {label}
-            {required && <span className="text-destructive ml-0.5">*</span>}
           </label>
           {/* Dropdown arrow */}
           <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
