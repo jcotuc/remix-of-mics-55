@@ -446,7 +446,8 @@ export default function DiagnosticoInicial() {
         .from("repuestos")
         .select("*")
         .eq("codigo_producto", producto.codigo)
-        .order("descripcion");
+        .order("descripcion")
+        .returns<any[]>();
       if (error) throw error;
       console.log("AQUI1", producto, data, error);
 

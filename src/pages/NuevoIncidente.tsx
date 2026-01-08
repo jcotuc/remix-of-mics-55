@@ -125,7 +125,7 @@ export default function NuevoIncidente() {
   const [direccionesEnvio, setDireccionesEnvio] = useState<any[]>([]);
   const [direccionSeleccionada, setDireccionSeleccionada] = useState<string>("");
   const [nuevaDireccion, setNuevaDireccion] = useState("");
-  const [mostrarNuevaDireccion, setMostrarNuevaDireccion] = useState(false);
+  const [tipoDireccionEnvio, setTipoDireccionEnvio] = useState<'existente' | 'nueva'>('existente');
   const [ingresadoMostrador, setIngresadoMostrador] = useState(true);
   const [esReingreso, setEsReingreso] = useState(false);
   const [logObservaciones, setLogObservaciones] = useState("");
@@ -371,7 +371,7 @@ export default function NuevoIncidente() {
     setOpcionEnvio("");
     setDireccionSeleccionada("");
     setNuevaDireccion("");
-    setMostrarNuevaDireccion(false);
+    setTipoDireccionEnvio('existente');
     setEsReingreso(false);
     setLogObservaciones("");
     setTipologia("");
@@ -502,7 +502,15 @@ export default function NuevoIncidente() {
       });
       return false;
     }
-    if (opcionEnvio === 'directo' && !direccionSeleccionada && !nuevaDireccion.trim()) {
+    if (opcionEnvio === 'directo' && tipoDireccionEnvio === 'existente' && !direccionSeleccionada && !mostrarFormNuevoCliente) {
+      toast({
+        title: "Error",
+        description: "Seleccione una dirección de envío",
+        variant: "destructive"
+      });
+      return false;
+    }
+    if (opcionEnvio === 'directo' && tipoDireccionEnvio === 'nueva' && !nuevaDireccion.trim()) {
       toast({
         title: "Error",
         description: "Seleccione o agregue una dirección de envío",
@@ -1109,7 +1117,7 @@ export default function NuevoIncidente() {
                 if (value === 'recoger') {
                   setDireccionSeleccionada("");
                   setNuevaDireccion("");
-                  setMostrarNuevaDireccion(false);
+                  setTipoDireccionEnvio('existente');
                 }
               }} className="grid grid-cols-2 gap-2">
                     <div className="flex items-center space-x-3 p-3 rounded-lg border hover:bg-muted/30 transition-colors">
@@ -1122,23 +1130,81 @@ export default function NuevoIncidente() {
                     </div>
                   </RadioGroup>
 
-                  {opcionEnvio !== 'recoger' && opcionEnvio && <div className="pl-4 border-l-2 border-primary/20 space-y-4 mt-4">
-                      {mostrarFormNuevoCliente ? nuevoCliente.direccion ? <div className="p-3 rounded-lg bg-muted/30 border">
-                            <p className="text-sm font-medium">Dirección del nuevo cliente:</p>
-                            <p className="text-sm text-muted-foreground mt-1">{nuevoCliente.direccion}</p>
-                          </div> : <p className="text-sm text-destructive">Complete la dirección del cliente en el paso anterior</p> : direccionesEnvio.length > 0 ? <OutlinedSelect label="Dirección de Envío" value={direccionSeleccionada} onValueChange={setDireccionSeleccionada} options={direccionesEnvio.map(dir => ({
-                  value: dir.id,
-                  label: `${dir.direccion}${dir.es_principal ? ' (Principal)' : ''}`
-                }))} required /> : <p className="text-sm text-muted-foreground">No hay direcciones guardadas</p>}
+                  {opcionEnvio === 'directo' && (
+                    <div className="pl-4 border-l-2 border-primary/20 space-y-3 mt-4">
+                      <RadioGroup 
+                        value={tipoDireccionEnvio} 
+                        onValueChange={(value) => {
+                          setTipoDireccionEnvio(value as 'existente' | 'nueva');
+                          if (value === 'existente') {
+                            setNuevaDireccion("");
+                          } else {
+                            setDireccionSeleccionada("");
+                          }
+                        }}
+                        className="space-y-3"
+                      >
+                        {/* Opción 1: Direcciones existentes */}
+                        <div className="space-y-2">
+                          <div className="flex items-center space-x-3 p-3 rounded-lg border hover:bg-muted/30 transition-colors">
+                            <RadioGroupItem value="existente" id="dir-existente" />
+                            <Label htmlFor="dir-existente" className="cursor-pointer font-normal flex-1 text-sm">
+                              Usar dirección existente
+                            </Label>
+                          </div>
+                          
+                          {tipoDireccionEnvio === 'existente' && (
+                            <div className="pl-8">
+                              {mostrarFormNuevoCliente ? (
+                                nuevoCliente.direccion ? (
+                                  <div className="p-3 rounded-lg bg-muted/30 border">
+                                    <p className="text-sm font-medium">Dirección del nuevo cliente:</p>
+                                    <p className="text-sm text-muted-foreground mt-1">{nuevoCliente.direccion}</p>
+                                  </div>
+                                ) : (
+                                  <p className="text-sm text-destructive">Complete la dirección del cliente en el paso anterior</p>
+                                )
+                              ) : direccionesEnvio.length > 0 ? (
+                                <OutlinedSelect 
+                                  label="Dirección de Envío" 
+                                  value={direccionSeleccionada} 
+                                  onValueChange={setDireccionSeleccionada} 
+                                  options={direccionesEnvio.map(dir => ({
+                                    value: dir.id,
+                                    label: `${dir.direccion}${dir.es_principal ? ' (Principal)' : ''}`
+                                  }))} 
+                                  required 
+                                />
+                              ) : (
+                                <p className="text-sm text-muted-foreground">No hay direcciones guardadas</p>
+                              )}
+                            </div>
+                          )}
+                        </div>
 
-                      <div className="flex items-center justify-between">
-                        <p className="text-sm text-muted-foreground">¿Agregar nueva dirección?</p>
-                        <Button type="button" variant="ghost" size="sm" onClick={() => setMostrarNuevaDireccion(!mostrarNuevaDireccion)}>
-                          {mostrarNuevaDireccion ? 'Cancelar' : 'Agregar'}
-                        </Button>
-                      </div>
-                      {mostrarNuevaDireccion && <OutlinedTextarea label="Nueva Dirección" value={nuevaDireccion} onChange={e => setNuevaDireccion(e.target.value)} />}
-                    </div>}
+                        {/* Opción 2: Nueva dirección */}
+                        <div className="space-y-2">
+                          <div className="flex items-center space-x-3 p-3 rounded-lg border hover:bg-muted/30 transition-colors">
+                            <RadioGroupItem value="nueva" id="dir-nueva" />
+                            <Label htmlFor="dir-nueva" className="cursor-pointer font-normal flex-1 text-sm">
+                              Agregar nueva dirección
+                            </Label>
+                          </div>
+                          
+                          {tipoDireccionEnvio === 'nueva' && (
+                            <div className="pl-8">
+                              <OutlinedTextarea 
+                                label="Nueva Dirección" 
+                                value={nuevaDireccion} 
+                                onChange={e => setNuevaDireccion(e.target.value)} 
+                                required
+                              />
+                            </div>
+                          )}
+                        </div>
+                      </RadioGroup>
+                    </div>
+                  )}
                 </div>
 
                 {/* Separador */}
