@@ -124,7 +124,7 @@ export function DiagnosticoTecnico({ incidente, onDiagnosticoCompleto }: Diagnos
         return;
       }
 
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('repuestos')
         .select('*')
         .eq('producto_id', producto.id);

@@ -142,7 +142,7 @@ export async function getRepuestosParaProducto(codigoProducto: string) {
   if (!producto) return [];
 
   // Get all repuestos for the product
-  const { data: repuestos, error } = await supabase
+  const { data: repuestos, error } = await (supabase as any)
     .from('repuestos')
     .select('*')
     .eq('producto_id', producto.id);
