@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { OutlinedInput, OutlinedSelect } from "@/components/ui/outlined-input";
 import { Label } from "@/components/ui/label";
 import {
   Table,
@@ -913,33 +914,33 @@ export default function SustitutosRepuestos() {
             <DialogTitle>Editar Relación Padre</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div>
-              <Label>Código</Label>
-              <Input value={selectedRelacion?.Código || ""} disabled className="font-mono" />
-            </div>
-            <div>
-              <Label>Descripción</Label>
-              <Input value={selectedRelacion?.Descripción || ""} disabled />
-            </div>
-            <div>
-              <Label>Código Padre</Label>
-              <Select value={editPadre} onValueChange={setEditPadre}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar padre" />
-                </SelectTrigger>
-                <SelectContent className="max-h-60">
-                  <SelectItem value="none">Sin padre (Raíz)</SelectItem>
-                  {padresOnly
-                    .filter(r => r.id !== selectedRelacion?.id)
-                    .slice(0, 100)
-                    .map(r => (
-                      <SelectItem key={r.id} value={r.id.toString()}>
-                        {r.Código} - {r.Descripción?.substring(0, 30) || "Sin descripción"}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <OutlinedInput
+              label="Código"
+              value={selectedRelacion?.Código || ""}
+              disabled
+              className="font-mono"
+            />
+            <OutlinedInput
+              label="Descripción"
+              value={selectedRelacion?.Descripción || ""}
+              disabled
+            />
+            <OutlinedSelect
+              label="Código Padre"
+              value={editPadre}
+              onValueChange={setEditPadre}
+              options={[
+                { value: "none", label: "Sin padre (Raíz)" },
+                ...padresOnly
+                  .filter(r => r.id !== selectedRelacion?.id)
+                  .slice(0, 100)
+                  .map(r => ({
+                    value: r.id.toString(),
+                    label: `${r.Código} - ${r.Descripción?.substring(0, 30) || "Sin descripción"}`
+                  }))
+              ]}
+              placeholder="Seleccionar padre"
+            />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowEditDialog(false)}>
@@ -960,39 +961,32 @@ export default function SustitutosRepuestos() {
             <DialogTitle>Nuevo Código</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div>
-              <Label>Código *</Label>
-              <Input
-                value={newCodigo}
-                onChange={(e) => setNewCodigo(e.target.value)}
-                placeholder="Ej: 90179"
-                className="font-mono"
-              />
-            </div>
-            <div>
-              <Label>Descripción</Label>
-              <Input
-                value={newDescripcion}
-                onChange={(e) => setNewDescripcion(e.target.value)}
-                placeholder="Ej: Tornillo de cuchillas"
-              />
-            </div>
-            <div>
-              <Label>Código Padre</Label>
-              <Select value={newPadre} onValueChange={setNewPadre}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar padre (opcional)" />
-                </SelectTrigger>
-                <SelectContent className="max-h-60">
-                  <SelectItem value="none">Sin padre (Raíz)</SelectItem>
-                  {padresOnly.slice(0, 100).map(r => (
-                    <SelectItem key={r.id} value={r.id.toString()}>
-                      {r.Código} - {r.Descripción?.substring(0, 30) || "Sin descripción"}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <OutlinedInput
+              label="Código *"
+              value={newCodigo}
+              onChange={(e) => setNewCodigo(e.target.value)}
+              placeholder="Ej: 90179"
+              className="font-mono"
+            />
+            <OutlinedInput
+              label="Descripción"
+              value={newDescripcion}
+              onChange={(e) => setNewDescripcion(e.target.value)}
+              placeholder="Ej: Tornillo de cuchillas"
+            />
+            <OutlinedSelect
+              label="Código Padre"
+              value={newPadre}
+              onValueChange={setNewPadre}
+              options={[
+                { value: "none", label: "Sin padre (Raíz)" },
+                ...padresOnly.slice(0, 100).map(r => ({
+                  value: r.id.toString(),
+                  label: `${r.Código} - ${r.Descripción?.substring(0, 30) || "Sin descripción"}`
+                }))
+              ]}
+              placeholder="Seleccionar padre (opcional)"
+            />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAddDialog(false)}>

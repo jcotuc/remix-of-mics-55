@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { OutlinedInput, OutlinedSelect } from "@/components/ui/outlined-input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -619,30 +620,25 @@ export default function FallasCausas() {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Nombre</Label>
-              <Input
-                value={newNombre}
-                onChange={(e) => setNewNombre(e.target.value)}
-                placeholder={`Nombre de la ${activeTab === "fallas" ? "falla" : "causa"}`}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Familia de Producto</Label>
-              <Select value={newFamiliaId} onValueChange={setNewFamiliaId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar familia" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">Sin familia</SelectItem>
-                  {familias.map((familia) => (
-                    <SelectItem key={familia.id} value={familia.id.toString()}>
-                      {familia.Categoria}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <OutlinedInput
+              label="Nombre"
+              value={newNombre}
+              onChange={(e) => setNewNombre(e.target.value)}
+              placeholder={`Nombre de la ${activeTab === "fallas" ? "falla" : "causa"}`}
+            />
+            <OutlinedSelect
+              label="Familia de Producto"
+              value={newFamiliaId}
+              onValueChange={setNewFamiliaId}
+              options={[
+                { value: "", label: "Sin familia" },
+                ...familias.map((familia) => ({
+                  value: familia.id.toString(),
+                  label: familia.Categoria || ""
+                }))
+              ]}
+              placeholder="Seleccionar familia"
+            />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAddDialog(false)}>
@@ -662,29 +658,24 @@ export default function FallasCausas() {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Nombre</Label>
-              <Input
-                value={newNombre}
-                onChange={(e) => setNewNombre(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Familia de Producto</Label>
-              <Select value={newFamiliaId} onValueChange={setNewFamiliaId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar familia" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">Sin familia</SelectItem>
-                  {familias.map((familia) => (
-                    <SelectItem key={familia.id} value={familia.id.toString()}>
-                      {familia.Categoria}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <OutlinedInput
+              label="Nombre"
+              value={newNombre}
+              onChange={(e) => setNewNombre(e.target.value)}
+            />
+            <OutlinedSelect
+              label="Familia de Producto"
+              value={newFamiliaId}
+              onValueChange={setNewFamiliaId}
+              options={[
+                { value: "", label: "Sin familia" },
+                ...familias.map((familia) => ({
+                  value: familia.id.toString(),
+                  label: familia.Categoria || ""
+                }))
+              ]}
+              placeholder="Seleccionar familia"
+            />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowEditDialog(false)}>

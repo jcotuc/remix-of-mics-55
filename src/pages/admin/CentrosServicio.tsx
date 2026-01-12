@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { OutlinedInput, OutlinedSelect } from "@/components/ui/outlined-input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -585,68 +586,52 @@ export default function CentrosServicio() {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div>
-              <Label>Nombre *</Label>
-              <Input
-                value={formData.nombre}
-                onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
-                placeholder="Centro Principal"
-              />
-            </div>
-            <div>
-              <Label>Dirección</Label>
-              <Input
-                value={formData.direccion}
-                onChange={(e) => setFormData({ ...formData, direccion: e.target.value })}
-                placeholder="Dirección completa"
-              />
-            </div>
+            <OutlinedInput
+              label="Nombre *"
+              value={formData.nombre}
+              onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+              placeholder="Centro Principal"
+            />
+            <OutlinedInput
+              label="Dirección"
+              value={formData.direccion}
+              onChange={(e) => setFormData({ ...formData, direccion: e.target.value })}
+              placeholder="Dirección completa"
+            />
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Teléfono</Label>
-                <Input
-                  value={formData.telefono}
-                  onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
-                  placeholder="1234-5678"
-                />
-              </div>
-              <div>
-                <Label>Email</Label>
-                <Input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  placeholder="centro@empresa.com"
-                />
-              </div>
-            </div>
-            <div>
-              <Label>Número de Bodega</Label>
-              <Input
-                value={formData.numero_bodega}
-                onChange={(e) => setFormData({ ...formData, numero_bodega: e.target.value })}
-                placeholder="B001"
+              <OutlinedInput
+                label="Teléfono"
+                value={formData.telefono}
+                onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
+                placeholder="1234-5678"
+              />
+              <OutlinedInput
+                label="Email"
+                type="email"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                placeholder="centro@empresa.com"
               />
             </div>
-            <div>
-              <Label>Responsable (Jefe de Taller)</Label>
-              <Select 
-                value={formData.responsable_id || "__none__"} 
-                onValueChange={(val) => setFormData({ ...formData, responsable_id: val === "__none__" ? "" : val })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar responsable..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">Sin asignar</SelectItem>
-                  {jefesTaller.map((jefe) => (
-                    <SelectItem key={jefe.user_id} value={jefe.user_id}>
-                      {jefe.nombre} {jefe.apellido}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <OutlinedInput
+              label="Número de Bodega"
+              value={formData.numero_bodega}
+              onChange={(e) => setFormData({ ...formData, numero_bodega: e.target.value })}
+              placeholder="B001"
+            />
+            <OutlinedSelect
+              label="Responsable (Jefe de Taller)"
+              value={formData.responsable_id || "__none__"}
+              onValueChange={(val) => setFormData({ ...formData, responsable_id: val === "__none__" ? "" : val })}
+              options={[
+                { value: "__none__", label: "Sin asignar" },
+                ...jefesTaller.map((jefe) => ({
+                  value: jefe.user_id,
+                  label: `${jefe.nombre} ${jefe.apellido}`
+                }))
+              ]}
+              placeholder="Seleccionar responsable..."
+            />
             {editingCentro && (
               <div>
                 <Label>Supervisores Regionales Asignados</Label>
@@ -717,37 +702,29 @@ export default function CentrosServicio() {
             <DialogTitle>Reasignar Usuario a Centro</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div>
-              <Label>Usuario</Label>
-              <Select value={selectedUsuario} onValueChange={setSelectedUsuario}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar usuario..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {usuarios.map((u) => (
-                    <SelectItem key={u.id} value={u.id}>
-                      {u.nombre} {u.apellido} - {u.email}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Centro de Servicio</Label>
-              <Select value={selectedCentro || "__none__"} onValueChange={(val) => setSelectedCentro(val === "__none__" ? "" : val)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar centro..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">Sin asignar</SelectItem>
-                  {centros.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.nombre}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <OutlinedSelect
+              label="Usuario"
+              value={selectedUsuario}
+              onValueChange={setSelectedUsuario}
+              options={usuarios.map((u) => ({
+                value: u.id,
+                label: `${u.nombre} ${u.apellido} - ${u.email}`
+              }))}
+              placeholder="Seleccionar usuario..."
+            />
+            <OutlinedSelect
+              label="Centro de Servicio"
+              value={selectedCentro || "__none__"}
+              onValueChange={(val) => setSelectedCentro(val === "__none__" ? "" : val)}
+              options={[
+                { value: "__none__", label: "Sin asignar" },
+                ...centros.map((c) => ({
+                  value: c.id,
+                  label: c.nombre
+                }))
+              ]}
+              placeholder="Seleccionar centro..."
+            />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAsignarDialog(false)} disabled={saving}>
