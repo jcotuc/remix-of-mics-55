@@ -558,26 +558,28 @@ export default function Usuarios() {
                 icon={<Search className="h-4 w-4" />}
               />
             </div>
-            <OutlinedSelect
-              label="Filtrar por puesto"
-              value={roleFilter}
-              onValueChange={setRoleFilter}
-              options={[
-                { value: "all", label: "Todos los puestos" },
-                ...availableRoles.map(role => ({ value: role.value, label: role.label }))
-              ]}
-              className="w-full sm:w-[200px]"
-            />
-            <OutlinedSelect
-              label="Filtrar por centro"
-              value={centroFilter}
-              onValueChange={setCentroFilter}
-              options={[
-                { value: "all", label: "Todos los centros" },
-                ...centrosServicio.map(centro => ({ value: centro.id, label: centro.nombre }))
-              ]}
-              className="w-full sm:w-[200px]"
-            />
+            <Select value={roleFilter} onValueChange={setRoleFilter}>
+              <SelectTrigger className="w-full sm:w-[200px]">
+                <SelectValue placeholder="Filtrar por puesto" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos los puestos</SelectItem>
+                {availableRoles.map(role => <SelectItem key={role.value} value={role.value}>
+                    {role.label}
+                  </SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Select value={centroFilter} onValueChange={setCentroFilter}>
+              <SelectTrigger className="w-full sm:w-[200px]">
+                <SelectValue placeholder="Filtrar por centro" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos los centros</SelectItem>
+                {centrosServicio.map(centro => <SelectItem key={centro.id} value={centro.id}>
+                    {centro.nombre}
+                  </SelectItem>)}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Users Table */}
