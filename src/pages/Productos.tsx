@@ -425,6 +425,7 @@ export default function Productos() {
 
   // Estados para importar
   const [showImportDialog, setShowImportDialog] = useState(false);
+  const [showFormatDialog, setShowFormatDialog] = useState(false);
   const [importData, setImportData] = useState<ImportProducto[]>([]);
   const [importing, setImporting] = useState(false);
   const [cleaningKeys, setCleaningKeys] = useState(false);
@@ -717,6 +718,7 @@ export default function Productos() {
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setShowFormatDialog(false); // Cerrar diálogo de formato
     try {
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data);
@@ -966,7 +968,7 @@ export default function Productos() {
         <div className="flex gap-2">
           
           
-          <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
+          <Button variant="outline" onClick={() => setShowFormatDialog(true)}>
             <Upload className="h-4 w-4 mr-2" />
             Importar Excel
           </Button>
@@ -1412,6 +1414,89 @@ export default function Productos() {
             </Button>
             <Button onClick={handleImport} disabled={importing || validCount === 0}>
               {importing ? "Importando..." : `Importar ${validCount} productos`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de Formato de Excel */}
+      <Dialog open={showFormatDialog} onOpenChange={setShowFormatDialog}>
+        <DialogContent className="sm:max-w-[650px]">
+          <DialogHeader>
+            <DialogTitle>Formato de Excel para Importación</DialogTitle>
+          </DialogHeader>
+          
+          <p className="text-sm text-muted-foreground">
+            Asegúrate de que tu archivo Excel contenga las siguientes columnas:
+          </p>
+
+          <div className="border rounded-lg overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Columna</TableHead>
+                  <TableHead>Alternativas</TableHead>
+                  <TableHead>Obligatoria</TableHead>
+                  <TableHead>Valor por defecto</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow>
+                  <TableCell className="font-mono text-sm">Codigo</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">SKU, sku, Código</TableCell>
+                  <TableCell><Badge variant="destructive">Sí</Badge></TableCell>
+                  <TableCell className="text-muted-foreground">-</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-mono text-sm">Descripcion</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">Producto, Descripción</TableCell>
+                  <TableCell><Badge variant="destructive">Sí</Badge></TableCell>
+                  <TableCell className="text-muted-foreground">-</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-mono text-sm">Clave</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">clave, CLAVE</TableCell>
+                  <TableCell><Badge variant="secondary">No</Badge></TableCell>
+                  <TableCell className="text-muted-foreground">Vacío</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-mono text-sm">Categoria</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">Familia, Subcategoria</TableCell>
+                  <TableCell><Badge variant="secondary">No</Badge></TableCell>
+                  <TableCell className="text-muted-foreground">Sin asignar</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-mono text-sm">Descontinuado</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">Estado</TableCell>
+                  <TableCell><Badge variant="secondary">No</Badge></TableCell>
+                  <TableCell className="text-muted-foreground">Vigente</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-mono text-sm">URL_Foto</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">url_foto, Foto</TableCell>
+                  <TableCell><Badge variant="secondary">No</Badge></TableCell>
+                  <TableCell className="text-muted-foreground">Vacío</TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </div>
+
+          <div className="text-sm text-muted-foreground space-y-1 bg-muted/50 p-3 rounded-lg">
+            <p><strong>Notas:</strong></p>
+            <ul className="list-disc list-inside space-y-1">
+              <li>Si la <strong>Categoría</strong> es principal (ej: "Eléctrica"), la subcategoría se asigna automáticamente según la descripción</li>
+              <li>Si ya es una subcategoría (ej: "Rotomartillos"), se asigna directamente</li>
+              <li>El campo <strong>Descontinuado</strong> acepta: "Descontinuado", "Si", "Sí", "true", "1"</li>
+            </ul>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowFormatDialog(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={() => fileInputRef.current?.click()}>
+              <FileSpreadsheet className="h-4 w-4 mr-2" />
+              Seleccionar archivo
             </Button>
           </DialogFooter>
         </DialogContent>
