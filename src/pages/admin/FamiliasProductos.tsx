@@ -978,36 +978,32 @@ export default function FamiliasProductos() {
             <DialogTitle>Editar Categoría</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div>
-              <Label>ID</Label>
-              <Input value={selectedFamilia?.id?.toString() || ""} disabled />
-            </div>
-            <div>
-              <Label>Nombre de Categoría *</Label>
-              <Input 
-                value={editCategoria} 
-                onChange={(e) => setEditCategoria(e.target.value)}
-                placeholder="Nombre de la categoría"
-              />
-            </div>
-            <div>
-              <Label>Categoría Padre</Label>
-              <Select value={editPadre} onValueChange={setEditPadre}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar padre" />
-                </SelectTrigger>
-                <SelectContent className="max-h-60">
-                  <SelectItem value="none">Sin padre (Raíz)</SelectItem>
-                  {familias
-                    .filter(f => f.id !== selectedFamilia?.id)
-                    .map(f => (
-                      <SelectItem key={f.id} value={f.id.toString()}>
-                        {f.id} - {f.Categoria}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <OutlinedInput 
+              label="ID"
+              value={selectedFamilia?.id?.toString() || ""} 
+              disabled 
+            />
+            <OutlinedInput 
+              label="Nombre de Categoría *"
+              value={editCategoria} 
+              onChange={(e) => setEditCategoria(e.target.value)}
+              placeholder="Nombre de la categoría"
+            />
+            <OutlinedSelect 
+              label="Categoría Padre"
+              value={editPadre} 
+              onValueChange={setEditPadre}
+              options={[
+                { value: "none", label: "Sin padre (Raíz)" },
+                ...familias
+                  .filter(f => f.id !== selectedFamilia?.id)
+                  .map(f => ({
+                    value: f.id.toString(),
+                    label: `${f.id} - ${f.Categoria}`
+                  }))
+              ]}
+              placeholder="Seleccionar padre"
+            />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowEditDialog(false)}>
@@ -1028,30 +1024,25 @@ export default function FamiliasProductos() {
             <DialogTitle>Nueva Categoría</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div>
-              <Label>Nombre de Categoría *</Label>
-              <Input
-                value={newCategoria}
-                onChange={(e) => setNewCategoria(e.target.value)}
-                placeholder="Ej: Herramientas Eléctricas"
-              />
-            </div>
-            <div>
-              <Label>Categoría Padre</Label>
-              <Select value={newPadre} onValueChange={setNewPadre}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar padre (opcional)" />
-                </SelectTrigger>
-                <SelectContent className="max-h-60">
-                  <SelectItem value="none">Sin padre (Raíz)</SelectItem>
-                  {familias.map(f => (
-                    <SelectItem key={f.id} value={f.id.toString()}>
-                      {f.id} - {f.Categoria}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <OutlinedInput 
+              label="Nombre de Categoría *"
+              value={newCategoria}
+              onChange={(e) => setNewCategoria(e.target.value)}
+              placeholder="Ej: Herramientas Eléctricas"
+            />
+            <OutlinedSelect 
+              label="Categoría Padre"
+              value={newPadre} 
+              onValueChange={setNewPadre}
+              options={[
+                { value: "none", label: "Sin padre (Raíz)" },
+                ...familias.map(f => ({
+                  value: f.id.toString(),
+                  label: `${f.id} - ${f.Categoria}`
+                }))
+              ]}
+              placeholder="Seleccionar padre (opcional)"
+            />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAddDialog(false)}>
