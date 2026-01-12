@@ -27,6 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import ImportFormatDialog from "@/components/ImportFormatDialog";
 import { Upload, Edit, Trash2, Search, Plus, Save, X, Link, Package } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import * as XLSX from "xlsx";
@@ -57,6 +58,8 @@ export default function SustitutosRepuestos() {
   const [showImportRelacionesDialog, setShowImportRelacionesDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [showPadresFormatDialog, setShowPadresFormatDialog] = useState(false);
+  const [showRelacionesFormatDialog, setShowRelacionesFormatDialog] = useState(false);
   const [importPadresData, setImportPadresData] = useState<ImportPadreRow[]>([]);
   const [importRelacionesData, setImportRelacionesData] = useState<ImportRelacionRow[]>([]);
   const [importingPadres, setImportingPadres] = useState(false);
@@ -600,14 +603,14 @@ export default function SustitutosRepuestos() {
             className="hidden"
           />
           <Button
-            onClick={() => padresInputRef.current?.click()}
+            onClick={() => setShowPadresFormatDialog(true)}
             variant="outline"
           >
             <Upload className="h-4 w-4 mr-2" />
             Importar Padres
           </Button>
           <Button
-            onClick={() => relacionesInputRef.current?.click()}
+            onClick={() => setShowRelacionesFormatDialog(true)}
             variant="outline"
           >
             <Link className="h-4 w-4 mr-2" />
@@ -999,6 +1002,39 @@ export default function SustitutosRepuestos() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Import Format Dialog - Padres */}
+      <ImportFormatDialog
+        open={showPadresFormatDialog}
+        onOpenChange={setShowPadresFormatDialog}
+        title="Importar Códigos Padre"
+        description="Seleccione un archivo Excel con los códigos padre a importar."
+        columns={[
+          { nombre: "Código", descripcion: "Código del repuesto padre", ejemplo: "REP-001" },
+          { nombre: "Descripción", descripcion: "Descripción del repuesto", ejemplo: "Motor eléctrico 220V" },
+        ]}
+        onImport={() => {
+          setShowPadresFormatDialog(false);
+          padresInputRef.current?.click();
+        }}
+      />
+
+      {/* Import Format Dialog - Relaciones */}
+      <ImportFormatDialog
+        open={showRelacionesFormatDialog}
+        onOpenChange={setShowRelacionesFormatDialog}
+        title="Importar Relaciones (Hijos)"
+        description="Seleccione un archivo Excel con las relaciones padre-hijo a importar."
+        columns={[
+          { nombre: "Código Hijo", descripcion: "Código del repuesto hijo/sustituto", ejemplo: "REP-001-A" },
+          { nombre: "Descripción", descripcion: "Descripción del repuesto hijo", ejemplo: "Motor eléctrico compatible" },
+          { nombre: "Código Padre", descripcion: "Código del repuesto padre al que pertenece", ejemplo: "REP-001" },
+        ]}
+        onImport={() => {
+          setShowRelacionesFormatDialog(false);
+          relacionesInputRef.current?.click();
+        }}
+      />
     </div>
   );
 }
