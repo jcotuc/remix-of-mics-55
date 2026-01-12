@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,8 +13,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { UserPlus, Edit, Trash2, RefreshCw, Search, Settings, Plus, Users, Building2, Shield } from "lucide-react";
+import { UserPlus, Edit, Trash2, RefreshCw, Search, Settings, Plus, Users, Building2, Shield, FileSpreadsheet } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
+import { TablePagination } from "@/components/TablePagination";
+import * as XLSX from "xlsx";
 type UserRole = "admin" | "mostrador" | "logistica" | "taller" | "bodega" | "tecnico" | "digitador" | "jefe_taller" | "sac" | "control_calidad" | "asesor" | "gerente_centro" | "supervisor_regional" | "jefe_logistica" | "jefe_bodega" | "supervisor_bodega" | "supervisor_calidad" | "supervisor_sac" | "auxiliar_bodega" | "auxiliar_logistica" | "supervisor_inventarios" | "capacitador";
 
 // Roles obsoletos que no se muestran en los selectores pero se pueden ver en la tabla
@@ -53,11 +55,21 @@ export default function Usuarios() {
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [centroFilter, setCentroFilter] = useState<string>("all");
 
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
+
   // Dialog states
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isPuestosDialogOpen, setIsPuestosDialogOpen] = useState(false);
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+
+  // Excel import states
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [importData, setImportData] = useState<any[]>([]);
+  const [importing, setImporting] = useState(false);
 
   // Puestos form states
   const [newPuestoNombre, setNewPuestoNombre] = useState("");
@@ -473,6 +485,127 @@ export default function Usuarios() {
     const matchesCentro = centroFilter === "all" || user.centro_servicio_id === centroFilter;
     return matchesSearch && matchesRole && matchesCentro;
   });
+
+  // Pagination
+  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+  const paginatedUsers = filteredUsers.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, roleFilter, centroFilter]);
+
+  // Excel import handler
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const data = new Uint8Array(event.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: "array" });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json(worksheet);
+        
+        setImportData(jsonData);
+        setIsImportDialogOpen(true);
+      } catch (error) {
+        toast.error("Error al leer el archivo Excel");
+      }
+    };
+    reader.readAsArrayBuffer(file);
+    
+    // Reset input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const handleImportUsers = async () => {
+    if (importData.length === 0) {
+      toast.error("No hay datos para importar");
+      return;
+    }
+
+    setImporting(true);
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const row of importData) {
+      try {
+        const codigo = row["codigo_empleado"] || row["Código"] || row["codigo"];
+        const nombre = row["nombre"] || row["Nombre"];
+        const apellido = row["apellido"] || row["Apellido"] || "";
+        const email = row["email"] || row["Email"] || `${codigo?.toLowerCase()}@sistema.local`;
+        const password = row["password"] || row["contraseña"] || "123456";
+        const roleName = row["puesto"] || row["rol"] || row["Puesto"] || row["Rol"] || "mostrador";
+        const centroNombre = row["centro"] || row["Centro"] || row["centro_servicio"];
+
+        if (!codigo || !nombre) {
+          errorCount++;
+          continue;
+        }
+
+        // Find centro by name
+        const centro = centrosServicio.find(c => 
+          c.nombre.toLowerCase().includes(centroNombre?.toLowerCase() || "")
+        );
+
+        // Find role
+        const role = availableRoles.find(r => 
+          r.label.toLowerCase().includes(roleName?.toLowerCase() || "") ||
+          r.value.toLowerCase() === roleName?.toLowerCase()
+        );
+
+        // Create user
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+          email: email,
+          password: password,
+          options: {
+            data: { nombre, apellido }
+          }
+        });
+
+        if (authError) throw authError;
+
+        if (authData.user) {
+          // Create profile
+          await supabase.from("profiles").insert({
+            user_id: authData.user.id,
+            nombre: nombre,
+            apellido: apellido,
+            email: email,
+            codigo_empleado: codigo,
+            centro_servicio_id: centro?.id || null
+          });
+
+          // Assign role
+          if (role) {
+            await supabase.from("user_roles").insert({
+              user_id: authData.user.id,
+              role: role.value as any
+            });
+          }
+
+          successCount++;
+        }
+      } catch (error) {
+        errorCount++;
+      }
+    }
+
+    setImporting(false);
+    setIsImportDialogOpen(false);
+    setImportData([]);
+    
+    toast.success(`Importación completada: ${successCount} usuarios creados, ${errorCount} errores`);
+    fetchUsers();
+  };
   if (authLoading || userRole !== "admin" && loading) {
     return <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">Cargando...</div>
@@ -532,7 +665,18 @@ export default function Usuarios() {
               <CardTitle className="text-2xl">Administración de Usuarios</CardTitle>
               
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileUpload}
+                accept=".xlsx,.xls"
+                className="hidden"
+              />
+              <Button onClick={() => fileInputRef.current?.click()} variant="outline">
+                <FileSpreadsheet className="h-4 w-4 mr-2" />
+                Importar Excel
+              </Button>
               <Button onClick={() => setIsPuestosDialogOpen(true)} variant="outline">
                 <Settings className="h-4 w-4 mr-2" />
                 Gestionar roles
@@ -595,11 +739,11 @@ export default function Usuarios() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredUsers.length === 0 ? <TableRow>
+                  {paginatedUsers.length === 0 ? <TableRow>
                       <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
                         No se encontraron usuarios
                       </TableCell>
-                    </TableRow> : filteredUsers.map(user => <TableRow key={user.id}>
+                    </TableRow> : paginatedUsers.map(user => <TableRow key={user.id}>
                         <TableCell className="font-mono text-sm">
                           {user.codigo_empleado || "-"}
                         </TableCell>
@@ -627,6 +771,17 @@ export default function Usuarios() {
                       </TableRow>)}
                 </TableBody>
               </Table>
+              <TablePagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                totalItems={filteredUsers.length}
+                itemsPerPage={itemsPerPage}
+                onPageChange={setCurrentPage}
+                onItemsPerPageChange={(items) => {
+                  setItemsPerPage(items);
+                  setCurrentPage(1);
+                }}
+              />
             </div>}
         </CardContent>
       </Card>
@@ -881,5 +1036,58 @@ export default function Usuarios() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Import Excel Dialog */}
+      <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
+        <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Importar Usuarios desde Excel</DialogTitle>
+            <DialogDescription>
+              Se encontraron {importData.length} registros. Columnas requeridas: codigo_empleado, nombre. 
+              Opcionales: apellido, email, password, puesto, centro.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {importData.length > 0 && (
+            <div className="border rounded-lg overflow-x-auto max-h-[300px]">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    {Object.keys(importData[0]).slice(0, 5).map((key) => (
+                      <TableHead key={key}>{key}</TableHead>
+                    ))}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {importData.slice(0, 10).map((row, i) => (
+                    <TableRow key={i}>
+                      {Object.values(row).slice(0, 5).map((val: any, j) => (
+                        <TableCell key={j} className="text-sm">{String(val || "-")}</TableCell>
+                      ))}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              {importData.length > 10 && (
+                <p className="text-sm text-muted-foreground p-2 text-center">
+                  ... y {importData.length - 10} registros más
+                </p>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setIsImportDialogOpen(false);
+              setImportData([]);
+            }}>
+              Cancelar
+            </Button>
+            <Button onClick={handleImportUsers} disabled={importing}>
+              {importing ? "Importando..." : `Importar ${importData.length} usuarios`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>;
 }
