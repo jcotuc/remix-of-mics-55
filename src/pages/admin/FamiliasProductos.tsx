@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -26,8 +26,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Upload, Edit, Trash2, FolderTree, Search, Plus, Save, X, Link } from "lucide-react";
+import { Upload, Edit, Trash2, FolderTree, Search, Plus, Save, X, Link, Filter } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { TablePagination } from "@/components/TablePagination";
 import * as XLSX from "xlsx";
 
 interface Familia {
@@ -65,6 +66,16 @@ export default function FamiliasProductos() {
   const [relacionesData, setRelacionesData] = useState<RelacionRow[]>([]);
   const [importingRelaciones, setImportingRelaciones] = useState(false);
   const [showFormatDialog, setShowFormatDialog] = useState(false);
+  
+  // Filtros
+  const [filterTipo, setFilterTipo] = useState<string>("all"); // all, raiz, subcategoria
+  const [filterPadre, setFilterPadre] = useState<string>("all");
+  const [filterConHijos, setFilterConHijos] = useState<string>("all"); // all, con_hijos, sin_hijos
+  
+  // Paginación
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(50);
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
   const relacionesInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -613,10 +624,58 @@ export default function FamiliasProductos() {
     return familias.filter(f => f.Padre === familiaId).length;
   };
 
-  const filteredFamilias = familias.filter(f =>
-    f.Categoria?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    f.id.toString().includes(searchTerm)
+  // Lista de categorías raíz para el filtro
+  const categoriasRaiz = useMemo(() => 
+    familias.filter(f => !f.Padre).sort((a, b) => (a.Categoria || "").localeCompare(b.Categoria || "")), 
+    [familias]
   );
+
+  // Filtrado
+  const filteredFamilias = useMemo(() => {
+    return familias.filter(f => {
+      // Búsqueda por texto
+      const matchesSearch = !searchTerm || 
+        f.Categoria?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        f.id.toString().includes(searchTerm);
+      
+      // Filtro por tipo
+      const matchesTipo = filterTipo === "all" ||
+        (filterTipo === "raiz" && !f.Padre) ||
+        (filterTipo === "subcategoria" && f.Padre);
+      
+      // Filtro por padre
+      const matchesPadre = filterPadre === "all" || f.Padre?.toString() === filterPadre;
+      
+      // Filtro por si tiene hijos
+      const tieneHijos = familias.some(h => h.Padre === f.id);
+      const matchesConHijos = filterConHijos === "all" ||
+        (filterConHijos === "con_hijos" && tieneHijos) ||
+        (filterConHijos === "sin_hijos" && !tieneHijos);
+      
+      return matchesSearch && matchesTipo && matchesPadre && matchesConHijos;
+    });
+  }, [familias, searchTerm, filterTipo, filterPadre, filterConHijos]);
+
+  // Paginación
+  const totalPages = Math.ceil(filteredFamilias.length / itemsPerPage);
+  const paginatedFamilias = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredFamilias.slice(start, start + itemsPerPage);
+  }, [filteredFamilias, currentPage, itemsPerPage]);
+
+  // Reset página cuando cambian filtros
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterTipo, filterPadre, filterConHijos]);
+
+  const clearFilters = () => {
+    setSearchTerm("");
+    setFilterTipo("all");
+    setFilterPadre("all");
+    setFilterConHijos("all");
+  };
+
+  const hasActiveFilters = searchTerm || filterTipo !== "all" || filterPadre !== "all" || filterConHijos !== "all";
 
   return (
     <div className="container mx-auto p-4 md:p-6 space-y-6">
@@ -700,15 +759,68 @@ export default function FamiliasProductos() {
           <CardDescription>
             Lista de todas las familias de productos y sus relaciones jerárquicas
           </CardDescription>
-          <div className="flex items-center gap-2 mt-4">
-            <Search className="h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar por nombre o ID..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="max-w-sm"
-            />
+          
+          {/* Filtros */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mt-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar por nombre o ID..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            
+            <Select value={filterTipo} onValueChange={setFilterTipo}>
+              <SelectTrigger>
+                <SelectValue placeholder="Tipo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos los tipos</SelectItem>
+                <SelectItem value="raiz">Solo raíz</SelectItem>
+                <SelectItem value="subcategoria">Solo subcategorías</SelectItem>
+              </SelectContent>
+            </Select>
+            
+            <Select value={filterPadre} onValueChange={setFilterPadre}>
+              <SelectTrigger>
+                <SelectValue placeholder="Categoría padre" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas las categorías padre</SelectItem>
+                {categoriasRaiz.map((cat) => (
+                  <SelectItem key={cat.id} value={cat.id.toString()}>
+                    {cat.Categoria}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            
+            <Select value={filterConHijos} onValueChange={setFilterConHijos}>
+              <SelectTrigger>
+                <SelectValue placeholder="Subcategorías" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas</SelectItem>
+                <SelectItem value="con_hijos">Con subcategorías</SelectItem>
+                <SelectItem value="sin_hijos">Sin subcategorías</SelectItem>
+              </SelectContent>
+            </Select>
+            
+            {hasActiveFilters && (
+              <Button variant="outline" onClick={clearFilters} className="gap-2">
+                <X className="h-4 w-4" />
+                Limpiar filtros
+              </Button>
+            )}
           </div>
+          
+          {hasActiveFilters && (
+            <p className="text-sm text-muted-foreground mt-2">
+              Mostrando {filteredFamilias.length} de {familias.length} categorías
+            </p>
+          )}
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -722,26 +834,27 @@ export default function FamiliasProductos() {
                 : "No se encontraron categorías con ese criterio."}
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-20">ID</TableHead>
-                    <TableHead>Categoría</TableHead>
-                    <TableHead>Padre</TableHead>
-                    <TableHead className="text-center">Subcategorías</TableHead>
-                    <TableHead className="text-right">Acciones</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredFamilias.map((familia) => (
-                    <TableRow key={familia.id}>
-                      <TableCell className="font-mono text-sm">
-                        {familia.id}
-                      </TableCell>
-                      <TableCell className="font-medium">
-                        {familia.Categoria || "-"}
-                      </TableCell>
+            <>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-20">ID</TableHead>
+                      <TableHead>Categoría</TableHead>
+                      <TableHead>Padre</TableHead>
+                      <TableHead className="text-center">Subcategorías</TableHead>
+                      <TableHead className="text-right">Acciones</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {paginatedFamilias.map((familia) => (
+                      <TableRow key={familia.id}>
+                        <TableCell className="font-mono text-sm">
+                          {familia.id}
+                        </TableCell>
+                        <TableCell className="font-medium">
+                          {familia.Categoria || "-"}
+                        </TableCell>
                       <TableCell>
                         {familia.Padre ? (
                           <span className="inline-flex items-center gap-1 px-2 py-1 bg-primary/10 text-primary rounded text-sm font-medium">
@@ -785,7 +898,23 @@ export default function FamiliasProductos() {
                 </TableBody>
               </Table>
             </div>
-          )}
+            
+            {/* Paginación */}
+            {filteredFamilias.length > 0 && (
+              <TablePagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                totalItems={filteredFamilias.length}
+                itemsPerPage={itemsPerPage}
+                onPageChange={setCurrentPage}
+                onItemsPerPageChange={(items) => {
+                  setItemsPerPage(items);
+                  setCurrentPage(1);
+                }}
+              />
+            )}
+          </>
+        )}
         </CardContent>
       </Card>
 
