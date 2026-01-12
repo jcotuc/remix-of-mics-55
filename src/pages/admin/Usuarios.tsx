@@ -494,9 +494,7 @@ export default function Usuarios() {
                 <Settings className="h-4 w-4 mr-2" />
                 Gestionar roles
               </Button>
-              <Button onClick={fetchUsers} variant="outline" size="icon">
-                <RefreshCw className="h-4 w-4" />
-              </Button>
+              
               <Button onClick={() => setIsCreateDialogOpen(true)}>
                 <UserPlus className="h-4 w-4 mr-2" />
                 Crear Usuario
@@ -600,20 +598,8 @@ export default function Usuarios() {
           <div className="space-y-4 border-b pb-4">
             <h4 className="font-medium">Crear Nuevo Rol</h4>
             <div className="grid gap-3">
-              <OutlinedInput 
-                id="puesto-nombre" 
-                label="Nombre del Rol"
-                value={newPuestoNombre} 
-                onChange={e => setNewPuestoNombre(e.target.value)} 
-                placeholder="Ej: Supervisor de Ventas" 
-              />
-              <OutlinedInput 
-                id="puesto-descripcion" 
-                label="Descripción (opcional)"
-                value={newPuestoDescripcion} 
-                onChange={e => setNewPuestoDescripcion(e.target.value)} 
-                placeholder="Descripción del rol..." 
-              />
+              <OutlinedInput id="puesto-nombre" label="Nombre del Rol" value={newPuestoNombre} onChange={e => setNewPuestoNombre(e.target.value)} placeholder="Ej: Supervisor de Ventas" />
+              <OutlinedInput id="puesto-descripcion" label="Descripción (opcional)" value={newPuestoDescripcion} onChange={e => setNewPuestoDescripcion(e.target.value)} placeholder="Descripción del rol..." />
               <Button onClick={handleCreatePuesto} disabled={puestosLoading}>
                 <Plus className="h-4 w-4 mr-2" />
                 Crear Rol
