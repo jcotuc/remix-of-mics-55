@@ -959,11 +959,16 @@ export default function Productos() {
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, filterCategoria, filterSubcategoria, filterEstado, filterSinAsignar, filterSinCategoria]);
+  // Estadísticas
+  const totalProductos = productosList.length;
+  const productosActivos = productosList.filter(p => !p.descontinuado).length;
+  const productosDescontinuados = productosList.filter(p => p.descontinuado).length;
+  const productosSinCategoria = productosList.filter(p => p.familia_padre_id === null).length;
+
   return <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Catálogo de Productos</h1>
-          
         </div>
         <div className="flex gap-2">
           
@@ -978,6 +983,65 @@ export default function Productos() {
             Nuevo Producto
           </Button>
         </div>
+      </div>
+
+      {/* Tarjetas de estadísticas */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-4">
+              <div className="p-3 rounded-full bg-primary/10">
+                <FileSpreadsheet className="h-6 w-6 text-primary" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{totalProductos.toLocaleString()}</p>
+                <p className="text-sm text-muted-foreground">Total productos</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-4">
+              <div className="p-3 rounded-full bg-green-500/10">
+                <CheckCircle className="h-6 w-6 text-green-500" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{productosActivos.toLocaleString()}</p>
+                <p className="text-sm text-muted-foreground">Productos activos</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-4">
+              <div className="p-3 rounded-full bg-destructive/10">
+                <XCircle className="h-6 w-6 text-destructive" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{productosDescontinuados.toLocaleString()}</p>
+                <p className="text-sm text-muted-foreground">Descontinuados</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-4">
+              <div className="p-3 rounded-full bg-amber-500/10">
+                <AlertTriangle className="h-6 w-6 text-amber-500" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{productosSinCategoria.toLocaleString()}</p>
+                <p className="text-sm text-muted-foreground">Sin categoría</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       <Card>
