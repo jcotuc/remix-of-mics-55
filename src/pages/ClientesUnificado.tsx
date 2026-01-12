@@ -6,34 +6,11 @@ import { Search, Eye, Edit, Trash2, Users, Truck, Phone, Mail, MapPin } from "lu
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { OutlinedInput, OutlinedTextarea, OutlinedSelect } from "@/components/ui/outlined-input";
 import { TablePagination } from "@/components/TablePagination";
-
 interface Cliente {
   id: string;
   codigo: string;
@@ -51,18 +28,17 @@ interface Cliente {
   codigo_sap: string | null;
   created_at: string;
 }
-
 interface ClientesUnificadoProps {
   defaultTab?: 'mostrador' | 'logistica';
 }
-
-export default function ClientesUnificado({ defaultTab }: ClientesUnificadoProps) {
+export default function ClientesUnificado({
+  defaultTab
+}: ClientesUnificadoProps) {
   const navigate = useNavigate();
   const location = useLocation();
-  
+
   // Determine default tab based on route if not provided
   const initialTab = defaultTab || (location.pathname.includes('logistica') ? 'logistica' : 'mostrador');
-  
   const [activeTab, setActiveTab] = useState<string>(initialTab);
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -71,17 +47,17 @@ export default function ClientesUnificado({ defaultTab }: ClientesUnificadoProps
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
-  
+
   // Total counts for badges
   const [totalMostrador, setTotalMostrador] = useState(0);
   const [totalLogistica, setTotalLogistica] = useState(0);
   const [totalFiltered, setTotalFiltered] = useState(0);
-  
+
   // Edit modal state
   const [editingCliente, setEditingCliente] = useState<Cliente | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  
+
   // Delete confirmation state
   const [deletingCliente, setDeletingCliente] = useState<Cliente | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -108,76 +84,71 @@ export default function ClientesUnificado({ defaultTab }: ClientesUnificadoProps
   useEffect(() => {
     setCurrentPage(1);
   }, [activeTab, debouncedSearch]);
-
   const fetchCounts = async () => {
     try {
       // Count Mostrador clients
-      const { count: mostradorCount } = await supabase
-        .from("clientes")
-        .select("*", { count: "exact", head: true })
-        .like("codigo", "HPS-%");
-      
+      const {
+        count: mostradorCount
+      } = await supabase.from("clientes").select("*", {
+        count: "exact",
+        head: true
+      }).like("codigo", "HPS-%");
       setTotalMostrador(mostradorCount || 0);
 
       // Count Logística clients  
-      const { count: logisticaCount } = await supabase
-        .from("clientes")
-        .select("*", { count: "exact", head: true })
-        .like("codigo", "HPC%")
-        .not("codigo", "like", "HPC-%");
-      
+      const {
+        count: logisticaCount
+      } = await supabase.from("clientes").select("*", {
+        count: "exact",
+        head: true
+      }).like("codigo", "HPC%").not("codigo", "like", "HPC-%");
       setTotalLogistica(logisticaCount || 0);
     } catch (error) {
       console.error("Error fetching counts:", error);
     }
   };
-
   const fetchClientes = async () => {
     setLoading(true);
     try {
       const from = (currentPage - 1) * itemsPerPage;
       const to = from + itemsPerPage - 1;
-
       if (activeTab === 'mostrador') {
         // Build query for Mostrador
-        let query = supabase
-          .from("clientes")
-          .select("*", { count: "exact" })
-          .like("codigo", "HPS-%");
+        let query = supabase.from("clientes").select("*", {
+          count: "exact"
+        }).like("codigo", "HPS-%");
 
         // Apply search filter
         if (debouncedSearch) {
-          query = query.or(
-            `codigo.ilike.%${debouncedSearch}%,nombre.ilike.%${debouncedSearch}%,nit.ilike.%${debouncedSearch}%,celular.ilike.%${debouncedSearch}%`
-          );
+          query = query.or(`codigo.ilike.%${debouncedSearch}%,nombre.ilike.%${debouncedSearch}%,nit.ilike.%${debouncedSearch}%,celular.ilike.%${debouncedSearch}%`);
         }
-
-        const { data, count, error } = await query
-          .order("created_at", { ascending: false })
-          .range(from, to);
-
+        const {
+          data,
+          count,
+          error
+        } = await query.order("created_at", {
+          ascending: false
+        }).range(from, to);
         if (error) throw error;
         setClientesMostrador(data || []);
         setTotalFiltered(count || 0);
       } else {
         // Build query for Logística
-        let query = supabase
-          .from("clientes")
-          .select("*", { count: "exact" })
-          .like("codigo", "HPC%")
-          .not("codigo", "like", "HPC-%");
+        let query = supabase.from("clientes").select("*", {
+          count: "exact"
+        }).like("codigo", "HPC%").not("codigo", "like", "HPC-%");
 
         // Apply search filter
         if (debouncedSearch) {
-          query = query.or(
-            `codigo.ilike.%${debouncedSearch}%,nombre.ilike.%${debouncedSearch}%,nit.ilike.%${debouncedSearch}%,celular.ilike.%${debouncedSearch}%`
-          );
+          query = query.or(`codigo.ilike.%${debouncedSearch}%,nombre.ilike.%${debouncedSearch}%,nit.ilike.%${debouncedSearch}%,celular.ilike.%${debouncedSearch}%`);
         }
-
-        const { data, count, error } = await query
-          .order("nombre", { ascending: true })
-          .range(from, to);
-
+        const {
+          data,
+          count,
+          error
+        } = await query.order("nombre", {
+          ascending: true
+        }).range(from, to);
         if (error) throw error;
         setClientesLogistica(data || []);
         setTotalFiltered(count || 0);
@@ -193,7 +164,6 @@ export default function ClientesUnificado({ defaultTab }: ClientesUnificadoProps
   // Get current data based on active tab
   const currentClientes = activeTab === 'mostrador' ? clientesMostrador : clientesLogistica;
   const totalPages = Math.ceil(totalFiltered / itemsPerPage);
-
   const handleViewDetail = (cliente: Cliente) => {
     if (activeTab === 'mostrador') {
       navigate(`/mostrador/clientes/${cliente.codigo}`);
@@ -201,36 +171,32 @@ export default function ClientesUnificado({ defaultTab }: ClientesUnificadoProps
       navigate(`/detalle-cliente/${cliente.codigo}`);
     }
   };
-
   const handleEdit = (cliente: Cliente) => {
-    setEditingCliente({ ...cliente });
+    setEditingCliente({
+      ...cliente
+    });
     setIsEditDialogOpen(true);
   };
-
   const handleSaveEdit = async () => {
     if (!editingCliente) return;
-    
     setIsSaving(true);
     try {
-      const { error } = await supabase
-        .from("clientes")
-        .update({
-          nombre: editingCliente.nombre,
-          nit: editingCliente.nit,
-          celular: editingCliente.celular,
-          correo: editingCliente.correo,
-          direccion: editingCliente.direccion,
-          direccion_envio: editingCliente.direccion_envio,
-          departamento: editingCliente.departamento,
-          municipio: editingCliente.municipio,
-          telefono_principal: editingCliente.telefono_principal,
-          telefono_secundario: editingCliente.telefono_secundario,
-          nombre_facturacion: editingCliente.nombre_facturacion,
-        })
-        .eq("id", editingCliente.id);
-
+      const {
+        error
+      } = await supabase.from("clientes").update({
+        nombre: editingCliente.nombre,
+        nit: editingCliente.nit,
+        celular: editingCliente.celular,
+        correo: editingCliente.correo,
+        direccion: editingCliente.direccion,
+        direccion_envio: editingCliente.direccion_envio,
+        departamento: editingCliente.departamento,
+        municipio: editingCliente.municipio,
+        telefono_principal: editingCliente.telefono_principal,
+        telefono_secundario: editingCliente.telefono_secundario,
+        nombre_facturacion: editingCliente.nombre_facturacion
+      }).eq("id", editingCliente.id);
       if (error) throw error;
-
       toast.success("Cliente actualizado correctamente");
       setIsEditDialogOpen(false);
       setEditingCliente(null);
@@ -242,23 +208,17 @@ export default function ClientesUnificado({ defaultTab }: ClientesUnificadoProps
       setIsSaving(false);
     }
   };
-
   const handleDeleteConfirm = (cliente: Cliente) => {
     setDeletingCliente(cliente);
     setIsDeleteDialogOpen(true);
   };
-
   const handleDelete = async () => {
     if (!deletingCliente) return;
-    
     try {
-      const { error } = await supabase
-        .from("clientes")
-        .delete()
-        .eq("id", deletingCliente.id);
-
+      const {
+        error
+      } = await supabase.from("clientes").delete().eq("id", deletingCliente.id);
       if (error) throw error;
-
       toast.success("Cliente eliminado correctamente");
       setIsDeleteDialogOpen(false);
       setDeletingCliente(null);
@@ -268,36 +228,26 @@ export default function ClientesUnificado({ defaultTab }: ClientesUnificadoProps
       toast.error("Error al eliminar el cliente");
     }
   };
-
-  return (
-    <div className="p-6 space-y-4">
+  return <div className="p-6 space-y-4">
       {/* Header + Tabs in one section */}
       <div className="space-y-4">
         <div>
           <h1 className="text-2xl font-semibold text-foreground">Gestión de Clientes</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Administra los clientes de mostrador y logística
-          </p>
+          
         </div>
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <TabsList className="bg-transparent border-b border-border rounded-none h-auto p-0 gap-0">
-              <TabsTrigger 
-                value="mostrador" 
-                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none py-2.5 px-4 gap-2"
-              >
+              <TabsTrigger value="mostrador" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none py-2.5 px-4 gap-2">
                 <Users className="h-4 w-4" />
                 Mostrador
                 <Badge variant="secondary" className="ml-1 text-xs">
                   {totalMostrador.toLocaleString()}
                 </Badge>
               </TabsTrigger>
-              <TabsTrigger 
-                value="logistica" 
-                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none py-2.5 px-4 gap-2"
-              >
+              <TabsTrigger value="logistica" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none py-2.5 px-4 gap-2">
                 <Truck className="h-4 w-4" />
                 Logística
                 <Badge variant="secondary" className="ml-1 text-xs">
@@ -308,12 +258,7 @@ export default function ClientesUnificado({ defaultTab }: ClientesUnificadoProps
 
             {/* Search inline with tabs */}
             <div className="w-full sm:w-80">
-              <OutlinedInput
-                label="Buscar por código, nombre, NIT..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                icon={<Search className="h-4 w-4" />}
-              />
+              <OutlinedInput label="Buscar por código, nombre, NIT..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} icon={<Search className="h-4 w-4" />} />
             </div>
           </div>
 
@@ -326,14 +271,9 @@ export default function ClientesUnificado({ defaultTab }: ClientesUnificadoProps
 
           {/* Mostrador Tab */}
           <TabsContent value="mostrador" className="mt-0">
-          {loading ? (
-            <div className="text-center py-8 text-muted-foreground">Cargando...</div>
-          ) : currentClientes.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
+          {loading ? <div className="text-center py-8 text-muted-foreground">Cargando...</div> : currentClientes.length === 0 ? <div className="text-center py-8 text-muted-foreground">
               No se encontraron clientes
-            </div>
-          ) : (
-            <div className="border rounded-lg overflow-hidden">
+            </div> : <div className="border rounded-lg overflow-hidden">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/30 hover:bg-muted/30">
@@ -345,12 +285,7 @@ export default function ClientesUnificado({ defaultTab }: ClientesUnificadoProps
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {currentClientes.map((cliente) => (
-                    <TableRow 
-                      key={cliente.id}
-                      className="cursor-pointer hover:bg-muted/30 transition-colors"
-                      onClick={() => handleViewDetail(cliente)}
-                    >
+                  {currentClientes.map(cliente => <TableRow key={cliente.id} className="cursor-pointer hover:bg-muted/30 transition-colors" onClick={() => handleViewDetail(cliente)}>
                       <TableCell className="font-mono text-sm">{cliente.codigo}</TableCell>
                       <TableCell className="font-medium">{cliente.nombre}</TableCell>
                       <TableCell>{cliente.nit}</TableCell>
@@ -361,51 +296,29 @@ export default function ClientesUnificado({ defaultTab }: ClientesUnificadoProps
                         </div>
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
-                          <Button 
-                            variant="ghost" 
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => handleViewDetail(cliente)}
-                          >
+                        <div className="flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleViewDetail(cliente)}>
                             <Eye className="h-4 w-4" />
                           </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => handleEdit(cliente)}
-                          >
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(cliente)}>
                             <Edit className="h-4 w-4" />
                           </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="icon"
-                            className="h-8 w-8 text-destructive hover:text-destructive"
-                            onClick={() => handleDeleteConfirm(cliente)}
-                          >
+                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleDeleteConfirm(cliente)}>
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
                       </TableCell>
-                    </TableRow>
-                  ))}
+                    </TableRow>)}
                 </TableBody>
               </Table>
-            </div>
-          )}
+            </div>}
         </TabsContent>
 
         {/* Logistica Tab */}
         <TabsContent value="logistica" className="mt-0">
-          {loading ? (
-            <div className="text-center py-8 text-muted-foreground">Cargando...</div>
-          ) : currentClientes.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
+          {loading ? <div className="text-center py-8 text-muted-foreground">Cargando...</div> : currentClientes.length === 0 ? <div className="text-center py-8 text-muted-foreground">
               No se encontraron clientes
-            </div>
-          ) : (
-            <div className="border rounded-lg overflow-hidden">
+            </div> : <div className="border rounded-lg overflow-hidden">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/30 hover:bg-muted/30">
@@ -418,12 +331,7 @@ export default function ClientesUnificado({ defaultTab }: ClientesUnificadoProps
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {currentClientes.map((cliente) => (
-                    <TableRow 
-                      key={cliente.id}
-                      className="cursor-pointer hover:bg-muted/30 transition-colors"
-                      onClick={() => handleViewDetail(cliente)}
-                    >
+                  {currentClientes.map(cliente => <TableRow key={cliente.id} className="cursor-pointer hover:bg-muted/30 transition-colors" onClick={() => handleViewDetail(cliente)}>
                       <TableCell className="font-mono text-sm">{cliente.codigo}</TableCell>
                       <TableCell className="font-medium max-w-[200px] truncate">{cliente.nombre}</TableCell>
                       <TableCell>{cliente.nit}</TableCell>
@@ -433,59 +341,39 @@ export default function ClientesUnificado({ defaultTab }: ClientesUnificadoProps
                             <Phone className="h-3 w-3 text-muted-foreground" />
                             {cliente.celular}
                           </div>
-                          {cliente.correo && (
-                            <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                          {cliente.correo && <div className="flex items-center gap-1 text-sm text-muted-foreground">
                               <Mail className="h-3 w-3" />
                               <span className="truncate max-w-[150px]">{cliente.correo}</span>
-                            </div>
-                          )}
+                            </div>}
                         </div>
                       </TableCell>
                       <TableCell>
-                        {(cliente.departamento || cliente.municipio) && (
-                          <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                        {(cliente.departamento || cliente.municipio) && <div className="flex items-center gap-1 text-sm text-muted-foreground">
                             <MapPin className="h-3 w-3" />
                             {[cliente.municipio, cliente.departamento].filter(Boolean).join(', ')}
-                          </div>
-                        )}
+                          </div>}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button 
-                          variant="ghost" 
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleViewDetail(cliente);
-                          }}
-                        >
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={e => {
+                      e.stopPropagation();
+                      handleViewDetail(cliente);
+                    }}>
                           <Eye className="h-4 w-4" />
                         </Button>
                       </TableCell>
-                    </TableRow>
-                  ))}
+                    </TableRow>)}
                 </TableBody>
               </Table>
-            </div>
-          )}
+            </div>}
         </TabsContent>
       </Tabs>
       </div>
 
       {/* Pagination */}
-      {totalFiltered > 0 && (
-        <TablePagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          totalItems={totalFiltered}
-          itemsPerPage={itemsPerPage}
-          onPageChange={setCurrentPage}
-          onItemsPerPageChange={(value) => {
-            setItemsPerPage(value);
-            setCurrentPage(1);
-          }}
-        />
-      )}
+      {totalFiltered > 0 && <TablePagination currentPage={currentPage} totalPages={totalPages} totalItems={totalFiltered} itemsPerPage={itemsPerPage} onPageChange={setCurrentPage} onItemsPerPageChange={value => {
+      setItemsPerPage(value);
+      setCurrentPage(1);
+    }} />}
 
       {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
@@ -494,91 +382,70 @@ export default function ClientesUnificado({ defaultTab }: ClientesUnificadoProps
             <DialogTitle>Editar Cliente</DialogTitle>
           </DialogHeader>
           
-          {editingCliente && (
-            <div className="grid grid-cols-2 gap-4 py-4">
+          {editingCliente && <div className="grid grid-cols-2 gap-4 py-4">
               <div className="col-span-2">
-                <OutlinedInput
-                  label="Código"
-                  value={editingCliente.codigo}
-                  disabled
-                />
+                <OutlinedInput label="Código" value={editingCliente.codigo} disabled />
               </div>
               
-              <OutlinedInput
-                label="Nombre"
-                value={editingCliente.nombre}
-                onChange={(e) => setEditingCliente({ ...editingCliente, nombre: e.target.value })}
-                required
-              />
+              <OutlinedInput label="Nombre" value={editingCliente.nombre} onChange={e => setEditingCliente({
+            ...editingCliente,
+            nombre: e.target.value
+          })} required />
               
-              <OutlinedInput
-                label="NIT"
-                value={editingCliente.nit}
-                onChange={(e) => setEditingCliente({ ...editingCliente, nit: e.target.value })}
-                required
-              />
+              <OutlinedInput label="NIT" value={editingCliente.nit} onChange={e => setEditingCliente({
+            ...editingCliente,
+            nit: e.target.value
+          })} required />
               
-              <OutlinedInput
-                label="Celular"
-                value={editingCliente.celular}
-                onChange={(e) => setEditingCliente({ ...editingCliente, celular: e.target.value })}
-                required
-              />
+              <OutlinedInput label="Celular" value={editingCliente.celular} onChange={e => setEditingCliente({
+            ...editingCliente,
+            celular: e.target.value
+          })} required />
               
-              <OutlinedInput
-                label="Correo Electrónico"
-                type="email"
-                value={editingCliente.correo || ""}
-                onChange={(e) => setEditingCliente({ ...editingCliente, correo: e.target.value })}
-              />
+              <OutlinedInput label="Correo Electrónico" type="email" value={editingCliente.correo || ""} onChange={e => setEditingCliente({
+            ...editingCliente,
+            correo: e.target.value
+          })} />
               
-              <OutlinedInput
-                label="Teléfono Principal"
-                value={editingCliente.telefono_principal || ""}
-                onChange={(e) => setEditingCliente({ ...editingCliente, telefono_principal: e.target.value })}
-              />
+              <OutlinedInput label="Teléfono Principal" value={editingCliente.telefono_principal || ""} onChange={e => setEditingCliente({
+            ...editingCliente,
+            telefono_principal: e.target.value
+          })} />
               
-              <OutlinedInput
-                label="Teléfono Secundario"
-                value={editingCliente.telefono_secundario || ""}
-                onChange={(e) => setEditingCliente({ ...editingCliente, telefono_secundario: e.target.value })}
-              />
+              <OutlinedInput label="Teléfono Secundario" value={editingCliente.telefono_secundario || ""} onChange={e => setEditingCliente({
+            ...editingCliente,
+            telefono_secundario: e.target.value
+          })} />
               
-              <OutlinedInput
-                label="Nombre Facturación"
-                value={editingCliente.nombre_facturacion || ""}
-                onChange={(e) => setEditingCliente({ ...editingCliente, nombre_facturacion: e.target.value })}
-              />
+              <OutlinedInput label="Nombre Facturación" value={editingCliente.nombre_facturacion || ""} onChange={e => setEditingCliente({
+            ...editingCliente,
+            nombre_facturacion: e.target.value
+          })} />
               
-              <OutlinedInput
-                label="Departamento"
-                value={editingCliente.departamento || ""}
-                onChange={(e) => setEditingCliente({ ...editingCliente, departamento: e.target.value })}
-              />
+              <OutlinedInput label="Departamento" value={editingCliente.departamento || ""} onChange={e => setEditingCliente({
+            ...editingCliente,
+            departamento: e.target.value
+          })} />
               
-              <OutlinedInput
-                label="Municipio"
-                value={editingCliente.municipio || ""}
-                onChange={(e) => setEditingCliente({ ...editingCliente, municipio: e.target.value })}
-              />
+              <OutlinedInput label="Municipio" value={editingCliente.municipio || ""} onChange={e => setEditingCliente({
+            ...editingCliente,
+            municipio: e.target.value
+          })} />
               
               <div className="col-span-2">
-                <OutlinedTextarea
-                  label="Dirección"
-                  value={editingCliente.direccion || ""}
-                  onChange={(e) => setEditingCliente({ ...editingCliente, direccion: e.target.value })}
-                />
+                <OutlinedTextarea label="Dirección" value={editingCliente.direccion || ""} onChange={e => setEditingCliente({
+              ...editingCliente,
+              direccion: e.target.value
+            })} />
               </div>
               
               <div className="col-span-2">
-                <OutlinedTextarea
-                  label="Dirección de Envío"
-                  value={editingCliente.direccion_envio || ""}
-                  onChange={(e) => setEditingCliente({ ...editingCliente, direccion_envio: e.target.value })}
-                />
+                <OutlinedTextarea label="Dirección de Envío" value={editingCliente.direccion_envio || ""} onChange={e => setEditingCliente({
+              ...editingCliente,
+              direccion_envio: e.target.value
+            })} />
               </div>
-            </div>
-          )}
+            </div>}
           
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
@@ -603,15 +470,11 @@ export default function ClientesUnificado({ defaultTab }: ClientesUnificadoProps
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               Eliminar
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
-  );
+    </div>;
 }
