@@ -8,7 +8,7 @@ import { AuthProvider } from "./contexts/AuthContext";
 import { Layout } from "./components/Layout";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
-import Clientes from "./pages/Clientes";
+import ClientesUnificado from "./pages/ClientesUnificado";
 import ImportarClientes from "./pages/ImportarClientes";
 import ActualizarCodigos from "./pages/ActualizarCodigos";
 import Productos from "./pages/Productos";
@@ -25,7 +25,7 @@ import Embarques from "./pages/logistica/Embarques";
 import GarantiasManuales from "./pages/logistica/GarantiasManuales";
 import Guias from "./pages/logistica/Guias";
 import IngresoMaquinas from "./pages/logistica/IngresoMaquinas";
-import ClientesLogistica from "./pages/logistica/Clientes";
+
 import SalidaMaquinas from "./pages/logistica/SalidaMaquinas";
 import FaltanteAccesorios from "./pages/logistica/FaltanteAccesorios";
 import MaquinasNuevasRT from "./pages/logistica/MaquinasNuevasRT";
@@ -104,7 +104,7 @@ function App() {
               <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/auth" element={<Auth />} />
-                <Route path="/mostrador/clientes" element={<Clientes />} />
+                <Route path="/mostrador/clientes" element={<ClientesUnificado defaultTab="mostrador" />} />
                 <Route path="/mostrador/importar-clientes" element={<ImportarClientes />} />
                 <Route path="/mostrador/actualizar-codigos" element={<ActualizarCodigos />} />
                 <Route path="/mostrador/consulta-precios" element={<ConsultaPrecios />} />
@@ -128,7 +128,7 @@ function App() {
                 <Route path="/logistica/danos-transporte" element={<DanosTransporte />} />
                 <Route path="/logistica/consulta-precios" element={<ConsultaPreciosLogistica />} />
                 <Route path="/logistica/consulta-ubicaciones" element={<ConsultaUbicaciones />} />
-                <Route path="/logistica/clientes" element={<ClientesLogistica />} />
+                <Route path="/logistica/clientes" element={<ClientesUnificado defaultTab="logistica" />} />
                 <Route path="/taller/asignaciones" element={<Asignaciones />} />
                 <Route path="/taller/mis-asignaciones" element={<MisAsignaciones />} />
                 <Route path="/taller/busqueda-incidentes" element={<BusquedaIncidentes />} />

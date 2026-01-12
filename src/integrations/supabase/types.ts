@@ -347,6 +347,7 @@ export type Database = {
           email: string | null
           es_central: boolean | null
           id: string
+          id_numerico: number | null
           nombre: string
           numero_bodega: string | null
           responsable_id: string | null
@@ -361,6 +362,7 @@ export type Database = {
           email?: string | null
           es_central?: boolean | null
           id?: string
+          id_numerico?: number | null
           nombre: string
           numero_bodega?: string | null
           responsable_id?: string | null
@@ -375,6 +377,7 @@ export type Database = {
           email?: string | null
           es_central?: boolean | null
           id?: string
+          id_numerico?: number | null
           nombre?: string
           numero_bodega?: string | null
           responsable_id?: string | null
@@ -1744,6 +1747,7 @@ export type Database = {
           created_at: string
           email: string
           id: string
+          id_numerico: number
           nombre: string
           updated_at: string
           user_id: string
@@ -1755,6 +1759,7 @@ export type Database = {
           created_at?: string
           email: string
           id?: string
+          id_numerico?: never
           nombre: string
           updated_at?: string
           user_id: string
@@ -1766,6 +1771,7 @@ export type Database = {
           created_at?: string
           email?: string
           id?: string
+          id_numerico?: never
           nombre?: string
           updated_at?: string
           user_id?: string
