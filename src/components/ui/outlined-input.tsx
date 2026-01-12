@@ -11,7 +11,23 @@ export interface OutlinedInputProps
 const OutlinedInput = React.forwardRef<HTMLInputElement, OutlinedInputProps>(
   ({ className, label, error, icon, type, id, ...props }, ref) => {
     const inputId = id || `outlined-${label.toLowerCase().replace(/\s+/g, '-')}`;
-    const hasValue = props.value !== undefined && props.value !== '';
+    const [internalValue, setInternalValue] = React.useState(
+      props.defaultValue?.toString() || props.value?.toString() || ''
+    );
+    
+    // Sync with controlled value
+    React.useEffect(() => {
+      if (props.value !== undefined) {
+        setInternalValue(props.value.toString());
+      }
+    }, [props.value]);
+
+    const hasValue = internalValue !== '';
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      setInternalValue(e.target.value);
+      props.onChange?.(e);
+    };
 
     return (
       <div className="relative w-full">
@@ -36,18 +52,16 @@ const OutlinedInput = React.forwardRef<HTMLInputElement, OutlinedInputProps>(
             placeholder=" "
             ref={ref}
             {...props}
+            onChange={handleChange}
           />
           <label
             htmlFor={inputId}
             className={cn(
               "absolute bg-background px-1 transition-all duration-200 pointer-events-none",
-              "peer-placeholder-shown:text-base peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2",
-              "peer-focus:text-xs peer-focus:top-0 peer-focus:-translate-y-1/2",
-              hasValue && "text-xs top-0 -translate-y-1/2 text-muted-foreground",
-              !hasValue && "text-base top-1/2 -translate-y-1/2",
-              !hasValue && props.required ? "text-primary" : !hasValue ? "text-muted-foreground" : "",
-              "peer-focus:text-primary",
-              icon ? "left-10 peer-placeholder-shown:left-10 peer-focus:left-3" : "left-3",
+              hasValue ? "text-xs top-0 -translate-y-1/2 text-muted-foreground" : "text-base top-1/2 -translate-y-1/2",
+              !hasValue && props.required ? "text-primary" : "",
+              "peer-focus:text-xs peer-focus:top-0 peer-focus:-translate-y-1/2 peer-focus:text-primary",
+              icon ? "left-10 peer-focus:left-3" : "left-3",
               error && "peer-focus:text-destructive"
             )}
           >
