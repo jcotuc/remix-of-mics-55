@@ -139,8 +139,12 @@ export function IncidentTimeline({ incidenteId }: IncidentTimelineProps) {
       relevantLogs.forEach(log => {
         const config = actionConfig[log.accion as keyof typeof actionConfig];
         let description = "";
+        let title = `${config.label} de ${tableLabels[log.tabla_afectada] || log.tabla_afectada}`;
         
-        if (log.accion === 'UPDATE' && log.campos_modificados) {
+        // Si hay motivo, usarlo como descripción principal
+        if (log.motivo) {
+          description = log.motivo;
+        } else if (log.accion === 'UPDATE' && log.campos_modificados) {
           const changes = log.campos_modificados
             .filter(f => f !== 'updated_at')
             .map(f => getFieldLabel(f))
@@ -164,7 +168,7 @@ export function IncidentTimeline({ incidenteId }: IncidentTimelineProps) {
         timelineEvents.push({
           id: log.id,
           type: log.accion === 'INSERT' ? 'create' : log.accion === 'UPDATE' ? 'update' : 'delete',
-          title: `${config.label} de ${tableLabels[log.tabla_afectada] || log.tabla_afectada}`,
+          title,
           description,
           user: log.usuario_email || "Sistema",
           timestamp: log.created_at,
