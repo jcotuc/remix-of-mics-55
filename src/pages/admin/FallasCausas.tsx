@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import ImportFormatDialog from "@/components/ImportFormatDialog";
 import { 
   Upload, 
   Plus, 
@@ -122,6 +123,7 @@ export default function FallasCausas() {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showImportFormatDialog, setShowImportFormatDialog] = useState(false);
   
   // Form state
   const [newNombre, setNewNombre] = useState("");
@@ -543,7 +545,7 @@ export default function FallasCausas() {
                 />
                 <Button
                   variant="outline"
-                  onClick={() => fileInputRef.current?.click()}
+                  onClick={() => setShowImportFormatDialog(true)}
                 >
                   <Upload className="h-4 w-4 mr-2" />
                   Importar Excel
@@ -588,7 +590,7 @@ export default function FallasCausas() {
                 />
                 <Button
                   variant="outline"
-                  onClick={() => document.getElementById("causas-file-input")?.click()}
+                  onClick={() => setShowImportFormatDialog(true)}
                 >
                   <Upload className="h-4 w-4 mr-2" />
                   Importar Excel
@@ -818,6 +820,33 @@ export default function FallasCausas() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Import Format Dialog */}
+      <ImportFormatDialog
+        open={showImportFormatDialog}
+        onOpenChange={setShowImportFormatDialog}
+        title={`Importar ${activeTab === "fallas" ? "Fallas" : "Causas"}`}
+        description={`Seleccione un archivo Excel con las ${activeTab === "fallas" ? "fallas" : "causas"} a importar.`}
+        columns={
+          activeTab === "fallas"
+            ? [
+                { nombre: "PRODUCTO/FAMILIA", descripcion: "Nombre de la familia de producto", ejemplo: "Licuadoras" },
+                { nombre: "FALLA", descripcion: "Nombre de la falla", ejemplo: "Motor dañado" },
+              ]
+            : [
+                { nombre: "FAMILIA", descripcion: "Nombre de la familia de producto", ejemplo: "Licuadoras" },
+                { nombre: "CAUSA", descripcion: "Nombre de la causa", ejemplo: "Uso inadecuado" },
+              ]
+        }
+        onImport={() => {
+          setShowImportFormatDialog(false);
+          if (activeTab === "fallas") {
+            fileInputRef.current?.click();
+          } else {
+            document.getElementById("causas-file-input")?.click();
+          }
+        }}
+      />
     </div>
   );
 }

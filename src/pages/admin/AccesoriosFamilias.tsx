@@ -31,6 +31,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
+import ImportFormatDialog from "@/components/ImportFormatDialog";
 import { Upload, Plus, Pencil, Trash2, Search, Package, CheckCircle, AlertTriangle, XCircle } from "lucide-react";
 import * as XLSX from "xlsx";
 
@@ -76,6 +77,7 @@ export default function AccesoriosFamilias() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [importPreviewOpen, setImportPreviewOpen] = useState(false);
   const [importResultsOpen, setImportResultsOpen] = useState(false);
+  const [importFormatOpen, setImportFormatOpen] = useState(false);
   const [importData, setImportData] = useState<ImportRow[]>([]);
   const [importResults, setImportResults] = useState<ImportResult[]>([]);
   const [importing, setImporting] = useState(false);
@@ -530,20 +532,17 @@ export default function AccesoriosFamilias() {
             Accesorios por Familia
           </CardTitle>
           <div className="flex gap-2">
-            <label className="cursor-pointer">
-              <Button variant="outline" asChild>
-                <span>
-                  <Upload className="h-4 w-4 mr-2" />
-                  Importar Excel
-                </span>
-              </Button>
-              <input
-                type="file"
-                accept=".xlsx,.xls"
-                onChange={handleFileUpload}
-                className="hidden"
-              />
-            </label>
+            <Button variant="outline" onClick={() => setImportFormatOpen(true)}>
+              <Upload className="h-4 w-4 mr-2" />
+              Importar Excel
+            </Button>
+            <input
+              type="file"
+              accept=".xlsx,.xls"
+              onChange={handleFileUpload}
+              className="hidden"
+              id="accesorios-file-input"
+            />
             <Button onClick={handleOpenCreate}>
               <Plus className="h-4 w-4 mr-2" />
               Agregar
@@ -849,6 +848,23 @@ export default function AccesoriosFamilias() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Import Format Dialog */}
+      <ImportFormatDialog
+        open={importFormatOpen}
+        onOpenChange={setImportFormatOpen}
+        title="Importar Accesorios"
+        description="Seleccione un archivo Excel con los accesorios a importar."
+        columns={[
+          { nombre: "Accesorio", descripcion: "Nombre del accesorio", ejemplo: "Cable USB" },
+          { nombre: "Categoría / CategoriaId", descripcion: "ID de la categoría padre", requerido: false, ejemplo: "5" },
+          { nombre: "Subcategoría / Familia", descripcion: "ID o nombre de la subcategoría/familia", requerido: false, ejemplo: "12" },
+        ]}
+        onImport={() => {
+          setImportFormatOpen(false);
+          document.getElementById("accesorios-file-input")?.click();
+        }}
+      />
     </div>
   );
 }
