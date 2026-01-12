@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { OutlinedInput } from "@/components/ui/outlined-input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -599,14 +600,20 @@ export default function Usuarios() {
           <div className="space-y-4 border-b pb-4">
             <h4 className="font-medium">Crear Nuevo Rol</h4>
             <div className="grid gap-3">
-              <div className="grid gap-2">
-                <Label htmlFor="puesto-nombre">Nombre del Rol *</Label>
-                <Input id="puesto-nombre" value={newPuestoNombre} onChange={e => setNewPuestoNombre(e.target.value)} placeholder="Ej: Supervisor de Ventas" />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="puesto-descripcion">Descripción (opcional)</Label>
-                <Textarea id="puesto-descripcion" value={newPuestoDescripcion} onChange={e => setNewPuestoDescripcion(e.target.value)} placeholder="Descripción del rol..." rows={2} />
-              </div>
+              <OutlinedInput 
+                id="puesto-nombre" 
+                label="Nombre del Rol"
+                value={newPuestoNombre} 
+                onChange={e => setNewPuestoNombre(e.target.value)} 
+                placeholder="Ej: Supervisor de Ventas" 
+              />
+              <OutlinedInput 
+                id="puesto-descripcion" 
+                label="Descripción (opcional)"
+                value={newPuestoDescripcion} 
+                onChange={e => setNewPuestoDescripcion(e.target.value)} 
+                placeholder="Descripción del rol..." 
+              />
               <Button onClick={handleCreatePuesto} disabled={puestosLoading}>
                 <Plus className="h-4 w-4 mr-2" />
                 Crear Rol
