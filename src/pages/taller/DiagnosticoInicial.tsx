@@ -968,29 +968,12 @@ export default function DiagnosticoInicial() {
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("nombre, apellido")
+        .select("nombre, apellido, email")
         .eq("user_id", user.id)
         .maybeSingle();
 
       const tecnicoNombre = profile ? `${profile.nombre} ${profile.apellido}` : user.email || "Técnico";
-
-      // Crear entrada para el log
-      const now = new Date();
-      const fechaFormateada = now.toLocaleDateString("es-GT", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-      });
-      const horaFormateada = now.toLocaleTimeString("es-GT", {
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: false,
-      });
-      const nuevaEntrada = `[${fechaFormateada} ${horaFormateada}] Desasignado por ${tecnicoNombre}`;
-
-      // Actualizar log_observaciones
-      const logActual = incidente.log_observaciones || "";
-      const nuevoLog = logActual ? `${logActual}\n${nuevaEntrada}` : nuevaEntrada;
+      const userEmail = profile?.email || user.email || "";
 
       // Actualizar incidente: cambiar status a Ingresado, limpiar técnico asignado
       const { error: updateError } = await supabase
@@ -999,11 +982,29 @@ export default function DiagnosticoInicial() {
           status: "Ingresado",
           tecnico_asignado_id: null,
           codigo_tecnico: null,
-          log_observaciones: nuevoLog,
         })
         .eq("id", id);
 
       if (updateError) throw updateError;
+
+      // Insertar registro en audit_logs para el historial
+      await supabase.from("audit_logs").insert({
+        tabla_afectada: "incidentes",
+        registro_id: id,
+        accion: "UPDATE",
+        usuario_id: user.id,
+        usuario_email: userEmail,
+        valores_anteriores: { 
+          status: incidente.status,
+          tecnico_asignado_id: incidente.tecnico_asignado_id 
+        },
+        valores_nuevos: { 
+          status: "Ingresado",
+          tecnico_asignado_id: null 
+        },
+        campos_modificados: ["status", "tecnico_asignado_id"],
+        motivo: `Desasignado por ${tecnicoNombre}`,
+      });
 
       // Eliminar borrador del diagnóstico si existe
       await supabase
