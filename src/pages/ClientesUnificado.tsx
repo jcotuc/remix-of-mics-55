@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Search, Eye, Edit, Users, Truck, Phone, Mail, MapPin } from "lucide-react";
+import { Search, Eye, Edit, Users, Truck, Phone, Mail, MapPin, Home, X, Filter } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { OutlinedInput, OutlinedTextarea, OutlinedSelect } from "@/components/ui/outlined-input";
 import { TablePagination } from "@/components/TablePagination";
+
 interface Cliente {
   id: string;
   codigo: string;
@@ -28,9 +29,18 @@ interface Cliente {
   codigo_sap: string | null;
   created_at: string;
 }
+
+interface Filtros {
+  conTelefono: boolean;
+  conCorreo: boolean;
+  conUbicacion: boolean;
+  conDireccion: boolean;
+}
+
 interface ClientesUnificadoProps {
   defaultTab?: 'mostrador' | 'logistica';
 }
+
 export default function ClientesUnificado({
   defaultTab
 }: ClientesUnificadoProps) {
@@ -48,6 +58,14 @@ export default function ClientesUnificado({
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
 
+  // Filters state
+  const [filtros, setFiltros] = useState<Filtros>({
+    conTelefono: false,
+    conCorreo: false,
+    conUbicacion: false,
+    conDireccion: false
+  });
+
   // Total counts for badges
   const [totalMostrador, setTotalMostrador] = useState(0);
   const [totalLogistica, setTotalLogistica] = useState(0);
@@ -62,6 +80,21 @@ export default function ClientesUnificado({
   const [deletingCliente, setDeletingCliente] = useState<Cliente | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
+  const hasActiveFilters = filtros.conTelefono || filtros.conCorreo || filtros.conUbicacion || filtros.conDireccion;
+
+  const toggleFiltro = (key: keyof Filtros) => {
+    setFiltros(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const clearFilters = () => {
+    setFiltros({
+      conTelefono: false,
+      conCorreo: false,
+      conUbicacion: false,
+      conDireccion: false
+    });
+  };
+
   // Debounce search term
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -75,15 +108,15 @@ export default function ClientesUnificado({
     fetchCounts();
   }, []);
 
-  // Fetch data when tab, page, items per page, or search changes
+  // Fetch data when tab, page, items per page, search, or filters change
   useEffect(() => {
     fetchClientes();
-  }, [activeTab, currentPage, itemsPerPage, debouncedSearch]);
+  }, [activeTab, currentPage, itemsPerPage, debouncedSearch, filtros]);
 
-  // Reset page when changing tabs or search
+  // Reset page when changing tabs, search, or filters
   useEffect(() => {
     setCurrentPage(1);
-  }, [activeTab, debouncedSearch]);
+  }, [activeTab, debouncedSearch, filtros]);
   const fetchCounts = async () => {
     try {
       // Count Mostrador clients
@@ -112,47 +145,52 @@ export default function ClientesUnificado({
     try {
       const from = (currentPage - 1) * itemsPerPage;
       const to = from + itemsPerPage - 1;
+
+      // Build base query based on tab
+      let query = supabase.from("clientes").select("*", { count: "exact" });
+      
       if (activeTab === 'mostrador') {
-        // Build query for Mostrador
-        let query = supabase.from("clientes").select("*", {
-          count: "exact"
-        }).like("codigo", "HPS-%");
-
-        // Apply search filter
-        if (debouncedSearch) {
-          query = query.or(`codigo.ilike.%${debouncedSearch}%,nombre.ilike.%${debouncedSearch}%,nit.ilike.%${debouncedSearch}%,celular.ilike.%${debouncedSearch}%`);
-        }
-        const {
-          data,
-          count,
-          error
-        } = await query.order("created_at", {
-          ascending: false
-        }).range(from, to);
-        if (error) throw error;
-        setClientesMostrador(data || []);
-        setTotalFiltered(count || 0);
+        query = query.like("codigo", "HPS-%");
       } else {
-        // Build query for Logística
-        let query = supabase.from("clientes").select("*", {
-          count: "exact"
-        }).like("codigo", "HPC%").not("codigo", "like", "HPC-%");
-
-        // Apply search filter
-        if (debouncedSearch) {
-          query = query.or(`codigo.ilike.%${debouncedSearch}%,nombre.ilike.%${debouncedSearch}%,nit.ilike.%${debouncedSearch}%,celular.ilike.%${debouncedSearch}%`);
-        }
-        const {
-          data,
-          count,
-          error
-        } = await query.order("nombre", {
-          ascending: true
-        }).range(from, to);
-        if (error) throw error;
-        setClientesLogistica(data || []);
-        setTotalFiltered(count || 0);
+        query = query.like("codigo", "HPC%").not("codigo", "like", "HPC-%");
       }
+
+      // Apply search filter
+      if (debouncedSearch) {
+        query = query.or(`codigo.ilike.%${debouncedSearch}%,nombre.ilike.%${debouncedSearch}%,nit.ilike.%${debouncedSearch}%,celular.ilike.%${debouncedSearch}%`);
+      }
+
+      // Apply advanced filters
+      if (filtros.conTelefono) {
+        query = query.or('celular.neq.,telefono_principal.neq.');
+      }
+      if (filtros.conCorreo) {
+        query = query.not('correo', 'is', null).neq('correo', '');
+      }
+      if (filtros.conUbicacion) {
+        query = query.or('departamento.neq.,municipio.neq.');
+      }
+      if (filtros.conDireccion) {
+        query = query.or('direccion.neq.,direccion_envio.neq.');
+      }
+
+      // Apply sorting
+      if (activeTab === 'mostrador') {
+        query = query.order("created_at", { ascending: false });
+      } else {
+        query = query.order("nombre", { ascending: true });
+      }
+
+      const { data, count, error } = await query.range(from, to);
+      
+      if (error) throw error;
+      
+      if (activeTab === 'mostrador') {
+        setClientesMostrador(data || []);
+      } else {
+        setClientesLogistica(data || []);
+      }
+      setTotalFiltered(count || 0);
     } catch (error) {
       console.error("Error fetching clients:", error);
       toast.error("Error al cargar los clientes");
@@ -262,10 +300,71 @@ export default function ClientesUnificado({
             </div>
           </div>
 
+          {/* Filter chips */}
+          <div className="flex items-center gap-2 flex-wrap mt-4 pb-3 border-b">
+            <span className="text-sm text-muted-foreground flex items-center gap-1">
+              <Filter className="h-3.5 w-3.5" />
+              Filtrar:
+            </span>
+            
+            <Button
+              variant={filtros.conTelefono ? "default" : "outline"}
+              size="sm"
+              className="h-7 text-xs gap-1.5"
+              onClick={() => toggleFiltro('conTelefono')}
+            >
+              <Phone className="h-3 w-3" />
+              Con Teléfono
+            </Button>
+            
+            <Button
+              variant={filtros.conCorreo ? "default" : "outline"}
+              size="sm"
+              className="h-7 text-xs gap-1.5"
+              onClick={() => toggleFiltro('conCorreo')}
+            >
+              <Mail className="h-3 w-3" />
+              Con Correo
+            </Button>
+            
+            <Button
+              variant={filtros.conUbicacion ? "default" : "outline"}
+              size="sm"
+              className="h-7 text-xs gap-1.5"
+              onClick={() => toggleFiltro('conUbicacion')}
+            >
+              <MapPin className="h-3 w-3" />
+              Con Ubicación
+            </Button>
+            
+            <Button
+              variant={filtros.conDireccion ? "default" : "outline"}
+              size="sm"
+              className="h-7 text-xs gap-1.5"
+              onClick={() => toggleFiltro('conDireccion')}
+            >
+              <Home className="h-3 w-3" />
+              Con Dirección
+            </Button>
+            
+            {hasActiveFilters && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-xs gap-1 text-muted-foreground hover:text-foreground"
+                onClick={clearFilters}
+              >
+                <X className="h-3 w-3" />
+                Limpiar
+              </Button>
+            )}
+          </div>
+
           {/* Results info */}
           <div className="flex items-center justify-between mt-3 mb-2">
             <p className="text-sm text-muted-foreground">
               {totalFiltered.toLocaleString()} cliente{totalFiltered !== 1 ? 's' : ''} encontrado{totalFiltered !== 1 ? 's' : ''}
+              {hasActiveFilters && <span className="ml-1">(filtrado)</span>}
             </p>
           </div>
 
@@ -352,12 +451,14 @@ export default function ClientesUnificado({
                           </div>}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={e => {
-                      e.stopPropagation();
-                      handleViewDetail(cliente);
-                    }}>
-                          <Eye className="h-4 w-4" />
-                        </Button>
+                        <div className="flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleViewDetail(cliente)}>
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(cliente)}>
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>)}
                 </TableBody>
