@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { OutlinedInput, OutlinedSelect } from "@/components/ui/outlined-input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -674,32 +675,22 @@ export default function AccesoriosFamilias() {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Nombre del Accesorio</Label>
-              <Input
-                value={formData.nombre}
-                onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
-                placeholder="Ej: Mango lateral"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Subcategoría (Familia)</Label>
-              <Select
-                value={formData.familia_id}
-                onValueChange={(v) => setFormData({ ...formData, familia_id: v })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar subcategoría" />
-                </SelectTrigger>
-                <SelectContent>
-                  {subcategorias.map((f) => (
-                    <SelectItem key={f.id} value={f.id.toString()}>
-                      {getCategoriaPadre(f.id)} → {f.Categoria}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <OutlinedInput
+              label="Nombre del Accesorio"
+              value={formData.nombre}
+              onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+              placeholder="Ej: Mango lateral"
+            />
+            <OutlinedSelect
+              label="Subcategoría (Familia)"
+              value={formData.familia_id}
+              onValueChange={(v) => setFormData({ ...formData, familia_id: v })}
+              options={subcategorias.map((f) => ({
+                value: f.id.toString(),
+                label: `${getCategoriaPadre(f.id)} → ${f.Categoria}`
+              }))}
+              placeholder="Seleccionar subcategoría"
+            />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>
