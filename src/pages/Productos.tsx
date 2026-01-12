@@ -5,6 +5,7 @@ import { Plus, Search, Edit, AlertTriangle, Save, X, Upload, FileSpreadsheet, Ch
 const HERRAMIENTA_MANUAL_ID = 130;
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { OutlinedInput, OutlinedSelect } from "@/components/ui/outlined-input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -1056,58 +1057,55 @@ export default function Productos() {
         </CardHeader>
         <CardContent>
           {/* Filtros avanzados */}
-          <div className="flex flex-wrap items-center gap-4 mb-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
             {/* Búsqueda */}
-            <div className="flex items-center space-x-2">
-              <Search className="h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Buscar..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-[200px]" />
-            </div>
+            <OutlinedInput
+              label="Buscar"
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+              icon={<Search className="h-4 w-4" />}
+            />
             
             {/* Filtro Estado */}
-            <Select value={filterEstado} onValueChange={setFilterEstado}>
-              <SelectTrigger className="w-[150px]">
-                <SelectValue placeholder="Estado" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
-                <SelectItem value="vigente">Vigentes</SelectItem>
-                <SelectItem value="descontinuado">Descontinuados</SelectItem>
-              </SelectContent>
-            </Select>
+            <OutlinedSelect
+              label="Estado"
+              value={filterEstado}
+              onValueChange={setFilterEstado}
+              options={[
+                { value: "all", label: "Todos" },
+                { value: "vigente", label: "Vigentes" },
+                { value: "descontinuado", label: "Descontinuados" }
+              ]}
+            />
             
             {/* Filtro Categoría */}
-            <Select value={filterCategoria} onValueChange={v => {
-            setFilterCategoria(v);
-            setFilterSubcategoria('all');
-          }}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Categoría" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas las categorías</SelectItem>
-                {familiasAbuelo.map(cat => <SelectItem key={cat.id} value={String(cat.id)}>
-                    {cat.Categoria}
-                  </SelectItem>)}
-              </SelectContent>
-            </Select>
+            <OutlinedSelect
+              label="Categoría"
+              value={filterCategoria}
+              onValueChange={v => {
+                setFilterCategoria(v);
+                setFilterSubcategoria('all');
+              }}
+              options={[
+                { value: "all", label: "Todas las categorías" },
+                ...familiasAbuelo.map(cat => ({ value: String(cat.id), label: cat.Categoria || "" }))
+              ]}
+            />
             
             {/* Filtro Subcategoría */}
-            <Select value={filterSubcategoria} onValueChange={setFilterSubcategoria}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Subcategoría" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas las subcategorías</SelectItem>
-                {familias.filter(f => filterCategoria === 'all' ? f.Padre !== null : f.Padre === Number(filterCategoria)).map(sub => <SelectItem key={sub.id} value={String(sub.id)}>
-                      {sub.Categoria}
-                    </SelectItem>)}
-              </SelectContent>
-            </Select>
-            
-            {/* Toggle Sin Asignar */}
-            
-            
-            
+            <OutlinedSelect
+              label="Subcategoría"
+              value={filterSubcategoria}
+              onValueChange={setFilterSubcategoria}
+              options={[
+                { value: "all", label: "Todas las subcategorías" },
+                ...familias.filter(f => filterCategoria === 'all' ? f.Padre !== null : f.Padre === Number(filterCategoria))
+                  .map(sub => ({ value: String(sub.id), label: sub.Categoria || "" }))
+              ]}
+            />
+
+            {/* Espacio para alinear */}
+            <div />
           </div>
 
           <div className="rounded-md border overflow-x-auto">
