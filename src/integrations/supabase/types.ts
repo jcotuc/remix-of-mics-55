@@ -862,6 +862,79 @@ export type Database = {
           },
         ]
       }
+      grupos_cola_fifo: {
+        Row: {
+          activo: boolean | null
+          centro_servicio_id: string
+          color: string | null
+          created_at: string | null
+          id: string
+          nombre: string
+          orden: number
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          activo?: boolean | null
+          centro_servicio_id: string
+          color?: string | null
+          created_at?: string | null
+          id?: string
+          nombre: string
+          orden: number
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          activo?: boolean | null
+          centro_servicio_id?: string
+          color?: string | null
+          created_at?: string | null
+          id?: string
+          nombre?: string
+          orden?: number
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "grupos_cola_fifo_centro_servicio_id_fkey"
+            columns: ["centro_servicio_id"]
+            isOneToOne: false
+            referencedRelation: "centros_servicio"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      grupos_cola_fifo_familias: {
+        Row: {
+          created_at: string | null
+          familia_abuelo_id: number
+          grupo_id: string
+          id: string
+        }
+        Insert: {
+          created_at?: string | null
+          familia_abuelo_id: number
+          grupo_id: string
+          id?: string
+        }
+        Update: {
+          created_at?: string | null
+          familia_abuelo_id?: number
+          grupo_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "grupos_cola_fifo_familias_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "grupos_cola_fifo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       guias_envio: {
         Row: {
           cantidad_piezas: number
