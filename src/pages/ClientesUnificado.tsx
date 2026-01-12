@@ -270,61 +270,62 @@ export default function ClientesUnificado({ defaultTab }: ClientesUnificadoProps
   };
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <div className="p-6 space-y-4">
+      {/* Header + Tabs in one section */}
+      <div className="space-y-4">
         <div>
           <h1 className="text-2xl font-semibold text-foreground">Gestión de Clientes</h1>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="text-sm text-muted-foreground mt-0.5">
             Administra los clientes de mostrador y logística
           </p>
         </div>
-      </div>
 
-      {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="w-full max-w-md bg-transparent border-b border-border rounded-none h-auto p-0 gap-0">
-          <TabsTrigger 
-            value="mostrador" 
-            className="flex-1 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none py-3 px-4 gap-2"
-          >
-            <Users className="h-4 w-4" />
-            Mostrador
-            <Badge variant="secondary" className="ml-1 text-xs">
-              {totalMostrador.toLocaleString()}
-            </Badge>
-          </TabsTrigger>
-          <TabsTrigger 
-            value="logistica" 
-            className="flex-1 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none py-3 px-4 gap-2"
-          >
-            <Truck className="h-4 w-4" />
-            Logística
-            <Badge variant="secondary" className="ml-1 text-xs">
-              {totalLogistica.toLocaleString()}
-            </Badge>
-          </TabsTrigger>
-        </TabsList>
+        {/* Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <TabsList className="bg-transparent border-b border-border rounded-none h-auto p-0 gap-0">
+              <TabsTrigger 
+                value="mostrador" 
+                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none py-2.5 px-4 gap-2"
+              >
+                <Users className="h-4 w-4" />
+                Mostrador
+                <Badge variant="secondary" className="ml-1 text-xs">
+                  {totalMostrador.toLocaleString()}
+                </Badge>
+              </TabsTrigger>
+              <TabsTrigger 
+                value="logistica" 
+                className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none py-2.5 px-4 gap-2"
+              >
+                <Truck className="h-4 w-4" />
+                Logística
+                <Badge variant="secondary" className="ml-1 text-xs">
+                  {totalLogistica.toLocaleString()}
+                </Badge>
+              </TabsTrigger>
+            </TabsList>
 
-        {/* Search */}
-        <div className="mt-6 max-w-md">
-          <OutlinedInput
-            label="Buscar por código, nombre, NIT, teléfono..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            icon={<Search className="h-4 w-4" />}
-          />
-        </div>
+            {/* Search inline with tabs */}
+            <div className="w-full sm:w-80">
+              <OutlinedInput
+                label="Buscar por código, nombre, NIT..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                icon={<Search className="h-4 w-4" />}
+              />
+            </div>
+          </div>
 
-        {/* Results info */}
-        <div className="flex items-center justify-between mt-4">
-          <p className="text-sm text-muted-foreground">
-            {totalFiltered} cliente{totalFiltered !== 1 ? 's' : ''} encontrado{totalFiltered !== 1 ? 's' : ''}
-          </p>
-        </div>
+          {/* Results info */}
+          <div className="flex items-center justify-between mt-3 mb-2">
+            <p className="text-sm text-muted-foreground">
+              {totalFiltered.toLocaleString()} cliente{totalFiltered !== 1 ? 's' : ''} encontrado{totalFiltered !== 1 ? 's' : ''}
+            </p>
+          </div>
 
-        {/* Mostrador Tab */}
-        <TabsContent value="mostrador" className="mt-4">
+          {/* Mostrador Tab */}
+          <TabsContent value="mostrador" className="mt-0">
           {loading ? (
             <div className="text-center py-8 text-muted-foreground">Cargando...</div>
           ) : currentClientes.length === 0 ? (
@@ -396,7 +397,7 @@ export default function ClientesUnificado({ defaultTab }: ClientesUnificadoProps
         </TabsContent>
 
         {/* Logistica Tab */}
-        <TabsContent value="logistica" className="mt-4">
+        <TabsContent value="logistica" className="mt-0">
           {loading ? (
             <div className="text-center py-8 text-muted-foreground">Cargando...</div>
           ) : currentClientes.length === 0 ? (
@@ -469,6 +470,7 @@ export default function ClientesUnificado({ defaultTab }: ClientesUnificadoProps
           )}
         </TabsContent>
       </Tabs>
+      </div>
 
       {/* Pagination */}
       {totalFiltered > 0 && (
