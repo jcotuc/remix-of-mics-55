@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { OutlinedInput } from "@/components/ui/outlined-input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
@@ -336,8 +337,8 @@ export default function DetalleCliente() {
               </CardDescription>
             </div>
             <div className="w-64">
-              <Input
-                placeholder="Buscar incidente..."
+              <OutlinedInput
+                label="Buscar incidente"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
