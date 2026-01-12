@@ -13,12 +13,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { StatusBadge } from "@/components/StatusBadge";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
-
 type Cliente = Database['public']['Tables']['clientes']['Row'];
 type Incidente = Database['public']['Tables']['incidentes']['Row'];
-
 export default function DetalleCliente() {
-  const { codigo } = useParams();
+  const {
+    codigo
+  } = useParams();
   const navigate = useNavigate();
   const [cliente, setCliente] = useState<Cliente | null>(null);
   const [incidentes, setIncidentes] = useState<Incidente[]>([]);
@@ -26,34 +26,30 @@ export default function DetalleCliente() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingCliente, setEditingCliente] = useState<Cliente | null>(null);
-
   useEffect(() => {
     if (codigo) {
       fetchClienteData();
     }
   }, [codigo]);
-
   const fetchClienteData = async () => {
     try {
       setLoading(true);
-      
-      // Fetch cliente
-      const { data: clienteData, error: clienteError } = await supabase
-        .from('clientes')
-        .select('*')
-        .eq('codigo', codigo)
-        .single();
 
+      // Fetch cliente
+      const {
+        data: clienteData,
+        error: clienteError
+      } = await supabase.from('clientes').select('*').eq('codigo', codigo).single();
       if (clienteError) throw clienteError;
       setCliente(clienteData);
 
       // Fetch incidentes del cliente
-      const { data: incidentesData, error: incidentesError } = await supabase
-        .from('incidentes')
-        .select('*')
-        .eq('codigo_cliente', codigo)
-        .order('fecha_ingreso', { ascending: false });
-
+      const {
+        data: incidentesData,
+        error: incidentesError
+      } = await supabase.from('incidentes').select('*').eq('codigo_cliente', codigo).order('fecha_ingreso', {
+        ascending: false
+      });
       if (incidentesError) throw incidentesError;
       setIncidentes(incidentesData || []);
     } catch (error) {
@@ -63,38 +59,31 @@ export default function DetalleCliente() {
       setLoading(false);
     }
   };
-
   const handleEditCliente = () => {
     setEditingCliente(cliente);
     setIsEditDialogOpen(true);
   };
-
   const handleSaveEdit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!editingCliente) return;
-
     const formData = new FormData(e.currentTarget);
-    
     try {
-      const { error } = await supabase
-        .from('clientes')
-        .update({
-          nombre: formData.get('nombre') as string,
-          nit: formData.get('nit') as string,
-          celular: formData.get('celular') as string,
-          direccion: formData.get('direccion') as string || null,
-          correo: formData.get('correo') as string || null,
-          telefono_principal: formData.get('telefono_principal') as string || null,
-          telefono_secundario: formData.get('telefono_secundario') as string || null,
-          nombre_facturacion: formData.get('nombre_facturacion') as string || null,
-          pais: formData.get('pais') as string || null,
-          departamento: formData.get('departamento') as string || null,
-          municipio: formData.get('municipio') as string || null,
-        })
-        .eq('codigo', editingCliente.codigo);
-
+      const {
+        error
+      } = await supabase.from('clientes').update({
+        nombre: formData.get('nombre') as string,
+        nit: formData.get('nit') as string,
+        celular: formData.get('celular') as string,
+        direccion: formData.get('direccion') as string || null,
+        correo: formData.get('correo') as string || null,
+        telefono_principal: formData.get('telefono_principal') as string || null,
+        telefono_secundario: formData.get('telefono_secundario') as string || null,
+        nombre_facturacion: formData.get('nombre_facturacion') as string || null,
+        pais: formData.get('pais') as string || null,
+        departamento: formData.get('departamento') as string || null,
+        municipio: formData.get('municipio') as string || null
+      }).eq('codigo', editingCliente.codigo);
       if (error) throw error;
-      
       toast.success('Cliente actualizado exitosamente');
       setIsEditDialogOpen(false);
       setEditingCliente(null);
@@ -111,38 +100,26 @@ export default function DetalleCliente() {
     presupuestos: incidentes.filter(i => i.status === 'Presupuesto').length,
     canjes: incidentes.filter(i => i.status === 'Porcentaje').length,
     cambios: incidentes.filter(i => i.status === 'Cambio por garantia').length,
-    notasCredito: incidentes.filter(i => i.status === 'Nota de credito').length,
+    notasCredito: incidentes.filter(i => i.status === 'Nota de credito').length
   };
-
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
+    return <div className="flex items-center justify-center min-h-screen">
         <p className="text-muted-foreground">Cargando...</p>
-      </div>
-    );
+      </div>;
   }
-
   if (!cliente) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen gap-4">
+    return <div className="flex flex-col items-center justify-center min-h-screen gap-4">
         <AlertCircle className="h-12 w-12 text-muted-foreground" />
         <p className="text-muted-foreground">Cliente no encontrado</p>
         <Button onClick={() => navigate('/mostrador/clientes')}>
           Volver a Clientes
         </Button>
-      </div>
-    );
+      </div>;
   }
-
-  return (
-    <div className="space-y-6">
+  return <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Button 
-            variant="ghost" 
-            size="icon"
-            onClick={() => navigate('/mostrador/clientes')}
-          >
+          <Button variant="ghost" size="icon" onClick={() => navigate('/mostrador/clientes')}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
@@ -160,7 +137,7 @@ export default function DetalleCliente() {
       <Card>
         <CardHeader>
           <CardTitle>Resumen de Incidentes</CardTitle>
-          <CardDescription>Vista general del estado de las máquinas del cliente</CardDescription>
+          
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
@@ -271,18 +248,14 @@ export default function DetalleCliente() {
               <p className="text-sm text-muted-foreground">Teléfono Secundario</p>
               <p className="font-medium">{cliente.telefono_secundario || '-'}</p>
             </div>
-            {cliente.correo && (
-              <div>
+            {cliente.correo && <div>
                 <p className="text-sm text-muted-foreground">Correo</p>
                 <p className="font-medium">{cliente.correo}</p>
-              </div>
-            )}
-            {cliente.direccion && (
-              <div>
+              </div>}
+            {cliente.direccion && <div>
                 <p className="text-sm text-muted-foreground">Dirección</p>
                 <p className="font-medium">{cliente.direccion}</p>
-              </div>
-            )}
+              </div>}
           </CardContent>
         </Card>
 
@@ -296,36 +269,26 @@ export default function DetalleCliente() {
               <p className="text-sm text-muted-foreground">NIT</p>
               <p className="font-medium">{cliente.nit}</p>
             </div>
-            {cliente.nombre_facturacion && (
-              <div>
+            {cliente.nombre_facturacion && <div>
                 <p className="text-sm text-muted-foreground">Nombre Facturación</p>
                 <p className="font-medium">{cliente.nombre_facturacion}</p>
-              </div>
-            )}
-            {cliente.pais && (
-              <div>
+              </div>}
+            {cliente.pais && <div>
                 <p className="text-sm text-muted-foreground">País</p>
                 <p className="font-medium">{cliente.pais}</p>
-              </div>
-            )}
-            {cliente.departamento && (
-              <div>
+              </div>}
+            {cliente.departamento && <div>
                 <p className="text-sm text-muted-foreground">Departamento</p>
                 <p className="font-medium">{cliente.departamento}</p>
-              </div>
-            )}
-            {cliente.municipio && (
-              <div>
+              </div>}
+            {cliente.municipio && <div>
                 <p className="text-sm text-muted-foreground">Municipio</p>
                 <p className="font-medium">{cliente.municipio}</p>
-              </div>
-            )}
-            {cliente.direccion_envio && (
-              <div>
+              </div>}
+            {cliente.direccion_envio && <div>
                 <p className="text-sm text-muted-foreground">Dirección de Envío</p>
                 <p className="font-medium">{cliente.direccion_envio}</p>
-              </div>
-            )}
+              </div>}
           </CardContent>
         </Card>
       </div>
@@ -339,36 +302,21 @@ export default function DetalleCliente() {
               Historial de Incidentes
             </CardTitle>
             <div className="w-64">
-              <OutlinedInput
-                label="Buscar incidente"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
+              <OutlinedInput label="Buscar incidente" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
             </div>
           </div>
         </CardHeader>
         <CardContent>
           {(() => {
-            const filtered = incidentes.filter(inc => {
-              const searchLower = searchTerm.toLowerCase();
-              const fechaIngreso = new Date(inc.fecha_ingreso).toLocaleDateString('es-GT');
-              
-              return (
-                inc.codigo.toLowerCase().includes(searchLower) ||
-                inc.codigo_producto?.toLowerCase().includes(searchLower) ||
-                inc.status.toLowerCase().includes(searchLower) ||
-                inc.centro_servicio?.toLowerCase().includes(searchLower) ||
-                fechaIngreso.includes(searchLower)
-              );
-            });
-            
-            return filtered.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
+          const filtered = incidentes.filter(inc => {
+            const searchLower = searchTerm.toLowerCase();
+            const fechaIngreso = new Date(inc.fecha_ingreso).toLocaleDateString('es-GT');
+            return inc.codigo.toLowerCase().includes(searchLower) || inc.codigo_producto?.toLowerCase().includes(searchLower) || inc.status.toLowerCase().includes(searchLower) || inc.centro_servicio?.toLowerCase().includes(searchLower) || fechaIngreso.includes(searchLower);
+          });
+          return filtered.length === 0 ? <div className="text-center py-8 text-muted-foreground">
                 <Package className="h-12 w-12 mx-auto mb-2 opacity-50" />
                 <p>{searchTerm ? 'No se encontraron incidentes con ese criterio' : 'No hay incidentes registrados para este cliente'}</p>
-              </div>
-            ) : (
-              <div className="rounded-md border">
+              </div> : <div className="rounded-md border">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -380,12 +328,7 @@ export default function DetalleCliente() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filtered.map((incidente) => (
-                      <TableRow 
-                        key={incidente.id}
-                        className="cursor-pointer hover:bg-muted/50"
-                        onClick={() => navigate(`/mostrador/seguimiento/${incidente.id}`)}
-                      >
+                    {filtered.map(incidente => <TableRow key={incidente.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/mostrador/seguimiento/${incidente.id}`)}>
                         <TableCell className="font-medium">{incidente.codigo}</TableCell>
                         <TableCell>{incidente.codigo_producto}</TableCell>
                         <TableCell>
@@ -398,13 +341,11 @@ export default function DetalleCliente() {
                           </div>
                         </TableCell>
                         <TableCell>{incidente.centro_servicio || 'N/A'}</TableCell>
-                      </TableRow>
-                    ))}
+                      </TableRow>)}
                   </TableBody>
                 </Table>
-              </div>
-            );
-          })()}
+              </div>;
+        })()}
         </CardContent>
       </Card>
 
@@ -418,129 +359,74 @@ export default function DetalleCliente() {
             </DialogDescription>
           </DialogHeader>
           
-          {editingCliente && (
-            <form onSubmit={handleSaveEdit} className="space-y-4">
+          {editingCliente && <form onSubmit={handleSaveEdit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="edit-nombre">Nombre *</Label>
-                  <Input
-                    id="edit-nombre"
-                    name="nombre"
-                    defaultValue={editingCliente.nombre}
-                    required
-                  />
+                  <Input id="edit-nombre" name="nombre" defaultValue={editingCliente.nombre} required />
                 </div>
                 
                 <div className="space-y-2">
                   <Label htmlFor="edit-nit">NIT *</Label>
-                  <Input
-                    id="edit-nit"
-                    name="nit"
-                    defaultValue={editingCliente.nit}
-                    required
-                  />
+                  <Input id="edit-nit" name="nit" defaultValue={editingCliente.nit} required />
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="edit-celular">Celular *</Label>
-                  <Input
-                    id="edit-celular"
-                    name="celular"
-                    defaultValue={editingCliente.celular}
-                    required
-                  />
+                  <Input id="edit-celular" name="celular" defaultValue={editingCliente.celular} required />
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="edit-correo">Correo</Label>
-                  <Input
-                    id="edit-correo"
-                    name="correo"
-                    type="email"
-                    defaultValue={editingCliente.correo || ''}
-                  />
+                  <Input id="edit-correo" name="correo" type="email" defaultValue={editingCliente.correo || ''} />
                 </div>
 
                 <div className="space-y-2 col-span-2">
                   <Label htmlFor="edit-direccion">Dirección</Label>
-                  <Input
-                    id="edit-direccion"
-                    name="direccion"
-                    defaultValue={editingCliente.direccion || ''}
-                  />
+                  <Input id="edit-direccion" name="direccion" defaultValue={editingCliente.direccion || ''} />
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="edit-telefono-principal">Teléfono Principal</Label>
-                  <Input
-                    id="edit-telefono-principal"
-                    name="telefono_principal"
-                    defaultValue={editingCliente.telefono_principal || ''}
-                  />
+                  <Input id="edit-telefono-principal" name="telefono_principal" defaultValue={editingCliente.telefono_principal || ''} />
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="edit-telefono-secundario">Teléfono Secundario</Label>
-                  <Input
-                    id="edit-telefono-secundario"
-                    name="telefono_secundario"
-                    defaultValue={editingCliente.telefono_secundario || ''}
-                  />
+                  <Input id="edit-telefono-secundario" name="telefono_secundario" defaultValue={editingCliente.telefono_secundario || ''} />
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="edit-nombre-facturacion">Nombre Facturación</Label>
-                  <Input
-                    id="edit-nombre-facturacion"
-                    name="nombre_facturacion"
-                    defaultValue={editingCliente.nombre_facturacion || ''}
-                  />
+                  <Input id="edit-nombre-facturacion" name="nombre_facturacion" defaultValue={editingCliente.nombre_facturacion || ''} />
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="edit-pais">País</Label>
-                  <Input
-                    id="edit-pais"
-                    name="pais"
-                    defaultValue={editingCliente.pais || 'Guatemala'}
-                  />
+                  <Input id="edit-pais" name="pais" defaultValue={editingCliente.pais || 'Guatemala'} />
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="edit-departamento">Departamento</Label>
-                  <Input
-                    id="edit-departamento"
-                    name="departamento"
-                    defaultValue={editingCliente.departamento || ''}
-                  />
+                  <Input id="edit-departamento" name="departamento" defaultValue={editingCliente.departamento || ''} />
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="edit-municipio">Municipio</Label>
-                  <Input
-                    id="edit-municipio"
-                    name="municipio"
-                    defaultValue={editingCliente.municipio || ''}
-                  />
+                  <Input id="edit-municipio" name="municipio" defaultValue={editingCliente.municipio || ''} />
                 </div>
               </div>
 
               <div className="flex justify-end space-x-2">
-                <Button 
-                  type="button" 
-                  variant="outline"
-                  onClick={() => setIsEditDialogOpen(false)}
-                >
+                <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
                   Cancelar
                 </Button>
                 <Button type="submit">
                   Guardar Cambios
                 </Button>
               </div>
-            </form>
-          )}
+            </form>}
         </DialogContent>
       </Dialog>
-    </div>
-  );
+    </div>;
 }
