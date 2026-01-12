@@ -1295,69 +1295,72 @@ export default function Productos() {
           
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="codigo">Código *</Label>
-                <Input id="codigo" value={newProducto.codigo} onChange={e => setNewProducto(prev => ({
-                ...prev,
-                codigo: e.target.value
-              }))} placeholder="Ej: 12345" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="clave">Clave *</Label>
-                <Input id="clave" value={newProducto.clave} onChange={e => setNewProducto(prev => ({
-                ...prev,
-                clave: e.target.value
-              }))} placeholder="Ej: COMP-001" />
-              </div>
+              <OutlinedInput 
+                label="Código *"
+                value={newProducto.codigo} 
+                onChange={e => setNewProducto(prev => ({
+                  ...prev,
+                  codigo: e.target.value
+                }))} 
+                placeholder="Ej: 12345" 
+              />
+              <OutlinedInput 
+                label="Clave *"
+                value={newProducto.clave} 
+                onChange={e => setNewProducto(prev => ({
+                  ...prev,
+                  clave: e.target.value
+                }))} 
+                placeholder="Ej: COMP-001" 
+              />
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="descripcion">Descripción *</Label>
-              <Input id="descripcion" value={newProducto.descripcion} onChange={e => setNewProducto(prev => ({
-              ...prev,
-              descripcion: e.target.value
-            }))} placeholder="Descripción del producto" />
-            </div>
+            <OutlinedInput 
+              label="Descripción *"
+              value={newProducto.descripcion} 
+              onChange={e => setNewProducto(prev => ({
+                ...prev,
+                descripcion: e.target.value
+              }))} 
+              placeholder="Descripción del producto" 
+            />
 
-            <div className="space-y-2">
-              <Label htmlFor="url_foto">URL de Foto (opcional)</Label>
-              <Input id="url_foto" value={newProducto.url_foto} onChange={e => setNewProducto(prev => ({
-              ...prev,
-              url_foto: e.target.value
-            }))} placeholder="https://..." />
-            </div>
+            <OutlinedInput 
+              label="URL de Foto (opcional)"
+              value={newProducto.url_foto} 
+              onChange={e => setNewProducto(prev => ({
+                ...prev,
+                url_foto: e.target.value
+              }))} 
+              placeholder="https://..." 
+            />
 
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Categoría General</Label>
-                <Select value={createAbuelo} onValueChange={val => {
-                setCreateAbuelo(val);
-                setCreatePadre("");
-              }}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {familiasAbuelo.map(f => <SelectItem key={f.id} value={f.id.toString()}>
-                        {f.Categoria}
-                      </SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
+              <OutlinedSelect 
+                label="Categoría General"
+                value={createAbuelo} 
+                onValueChange={val => {
+                  setCreateAbuelo(val);
+                  setCreatePadre("");
+                }}
+                options={familiasAbuelo.map(f => ({
+                  value: f.id.toString(),
+                  label: f.Categoria || ""
+                }))}
+                placeholder="Seleccionar..."
+              />
 
-              <div className="space-y-2">
-                <Label>Subcategoría</Label>
-                <Select value={createPadre} onValueChange={setCreatePadre} disabled={!createAbuelo}>
-                  <SelectTrigger>
-                    <SelectValue placeholder={createAbuelo ? "Seleccionar..." : "Primero categoría"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {familiasPadreCreate.map(f => <SelectItem key={f.id} value={f.id.toString()}>
-                        {f.Categoria}
-                      </SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
+              <OutlinedSelect 
+                label="Subcategoría"
+                value={createPadre} 
+                onValueChange={setCreatePadre} 
+                disabled={!createAbuelo}
+                options={familiasPadreCreate.map(f => ({
+                  value: f.id.toString(),
+                  label: f.Categoria || ""
+                }))}
+                placeholder={createAbuelo ? "Seleccionar..." : "Primero categoría"}
+              />
             </div>
 
             <div className="flex items-center space-x-2">
