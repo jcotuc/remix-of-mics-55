@@ -17,6 +17,7 @@ import {
   Wrench,
   Ban,
   XCircle,
+  Undo2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -129,6 +130,21 @@ export default function DiagnosticoInicial() {
   // Dialog para tipo de trabajo
   const [showTipoTrabajoDialog, setShowTipoTrabajoDialog] = useState(false);
   const [tipoTrabajo, setTipoTrabajo] = useState<"mantenimiento" | "reparacion" | null>(null);
+
+  // Dialog para confirmar desasignación
+  const [showDesasignarDialog, setShowDesasignarDialog] = useState(false);
+  const [desasignando, setDesasignando] = useState(false);
+
+  // Determinar si el diagnóstico NO ha empezado (sin selecciones)
+  const diagnosticoNoIniciado = useMemo(() => {
+    return (
+      fallas.length === 0 &&
+      causas.length === 0 &&
+      esReparable === null &&
+      aplicaGarantia === null &&
+      tipoResolucion === ""
+    );
+  }, [fallas, causas, esReparable, aplicaGarantia, tipoResolucion]);
 
   // Obtener el ID del abuelo desde CDS_Familias.Padre usando familia_padre_id
   const familiaAbueloId = useMemo(() => {
@@ -939,6 +955,73 @@ export default function DiagnosticoInicial() {
       handleFinalizarDiagnostico();
     }
   };
+
+  // Función para desasignar el incidente y devolverlo a la cola
+  const handleDesasignar = async () => {
+    if (!incidente) return;
+    setDesasignando(true);
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) throw new Error("No se pudo obtener el usuario");
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("nombre, apellido")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      const tecnicoNombre = profile ? `${profile.nombre} ${profile.apellido}` : user.email || "Técnico";
+
+      // Crear entrada para el log
+      const now = new Date();
+      const fechaFormateada = now.toLocaleDateString("es-GT", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      });
+      const horaFormateada = now.toLocaleTimeString("es-GT", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      });
+      const nuevaEntrada = `[${fechaFormateada} ${horaFormateada}] Desasignado por ${tecnicoNombre}`;
+
+      // Actualizar log_observaciones
+      const logActual = incidente.log_observaciones || "";
+      const nuevoLog = logActual ? `${logActual}\n${nuevaEntrada}` : nuevaEntrada;
+
+      // Actualizar incidente: cambiar status a Ingresado, limpiar técnico asignado
+      const { error: updateError } = await supabase
+        .from("incidentes")
+        .update({
+          status: "Ingresado",
+          tecnico_asignado_id: null,
+          codigo_tecnico: null,
+          log_observaciones: nuevoLog,
+        })
+        .eq("id", id);
+
+      if (updateError) throw updateError;
+
+      // Eliminar borrador del diagnóstico si existe
+      await supabase
+        .from("diagnosticos")
+        .delete()
+        .eq("incidente_id", id)
+        .eq("estado", "borrador");
+
+      toast.success("Incidente desasignado correctamente");
+      setShowDesasignarDialog(false);
+      navigate("/taller/asignaciones");
+    } catch (error) {
+      console.error("Error al desasignar:", error);
+      toast.error("Error al desasignar el incidente");
+    } finally {
+      setDesasignando(false);
+    }
+  };
   if (loading) {
     return <div className="container mx-auto p-6">Cargando...</div>;
   }
@@ -951,10 +1034,25 @@ export default function DiagnosticoInicial() {
   }
   return (
     <div className="container mx-auto p-6 max-w-4xl">
-      <Button variant="ghost" onClick={() => navigate("/taller/mis-asignaciones")} className="mb-4">
-        <ArrowLeft className="w-4 h-4 mr-2" />
-        Volver
-      </Button>
+      <div className="flex items-center gap-2 mb-4">
+        <Button variant="ghost" onClick={() => navigate("/taller/mis-asignaciones")}>
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Volver
+        </Button>
+        
+        {/* Botón Desasignar - solo visible si el diagnóstico no ha empezado */}
+        {diagnosticoNoIniciado && (
+          <Button 
+            variant="outline" 
+            onClick={() => setShowDesasignarDialog(true)}
+            className="text-destructive border-destructive/50 hover:bg-destructive/10"
+            disabled={desasignando}
+          >
+            <Undo2 className="w-4 h-4 mr-2" />
+            Desasignar
+          </Button>
+        )}
+      </div>
 
       <div className="mb-6">
         <h1 className="text-3xl font-bold">Diagnóstico Técnico</h1>
@@ -1875,6 +1973,47 @@ export default function DiagnosticoInicial() {
 
       {/* Widget flotante Gemba Docs - disponible en cualquier paso */}
       <GembaDocsCamera photos={gembaPhotos} onPhotosChange={setGembaPhotos} maxPhotos={20} />
+
+      {/* Dialog para confirmar desasignación */}
+      <Dialog open={showDesasignarDialog} onOpenChange={setShowDesasignarDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Undo2 className="h-5 w-5 text-destructive" />
+              Confirmar Desasignación
+            </DialogTitle>
+            <DialogDescription>
+              ¿Estás seguro de que deseas desasignar este incidente? El incidente volverá a la cola de reparación y podrá ser tomado por otro técnico.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => setShowDesasignarDialog(false)}
+              disabled={desasignando}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDesasignar}
+              disabled={desasignando}
+            >
+              {desasignando ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Desasignando...
+                </>
+              ) : (
+                <>
+                  <Undo2 className="h-4 w-4 mr-2" />
+                  Desasignar
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
