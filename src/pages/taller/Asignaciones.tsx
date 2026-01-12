@@ -78,6 +78,7 @@ export default function Asignaciones() {
   const [familias, setFamilias] = useState<FamiliaDB[]>([]);
   const [grupos, setGrupos] = useState<GrupoColaFifo[]>([]);
   const [centroServicioId, setCentroServicioId] = useState<string | null>(null);
+  const [centroServicioNombre, setCentroServicioNombre] = useState<string>("");
   const [searchTerm, setSearchTerm] = useState("");
   const [searchResults, setSearchResults] = useState<IncidenteDB[]>([]);
   const [expandedGrupos, setExpandedGrupos] = useState<Record<string, boolean>>({});
@@ -118,7 +119,7 @@ export default function Asignaciones() {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
 
-        // Obtener centro de servicio del usuario
+        // Obtener centro de servicio del usuario con el nombre
         const { data: profile } = await supabase
           .from('profiles')
           .select('centro_servicio_id')
@@ -132,6 +133,17 @@ export default function Asignaciones() {
         }
 
         setCentroServicioId(profile.centro_servicio_id);
+
+        // Obtener nombre del centro de servicio
+        const { data: centro } = await supabase
+          .from('centros_servicio')
+          .select('nombre')
+          .eq('id', profile.centro_servicio_id)
+          .single();
+
+        if (centro) {
+          setCentroServicioNombre(centro.nombre);
+        }
 
         // Cargar grupos activos para este centro
         const { data: gruposData } = await supabase
@@ -176,8 +188,14 @@ export default function Asignaciones() {
     loadUserConfig();
   }, []);
 
+  // Cargar incidentes cuando se tenga el centro de servicio
   useEffect(() => {
-    fetchIncidentes();
+    if (centroServicioId) {
+      fetchIncidentes();
+    }
+  }, [centroServicioId]);
+
+  useEffect(() => {
     fetchFamilias();
   }, []);
 
@@ -194,10 +212,15 @@ export default function Asignaciones() {
   };
 
   const fetchIncidentes = async () => {
+    if (!centroServicioId) {
+      setLoading(false);
+      return;
+    }
+    
     try {
       setLoading(true);
 
-      // Incidentes normales (no stock Cemaco) - con JOIN a productos
+      // Incidentes normales (no stock Cemaco) - con JOIN a productos - FILTRADO por centro de servicio
       const { data: normales, error: error1 } = await supabase
         .from('incidentes')
         .select(`
@@ -205,12 +228,13 @@ export default function Asignaciones() {
           producto:productos!codigo_producto(familia_padre_id)
         `)
         .eq('status', 'Ingresado')
+        .eq('centro_servicio', centroServicioId)
         .or('es_stock_cemaco.is.null,es_stock_cemaco.eq.false')
         .order('fecha_ingreso', { ascending: true });
 
       if (error1) throw error1;
 
-      // Incidentes Stock Cemaco (Ingresado y Pendiente de aprobación NC)
+      // Incidentes Stock Cemaco (Ingresado y Pendiente de aprobación NC) - FILTRADO por centro de servicio
       const { data: stockCemaco, error: error2 } = await supabase
         .from('incidentes')
         .select(`
@@ -218,6 +242,7 @@ export default function Asignaciones() {
           producto:productos!codigo_producto(familia_padre_id)
         `)
         .eq('es_stock_cemaco', true)
+        .eq('centro_servicio', centroServicioId)
         .in('status', ['Ingresado', 'Pendiente de aprobación NC'] as any)
         .order('fecha_ingreso', { ascending: true });
 
@@ -464,10 +489,17 @@ export default function Asignaciones() {
   return (
     <div className="container mx-auto py-8 space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold flex items-center gap-2">
-          Cola de reparación
-          <Wrench className="h-8 w-8 text-primary" />
-        </h1>
+        <div>
+          <h1 className="text-3xl font-bold flex items-center gap-2">
+            Cola de reparación
+            <Wrench className="h-8 w-8 text-primary" />
+          </h1>
+          {centroServicioNombre && (
+            <p className="text-muted-foreground mt-1">
+              Centro de servicio: <span className="font-medium text-foreground">{centroServicioNombre}</span>
+            </p>
+          )}
+        </div>
         <Button 
           variant="outline" 
           size="sm"
