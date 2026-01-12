@@ -165,30 +165,28 @@ export default function Asignaciones() {
     }
     try {
       // Obtener el usuario actual para asignar tecnico_asignado_id
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: {
+          user
+        }
+      } = await supabase.auth.getUser();
       if (!user) {
         toast.error('No se pudo obtener el usuario actual');
         return;
       }
 
       // Obtener el perfil del técnico para codigo_tecnico (display)
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('codigo_empleado, nombre, apellido')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
+      const {
+        data: profile
+      } = await supabase.from('profiles').select('codigo_empleado, nombre, apellido').eq('user_id', user.id).maybeSingle();
       const codigoTecnico = profile?.codigo_empleado || `${profile?.nombre || ''} ${profile?.apellido || ''}`.trim() || user.id;
-
-      const { error } = await supabase
-        .from('incidentes')
-        .update({
-          status: 'En diagnostico',
-          tecnico_asignado_id: user.id,
-          codigo_tecnico: codigoTecnico
-        })
-        .eq('id', incidenteId);
-
+      const {
+        error
+      } = await supabase.from('incidentes').update({
+        status: 'En diagnostico',
+        tecnico_asignado_id: user.id,
+        codigo_tecnico: codigoTecnico
+      }).eq('id', incidenteId);
       if (error) throw error;
       toast.success('Incidente asignado');
       // Redirigir a la página de diagnóstico
@@ -350,9 +348,8 @@ export default function Asignaciones() {
   const familiasActivas = FAMILIAS.filter(f => getIncidentesPorFamilia(f).length > 0).length;
   return <div className="container mx-auto py-8 space-y-6">
       <div>
-        <h1 className="text-3xl font-bold flex items-center gap-2">Asignaciones de Taller
-
-        <Wrench className="h-8 w-8 text-primary" />
+        <h1 className="text-3xl font-bold flex items-center gap-2">Cola de reparación
+​<Wrench className="h-8 w-8 text-primary" />
           ​
         </h1>
         
@@ -371,96 +368,66 @@ export default function Asignaciones() {
       <div className="space-y-4">
         
         
-        {loading ? (
-          <div className="text-center py-12">
+        {loading ? <div className="text-center py-12">
             <p className="text-muted-foreground">Cargando...</p>
-          </div>
-        ) : (
-          <TooltipProvider>
+          </div> : <TooltipProvider>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
               {FAMILIAS.filter(f => f.nombre !== "Stock Cemaco").map(familia => {
-                const incidentesFamilia = getIncidentesPorFamilia(familia);
-                const primerIncidente = incidentesFamilia[0];
-                const showList = expandedFamilias[familia.nombre] || false;
-                const hasIncidentes = incidentesFamilia.length > 0;
-                const toggleList = (e: React.MouseEvent) => {
-                  e.stopPropagation();
-                  setExpandedFamilias(prev => ({ ...prev, [familia.nombre]: !prev[familia.nombre] }));
-                };
-                
-                return (
-                  <div key={familia.nombre} className="flex flex-col">
+            const incidentesFamilia = getIncidentesPorFamilia(familia);
+            const primerIncidente = incidentesFamilia[0];
+            const showList = expandedFamilias[familia.nombre] || false;
+            const hasIncidentes = incidentesFamilia.length > 0;
+            const toggleList = (e: React.MouseEvent) => {
+              e.stopPropagation();
+              setExpandedFamilias(prev => ({
+                ...prev,
+                [familia.nombre]: !prev[familia.nombre]
+              }));
+            };
+            return <div key={familia.nombre} className="flex flex-col">
                     {/* Tarjeta principal */}
-                    <div 
-                      className={`p-4 rounded-xl transition-all duration-200 min-h-[100px] flex flex-col justify-between ${
-                        !hasIncidentes 
-                          ? 'bg-muted/30 border border-dashed border-border cursor-default opacity-60'
-                          : 'bg-orange-500/20 hover:bg-orange-500/30 text-foreground border border-orange-400/50 shadow-lg shadow-orange-500/10 cursor-pointer hover:scale-[1.02] active:scale-[0.98]'
-                      }`}
-                      onClick={() => {
-                        if (!hasIncidentes) return;
-                        handleAsignar(primerIncidente.id, familia);
-                      }}
-                    >
+                    <div className={`p-4 rounded-xl transition-all duration-200 min-h-[100px] flex flex-col justify-between ${!hasIncidentes ? 'bg-muted/30 border border-dashed border-border cursor-default opacity-60' : 'bg-orange-500/20 hover:bg-orange-500/30 text-foreground border border-orange-400/50 shadow-lg shadow-orange-500/10 cursor-pointer hover:scale-[1.02] active:scale-[0.98]'}`} onClick={() => {
+                if (!hasIncidentes) return;
+                handleAsignar(primerIncidente.id, familia);
+              }}>
                       <div className="flex items-start justify-between">
                         <span className={`font-bold text-base ${!hasIncidentes ? 'text-muted-foreground' : ''}`}>
                           {familia.nombre}
                         </span>
-                        {hasIncidentes && incidentesFamilia.length > 1 && (
-                          <Tooltip>
+                        {hasIncidentes && incidentesFamilia.length > 1 && <Tooltip>
                             <TooltipTrigger asChild>
-                              <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                className="h-6 w-6 -mt-1 -mr-1 text-orange-600 hover:bg-orange-500/20"
-                                onClick={toggleList}
-                              >
+                              <Button variant="ghost" size="icon" className="h-6 w-6 -mt-1 -mr-1 text-orange-600 hover:bg-orange-500/20" onClick={toggleList}>
                                 {showList ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                               </Button>
                             </TooltipTrigger>
                             <TooltipContent>
                               {showList ? 'Ocultar lista' : 'Ver lista'}
                             </TooltipContent>
-                          </Tooltip>
-                        )}
+                          </Tooltip>}
                       </div>
                       
                       <div className={`flex items-center justify-between mt-3 pt-2 ${hasIncidentes ? 'border-t border-orange-400/30' : 'border-t border-border/50'}`}>
-                        <Badge 
-                          variant={hasIncidentes ? "secondary" : "outline"} 
-                          className={`text-xs ${hasIncidentes ? 'bg-orange-500/30 text-orange-700 border-0' : ''}`}
-                        >
+                        <Badge variant={hasIncidentes ? "secondary" : "outline"} className={`text-xs ${hasIncidentes ? 'bg-orange-500/30 text-orange-700 border-0' : ''}`}>
                           {incidentesFamilia.length} en cola
                         </Badge>
-                        {hasIncidentes && (
-                          <Plus className="h-5 w-5 text-orange-600 opacity-80" />
-                        )}
+                        {hasIncidentes && <Plus className="h-5 w-5 text-orange-600 opacity-80" />}
                       </div>
                     </div>
                     
                     {/* Lista expandible de incidentes en espera */}
-                    {showList && incidentesFamilia.length > 1 && (
-                      <div className="mt-2 p-2 rounded-lg bg-muted/30 border border-border/50 space-y-1.5 max-h-48 overflow-y-auto">
+                    {showList && incidentesFamilia.length > 1 && <div className="mt-2 p-2 rounded-lg bg-muted/30 border border-border/50 space-y-1.5 max-h-48 overflow-y-auto">
                         <p className="text-[10px] text-muted-foreground font-medium px-1 uppercase tracking-wide">
                           En espera ({incidentesFamilia.length - 1})
                         </p>
-                        {incidentesFamilia.slice(1).map((inc) => (
-                          <div 
-                            key={inc.id} 
-                            className="p-2 rounded-md bg-background/80 border border-border/30"
-                          >
+                        {incidentesFamilia.slice(1).map(inc => <div key={inc.id} className="p-2 rounded-md bg-background/80 border border-border/30">
                             <p className="text-xs font-medium truncate">{inc.codigo_producto}</p>
                             <p className="text-[10px] text-muted-foreground line-clamp-1">{inc.descripcion_problema}</p>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+                          </div>)}
+                      </div>}
+                  </div>;
+          })}
             </div>
-          </TooltipProvider>
-        )}
+          </TooltipProvider>}
 
         {/* Leyenda */}
         <Card className="bg-muted/30">
