@@ -249,21 +249,13 @@ export default function DetalleCliente() {
               <p className="font-medium">{cliente.nombre}</p>
             </div>
             <div>
-              <p className="text-sm text-muted-foreground">Celular</p>
-              <p className="font-medium">{cliente.celular}</p>
+              <p className="text-sm text-muted-foreground">Teléfono Principal</p>
+              <p className="font-medium">{cliente.telefono_principal || cliente.celular || '-'}</p>
             </div>
-            {cliente.telefono_principal && (
-              <div>
-                <p className="text-sm text-muted-foreground">Teléfono Principal</p>
-                <p className="font-medium">{cliente.telefono_principal}</p>
-              </div>
-            )}
-            {cliente.telefono_secundario && (
-              <div>
-                <p className="text-sm text-muted-foreground">Teléfono Secundario</p>
-                <p className="font-medium">{cliente.telefono_secundario}</p>
-              </div>
-            )}
+            <div>
+              <p className="text-sm text-muted-foreground">Teléfono Secundario</p>
+              <p className="font-medium">{cliente.telefono_secundario || '-'}</p>
+            </div>
             {cliente.correo && (
               <div>
                 <p className="text-sm text-muted-foreground">Correo</p>
