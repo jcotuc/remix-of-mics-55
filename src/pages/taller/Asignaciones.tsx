@@ -403,8 +403,14 @@ export default function Asignaciones() {
                             <TooltipContent>
                               {showList ? 'Ocultar lista' : 'Ver lista'}
                             </TooltipContent>
-                          </Tooltip>}
+                      </Tooltip>}
                       </div>
+                      
+                      {hasIncidentes && (
+                        <p className="text-xs text-orange-600/70 text-center font-medium mt-2">
+                          Toca para asignarme
+                        </p>
+                      )}
                       
                       <div className={`flex items-center justify-between mt-3 pt-2 ${hasIncidentes ? 'border-t border-orange-400/30' : 'border-t border-border/50'}`}>
                         <Badge variant={hasIncidentes ? "secondary" : "outline"} className={`text-xs ${hasIncidentes ? 'bg-orange-500/30 text-orange-700 border-0' : ''}`}>
