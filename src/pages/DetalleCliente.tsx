@@ -360,21 +360,21 @@ export default function DetalleCliente() {
           {editingCliente && <form onSubmit={handleSaveEdit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <OutlinedInput 
-                  label="Nombre *" 
+                  label="Nombre" 
                   name="nombre" 
                   defaultValue={editingCliente.nombre} 
                   required 
                 />
                 
                 <OutlinedInput 
-                  label="NIT *" 
+                  label="NIT" 
                   name="nit" 
                   defaultValue={editingCliente.nit} 
                   required 
                 />
 
                 <OutlinedInput 
-                  label="Celular *" 
+                  label="Celular" 
                   name="celular" 
                   defaultValue={editingCliente.celular} 
                   required 
