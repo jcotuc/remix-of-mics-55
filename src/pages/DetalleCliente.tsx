@@ -5,9 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { OutlinedInput } from "@/components/ui/outlined-input";
-import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -361,60 +359,77 @@ export default function DetalleCliente() {
           
           {editingCliente && <form onSubmit={handleSaveEdit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="edit-nombre">Nombre *</Label>
-                  <Input id="edit-nombre" name="nombre" defaultValue={editingCliente.nombre} required />
-                </div>
+                <OutlinedInput 
+                  label="Nombre *" 
+                  name="nombre" 
+                  defaultValue={editingCliente.nombre} 
+                  required 
+                />
                 
-                <div className="space-y-2">
-                  <Label htmlFor="edit-nit">NIT *</Label>
-                  <Input id="edit-nit" name="nit" defaultValue={editingCliente.nit} required />
+                <OutlinedInput 
+                  label="NIT *" 
+                  name="nit" 
+                  defaultValue={editingCliente.nit} 
+                  required 
+                />
+
+                <OutlinedInput 
+                  label="Celular *" 
+                  name="celular" 
+                  defaultValue={editingCliente.celular} 
+                  required 
+                />
+
+                <OutlinedInput 
+                  label="Correo" 
+                  name="correo" 
+                  type="email" 
+                  defaultValue={editingCliente.correo || ''} 
+                />
+
+                <div className="col-span-2">
+                  <OutlinedInput 
+                    label="Dirección" 
+                    name="direccion" 
+                    defaultValue={editingCliente.direccion || ''} 
+                  />
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="edit-celular">Celular *</Label>
-                  <Input id="edit-celular" name="celular" defaultValue={editingCliente.celular} required />
-                </div>
+                <OutlinedInput 
+                  label="Teléfono Principal" 
+                  name="telefono_principal" 
+                  defaultValue={editingCliente.telefono_principal || ''} 
+                />
 
-                <div className="space-y-2">
-                  <Label htmlFor="edit-correo">Correo</Label>
-                  <Input id="edit-correo" name="correo" type="email" defaultValue={editingCliente.correo || ''} />
-                </div>
+                <OutlinedInput 
+                  label="Teléfono Secundario" 
+                  name="telefono_secundario" 
+                  defaultValue={editingCliente.telefono_secundario || ''} 
+                />
 
-                <div className="space-y-2 col-span-2">
-                  <Label htmlFor="edit-direccion">Dirección</Label>
-                  <Input id="edit-direccion" name="direccion" defaultValue={editingCliente.direccion || ''} />
-                </div>
+                <OutlinedInput 
+                  label="Nombre Facturación" 
+                  name="nombre_facturacion" 
+                  defaultValue={editingCliente.nombre_facturacion || ''} 
+                />
 
-                <div className="space-y-2">
-                  <Label htmlFor="edit-telefono-principal">Teléfono Principal</Label>
-                  <Input id="edit-telefono-principal" name="telefono_principal" defaultValue={editingCliente.telefono_principal || ''} />
-                </div>
+                <OutlinedInput 
+                  label="País" 
+                  name="pais" 
+                  defaultValue={editingCliente.pais || 'Guatemala'} 
+                />
 
-                <div className="space-y-2">
-                  <Label htmlFor="edit-telefono-secundario">Teléfono Secundario</Label>
-                  <Input id="edit-telefono-secundario" name="telefono_secundario" defaultValue={editingCliente.telefono_secundario || ''} />
-                </div>
+                <OutlinedInput 
+                  label="Departamento" 
+                  name="departamento" 
+                  defaultValue={editingCliente.departamento || ''} 
+                />
 
-                <div className="space-y-2">
-                  <Label htmlFor="edit-nombre-facturacion">Nombre Facturación</Label>
-                  <Input id="edit-nombre-facturacion" name="nombre_facturacion" defaultValue={editingCliente.nombre_facturacion || ''} />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="edit-pais">País</Label>
-                  <Input id="edit-pais" name="pais" defaultValue={editingCliente.pais || 'Guatemala'} />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="edit-departamento">Departamento</Label>
-                  <Input id="edit-departamento" name="departamento" defaultValue={editingCliente.departamento || ''} />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="edit-municipio">Municipio</Label>
-                  <Input id="edit-municipio" name="municipio" defaultValue={editingCliente.municipio || ''} />
-                </div>
+                <OutlinedInput 
+                  label="Municipio" 
+                  name="municipio" 
+                  defaultValue={editingCliente.municipio || ''} 
+                />
               </div>
 
               <div className="flex justify-end space-x-2">
