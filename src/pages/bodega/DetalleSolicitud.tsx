@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Package, ArrowLeft, Check, X } from "lucide-react";
+import { Package, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -8,19 +8,18 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-type Detalle = {
-  id: string;
-  codigo_repuesto: string;
-  cantidad_solicitada: number;
-  cantidad_encontrada: number | null;
-  estado: string | null;
+type RepuestoSolicitado = {
+  codigo: string;
+  descripcion: string;
+  cantidad: number;
+  ubicacion?: string;
 };
 
 export default function DetalleSolicitud() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [solicitud, setSolicitud] = useState<any>(null);
-  const [detalles, setDetalles] = useState<Detalle[]>([]);
+  const [repuestos, setRepuestos] = useState<RepuestoSolicitado[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -40,19 +39,29 @@ export default function DetalleSolicitud() {
       if (solError) throw solError;
       setSolicitud(sol);
 
-      const { data: det, error: detError } = await supabase
-        .from("repuestos_solicitud_detalle")
-        .select("*")
-        .eq("solicitud_id", id);
-
-      if (detError) throw detError;
-      setDetalles(det || []);
+      // Parse repuestos from JSON field
+      if (sol?.repuestos && Array.isArray(sol.repuestos)) {
+        setRepuestos(sol.repuestos as RepuestoSolicitado[]);
+      }
 
     } catch (error) {
       console.error("Error:", error);
       toast.error("Error al cargar solicitud");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const getEstadoBadge = (estado: string) => {
+    switch (estado) {
+      case "entregado":
+        return <Badge variant="default">Entregado</Badge>;
+      case "en_proceso":
+        return <Badge variant="secondary">En Proceso</Badge>;
+      case "pendiente":
+        return <Badge variant="outline">Pendiente</Badge>;
+      default:
+        return <Badge variant="outline">{estado}</Badge>;
     }
   };
 
@@ -79,39 +88,83 @@ export default function DetalleSolicitud() {
         </div>
       </div>
 
+      {/* Información de la solicitud */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>Información General</CardTitle>
+              <CardDescription>
+                Solicitado por: {solicitud?.tecnico_solicitante || "N/A"}
+              </CardDescription>
+            </div>
+            {getEstadoBadge(solicitud?.estado || "pendiente")}
+          </div>
+        </CardHeader>
+        <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+          <div>
+            <p className="text-muted-foreground">Tipo despacho</p>
+            <p className="font-medium capitalize">{solicitud?.tipo_despacho || "N/A"}</p>
+          </div>
+          <div>
+            <p className="text-muted-foreground">Fecha solicitud</p>
+            <p className="font-medium">
+              {solicitud?.created_at 
+                ? new Date(solicitud.created_at).toLocaleDateString("es-GT")
+                : "N/A"}
+            </p>
+          </div>
+          <div>
+            <p className="text-muted-foreground">Fecha asignación</p>
+            <p className="font-medium">
+              {solicitud?.fecha_asignacion 
+                ? new Date(solicitud.fecha_asignacion).toLocaleDateString("es-GT")
+                : "Pendiente"}
+            </p>
+          </div>
+          <div>
+            <p className="text-muted-foreground">Fecha entrega</p>
+            <p className="font-medium">
+              {solicitud?.fecha_entrega 
+                ? new Date(solicitud.fecha_entrega).toLocaleDateString("es-GT")
+                : "Pendiente"}
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Repuestos */}
       <Card>
         <CardHeader>
           <CardTitle>Repuestos Solicitados</CardTitle>
           <CardDescription>
-            {detalles.length} items en esta solicitud
+            {repuestos.length} items en esta solicitud
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {detalles.length === 0 ? (
+          {repuestos.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              No hay detalles para esta solicitud
+              No hay repuestos en esta solicitud
             </div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Código</TableHead>
-                  <TableHead className="text-right">Cant. Solicitada</TableHead>
-                  <TableHead className="text-right">Cant. Encontrada</TableHead>
-                  <TableHead>Estado</TableHead>
+                  <TableHead>Descripción</TableHead>
+                  <TableHead>Ubicación</TableHead>
+                  <TableHead className="text-right">Cantidad</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {detalles.map((det) => (
-                  <TableRow key={det.id}>
-                    <TableCell className="font-mono">{det.codigo_repuesto}</TableCell>
-                    <TableCell className="text-right">{det.cantidad_solicitada}</TableCell>
-                    <TableCell className="text-right">{det.cantidad_encontrada ?? "-"}</TableCell>
-                    <TableCell>
-                      <Badge variant={det.estado === "entregado" ? "default" : "secondary"}>
-                        {det.estado || "pendiente"}
-                      </Badge>
+                {repuestos.map((rep, index) => (
+                  <TableRow key={`${rep.codigo}-${index}`}>
+                    <TableCell className="font-mono">{rep.codigo}</TableCell>
+                    <TableCell>{rep.descripcion}</TableCell>
+                    <TableCell className="font-mono text-xs">
+                      {rep.ubicacion || "-"}
                     </TableCell>
+                    <TableCell className="text-right font-medium">{rep.cantidad}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -119,6 +172,18 @@ export default function DetalleSolicitud() {
           )}
         </CardContent>
       </Card>
+
+      {/* Notas */}
+      {solicitud?.notas && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Notas</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground">{solicitud.notas}</p>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
