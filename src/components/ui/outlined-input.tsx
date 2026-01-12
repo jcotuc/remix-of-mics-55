@@ -41,12 +41,14 @@ const OutlinedInput = React.forwardRef<HTMLInputElement, OutlinedInputProps>(
             type={type}
             id={inputId}
             className={cn(
-              "peer w-full h-14 px-4 pt-5 pb-2 text-sm bg-transparent rounded-lg border-2 border-input outline-none transition-all duration-200",
-              "focus:border-primary focus:ring-0",
+              "peer w-full h-14 px-4 pt-5 pb-2 text-sm bg-transparent rounded-lg border-2 outline-none transition-all duration-200",
+              "focus:ring-0",
               "placeholder-transparent",
               icon && "pl-10",
               error && "border-destructive focus:border-destructive",
-              hasValue && "border-muted-foreground/40",
+              // Required empty = orange, filled = gray, not required = default
+              props.required && !hasValue ? "border-orange-400 focus:border-orange-500" : 
+              hasValue ? "border-muted-foreground/40 focus:border-muted-foreground/60" : "border-input focus:border-primary",
               className
             )}
             placeholder=" "
@@ -59,8 +61,9 @@ const OutlinedInput = React.forwardRef<HTMLInputElement, OutlinedInputProps>(
             className={cn(
               "absolute bg-background px-1 transition-all duration-200 pointer-events-none",
               hasValue ? "text-xs top-0 -translate-y-1/2 text-muted-foreground" : "text-base top-1/2 -translate-y-1/2",
-              !hasValue && props.required ? "text-primary" : "",
-              "peer-focus:text-xs peer-focus:top-0 peer-focus:-translate-y-1/2 peer-focus:text-primary",
+              !hasValue && props.required ? "text-orange-500" : !hasValue ? "text-muted-foreground" : "",
+              hasValue ? "peer-focus:text-muted-foreground" : props.required ? "peer-focus:text-orange-500" : "peer-focus:text-primary",
+              "peer-focus:text-xs peer-focus:top-0 peer-focus:-translate-y-1/2",
               icon ? "left-10 peer-focus:left-3" : "left-3",
               error && "peer-focus:text-destructive"
             )}
@@ -95,11 +98,13 @@ const OutlinedTextarea = React.forwardRef<HTMLTextAreaElement, OutlinedTextareaP
           <textarea
             id={textareaId}
             className={cn(
-              "peer w-full min-h-[120px] px-4 pt-6 pb-3 text-sm bg-transparent rounded-lg border-2 border-input outline-none transition-all duration-200 resize-none",
-              "focus:border-primary focus:ring-0",
+              "peer w-full min-h-[120px] px-4 pt-6 pb-3 text-sm bg-transparent rounded-lg border-2 outline-none transition-all duration-200 resize-none",
+              "focus:ring-0",
               "placeholder-transparent",
               error && "border-destructive focus:border-destructive",
-              hasValue && "border-muted-foreground/40",
+              // Required empty = orange, filled = gray, not required = default
+              props.required && !hasValue ? "border-orange-400 focus:border-orange-500" : 
+              hasValue ? "border-muted-foreground/40 focus:border-muted-foreground/60" : "border-input focus:border-primary",
               className
             )}
             placeholder=" "
@@ -111,10 +116,11 @@ const OutlinedTextarea = React.forwardRef<HTMLTextAreaElement, OutlinedTextareaP
             className={cn(
               "absolute left-3 bg-background px-1 transition-all duration-200 pointer-events-none",
               "peer-placeholder-shown:text-base peer-placeholder-shown:top-4",
-              "peer-focus:text-xs peer-focus:top-0 peer-focus:-translate-y-1/2 peer-focus:text-primary",
+              hasValue ? "peer-focus:text-muted-foreground" : props.required ? "peer-focus:text-orange-500" : "peer-focus:text-primary",
+              "peer-focus:text-xs peer-focus:top-0 peer-focus:-translate-y-1/2",
               hasValue && "text-xs top-0 -translate-y-1/2 text-muted-foreground",
               !hasValue && "text-base top-4",
-              !hasValue && props.required ? "text-primary" : !hasValue ? "text-muted-foreground" : "",
+              !hasValue && props.required ? "text-orange-500" : !hasValue ? "text-muted-foreground" : "",
               error && "peer-focus:text-destructive"
             )}
           >
@@ -155,10 +161,12 @@ const OutlinedSelect = React.forwardRef<HTMLDivElement, OutlinedSelectProps>(
             onChange={(e) => onValueChange(e.target.value)}
             disabled={disabled}
             className={cn(
-              "peer w-full h-14 px-4 pt-5 pb-2 text-sm bg-transparent rounded-lg border-2 border-input outline-none transition-all duration-200 appearance-none cursor-pointer",
-              "focus:border-primary focus:ring-0",
+              "peer w-full h-14 px-4 pt-5 pb-2 text-sm bg-transparent rounded-lg border-2 outline-none transition-all duration-200 appearance-none cursor-pointer",
+              "focus:ring-0",
               error && "border-destructive focus:border-destructive",
-              hasValue && "border-muted-foreground/40",
+              // Required empty = orange, filled = gray, not required = default
+              required && !hasValue ? "border-orange-400 focus:border-orange-500" : 
+              hasValue ? "border-muted-foreground/40 focus:border-muted-foreground/60" : "border-input focus:border-primary",
               disabled && "opacity-50 cursor-not-allowed",
               className
             )}
@@ -174,7 +182,7 @@ const OutlinedSelect = React.forwardRef<HTMLDivElement, OutlinedSelectProps>(
             className={cn(
               "absolute left-3 bg-background px-1 transition-all duration-200 pointer-events-none",
               "text-xs top-0 -translate-y-1/2",
-              hasValue ? "text-muted-foreground" : required ? "text-primary" : "text-muted-foreground",
+              hasValue ? "text-muted-foreground" : required ? "text-orange-500" : "text-muted-foreground",
               error && "text-destructive"
             )}
           >
