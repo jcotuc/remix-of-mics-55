@@ -188,12 +188,12 @@ export default function Asignaciones() {
     loadUserConfig();
   }, []);
 
-  // Cargar incidentes cuando se tenga el centro de servicio
+  // Cargar incidentes cuando se tenga el centro de servicio y su nombre
   useEffect(() => {
-    if (centroServicioId) {
+    if (centroServicioId && centroServicioNombre) {
       fetchIncidentes();
     }
-  }, [centroServicioId]);
+  }, [centroServicioId, centroServicioNombre]);
 
   useEffect(() => {
     fetchFamilias();
@@ -212,7 +212,7 @@ export default function Asignaciones() {
   };
 
   const fetchIncidentes = async () => {
-    if (!centroServicioId) {
+    if (!centroServicioId || !centroServicioNombre) {
       setLoading(false);
       return;
     }
@@ -220,7 +220,9 @@ export default function Asignaciones() {
     try {
       setLoading(true);
 
-      // Incidentes normales (no stock Cemaco) - con JOIN a productos - FILTRADO por centro de servicio
+      // El campo centro_servicio en incidentes guarda el NOMBRE del centro, no el UUID
+      // Buscar incidentes que coincidan con el nombre del centro de servicio
+      // Incidentes normales (no stock Cemaco) - con JOIN a productos - FILTRADO por centro de servicio (por nombre)
       const { data: normales, error: error1 } = await supabase
         .from('incidentes')
         .select(`
@@ -228,13 +230,13 @@ export default function Asignaciones() {
           producto:productos!codigo_producto(familia_padre_id)
         `)
         .eq('status', 'Ingresado')
-        .eq('centro_servicio', centroServicioId)
+        .ilike('centro_servicio', `%${centroServicioNombre.replace('Centro de servicio ', '').replace('Centro de Servicio ', '')}%`)
         .or('es_stock_cemaco.is.null,es_stock_cemaco.eq.false')
         .order('fecha_ingreso', { ascending: true });
 
       if (error1) throw error1;
 
-      // Incidentes Stock Cemaco (Ingresado y Pendiente de aprobación NC) - FILTRADO por centro de servicio
+      // Incidentes Stock Cemaco (Ingresado y Pendiente de aprobación NC) - FILTRADO por centro de servicio (por nombre)
       const { data: stockCemaco, error: error2 } = await supabase
         .from('incidentes')
         .select(`
@@ -242,7 +244,7 @@ export default function Asignaciones() {
           producto:productos!codigo_producto(familia_padre_id)
         `)
         .eq('es_stock_cemaco', true)
-        .eq('centro_servicio', centroServicioId)
+        .ilike('centro_servicio', `%${centroServicioNombre.replace('Centro de servicio ', '').replace('Centro de Servicio ', '')}%`)
         .in('status', ['Ingresado', 'Pendiente de aprobación NC'] as any)
         .order('fecha_ingreso', { ascending: true });
 
