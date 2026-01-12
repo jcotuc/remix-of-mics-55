@@ -163,7 +163,22 @@ export default function DetalleCliente() {
           <CardDescription>Vista general del estado de las máquinas del cliente</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
+            {/* Total Incidentes - Destacado */}
+            <Card className="border-2 border-primary/30 bg-primary/5">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <Package className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold text-foreground">{incidentes.length}</p>
+                    <p className="text-xs text-muted-foreground">Total Incidentes</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
             <Card className="border-2 border-green-500/20 bg-green-500/5">
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
@@ -319,15 +334,10 @@ export default function DetalleCliente() {
       <Card>
         <CardHeader>
           <div className="flex justify-between items-start gap-4">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <Package className="h-5 w-5" />
-                Historial de Incidentes
-              </CardTitle>
-              <CardDescription>
-                {incidentes.length} {incidentes.length === 1 ? 'incidente registrado' : 'incidentes registrados'}
-              </CardDescription>
-            </div>
+            <CardTitle className="flex items-center gap-2">
+              <Package className="h-5 w-5" />
+              Historial de Incidentes
+            </CardTitle>
             <div className="w-64">
               <OutlinedInput
                 label="Buscar incidente"
