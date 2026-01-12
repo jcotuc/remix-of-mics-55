@@ -65,11 +65,17 @@ export default function ClientesUnificado({ defaultTab }: ClientesUnificadoProps
   
   const [activeTab, setActiveTab] = useState<string>(initialTab);
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [clientesMostrador, setClientesMostrador] = useState<Cliente[]>([]);
   const [clientesLogistica, setClientesLogistica] = useState<Cliente[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
+  
+  // Total counts for badges
+  const [totalMostrador, setTotalMostrador] = useState(0);
+  const [totalLogistica, setTotalLogistica] = useState(0);
+  const [totalFiltered, setTotalFiltered] = useState(0);
   
   // Edit modal state
   const [editingCliente, setEditingCliente] = useState<Cliente | null>(null);
@@ -80,38 +86,102 @@ export default function ClientesUnificado({ defaultTab }: ClientesUnificadoProps
   const [deletingCliente, setDeletingCliente] = useState<Cliente | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
+  // Debounce search term
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  // Fetch counts on mount
+  useEffect(() => {
+    fetchCounts();
+  }, []);
+
+  // Fetch data when tab, page, items per page, or search changes
   useEffect(() => {
     fetchClientes();
-  }, []);
+  }, [activeTab, currentPage, itemsPerPage, debouncedSearch]);
 
   // Reset page when changing tabs or search
   useEffect(() => {
     setCurrentPage(1);
-  }, [activeTab, searchTerm]);
+  }, [activeTab, debouncedSearch]);
+
+  const fetchCounts = async () => {
+    try {
+      // Count Mostrador clients
+      const { count: mostradorCount } = await supabase
+        .from("clientes")
+        .select("*", { count: "exact", head: true })
+        .like("codigo", "HPS-%");
+      
+      setTotalMostrador(mostradorCount || 0);
+
+      // Count Logística clients  
+      const { count: logisticaCount } = await supabase
+        .from("clientes")
+        .select("*", { count: "exact", head: true })
+        .like("codigo", "HPC%")
+        .not("codigo", "like", "HPC-%");
+      
+      setTotalLogistica(logisticaCount || 0);
+    } catch (error) {
+      console.error("Error fetching counts:", error);
+    }
+  };
 
   const fetchClientes = async () => {
     setLoading(true);
     try {
-      // Fetch Mostrador clients (HPS-)
-      const { data: mostradorData, error: mostradorError } = await supabase
-        .from("clientes")
-        .select("*")
-        .like("codigo", "HPS-%")
-        .order("created_at", { ascending: false });
+      const from = (currentPage - 1) * itemsPerPage;
+      const to = from + itemsPerPage - 1;
 
-      if (mostradorError) throw mostradorError;
-      setClientesMostrador(mostradorData || []);
+      if (activeTab === 'mostrador') {
+        // Build query for Mostrador
+        let query = supabase
+          .from("clientes")
+          .select("*", { count: "exact" })
+          .like("codigo", "HPS-%");
 
-      // Fetch Logística clients (HPC without dash)
-      const { data: logisticaData, error: logisticaError } = await supabase
-        .from("clientes")
-        .select("*")
-        .like("codigo", "HPC%")
-        .not("codigo", "like", "HPC-%")
-        .order("nombre", { ascending: true });
+        // Apply search filter
+        if (debouncedSearch) {
+          query = query.or(
+            `codigo.ilike.%${debouncedSearch}%,nombre.ilike.%${debouncedSearch}%,nit.ilike.%${debouncedSearch}%,celular.ilike.%${debouncedSearch}%`
+          );
+        }
 
-      if (logisticaError) throw logisticaError;
-      setClientesLogistica(logisticaData || []);
+        const { data, count, error } = await query
+          .order("created_at", { ascending: false })
+          .range(from, to);
+
+        if (error) throw error;
+        setClientesMostrador(data || []);
+        setTotalFiltered(count || 0);
+      } else {
+        // Build query for Logística
+        let query = supabase
+          .from("clientes")
+          .select("*", { count: "exact" })
+          .like("codigo", "HPC%")
+          .not("codigo", "like", "HPC-%");
+
+        // Apply search filter
+        if (debouncedSearch) {
+          query = query.or(
+            `codigo.ilike.%${debouncedSearch}%,nombre.ilike.%${debouncedSearch}%,nit.ilike.%${debouncedSearch}%,celular.ilike.%${debouncedSearch}%`
+          );
+        }
+
+        const { data, count, error } = await query
+          .order("nombre", { ascending: true })
+          .range(from, to);
+
+        if (error) throw error;
+        setClientesLogistica(data || []);
+        setTotalFiltered(count || 0);
+      }
     } catch (error) {
       console.error("Error fetching clients:", error);
       toast.error("Error al cargar los clientes");
@@ -120,28 +190,9 @@ export default function ClientesUnificado({ defaultTab }: ClientesUnificadoProps
     }
   };
 
-  const filteredClientes = useMemo(() => {
-    const clientes = activeTab === 'mostrador' ? clientesMostrador : clientesLogistica;
-    
-    if (!searchTerm) return clientes;
-    
-    const search = searchTerm.toLowerCase();
-    return clientes.filter(
-      (cliente) =>
-        cliente.codigo.toLowerCase().includes(search) ||
-        cliente.nombre.toLowerCase().includes(search) ||
-        cliente.nit.toLowerCase().includes(search) ||
-        cliente.celular.includes(search) ||
-        (cliente.correo && cliente.correo.toLowerCase().includes(search))
-    );
-  }, [activeTab, clientesMostrador, clientesLogistica, searchTerm]);
-
-  const paginatedClientes = useMemo(() => {
-    const start = (currentPage - 1) * itemsPerPage;
-    return filteredClientes.slice(start, start + itemsPerPage);
-  }, [filteredClientes, currentPage, itemsPerPage]);
-
-  const totalPages = Math.ceil(filteredClientes.length / itemsPerPage);
+  // Get current data based on active tab
+  const currentClientes = activeTab === 'mostrador' ? clientesMostrador : clientesLogistica;
+  const totalPages = Math.ceil(totalFiltered / itemsPerPage);
 
   const handleViewDetail = (cliente: Cliente) => {
     if (activeTab === 'mostrador') {
@@ -240,7 +291,7 @@ export default function ClientesUnificado({ defaultTab }: ClientesUnificadoProps
             <Users className="h-4 w-4" />
             Mostrador
             <Badge variant="secondary" className="ml-1 text-xs">
-              {clientesMostrador.length}
+              {totalMostrador.toLocaleString()}
             </Badge>
           </TabsTrigger>
           <TabsTrigger 
@@ -250,7 +301,7 @@ export default function ClientesUnificado({ defaultTab }: ClientesUnificadoProps
             <Truck className="h-4 w-4" />
             Logística
             <Badge variant="secondary" className="ml-1 text-xs">
-              {clientesLogistica.length}
+              {totalLogistica.toLocaleString()}
             </Badge>
           </TabsTrigger>
         </TabsList>
@@ -268,7 +319,7 @@ export default function ClientesUnificado({ defaultTab }: ClientesUnificadoProps
         {/* Results info */}
         <div className="flex items-center justify-between mt-4">
           <p className="text-sm text-muted-foreground">
-            {filteredClientes.length} cliente{filteredClientes.length !== 1 ? 's' : ''} encontrado{filteredClientes.length !== 1 ? 's' : ''}
+            {totalFiltered} cliente{totalFiltered !== 1 ? 's' : ''} encontrado{totalFiltered !== 1 ? 's' : ''}
           </p>
         </div>
 
@@ -276,7 +327,7 @@ export default function ClientesUnificado({ defaultTab }: ClientesUnificadoProps
         <TabsContent value="mostrador" className="mt-4">
           {loading ? (
             <div className="text-center py-8 text-muted-foreground">Cargando...</div>
-          ) : paginatedClientes.length === 0 ? (
+          ) : currentClientes.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               No se encontraron clientes
             </div>
@@ -293,7 +344,7 @@ export default function ClientesUnificado({ defaultTab }: ClientesUnificadoProps
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {paginatedClientes.map((cliente) => (
+                  {currentClientes.map((cliente) => (
                     <TableRow 
                       key={cliente.id}
                       className="cursor-pointer hover:bg-muted/30 transition-colors"
@@ -348,7 +399,7 @@ export default function ClientesUnificado({ defaultTab }: ClientesUnificadoProps
         <TabsContent value="logistica" className="mt-4">
           {loading ? (
             <div className="text-center py-8 text-muted-foreground">Cargando...</div>
-          ) : paginatedClientes.length === 0 ? (
+          ) : currentClientes.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               No se encontraron clientes
             </div>
@@ -366,7 +417,7 @@ export default function ClientesUnificado({ defaultTab }: ClientesUnificadoProps
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {paginatedClientes.map((cliente) => (
+                  {currentClientes.map((cliente) => (
                     <TableRow 
                       key={cliente.id}
                       className="cursor-pointer hover:bg-muted/30 transition-colors"
@@ -420,11 +471,11 @@ export default function ClientesUnificado({ defaultTab }: ClientesUnificadoProps
       </Tabs>
 
       {/* Pagination */}
-      {filteredClientes.length > 0 && (
+      {totalFiltered > 0 && (
         <TablePagination
           currentPage={currentPage}
           totalPages={totalPages}
-          totalItems={filteredClientes.length}
+          totalItems={totalFiltered}
           itemsPerPage={itemsPerPage}
           onPageChange={setCurrentPage}
           onItemsPerPageChange={(value) => {
