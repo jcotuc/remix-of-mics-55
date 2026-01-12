@@ -16,7 +16,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import * as XLSX from "xlsx";
-
 interface ProductoExtended {
   codigo: string;
   clave: string;
@@ -25,13 +24,11 @@ interface ProductoExtended {
   urlFoto: string;
   familia_padre_id: number | null;
 }
-
 interface Familia {
   id: number;
   Categoria: string | null;
   Padre: number | null;
 }
-
 interface NewProducto {
   codigo: string;
   clave: string;
@@ -39,7 +36,6 @@ interface NewProducto {
   url_foto: string;
   descontinuado: boolean;
 }
-
 interface ImportProducto {
   codigo: string;
   clave: string;
@@ -57,11 +53,8 @@ interface ImportProducto {
 
 // Función para normalizar texto (remover acentos y convertir a minúsculas)
 const normalizarTexto = (texto: string): string => {
-  return texto
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '') // Remover acentos
-    .trim();
+  return texto.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '') // Remover acentos
+  .trim();
 };
 
 // Mapeo de nombres alternativos del Excel → nombre normalizado en base de datos
@@ -70,170 +63,337 @@ const FAMILIA_ALIASES: Record<string, string> = {
   'bombas de agua': 'bomba',
   'bombas': 'bomba',
   'bomba de agua': 'bomba',
-  
   // Eléctrica (con y sin acento)
   'electrica': 'electrica',
   'electricas': 'electrica',
   'herramientas electricas': 'electrica',
-  
   // Compresores
   'compresores': 'compresor',
   'compresores de aire': 'compresor',
-  
   // Soldadoras
   'soldadora': 'soldadoras',
   'soldadura': 'soldadoras',
   'soldadora inversora': 'soldadoras',
   'soldadoras inversoras': 'soldadoras',
   'mini soldadora inversora': 'soldadoras',
-  
   // Hidroneumáticas (viene como categoría, mapear a bomba)
   'hidroneumaticas': 'bomba',
   'hidroneumatica': 'bomba',
-  
   // Hidrolavadoras
   'hidrolavadora': 'hidrolavadoras',
   'hydro lavadoras': 'hidrolavadoras',
   'hidrolavadora a gasolina': 'hidrolavadoras',
-  
   // Hidráulica
   'hidraulica': 'hidraulica',
   'hidraulicas': 'hidraulica',
   'herramientas hidraulicas': 'hidraulica',
-  
   // Neumática
   'neumatica': 'neumatica',
   'neumaticas': 'neumatica',
   'herramientas neumaticas': 'neumatica',
-  
   // 2 y 4 tiempos
   'dos tiempos': '2 tiempos',
   'cuatro tiempos': '4 tiempos',
   'gasolina 2t': '2 tiempos',
   'gasolina 4t': '4 tiempos',
-  
   // Estacionaria
   'estacionarias': 'estacionaria',
-  'herramientas estacionarias': 'estacionaria',
+  'herramientas estacionarias': 'estacionaria'
 };
 
 // Mapeo de palabras clave por familia abuelo → familia padre (subcategoría)
 // IMPORTANTE: Las reglas más específicas van PRIMERO en cada array
-const SUBCATEGORIA_KEYWORDS: Record<number, { keywords: string[], padreId: number, nombre: string }[]> = {
+const SUBCATEGORIA_KEYWORDS: Record<number, {
+  keywords: string[];
+  padreId: number;
+  nombre: string;
+}[]> = {
   // 2 tiempos (27)
-  27: [
-    { keywords: ['motosierra'], padreId: 88, nombre: 'Motosierra' },
-    { keywords: ['desbrozadora', 'desmalezadora'], padreId: 87, nombre: 'Desbrozadora' },
-    { keywords: ['cortasetos', 'corta setos'], padreId: 91, nombre: 'Cortasetos' },
-    { keywords: ['sopladora'], padreId: 89, nombre: 'Sopladora' },
-  ],
+  27: [{
+    keywords: ['motosierra'],
+    padreId: 88,
+    nombre: 'Motosierra'
+  }, {
+    keywords: ['desbrozadora', 'desmalezadora'],
+    padreId: 87,
+    nombre: 'Desbrozadora'
+  }, {
+    keywords: ['cortasetos', 'corta setos'],
+    padreId: 91,
+    nombre: 'Cortasetos'
+  }, {
+    keywords: ['sopladora'],
+    padreId: 89,
+    nombre: 'Sopladora'
+  }],
   // 4 tiempos (23)
-  23: [
-    { keywords: ['generador'], padreId: 83, nombre: 'Generadores' },
-    { keywords: ['podadora'], padreId: 84, nombre: 'Podadoras' },
-    { keywords: ['fumigadora'], padreId: 85, nombre: 'Fumigadoras' },
-    { keywords: ['revolvedora'], padreId: 86, nombre: 'Revolvedora' },
-  ],
+  23: [{
+    keywords: ['generador'],
+    padreId: 83,
+    nombre: 'Generadores'
+  }, {
+    keywords: ['podadora'],
+    padreId: 84,
+    nombre: 'Podadoras'
+  }, {
+    keywords: ['fumigadora'],
+    padreId: 85,
+    nombre: 'Fumigadoras'
+  }, {
+    keywords: ['revolvedora'],
+    padreId: 86,
+    nombre: 'Revolvedora'
+  }],
   // Bomba (33)
-  33: [
-    { keywords: ['motobomba'], padreId: 99, nombre: 'Motobombas' },
-    { keywords: ['sumergible'], padreId: 92, nombre: 'Sumergible' },
-    { keywords: ['periférica', 'periferica'], padreId: 98, nombre: 'Periférica' },
-    { keywords: ['centrifuga', 'centrífuga'], padreId: 93, nombre: 'Centrífuga' },
-    { keywords: ['hidroneumática', 'hidroneumatica', 'hidroneumaticas'], padreId: 97, nombre: 'Hidroneumática' },
-    { keywords: ['presurizada'], padreId: 96, nombre: 'Presurizada' },
-    { keywords: ['bala'], padreId: 94, nombre: 'Bala' },
-  ],
+  33: [{
+    keywords: ['motobomba'],
+    padreId: 99,
+    nombre: 'Motobombas'
+  }, {
+    keywords: ['sumergible'],
+    padreId: 92,
+    nombre: 'Sumergible'
+  }, {
+    keywords: ['periférica', 'periferica'],
+    padreId: 98,
+    nombre: 'Periférica'
+  }, {
+    keywords: ['centrifuga', 'centrífuga'],
+    padreId: 93,
+    nombre: 'Centrífuga'
+  }, {
+    keywords: ['hidroneumática', 'hidroneumatica', 'hidroneumaticas'],
+    padreId: 97,
+    nombre: 'Hidroneumática'
+  }, {
+    keywords: ['presurizada'],
+    padreId: 96,
+    nombre: 'Presurizada'
+  }, {
+    keywords: ['bala'],
+    padreId: 94,
+    nombre: 'Bala'
+  }],
   // Compresor (1)
-  1: [
-    { keywords: ['libre de aceite', 'oil free'], padreId: 63, nombre: 'Libre de aceite' },
-    { keywords: ['banda', '120l', '240l', '120 l', '240 l'], padreId: 62, nombre: 'Lubricado de banda' },
-    { keywords: ['lubricado'], padreId: 61, nombre: 'Lubricado' },
-  ],
+  1: [{
+    keywords: ['libre de aceite', 'oil free'],
+    padreId: 63,
+    nombre: 'Libre de aceite'
+  }, {
+    keywords: ['banda', '120l', '240l', '120 l', '240 l'],
+    padreId: 62,
+    nombre: 'Lubricado de banda'
+  }, {
+    keywords: ['lubricado'],
+    padreId: 61,
+    nombre: 'Lubricado'
+  }],
   // Eléctrica (4) - REGLAS ESPECÍFICAS PRIMERO
   4: [
-    // ⚡ REGLA ESPECÍFICA: Rotomartillo SDS → Electroneumáticos/Demoledores
-    { keywords: ['rotomartillo sds', 'roto martillo sds', 'sds plus', 'sds max', 'sds-plus', 'sds-max'], padreId: 69, nombre: 'Electroneumático/Demoledor' },
-    // Rotomartillos normales (después de la regla SDS)
-    { keywords: ['rotomartillo', 'roto martillo'], padreId: 64, nombre: 'Rotomartillos' },
-    { keywords: ['demoledor', 'electroneumático', 'electroneumatico'], padreId: 69, nombre: 'Electroneumático/Demoledor' },
-    { keywords: ['esmeril', 'pulidora', 'amoladora'], padreId: 65, nombre: 'Esmeriladora' },
-    { keywords: ['inalámbrico', 'inalambrico', 'batería', 'bateria', '20v', '18v', '12v'], padreId: 79, nombre: 'Inalámbrica' },
-    { keywords: ['caladora'], padreId: 70, nombre: 'Caladora' },
-    { keywords: ['sierra circular', 'circular'], padreId: 68, nombre: 'Circular' },
-    { keywords: ['lijadora orbital', 'orbital'], padreId: 72, nombre: 'Lijadora orbital' },
-    { keywords: ['lijadora de banda', 'lijadora banda'], padreId: 71, nombre: 'Lijadora de banda' },
-    { keywords: ['taladro'], padreId: 78, nombre: 'Taladro' },
-    { keywords: ['router', 'fresadora', 'rebajadora'], padreId: 67, nombre: 'Router' },
-    { keywords: ['aspiradora'], padreId: 74, nombre: 'Aspiradora' },
-    { keywords: ['cepillo'], padreId: 77, nombre: 'Cepillo' },
-    { keywords: ['pistola de calor', 'pistola calor'], padreId: 66, nombre: 'Pistola de calor' },
-    { keywords: ['desbrozadora'], padreId: 73, nombre: 'Desbrozadora eléctrica' },
-    { keywords: ['cargador'], padreId: 75, nombre: 'Cargador' },
-    { keywords: ['inversor'], padreId: 76, nombre: 'Inversor' },
-  ],
+  // ⚡ REGLA ESPECÍFICA: Rotomartillo SDS → Electroneumáticos/Demoledores
+  {
+    keywords: ['rotomartillo sds', 'roto martillo sds', 'sds plus', 'sds max', 'sds-plus', 'sds-max'],
+    padreId: 69,
+    nombre: 'Electroneumático/Demoledor'
+  },
+  // Rotomartillos normales (después de la regla SDS)
+  {
+    keywords: ['rotomartillo', 'roto martillo'],
+    padreId: 64,
+    nombre: 'Rotomartillos'
+  }, {
+    keywords: ['demoledor', 'electroneumático', 'electroneumatico'],
+    padreId: 69,
+    nombre: 'Electroneumático/Demoledor'
+  }, {
+    keywords: ['esmeril', 'pulidora', 'amoladora'],
+    padreId: 65,
+    nombre: 'Esmeriladora'
+  }, {
+    keywords: ['inalámbrico', 'inalambrico', 'batería', 'bateria', '20v', '18v', '12v'],
+    padreId: 79,
+    nombre: 'Inalámbrica'
+  }, {
+    keywords: ['caladora'],
+    padreId: 70,
+    nombre: 'Caladora'
+  }, {
+    keywords: ['sierra circular', 'circular'],
+    padreId: 68,
+    nombre: 'Circular'
+  }, {
+    keywords: ['lijadora orbital', 'orbital'],
+    padreId: 72,
+    nombre: 'Lijadora orbital'
+  }, {
+    keywords: ['lijadora de banda', 'lijadora banda'],
+    padreId: 71,
+    nombre: 'Lijadora de banda'
+  }, {
+    keywords: ['taladro'],
+    padreId: 78,
+    nombre: 'Taladro'
+  }, {
+    keywords: ['router', 'fresadora', 'rebajadora'],
+    padreId: 67,
+    nombre: 'Router'
+  }, {
+    keywords: ['aspiradora'],
+    padreId: 74,
+    nombre: 'Aspiradora'
+  }, {
+    keywords: ['cepillo'],
+    padreId: 77,
+    nombre: 'Cepillo'
+  }, {
+    keywords: ['pistola de calor', 'pistola calor'],
+    padreId: 66,
+    nombre: 'Pistola de calor'
+  }, {
+    keywords: ['desbrozadora'],
+    padreId: 73,
+    nombre: 'Desbrozadora eléctrica'
+  }, {
+    keywords: ['cargador'],
+    padreId: 75,
+    nombre: 'Cargador'
+  }, {
+    keywords: ['inversor'],
+    padreId: 76,
+    nombre: 'Inversor'
+  }],
   // Estacionaria (41)
-  41: [
-    { keywords: ['inglete'], padreId: 101, nombre: 'Inglete' },
-    { keywords: ['cortadora de metales', 'cortadora metales'], padreId: 103, nombre: 'Cortadora de metales' },
-    { keywords: ['taladro de piso', 'taladro piso'], padreId: 102, nombre: 'Taladro de piso' },
-    { keywords: ['cepillo de piso', 'cepillo piso'], padreId: 100, nombre: 'Cepillo de piso' },
-    { keywords: ['polipasto'], padreId: 105, nombre: 'Polipasto' },
-    { keywords: ['calentador'], padreId: 106, nombre: 'Calentador' },
-    { keywords: ['duplicadora', 'llaves'], padreId: 104, nombre: 'Duplicadora' },
-  ],
+  41: [{
+    keywords: ['inglete'],
+    padreId: 101,
+    nombre: 'Inglete'
+  }, {
+    keywords: ['cortadora de metales', 'cortadora metales'],
+    padreId: 103,
+    nombre: 'Cortadora de metales'
+  }, {
+    keywords: ['taladro de piso', 'taladro piso'],
+    padreId: 102,
+    nombre: 'Taladro de piso'
+  }, {
+    keywords: ['cepillo de piso', 'cepillo piso'],
+    padreId: 100,
+    nombre: 'Cepillo de piso'
+  }, {
+    keywords: ['polipasto'],
+    padreId: 105,
+    nombre: 'Polipasto'
+  }, {
+    keywords: ['calentador'],
+    padreId: 106,
+    nombre: 'Calentador'
+  }, {
+    keywords: ['duplicadora', 'llaves'],
+    padreId: 104,
+    nombre: 'Duplicadora'
+  }],
   // Hidráulica (49)
-  49: [
-    { keywords: ['gato'], padreId: 107, nombre: 'Gato' },
-    { keywords: ['pallet', 'patín', 'patin'], padreId: 110, nombre: 'Pallet/Patín' },
-    { keywords: ['porto power', 'portopower'], padreId: 109, nombre: 'Porto Power' },
-    { keywords: ['prensa', 'pluma'], padreId: 108, nombre: 'Prensa/Pluma' },
-  ],
+  49: [{
+    keywords: ['gato'],
+    padreId: 107,
+    nombre: 'Gato'
+  }, {
+    keywords: ['pallet', 'patín', 'patin'],
+    padreId: 110,
+    nombre: 'Pallet/Patín'
+  }, {
+    keywords: ['porto power', 'portopower'],
+    padreId: 109,
+    nombre: 'Porto Power'
+  }, {
+    keywords: ['prensa', 'pluma'],
+    padreId: 108,
+    nombre: 'Prensa/Pluma'
+  }],
   // Hidrolavadoras (20)
-  20: [
-    { keywords: ['4000', '4,000', '4000 psi'], padreId: 81, nombre: 'Hidrolavadora 4000 PSI' },
-    { keywords: ['eléctrica', 'electrica'], padreId: 82, nombre: 'Hidrolavadora eléctrica' },
-    { keywords: ['2800', '3300', '2,800', '3,300'], padreId: 80, nombre: 'Hidrolavadora 2800-3300' },
-  ],
+  20: [{
+    keywords: ['4000', '4,000', '4000 psi'],
+    padreId: 81,
+    nombre: 'Hidrolavadora 4000 PSI'
+  }, {
+    keywords: ['eléctrica', 'electrica'],
+    padreId: 82,
+    nombre: 'Hidrolavadora eléctrica'
+  }, {
+    keywords: ['2800', '3300', '2,800', '3,300'],
+    padreId: 80,
+    nombre: 'Hidrolavadora 2800-3300'
+  }],
   // Neumática (53)
-  53: [
-    { keywords: ['engrapadora', 'clavadora'], padreId: 111, nombre: 'Engrapadora/Clavadora' },
-    { keywords: ['impacto', 'llave de impacto'], padreId: 112, nombre: 'Llave de impacto' },
-    { keywords: ['matraca'], padreId: 115, nombre: 'Matraca' },
-    { keywords: ['rectificador'], padreId: 114, nombre: 'Rectificador' },
-    { keywords: ['lijadora'], padreId: 117, nombre: 'Lijadora neumática' },
-    { keywords: ['remachadora'], padreId: 116, nombre: 'Remachadora' },
-    { keywords: ['taladro'], padreId: 113, nombre: 'Taladro neumático' },
-  ],
+  53: [{
+    keywords: ['engrapadora', 'clavadora'],
+    padreId: 111,
+    nombre: 'Engrapadora/Clavadora'
+  }, {
+    keywords: ['impacto', 'llave de impacto'],
+    padreId: 112,
+    nombre: 'Llave de impacto'
+  }, {
+    keywords: ['matraca'],
+    padreId: 115,
+    nombre: 'Matraca'
+  }, {
+    keywords: ['rectificador'],
+    padreId: 114,
+    nombre: 'Rectificador'
+  }, {
+    keywords: ['lijadora'],
+    padreId: 117,
+    nombre: 'Lijadora neumática'
+  }, {
+    keywords: ['remachadora'],
+    padreId: 116,
+    nombre: 'Remachadora'
+  }, {
+    keywords: ['taladro'],
+    padreId: 113,
+    nombre: 'Taladro neumático'
+  }],
   // Soldadoras (60)
-  60: [
-    { keywords: ['inversora', 'mini soldadora inversora'], padreId: 118, nombre: 'Soldadora inversora' },
-    { keywords: ['plasma'], padreId: 120, nombre: 'Plasma' },
-    { keywords: ['arco'], padreId: 119, nombre: 'Arco' },
-    { keywords: ['mig', 'mag', 'microalambre'], padreId: 121, nombre: 'MIG/MAG' },
-  ],
+  60: [{
+    keywords: ['inversora', 'mini soldadora inversora'],
+    padreId: 118,
+    nombre: 'Soldadora inversora'
+  }, {
+    keywords: ['plasma'],
+    padreId: 120,
+    nombre: 'Plasma'
+  }, {
+    keywords: ['arco'],
+    padreId: 119,
+    nombre: 'Arco'
+  }, {
+    keywords: ['mig', 'mag', 'microalambre'],
+    padreId: 121,
+    nombre: 'MIG/MAG'
+  }]
 };
 
 // Función para encontrar subcategoría basada en descripción
-const findSubcategoriaByDescription = (
-  abueloId: number, 
-  descripcion: string
-): { padreId: number; nombre: string } | undefined => {
+const findSubcategoriaByDescription = (abueloId: number, descripcion: string): {
+  padreId: number;
+  nombre: string;
+} | undefined => {
   const rules = SUBCATEGORIA_KEYWORDS[abueloId];
   if (!rules) return undefined;
-  
   const descLower = descripcion.toLowerCase();
-  
+
   // Buscar en orden (las reglas más específicas están primero)
   for (const rule of rules) {
     if (rule.keywords.some(kw => descLower.includes(kw.toLowerCase()))) {
-      return { padreId: rule.padreId, nombre: rule.nombre };
+      return {
+        padreId: rule.padreId,
+        nombre: rule.nombre
+      };
     }
   }
-  
   return undefined;
 };
-
 export default function Productos() {
   const [searchTerm, setSearchTerm] = useState("");
   const [productosList, setProductosList] = useState<ProductoExtended[]>([]);
@@ -243,7 +403,7 @@ export default function Productos() {
   const [selectedAbuelo, setSelectedAbuelo] = useState<string>("");
   const [selectedPadre, setSelectedPadre] = useState<string>("");
   const [saving, setSaving] = useState(false);
-  
+
   // Estados para edición completa del producto
   const [editClave, setEditClave] = useState("");
   const [editDescripcion, setEditDescripcion] = useState("");
@@ -284,29 +444,22 @@ export default function Productos() {
 
   // Familias "abuelo" (top-level, sin padre)
   const familiasAbuelo = familias.filter(f => f.Padre === null);
-  
+
   // Familias "padre" para edición
-  const familiasPadre = familias.filter(f => 
-    selectedAbuelo && f.Padre === parseInt(selectedAbuelo)
-  );
+  const familiasPadre = familias.filter(f => selectedAbuelo && f.Padre === parseInt(selectedAbuelo));
 
   // Familias "padre" para creación
-  const familiasPadreCreate = familias.filter(f => 
-    createAbuelo && f.Padre === parseInt(createAbuelo)
-  );
-
+  const familiasPadreCreate = familias.filter(f => createAbuelo && f.Padre === parseInt(createAbuelo));
   useEffect(() => {
     fetchData();
   }, []);
-
   const fetchData = async () => {
     try {
       // Fetch familias first
-      const { data: familiasData, error: familiasError } = await supabase
-        .from('CDS_Familias')
-        .select('id, Categoria, Padre')
-        .order('Categoria');
-      
+      const {
+        data: familiasData,
+        error: familiasError
+      } = await supabase.from('CDS_Familias').select('id, Categoria, Padre').order('Categoria');
       if (familiasError) throw familiasError;
       setFamilias(familiasData || []);
 
@@ -315,16 +468,12 @@ export default function Productos() {
       const pageSize = 1000;
       let offset = 0;
       let hasMore = true;
-
       while (hasMore) {
-        const { data, error } = await supabase
-          .from('productos')
-          .select('*')
-          .order('codigo')
-          .range(offset, offset + pageSize - 1);
-
+        const {
+          data,
+          error
+        } = await supabase.from('productos').select('*').order('codigo').range(offset, offset + pageSize - 1);
         if (error) throw error;
-
         if (data && data.length > 0) {
           const transformedBatch = data.map(item => ({
             codigo: item.codigo,
@@ -341,7 +490,6 @@ export default function Productos() {
           hasMore = false;
         }
       }
-
       setProductosList(allProducts);
       console.log(`Cargados ${allProducts.length} productos`);
     } catch (error) {
@@ -351,19 +499,16 @@ export default function Productos() {
       setLoading(false);
     }
   };
-
   const limpiarClavesDuplicadas = async () => {
     setCleaningKeys(true);
     try {
       // Obtener productos donde clave = codigo
-      const { data: productos, error: fetchError } = await supabase
-        .from('productos')
-        .select('id, codigo, clave');
-
+      const {
+        data: productos,
+        error: fetchError
+      } = await supabase.from('productos').select('id, codigo, clave');
       if (fetchError) throw fetchError;
-
       const productosConClaveDuplicada = productos?.filter(p => p.clave === p.codigo) || [];
-      
       if (productosConClaveDuplicada.length === 0) {
         toast.info("No hay claves duplicadas para limpiar");
         return;
@@ -372,21 +517,18 @@ export default function Productos() {
       // Actualizar en lotes
       let updated = 0;
       const batchSize = 100;
-      
       for (let i = 0; i < productosConClaveDuplicada.length; i += batchSize) {
         const batch = productosConClaveDuplicada.slice(i, i + batchSize);
         const ids = batch.map(p => p.id);
-        
-        const { error: updateError } = await supabase
-          .from('productos')
-          .update({ clave: '' })
-          .in('id', ids);
-
+        const {
+          error: updateError
+        } = await supabase.from('productos').update({
+          clave: ''
+        }).in('id', ids);
         if (!updateError) {
           updated += batch.length;
         }
       }
-
       toast.success(`Se limpiaron ${updated} claves duplicadas`);
       fetchData(); // Recargar datos
     } catch (error) {
@@ -396,24 +538,22 @@ export default function Productos() {
       setCleaningKeys(false);
     }
   };
-
   const asignarCategoriaHerramientaManual = async () => {
     setAssigningCategory(true);
     try {
-      const { data, error } = await supabase.functions.invoke(
-        'admin-assign-herramienta-manual',
-        { body: {} }
-      );
-
+      const {
+        data,
+        error
+      } = await supabase.functions.invoke('admin-assign-herramienta-manual', {
+        body: {}
+      });
       if (error) throw error;
-
       const updated = (data as any)?.updated ?? 0;
       if (updated === 0) {
         toast.info("No hay productos sin categoría");
       } else {
         toast.success(`Se asignaron ${updated} productos a "Herramienta manual"`);
       }
-
       await fetchData();
     } catch (error) {
       console.error('Error asignando categoría:', error);
@@ -422,7 +562,6 @@ export default function Productos() {
       setAssigningCategory(false);
     }
   };
-
   const getFamiliaName = (familiaPadreId: number | null) => {
     if (!familiaPadreId) return "-";
     const familia = familias.find(f => f.id === familiaPadreId);
@@ -431,7 +570,6 @@ export default function Productos() {
     if (familia.Padre === null) return "-";
     return familia.Categoria || "-";
   };
-
   const getAbueloName = (familiaPadreId: number | null) => {
     if (!familiaPadreId) return "-";
     const familia = familias.find(f => f.id === familiaPadreId);
@@ -444,14 +582,12 @@ export default function Productos() {
     const padre = familias.find(f => f.id === familia.Padre);
     return padre?.Categoria || "-";
   };
-
   const handleEditClick = (producto: ProductoExtended) => {
     setEditingProducto(producto);
     setEditClave(producto.clave || "");
     setEditDescripcion(producto.descripcion);
     setEditUrlFoto(producto.urlFoto === "/placeholder.svg" ? "" : producto.urlFoto || "");
     setEditDescontinuado(producto.descontinuado);
-    
     const familia = familias.find(f => f.id === producto.familia_padre_id);
     if (familia) {
       if (familia.Padre === null) {
@@ -468,48 +604,32 @@ export default function Productos() {
       setSelectedPadre("");
     }
   };
-
   const handleSave = async () => {
     if (!editingProducto) return;
-    
     if (!editDescripcion.trim()) {
       toast.error("La descripción es requerida");
       return;
     }
-    
     setSaving(true);
-
     try {
-      const { error } = await supabase
-        .from('productos')
-        .update({
-          clave: editClave.trim(),
-          descripcion: editDescripcion.trim(),
-          url_foto: editUrlFoto.trim() || null,
-          descontinuado: editDescontinuado,
-          familia_padre_id: selectedPadre 
-            ? parseInt(selectedPadre) 
-            : (selectedAbuelo && familiasPadre.length === 0 ? parseInt(selectedAbuelo) : null)
-        })
-        .eq('codigo', editingProducto.codigo);
-
+      const {
+        error
+      } = await supabase.from('productos').update({
+        clave: editClave.trim(),
+        descripcion: editDescripcion.trim(),
+        url_foto: editUrlFoto.trim() || null,
+        descontinuado: editDescontinuado,
+        familia_padre_id: selectedPadre ? parseInt(selectedPadre) : selectedAbuelo && familiasPadre.length === 0 ? parseInt(selectedAbuelo) : null
+      }).eq('codigo', editingProducto.codigo);
       if (error) throw error;
-
-      setProductosList(prev => prev.map(p => 
-        p.codigo === editingProducto.codigo 
-          ? { 
-              ...p, 
-              clave: editClave.trim(),
-              descripcion: editDescripcion.trim(),
-              urlFoto: editUrlFoto.trim() || "/placeholder.svg",
-              descontinuado: editDescontinuado,
-              familia_padre_id: selectedPadre 
-                ? parseInt(selectedPadre) 
-                : (selectedAbuelo && familiasPadre.length === 0 ? parseInt(selectedAbuelo) : null)
-            }
-          : p
-      ));
-
+      setProductosList(prev => prev.map(p => p.codigo === editingProducto.codigo ? {
+        ...p,
+        clave: editClave.trim(),
+        descripcion: editDescripcion.trim(),
+        urlFoto: editUrlFoto.trim() || "/placeholder.svg",
+        descontinuado: editDescontinuado,
+        familia_padre_id: selectedPadre ? parseInt(selectedPadre) : selectedAbuelo && familiasPadre.length === 0 ? parseInt(selectedAbuelo) : null
+      } : p));
       toast.success("Producto actualizado correctamente");
       setEditingProducto(null);
     } catch (error) {
@@ -519,7 +639,6 @@ export default function Productos() {
       setSaving(false);
     }
   };
-
   const resetCreateForm = () => {
     setNewProducto({
       codigo: "",
@@ -531,12 +650,10 @@ export default function Productos() {
     setCreateAbuelo("");
     setCreatePadre("");
   };
-
   const handleOpenCreate = () => {
     resetCreateForm();
     setIsCreating(true);
   };
-
   const handleCreate = async () => {
     // Validar campos requeridos
     if (!newProducto.codigo.trim()) {
@@ -551,17 +668,12 @@ export default function Productos() {
       toast.error("La descripción es requerida");
       return;
     }
-
     setCreating(true);
-
     try {
       // Verificar código único
-      const { data: existing } = await supabase
-        .from('productos')
-        .select('codigo')
-        .eq('codigo', newProducto.codigo.trim())
-        .maybeSingle();
-
+      const {
+        data: existing
+      } = await supabase.from('productos').select('codigo').eq('codigo', newProducto.codigo.trim()).maybeSingle();
       if (existing) {
         toast.error("Ya existe un producto con este código");
         setCreating(false);
@@ -569,19 +681,16 @@ export default function Productos() {
       }
 
       // Insertar producto
-      const { error } = await supabase
-        .from('productos')
-        .insert({
-          codigo: newProducto.codigo.trim(),
-          clave: newProducto.clave.trim(),
-          descripcion: newProducto.descripcion.trim(),
-          url_foto: newProducto.url_foto.trim() || null,
-          descontinuado: newProducto.descontinuado,
-          familia_padre_id: createPadre 
-            ? parseInt(createPadre) 
-            : (createAbuelo && familiasPadreCreate.length === 0 ? parseInt(createAbuelo) : null)
-        });
-
+      const {
+        error
+      } = await supabase.from('productos').insert({
+        codigo: newProducto.codigo.trim(),
+        clave: newProducto.clave.trim(),
+        descripcion: newProducto.descripcion.trim(),
+        url_foto: newProducto.url_foto.trim() || null,
+        descontinuado: newProducto.descontinuado,
+        familia_padre_id: createPadre ? parseInt(createPadre) : createAbuelo && familiasPadreCreate.length === 0 ? parseInt(createAbuelo) : null
+      });
       if (error) throw error;
 
       // Agregar a lista local
@@ -593,7 +702,6 @@ export default function Productos() {
         descontinuado: newProducto.descontinuado,
         familia_padre_id: createPadre ? parseInt(createPadre) : null
       }]);
-
       toast.success("Producto creado correctamente");
       setIsCreating(false);
       resetCreateForm();
@@ -609,14 +717,12 @@ export default function Productos() {
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     try {
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data);
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
       const jsonData = XLSX.utils.sheet_to_json(worksheet) as Record<string, unknown>[];
-
       if (jsonData.length === 0) {
         toast.error("El archivo está vacío");
         return;
@@ -627,44 +733,25 @@ export default function Productos() {
       const seenCodes = new Set<string>();
 
       // Procesar cada fila
-      const processedData: ImportProducto[] = jsonData.map((row) => {
+      const processedData: ImportProducto[] = jsonData.map(row => {
         // Buscar columnas con nombres flexibles (incluyendo SKU y Producto)
-        const codigo = String(
-          row['Codigo'] || row['codigo'] || row['CODIGO'] || row['Código'] || 
-          row['SKU'] || row['sku'] || row['Sku'] || ''
-        ).trim();
+        const codigo = String(row['Codigo'] || row['codigo'] || row['CODIGO'] || row['Código'] || row['SKU'] || row['sku'] || row['Sku'] || '').trim();
         const clave = String(row['Clave'] || row['clave'] || row['CLAVE'] || '').trim();
-        const descripcion = String(
-          row['Descripcion'] || row['descripcion'] || row['DESCRIPCION'] || row['Descripción'] || 
-          row['Producto'] || row['producto'] || row['PRODUCTO'] || ''
-        ).trim();
+        const descripcion = String(row['Descripcion'] || row['descripcion'] || row['DESCRIPCION'] || row['Descripción'] || row['Producto'] || row['producto'] || row['PRODUCTO'] || '').trim();
         const urlFoto = String(row['URL_Foto'] || row['url_foto'] || row['URL'] || row['Foto'] || '').trim();
-        const descontinuadoRaw = row['Descontinuado'] || row['descontinuado'] || row['DESCONTINUADO'] || 
-          row['Estado'] || row['estado'] || row['ESTADO'] || '';
-        const familiaNombre = String(
-          row['Categoria'] || row['categoria'] || row['CATEGORIA'] || 
-          row['Familia'] || row['familia'] || row['FAMILIA'] || 
-          row['Subcategoria'] || ''
-        ).trim();
+        const descontinuadoRaw = row['Descontinuado'] || row['descontinuado'] || row['DESCONTINUADO'] || row['Estado'] || row['estado'] || row['ESTADO'] || '';
+        const familiaNombre = String(row['Categoria'] || row['categoria'] || row['CATEGORIA'] || row['Familia'] || row['familia'] || row['FAMILIA'] || row['Subcategoria'] || '').trim();
 
         // Convertir descontinuado a boolean - detectar "Descontinuados" vs "No descontinuados"
         const descontinuadoStr = String(descontinuadoRaw).toLowerCase().trim();
-        const descontinuado = 
-          descontinuadoStr === 'descontinuados' ||
-          descontinuadoStr === 'descontinuado' ||
-          descontinuadoStr === 'si' ||
-          descontinuadoStr === 'sí' ||
-          descontinuadoStr === 'true' ||
-          descontinuadoStr === '1' ||
-          descontinuadoRaw === true ||
-          descontinuadoRaw === 1;
+        const descontinuado = descontinuadoStr === 'descontinuados' || descontinuadoStr === 'descontinuado' || descontinuadoStr === 'si' || descontinuadoStr === 'sí' || descontinuadoStr === 'true' || descontinuadoStr === '1' || descontinuadoRaw === true || descontinuadoRaw === 1;
 
         // Verificar si ya existe en BD (marcar como skipped, no error)
         const yaExisteEnBD = existingCodes.has(codigo.toLowerCase());
-        
+
         // Verificar duplicado en archivo ANTES de agregarlo a seenCodes
         const duplicadoEnArchivo = seenCodes.has(codigo.toLowerCase());
-        
+
         // Si es duplicado en archivo, ignorarlo (skipped)
         if (duplicadoEnArchivo) {
           return {
@@ -679,15 +766,15 @@ export default function Productos() {
             skipReason: "Duplicado en archivo"
           };
         }
-        
+
         // Agregar código a vistos DESPUÉS de verificar duplicado
         seenCodes.add(codigo.toLowerCase());
-        
+
         // Validaciones reales (errores)
         const errors: string[] = [];
         if (!codigo) errors.push("Código requerido");
         if (!descripcion) errors.push("Descripción requerida");
-        
+
         // Si ya existe en BD, marcarlo como skipped (no como error)
         if (yaExisteEnBD && errors.length === 0) {
           return {
@@ -706,41 +793,38 @@ export default function Productos() {
         // Buscar familia por nombre (case-insensitive) y auto-asignar subcategoría
         let familiaId: number | undefined;
         let asignacionInfo: string | undefined;
-        
         if (familiaNombre) {
           // Normalizar nombre del Excel (remover acentos, minúsculas)
           const nombreNormalizado = normalizarTexto(familiaNombre);
-          
+
           // Buscar en aliases primero, luego usar el nombre normalizado
           const nombreMapeado = FAMILIA_ALIASES[nombreNormalizado] || nombreNormalizado;
-          
+
           // Buscar familia con coincidencia normalizada
           const familiaMatch = familias.find(f => {
             const categoriaNormalizada = normalizarTexto(f.Categoria || '');
             return categoriaNormalizada === nombreMapeado;
           });
-          
           if (familiaMatch) {
             // Verificar si es un "abuelo" (categoría principal, Padre = NULL)
-              if (familiaMatch.Padre === null) {
-                // Es una categoría principal
-                if (familiaMatch.id === HERRAMIENTA_MANUAL_ID) {
-                  // Herramienta manual no requiere subcategoría
-                  familiaId = familiaMatch.id;
-                  asignacionInfo = `📌 Directa: ${familiaMatch.Categoria}`;
-                } else {
-                  // Buscar subcategoría por descripción
-                  const subcategoria = findSubcategoriaByDescription(familiaMatch.id, descripcion);
-                  
-                  if (subcategoria) {
-                    familiaId = subcategoria.padreId;
-                    asignacionInfo = `✅ Auto: ${familiaMatch.Categoria} → ${subcategoria.nombre}`;
-                  } else {
-                    // No se encontró subcategoría, dejar sin asignar
-                    asignacionInfo = `⚠️ ${familiaMatch.Categoria} (sin subcategoría detectada)`;
-                  }
-                }
+            if (familiaMatch.Padre === null) {
+              // Es una categoría principal
+              if (familiaMatch.id === HERRAMIENTA_MANUAL_ID) {
+                // Herramienta manual no requiere subcategoría
+                familiaId = familiaMatch.id;
+                asignacionInfo = `📌 Directa: ${familiaMatch.Categoria}`;
               } else {
+                // Buscar subcategoría por descripción
+                const subcategoria = findSubcategoriaByDescription(familiaMatch.id, descripcion);
+                if (subcategoria) {
+                  familiaId = subcategoria.padreId;
+                  asignacionInfo = `✅ Auto: ${familiaMatch.Categoria} → ${subcategoria.nombre}`;
+                } else {
+                  // No se encontró subcategoría, dejar sin asignar
+                  asignacionInfo = `⚠️ ${familiaMatch.Categoria} (sin subcategoría detectada)`;
+                }
+              }
+            } else {
               // Ya es una subcategoría, asignar directamente
               familiaId = familiaMatch.id;
               asignacionInfo = `📌 Directa: ${familiaMatch.Categoria}`;
@@ -749,7 +833,6 @@ export default function Productos() {
             asignacionInfo = `❌ "${familiaNombre}" no encontrada`;
           }
         }
-
         return {
           codigo,
           clave,
@@ -763,7 +846,6 @@ export default function Productos() {
           errorMsg: errors.length > 0 ? errors.join(", ") : undefined
         };
       });
-
       setImportData(processedData);
       setShowImportDialog(true);
     } catch (error) {
@@ -784,13 +866,11 @@ export default function Productos() {
       toast.error("No hay productos válidos para importar");
       return;
     }
-
     setImporting(true);
     try {
       // Insertar en lotes de 100
       const batchSize = 100;
       let imported = 0;
-
       for (let i = 0; i < validProducts.length; i += batchSize) {
         const batch = validProducts.slice(i, i + batchSize);
         const insertData = batch.map(p => ({
@@ -801,15 +881,14 @@ export default function Productos() {
           descontinuado: p.descontinuado,
           familia_padre_id: p.familia_padre_id || null
         }));
-
-        const { error } = await supabase
-          .from('productos')
-          .upsert(insertData, { onConflict: 'codigo' });
-
+        const {
+          error
+        } = await supabase.from('productos').upsert(insertData, {
+          onConflict: 'codigo'
+        });
         if (error) throw error;
         imported += batch.length;
       }
-
       toast.success(`${imported} productos importados correctamente`);
       setShowImportDialog(false);
       setImportData([]);
@@ -821,7 +900,6 @@ export default function Productos() {
       setImporting(false);
     }
   };
-
   const validCount = importData.filter(p => p.isValid).length;
   const skippedCount = importData.filter(p => p.skipped).length;
   const errorCount = importData.filter(p => !p.isValid && !p.skipped).length;
@@ -839,18 +917,12 @@ export default function Productos() {
     const familia = familias.find(f => f.id === p.familia_padre_id);
     return !familia;
   }).length;
-
   const filteredProductos = productosList.filter(producto => {
     // Filtro de búsqueda por texto
-    const matchesSearch = searchTerm === '' ||
-      producto.descripcion.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      producto.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      producto.clave.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = searchTerm === '' || producto.descripcion.toLowerCase().includes(searchTerm.toLowerCase()) || producto.codigo.toLowerCase().includes(searchTerm.toLowerCase()) || producto.clave.toLowerCase().includes(searchTerm.toLowerCase());
 
     // Filtro por estado
-    const matchesEstado = filterEstado === 'all' ||
-      (filterEstado === 'vigente' && !producto.descontinuado) ||
-      (filterEstado === 'descontinuado' && producto.descontinuado);
+    const matchesEstado = filterEstado === 'all' || filterEstado === 'vigente' && !producto.descontinuado || filterEstado === 'descontinuado' && producto.descontinuado;
 
     // Filtro por sin subcategoría asignada
     const matchesSinAsignar = !filterSinAsignar || producto.familia_padre_id === null;
@@ -859,7 +931,7 @@ export default function Productos() {
     const familia = producto.familia_padre_id ? familias.find(f => f.id === producto.familia_padre_id) : null;
 
     // Categoría real: si la familia es top-level (Padre = null), la categoría es ella misma
-    const categoriaId = familia ? (familia.Padre ?? familia.id) : null;
+    const categoriaId = familia ? familia.Padre ?? familia.id : null;
 
     // Subcategoría real: solo existe si la familia tiene padre
     const subcategoriaId = familia && familia.Padre !== null ? familia.id : null;
@@ -872,7 +944,6 @@ export default function Productos() {
 
     // Filtro por sin categoría asignada
     const matchesSinCategoria = !filterSinCategoria || producto.familia_padre_id === null || !familia;
-
     return matchesSearch && matchesEstado && matchesSinAsignar && matchesSinCategoria && matchesCategoria && matchesSubcategoria;
   });
 
@@ -886,44 +957,20 @@ export default function Productos() {
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, filterCategoria, filterSubcategoria, filterEstado, filterSinAsignar, filterSinCategoria]);
-
-  return (
-    <div className="space-y-6">
+  return <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Catálogo de Productos</h1>
-          <p className="text-muted-foreground">
-            Gestiona el inventario de herramientas eléctricas
-          </p>
+          
         </div>
         <div className="flex gap-2">
-          <Button 
-            variant="outline" 
-            onClick={asignarCategoriaHerramientaManual}
-            disabled={assigningCategory}
-          >
-            <CheckCircle className="h-4 w-4 mr-2" />
-            {assigningCategory ? "Asignando..." : "Asignar Herramienta Manual"}
-          </Button>
-          <Button 
-            variant="outline" 
-            onClick={limpiarClavesDuplicadas}
-            disabled={cleaningKeys}
-          >
-            <Trash2 className="h-4 w-4 mr-2" />
-            {cleaningKeys ? "Limpiando..." : "Limpiar Claves"}
-          </Button>
+          
+          
           <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
             <Upload className="h-4 w-4 mr-2" />
             Importar Excel
           </Button>
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileUpload}
-            accept=".xlsx,.xls,.csv"
-            className="hidden"
-          />
+          <input type="file" ref={fileInputRef} onChange={handleFileUpload} accept=".xlsx,.xls,.csv" className="hidden" />
           <Button onClick={handleOpenCreate} className="bg-primary text-primary-foreground hover:bg-primary/90">
             <Plus className="h-4 w-4 mr-2" />
             Nuevo Producto
@@ -936,11 +983,9 @@ export default function Productos() {
           <CardTitle>Lista de Productos</CardTitle>
           <CardDescription>
             {filteredProductos.length} productos en catálogo
-            {sinAsignarCount > 0 && (
-              <span className="text-amber-600 ml-2">
+            {sinAsignarCount > 0 && <span className="text-amber-600 ml-2">
                 ({sinAsignarCount} sin subcategoría)
-              </span>
-            )}
+              </span>}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -949,12 +994,7 @@ export default function Productos() {
             {/* Búsqueda */}
             <div className="flex items-center space-x-2">
               <Search className="h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-[200px]"
-              />
+              <Input placeholder="Buscar..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-[200px]" />
             </div>
             
             {/* Filtro Estado */}
@@ -970,20 +1010,18 @@ export default function Productos() {
             </Select>
             
             {/* Filtro Categoría */}
-            <Select value={filterCategoria} onValueChange={(v) => {
-              setFilterCategoria(v);
-              setFilterSubcategoria('all');
-            }}>
+            <Select value={filterCategoria} onValueChange={v => {
+            setFilterCategoria(v);
+            setFilterSubcategoria('all');
+          }}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Categoría" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todas las categorías</SelectItem>
-                {familiasAbuelo.map(cat => (
-                  <SelectItem key={cat.id} value={String(cat.id)}>
+                {familiasAbuelo.map(cat => <SelectItem key={cat.id} value={String(cat.id)}>
                     {cat.Categoria}
-                  </SelectItem>
-                ))}
+                  </SelectItem>)}
               </SelectContent>
             </Select>
             
@@ -994,38 +1032,16 @@ export default function Productos() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todas las subcategorías</SelectItem>
-                {familias
-                  .filter(f => filterCategoria === 'all' ? f.Padre !== null : f.Padre === Number(filterCategoria))
-                  .map(sub => (
-                    <SelectItem key={sub.id} value={String(sub.id)}>
+                {familias.filter(f => filterCategoria === 'all' ? f.Padre !== null : f.Padre === Number(filterCategoria)).map(sub => <SelectItem key={sub.id} value={String(sub.id)}>
                       {sub.Categoria}
-                    </SelectItem>
-                  ))}
+                    </SelectItem>)}
               </SelectContent>
             </Select>
             
             {/* Toggle Sin Asignar */}
-            <div className="flex items-center space-x-2">
-              <Switch 
-                id="sin-asignar" 
-                checked={filterSinAsignar}
-                onCheckedChange={setFilterSinAsignar}
-              />
-              <Label htmlFor="sin-asignar" className="text-sm cursor-pointer">
-                Sin subcategoría ({sinAsignarCount})
-              </Label>
-            </div>
             
-            <div className="flex items-center space-x-2">
-              <Switch 
-                id="sin-categoria" 
-                checked={filterSinCategoria}
-                onCheckedChange={setFilterSinCategoria}
-              />
-              <Label htmlFor="sin-categoria" className="text-sm cursor-pointer">
-                Sin categoría ({sinCategoriaCount})
-              </Label>
-            </div>
+            
+            
           </div>
 
           <div className="rounded-md border overflow-x-auto">
@@ -1043,18 +1059,12 @@ export default function Productos() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {paginatedProductos.map((producto) => (
-                  <TableRow key={producto.codigo}>
+                {paginatedProductos.map(producto => <TableRow key={producto.codigo}>
                     <TableCell>
                       <div className="w-12 h-12 bg-muted rounded-md flex items-center justify-center">
-                        <img 
-                          src={producto.urlFoto} 
-                          alt={producto.descripcion}
-                          className="w-10 h-10 object-cover rounded"
-                          onError={(e) => {
-                            e.currentTarget.src = "/placeholder.svg";
-                          }}
-                        />
+                        <img src={producto.urlFoto} alt={producto.descripcion} className="w-10 h-10 object-cover rounded" onError={e => {
+                      e.currentTarget.src = "/placeholder.svg";
+                    }} />
                       </div>
                     </TableCell>
                     <TableCell className="font-medium">{producto.codigo}</TableCell>
@@ -1071,24 +1081,19 @@ export default function Productos() {
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      {producto.descontinuado ? (
-                        <Badge variant="destructive">
+                      {producto.descontinuado ? <Badge variant="destructive">
                           <AlertTriangle className="h-3 w-3 mr-1" />
                           Descontinuado
-                        </Badge>
-                      ) : (
-                        <Badge className="bg-green-600 text-white">
+                        </Badge> : <Badge className="bg-green-600 text-white">
                           Activo
-                        </Badge>
-                      )}
+                        </Badge>}
                     </TableCell>
                     <TableCell className="text-right">
                       <Button variant="outline" size="sm" onClick={() => handleEditClick(producto)}>
                         <Edit className="h-4 w-4" />
                       </Button>
                     </TableCell>
-                  </TableRow>
-                ))}
+                  </TableRow>)}
               </TableBody>
             </Table>
           </div>
@@ -1097,7 +1102,10 @@ export default function Productos() {
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <span>Mostrando {startIndex + 1}-{Math.min(endIndex, filteredProductos.length)} de {filteredProductos.length} productos</span>
-              <Select value={String(itemsPerPage)} onValueChange={(v) => { setItemsPerPage(Number(v)); setCurrentPage(1); }}>
+              <Select value={String(itemsPerPage)} onValueChange={v => {
+              setItemsPerPage(Number(v));
+              setCurrentPage(1);
+            }}>
                 <SelectTrigger className="w-[100px]">
                   <SelectValue />
                 </SelectTrigger>
@@ -1112,39 +1120,19 @@ export default function Productos() {
             </div>
 
             <div className="flex items-center gap-1">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(1)}
-                disabled={currentPage === 1}
-              >
+              <Button variant="outline" size="sm" onClick={() => setCurrentPage(1)} disabled={currentPage === 1}>
                 <ChevronsLeft className="h-4 w-4" />
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-              >
+              <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>
                 <ChevronLeft className="h-4 w-4" />
               </Button>
               <span className="px-3 text-sm">
                 Página {currentPage} de {totalPages || 1}
               </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                disabled={currentPage >= totalPages}
-              >
+              <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage >= totalPages}>
                 <ChevronRight className="h-4 w-4" />
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(totalPages)}
-                disabled={currentPage >= totalPages}
-              >
+              <Button variant="outline" size="sm" onClick={() => setCurrentPage(totalPages)} disabled={currentPage >= totalPages}>
                 <ChevronsRight className="h-4 w-4" />
               </Button>
             </div>
@@ -1159,48 +1147,28 @@ export default function Productos() {
             <DialogTitle>Editar Producto</DialogTitle>
           </DialogHeader>
           
-          {editingProducto && (
-            <div className="space-y-4">
+          {editingProducto && <div className="space-y-4">
               <div className="p-3 bg-muted rounded-lg">
                 <p className="text-sm font-medium">Código: {editingProducto.codigo}</p>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="edit-clave">Clave</Label>
-                <Input
-                  id="edit-clave"
-                  value={editClave}
-                  onChange={(e) => setEditClave(e.target.value)}
-                  placeholder="Clave del producto"
-                />
+                <Input id="edit-clave" value={editClave} onChange={e => setEditClave(e.target.value)} placeholder="Clave del producto" />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="edit-descripcion">Descripción *</Label>
-                <Input
-                  id="edit-descripcion"
-                  value={editDescripcion}
-                  onChange={(e) => setEditDescripcion(e.target.value)}
-                  placeholder="Descripción del producto"
-                />
+                <Input id="edit-descripcion" value={editDescripcion} onChange={e => setEditDescripcion(e.target.value)} placeholder="Descripción del producto" />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="edit-url-foto">URL de Foto</Label>
-                <Input
-                  id="edit-url-foto"
-                  value={editUrlFoto}
-                  onChange={(e) => setEditUrlFoto(e.target.value)}
-                  placeholder="https://..."
-                />
+                <Input id="edit-url-foto" value={editUrlFoto} onChange={e => setEditUrlFoto(e.target.value)} placeholder="https://..." />
               </div>
 
               <div className="flex items-center space-x-2">
-                <Switch
-                  id="edit-descontinuado"
-                  checked={editDescontinuado}
-                  onCheckedChange={setEditDescontinuado}
-                />
+                <Switch id="edit-descontinuado" checked={editDescontinuado} onCheckedChange={setEditDescontinuado} />
                 <Label htmlFor="edit-descontinuado">Marcar como descontinuado</Label>
               </div>
 
@@ -1209,48 +1177,37 @@ export default function Productos() {
                 
                 <div className="space-y-2">
                   <Label>Categoría General</Label>
-                  <Select value={selectedAbuelo} onValueChange={(val) => {
-                    setSelectedAbuelo(val);
-                    setSelectedPadre("");
-                  }}>
+                  <Select value={selectedAbuelo} onValueChange={val => {
+                setSelectedAbuelo(val);
+                setSelectedPadre("");
+              }}>
                     <SelectTrigger>
                       <SelectValue placeholder="Seleccionar categoría..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {familiasAbuelo.map(f => (
-                        <SelectItem key={f.id} value={f.id.toString()}>
+                      {familiasAbuelo.map(f => <SelectItem key={f.id} value={f.id.toString()}>
                           {f.Categoria}
-                        </SelectItem>
-                      ))}
+                        </SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div className="space-y-2">
                   <Label>Subcategoría</Label>
-                  <Select 
-                    value={selectedPadre} 
-                    onValueChange={setSelectedPadre}
-                    disabled={!selectedAbuelo}
-                  >
+                  <Select value={selectedPadre} onValueChange={setSelectedPadre} disabled={!selectedAbuelo}>
                     <SelectTrigger>
                       <SelectValue placeholder={selectedAbuelo ? "Seleccionar subcategoría..." : "Primero selecciona categoría"} />
                     </SelectTrigger>
                     <SelectContent>
-                      {familiasPadre.map(f => (
-                        <SelectItem key={f.id} value={f.id.toString()}>
+                      {familiasPadre.map(f => <SelectItem key={f.id} value={f.id.toString()}>
                           {f.Categoria}
-                        </SelectItem>
-                      ))}
+                        </SelectItem>)}
                     </SelectContent>
                   </Select>
-                  {selectedAbuelo && familiasPadre.length === 0 && (
-                    <p className="text-xs text-muted-foreground">No hay subcategorías para esta categoría</p>
-                  )}
+                  {selectedAbuelo && familiasPadre.length === 0 && <p className="text-xs text-muted-foreground">No hay subcategorías para esta categoría</p>}
                 </div>
               </div>
-            </div>
-          )}
+            </div>}
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditingProducto(null)}>
@@ -1276,91 +1233,74 @@ export default function Productos() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="codigo">Código *</Label>
-                <Input
-                  id="codigo"
-                  value={newProducto.codigo}
-                  onChange={(e) => setNewProducto(prev => ({ ...prev, codigo: e.target.value }))}
-                  placeholder="Ej: 12345"
-                />
+                <Input id="codigo" value={newProducto.codigo} onChange={e => setNewProducto(prev => ({
+                ...prev,
+                codigo: e.target.value
+              }))} placeholder="Ej: 12345" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="clave">Clave *</Label>
-                <Input
-                  id="clave"
-                  value={newProducto.clave}
-                  onChange={(e) => setNewProducto(prev => ({ ...prev, clave: e.target.value }))}
-                  placeholder="Ej: COMP-001"
-                />
+                <Input id="clave" value={newProducto.clave} onChange={e => setNewProducto(prev => ({
+                ...prev,
+                clave: e.target.value
+              }))} placeholder="Ej: COMP-001" />
               </div>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="descripcion">Descripción *</Label>
-              <Input
-                id="descripcion"
-                value={newProducto.descripcion}
-                onChange={(e) => setNewProducto(prev => ({ ...prev, descripcion: e.target.value }))}
-                placeholder="Descripción del producto"
-              />
+              <Input id="descripcion" value={newProducto.descripcion} onChange={e => setNewProducto(prev => ({
+              ...prev,
+              descripcion: e.target.value
+            }))} placeholder="Descripción del producto" />
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="url_foto">URL de Foto (opcional)</Label>
-              <Input
-                id="url_foto"
-                value={newProducto.url_foto}
-                onChange={(e) => setNewProducto(prev => ({ ...prev, url_foto: e.target.value }))}
-                placeholder="https://..."
-              />
+              <Input id="url_foto" value={newProducto.url_foto} onChange={e => setNewProducto(prev => ({
+              ...prev,
+              url_foto: e.target.value
+            }))} placeholder="https://..." />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Categoría General</Label>
-                <Select value={createAbuelo} onValueChange={(val) => {
-                  setCreateAbuelo(val);
-                  setCreatePadre("");
-                }}>
+                <Select value={createAbuelo} onValueChange={val => {
+                setCreateAbuelo(val);
+                setCreatePadre("");
+              }}>
                   <SelectTrigger>
                     <SelectValue placeholder="Seleccionar..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {familiasAbuelo.map(f => (
-                      <SelectItem key={f.id} value={f.id.toString()}>
+                    {familiasAbuelo.map(f => <SelectItem key={f.id} value={f.id.toString()}>
                         {f.Categoria}
-                      </SelectItem>
-                    ))}
+                      </SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="space-y-2">
                 <Label>Subcategoría</Label>
-                <Select 
-                  value={createPadre} 
-                  onValueChange={setCreatePadre}
-                  disabled={!createAbuelo}
-                >
+                <Select value={createPadre} onValueChange={setCreatePadre} disabled={!createAbuelo}>
                   <SelectTrigger>
                     <SelectValue placeholder={createAbuelo ? "Seleccionar..." : "Primero categoría"} />
                   </SelectTrigger>
                   <SelectContent>
-                    {familiasPadreCreate.map(f => (
-                      <SelectItem key={f.id} value={f.id.toString()}>
+                    {familiasPadreCreate.map(f => <SelectItem key={f.id} value={f.id.toString()}>
                         {f.Categoria}
-                      </SelectItem>
-                    ))}
+                      </SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
             </div>
 
             <div className="flex items-center space-x-2">
-              <Switch
-                id="descontinuado"
-                checked={newProducto.descontinuado}
-                onCheckedChange={(checked) => setNewProducto(prev => ({ ...prev, descontinuado: checked }))}
-              />
+              <Switch id="descontinuado" checked={newProducto.descontinuado} onCheckedChange={checked => setNewProducto(prev => ({
+              ...prev,
+              descontinuado: checked
+            }))} />
               <Label htmlFor="descontinuado">Marcar como descontinuado</Label>
             </div>
           </div>
@@ -1394,32 +1334,26 @@ export default function Productos() {
               <div className="flex items-center gap-2 text-sm">
                 <CheckCircle className="h-4 w-4 text-green-600" />
                 <span className="text-green-600 font-medium">{validCount} para importar</span>
-                {warningCount > 0 && (
-                  <span className="text-amber-600 text-xs">
+                {warningCount > 0 && <span className="text-amber-600 text-xs">
                     ({warningCount} sin subcategoría)
-                  </span>
-                )}
+                  </span>}
               </div>
               <div className="flex items-center gap-2 text-sm">
                 <SkipForward className="h-4 w-4 text-muted-foreground" />
                 <span className="text-muted-foreground font-medium">{skippedCount} ignorados (existentes o duplicados)</span>
               </div>
-              {errorCount > 0 && (
-                <div className="flex items-center gap-2 text-sm">
+              {errorCount > 0 && <div className="flex items-center gap-2 text-sm">
                   <XCircle className="h-4 w-4 text-destructive" />
                   <span className="text-destructive font-medium">{errorCount} con errores</span>
-                </div>
-              )}
+                </div>}
             </div>
 
             {/* Mensaje explicativo para productos con advertencias */}
-            {validCount > 0 && warningCount > 0 && (
-              <div className="p-3 bg-amber-50 border border-amber-200 rounded-md text-sm text-amber-800">
+            {validCount > 0 && warningCount > 0 && <div className="p-3 bg-amber-50 border border-amber-200 rounded-md text-sm text-amber-800">
                 <AlertTriangle className="h-4 w-4 inline mr-2" />
                 Hay {warningCount} productos sin subcategoría asignada. 
                 Se importarán pero necesitarás asignar la familia manualmente después.
-              </div>
-            )}
+              </div>}
 
             {/* Tabla de preview */}
             <ScrollArea className="h-[400px] border rounded-md">
@@ -1436,60 +1370,29 @@ export default function Productos() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {importData.map((item, idx) => (
-                    <TableRow 
-                      key={idx} 
-                      className={
-                        item.skipped ? "bg-muted/50 opacity-60" : 
-                        !item.isValid ? "bg-destructive/10" : ""
-                      }
-                    >
+                  {importData.map((item, idx) => <TableRow key={idx} className={item.skipped ? "bg-muted/50 opacity-60" : !item.isValid ? "bg-destructive/10" : ""}>
                       <TableCell>
-                        {item.isValid ? (
-                          <CheckCircle className="h-4 w-4 text-green-600" />
-                        ) : item.skipped ? (
-                          <SkipForward className="h-4 w-4 text-muted-foreground" />
-                        ) : (
-                          <XCircle className="h-4 w-4 text-destructive" />
-                        )}
+                        {item.isValid ? <CheckCircle className="h-4 w-4 text-green-600" /> : item.skipped ? <SkipForward className="h-4 w-4 text-muted-foreground" /> : <XCircle className="h-4 w-4 text-destructive" />}
                       </TableCell>
                       <TableCell className="font-mono text-sm">{item.codigo || "-"}</TableCell>
                       <TableCell className="max-w-[250px] truncate" title={item.descripcion}>
                         {item.descripcion || "-"}
                       </TableCell>
                       <TableCell>
-                        {item.descontinuado ? (
-                          <Badge variant="secondary" className="text-amber-600 bg-amber-50">Descontinuado</Badge>
-                        ) : (
-                          <Badge variant="outline" className="text-green-600 border-green-300">Vigente</Badge>
-                        )}
+                        {item.descontinuado ? <Badge variant="secondary" className="text-amber-600 bg-amber-50">Descontinuado</Badge> : <Badge variant="outline" className="text-green-600 border-green-300">Vigente</Badge>}
                       </TableCell>
                       <TableCell>
-                        {item.familia_nombre ? (
-                          <Badge variant="outline">{item.familia_nombre}</Badge>
-                        ) : (
-                          <span className="text-muted-foreground text-sm">-</span>
-                        )}
+                        {item.familia_nombre ? <Badge variant="outline">{item.familia_nombre}</Badge> : <span className="text-muted-foreground text-sm">-</span>}
                       </TableCell>
                       <TableCell>
-                        {item.asignacion_info ? (
-                          <span className={`text-xs ${
-                            item.asignacion_info.startsWith('✅') ? 'text-green-600' :
-                            item.asignacion_info.startsWith('📌') ? 'text-blue-600' :
-                            item.asignacion_info.startsWith('⚠️') ? 'text-amber-600' :
-                            'text-destructive'
-                          }`}>
+                        {item.asignacion_info ? <span className={`text-xs ${item.asignacion_info.startsWith('✅') ? 'text-green-600' : item.asignacion_info.startsWith('📌') ? 'text-blue-600' : item.asignacion_info.startsWith('⚠️') ? 'text-amber-600' : 'text-destructive'}`}>
                             {item.asignacion_info}
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground text-sm">-</span>
-                        )}
+                          </span> : <span className="text-muted-foreground text-sm">-</span>}
                       </TableCell>
                       <TableCell className={item.skipped ? "text-muted-foreground text-sm" : "text-destructive text-sm"}>
                         {item.skipped ? item.skipReason : item.errorMsg || "-"}
                       </TableCell>
-                    </TableRow>
-                  ))}
+                    </TableRow>)}
                 </TableBody>
               </Table>
             </ScrollArea>
@@ -1507,15 +1410,11 @@ export default function Productos() {
             <Button variant="outline" onClick={() => setShowImportDialog(false)}>
               Cancelar
             </Button>
-            <Button 
-              onClick={handleImport} 
-              disabled={importing || validCount === 0}
-            >
+            <Button onClick={handleImport} disabled={importing || validCount === 0}>
               {importing ? "Importando..." : `Importar ${validCount} productos`}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
-  );
+    </div>;
 }
