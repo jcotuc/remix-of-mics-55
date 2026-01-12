@@ -278,12 +278,39 @@ export default function Asignaciones() {
         data: profile
       } = await supabase.from('profiles').select('codigo_empleado, nombre, apellido').eq('user_id', user.id).maybeSingle();
       const codigoTecnico = profile?.codigo_empleado || `${profile?.nombre || ''} ${profile?.apellido || ''}`.trim() || user.id;
+      const tecnicoNombre = profile ? `${profile.nombre} ${profile.apellido}` : user.email || 'Técnico';
+
+      // Crear entrada para el log de observaciones
+      const now = new Date();
+      const fechaFormateada = now.toLocaleDateString('es-GT', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      });
+      const horaFormateada = now.toLocaleTimeString('es-GT', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+      });
+      const nuevaEntrada = `[${fechaFormateada} ${horaFormateada}] Asignado a ${tecnicoNombre}`;
+
+      // Obtener log actual del incidente
+      const { data: incidenteActual } = await supabase
+        .from('incidentes')
+        .select('log_observaciones')
+        .eq('id', incidenteId)
+        .single();
+
+      const logActual = incidenteActual?.log_observaciones || '';
+      const nuevoLog = logActual ? `${logActual}\n${nuevaEntrada}` : nuevaEntrada;
+
       const {
         error
       } = await supabase.from('incidentes').update({
         status: 'En diagnostico',
         tecnico_asignado_id: user.id,
-        codigo_tecnico: codigoTecnico
+        codigo_tecnico: codigoTecnico,
+        log_observaciones: nuevoLog
       }).eq('id', incidenteId);
       if (error) throw error;
       toast.success('Incidente asignado');
