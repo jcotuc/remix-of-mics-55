@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { OutlinedInput } from "@/components/ui/outlined-input";
+import { OutlinedInput, OutlinedSelect } from "@/components/ui/outlined-input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -13,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { UserPlus, Edit, Trash2, RefreshCw, Search, Settings, Plus } from "lucide-react";
+import { UserPlus, Edit, Trash2, RefreshCw, Search, Settings, Plus, Users, Building2, Shield } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 type UserRole = "admin" | "mostrador" | "logistica" | "taller" | "bodega" | "tecnico" | "digitador" | "jefe_taller" | "sac" | "control_calidad" | "asesor" | "gerente_centro" | "supervisor_regional" | "jefe_logistica" | "jefe_bodega" | "supervisor_bodega" | "supervisor_calidad" | "supervisor_sac" | "auxiliar_bodega" | "auxiliar_logistica" | "supervisor_inventarios" | "capacitador";
 
@@ -482,6 +482,49 @@ export default function Usuarios() {
     return null;
   }
   return <div className="container mx-auto py-6 space-y-6">
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-4">
+              <div className="p-3 rounded-full bg-primary/10">
+                <Users className="h-6 w-6 text-primary" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{users.length}</p>
+                <p className="text-sm text-muted-foreground">Usuarios totales</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-4">
+              <div className="p-3 rounded-full bg-orange-500/10">
+                <Shield className="h-6 w-6 text-orange-500" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{availableRoles.length}</p>
+                <p className="text-sm text-muted-foreground">Roles disponibles</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-4">
+              <div className="p-3 rounded-full bg-green-500/10">
+                <Building2 className="h-6 w-6 text-green-500" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{centrosServicio.length}</p>
+                <p className="text-sm text-muted-foreground">Centros de servicio</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       <Card>
         <CardHeader>
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -508,33 +551,33 @@ export default function Usuarios() {
           {/* Filters */}
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input placeholder="Buscar por código, nombre o email..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10" />
-              </div>
+              <OutlinedInput 
+                label="Buscar por código, nombre o email"
+                value={searchTerm} 
+                onChange={e => setSearchTerm(e.target.value)} 
+                icon={<Search className="h-4 w-4" />}
+              />
             </div>
-            <Select value={roleFilter} onValueChange={setRoleFilter}>
-              <SelectTrigger className="w-full sm:w-[200px]">
-                <SelectValue placeholder="Filtrar por puesto" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos los puestos</SelectItem>
-                {availableRoles.map(role => <SelectItem key={role.value} value={role.value}>
-                    {role.label}
-                  </SelectItem>)}
-              </SelectContent>
-            </Select>
-            <Select value={centroFilter} onValueChange={setCentroFilter}>
-              <SelectTrigger className="w-full sm:w-[200px]">
-                <SelectValue placeholder="Filtrar por centro" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos los centros</SelectItem>
-                {centrosServicio.map(centro => <SelectItem key={centro.id} value={centro.id}>
-                    {centro.nombre}
-                  </SelectItem>)}
-              </SelectContent>
-            </Select>
+            <OutlinedSelect
+              label="Filtrar por puesto"
+              value={roleFilter}
+              onValueChange={setRoleFilter}
+              options={[
+                { value: "all", label: "Todos los puestos" },
+                ...availableRoles.map(role => ({ value: role.value, label: role.label }))
+              ]}
+              className="w-full sm:w-[200px]"
+            />
+            <OutlinedSelect
+              label="Filtrar por centro"
+              value={centroFilter}
+              onValueChange={setCentroFilter}
+              options={[
+                { value: "all", label: "Todos los centros" },
+                ...centrosServicio.map(centro => ({ value: centro.id, label: centro.nombre }))
+              ]}
+              className="w-full sm:w-[200px]"
+            />
           </div>
 
           {/* Users Table */}
@@ -657,75 +700,74 @@ export default function Usuarios() {
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="codigo_empleado">Código de Empleado *</Label>
-              <Input id="codigo_empleado" value={formData.codigo_empleado} onChange={e => setFormData({
-              ...formData,
-              codigo_empleado: e.target.value
-            })} placeholder="EMP-001" />
-            </div>
+            <OutlinedInput 
+              label="Código de Empleado"
+              value={formData.codigo_empleado} 
+              onChange={e => setFormData({
+                ...formData,
+                codigo_empleado: e.target.value
+              })} 
+              required
+            />
             <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="nombre">Nombre *</Label>
-                <Input id="nombre" value={formData.nombre} onChange={e => setFormData({
+              <OutlinedInput 
+                label="Nombre"
+                value={formData.nombre} 
+                onChange={e => setFormData({
+                  ...formData,
+                  nombre: e.target.value
+                })} 
+                required
+              />
+              <OutlinedInput 
+                label="Apellido"
+                value={formData.apellido} 
+                onChange={e => setFormData({
+                  ...formData,
+                  apellido: e.target.value
+                })} 
+                required
+              />
+            </div>
+            <OutlinedSelect
+              label="Puesto"
+              value={formData.role}
+              onValueChange={value => setFormData({
                 ...formData,
-                nombre: e.target.value
-              })} placeholder="Juan" />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="apellido">Apellido *</Label>
-                <Input id="apellido" value={formData.apellido} onChange={e => setFormData({
+                role: value as UserRole
+              })}
+              options={availableRoles.map(role => ({ value: role.value, label: role.label }))}
+              required
+            />
+            <OutlinedSelect
+              label="Centro de Servicio"
+              value={formData.centro_servicio_id}
+              onValueChange={value => setFormData({
                 ...formData,
-                apellido: e.target.value
-              })} placeholder="Pérez" />
-              </div>
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="role">Puesto *</Label>
-              <Select value={formData.role} onValueChange={value => setFormData({
-              ...formData,
-              role: value as UserRole
-            })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecciona un puesto" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableRoles.map(role => <SelectItem key={role.value} value={role.value}>
-                      {role.label}
-                    </SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="centro_servicio">Centro de Servicio *</Label>
-              <Select value={formData.centro_servicio_id} onValueChange={value => setFormData({
-              ...formData,
-              centro_servicio_id: value
-            })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecciona un centro" />
-                </SelectTrigger>
-                <SelectContent>
-                  {centrosServicio.map(centro => <SelectItem key={centro.id} value={centro.id}>
-                      {centro.nombre}
-                    </SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="email">Email (opcional)</Label>
-              <Input id="email" type="email" value={formData.email} onChange={e => setFormData({
-              ...formData,
-              email: e.target.value
-            })} placeholder="usuario@ejemplo.com" />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="password">Contraseña *</Label>
-              <Input id="password" type="password" value={formData.password} onChange={e => setFormData({
-              ...formData,
-              password: e.target.value
-            })} placeholder="Mínimo 6 caracteres" />
-            </div>
+                centro_servicio_id: value
+              })}
+              options={centrosServicio.map(centro => ({ value: centro.id, label: centro.nombre }))}
+              required
+            />
+            <OutlinedInput 
+              label="Email (opcional)"
+              type="email" 
+              value={formData.email} 
+              onChange={e => setFormData({
+                ...formData,
+                email: e.target.value
+              })} 
+            />
+            <OutlinedInput 
+              label="Contraseña"
+              type="password" 
+              value={formData.password} 
+              onChange={e => setFormData({
+                ...formData,
+                password: e.target.value
+              })} 
+              required
+            />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => {
@@ -749,65 +791,60 @@ export default function Usuarios() {
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="edit-codigo_empleado">Código de Empleado</Label>
-              <Input id="edit-codigo_empleado" value={formData.codigo_empleado} onChange={e => setFormData({
-              ...formData,
-              codigo_empleado: e.target.value
-            })} placeholder="EMP-001" />
-            </div>
+            <OutlinedInput 
+              label="Código de Empleado"
+              value={formData.codigo_empleado} 
+              onChange={e => setFormData({
+                ...formData,
+                codigo_empleado: e.target.value
+              })} 
+            />
             <div className="grid grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="edit-nombre">Nombre *</Label>
-                <Input id="edit-nombre" value={formData.nombre} onChange={e => setFormData({
+              <OutlinedInput 
+                label="Nombre"
+                value={formData.nombre} 
+                onChange={e => setFormData({
+                  ...formData,
+                  nombre: e.target.value
+                })} 
+                required
+              />
+              <OutlinedInput 
+                label="Apellido"
+                value={formData.apellido} 
+                onChange={e => setFormData({
+                  ...formData,
+                  apellido: e.target.value
+                })} 
+                required
+              />
+            </div>
+            <OutlinedSelect
+              label="Puesto"
+              value={formData.role}
+              onValueChange={value => setFormData({
                 ...formData,
-                nombre: e.target.value
-              })} />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="edit-apellido">Apellido *</Label>
-                <Input id="edit-apellido" value={formData.apellido} onChange={e => setFormData({
+                role: value as UserRole
+              })}
+              options={availableRoles.map(role => ({ value: role.value, label: role.label }))}
+              required
+            />
+            <OutlinedSelect
+              label="Centro de Servicio"
+              value={formData.centro_servicio_id}
+              onValueChange={value => setFormData({
                 ...formData,
-                apellido: e.target.value
-              })} />
-              </div>
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="edit-role">Puesto *</Label>
-              <Select value={formData.role} onValueChange={value => setFormData({
-              ...formData,
-              role: value as UserRole
-            })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecciona un puesto" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableRoles.map(role => <SelectItem key={role.value} value={role.value}>
-                      {role.label}
-                    </SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="edit-centro_servicio">Centro de Servicio *</Label>
-              <Select value={formData.centro_servicio_id} onValueChange={value => setFormData({
-              ...formData,
-              centro_servicio_id: value
-            })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecciona un centro" />
-                </SelectTrigger>
-                <SelectContent>
-                  {centrosServicio.map(centro => <SelectItem key={centro.id} value={centro.id}>
-                      {centro.nombre}
-                    </SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid gap-2">
-              <Label>Email</Label>
-              <Input value={formData.email} disabled className="text-muted-foreground" />
-            </div>
+                centro_servicio_id: value
+              })}
+              options={centrosServicio.map(centro => ({ value: centro.id, label: centro.nombre }))}
+              required
+            />
+            <OutlinedInput 
+              label="Email"
+              value={formData.email} 
+              disabled 
+              className="text-muted-foreground" 
+            />
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => {
