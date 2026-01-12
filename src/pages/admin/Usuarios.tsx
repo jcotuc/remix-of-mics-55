@@ -585,40 +585,40 @@ export default function Usuarios() {
         </CardContent>
       </Card>
 
-      {/* Gestionar Puestos Dialog */}
+      {/* Gestionar Roles Dialog */}
       <Dialog open={isPuestosDialogOpen} onOpenChange={setIsPuestosDialogOpen}>
         <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Gestionar roles</DialogTitle>
             <DialogDescription>
-              Crea y administra los puestos personalizados del sistema.
+              Crea y administra los roles personalizados del sistema.
             </DialogDescription>
           </DialogHeader>
           
-          {/* Formulario para crear nuevo puesto */}
+          {/* Formulario para crear nuevo rol */}
           <div className="space-y-4 border-b pb-4">
-            <h4 className="font-medium">Crear Nuevo Puesto</h4>
+            <h4 className="font-medium">Crear Nuevo Rol</h4>
             <div className="grid gap-3">
               <div className="grid gap-2">
-                <Label htmlFor="puesto-nombre">Nombre del Puesto *</Label>
+                <Label htmlFor="puesto-nombre">Nombre del Rol *</Label>
                 <Input id="puesto-nombre" value={newPuestoNombre} onChange={e => setNewPuestoNombre(e.target.value)} placeholder="Ej: Supervisor de Ventas" />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="puesto-descripcion">Descripción (opcional)</Label>
-                <Textarea id="puesto-descripcion" value={newPuestoDescripcion} onChange={e => setNewPuestoDescripcion(e.target.value)} placeholder="Descripción del puesto..." rows={2} />
+                <Textarea id="puesto-descripcion" value={newPuestoDescripcion} onChange={e => setNewPuestoDescripcion(e.target.value)} placeholder="Descripción del rol..." rows={2} />
               </div>
               <Button onClick={handleCreatePuesto} disabled={puestosLoading}>
                 <Plus className="h-4 w-4 mr-2" />
-                Crear Puesto
+                Crear Rol
               </Button>
             </div>
           </div>
 
-          {/* Lista de puestos personalizados */}
+          {/* Lista de roles personalizados */}
           <div className="space-y-4">
-            <h4 className="font-medium">Puestos Personalizados</h4>
+            <h4 className="font-medium">Roles Personalizados</h4>
             {puestos.length === 0 ? <p className="text-sm text-muted-foreground">
-                No hay puestos personalizados. Los puestos del sistema están predefinidos.
+                No hay roles personalizados. Los roles del sistema están predefinidos.
               </p> : <div className="space-y-2">
                 {puestos.map(puesto => <div key={puesto.id} className={`flex items-center justify-between p-3 border rounded-lg ${!puesto.activo ? "opacity-50" : ""}`}>
                     <div>
