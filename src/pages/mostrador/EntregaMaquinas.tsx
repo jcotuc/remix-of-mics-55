@@ -285,9 +285,7 @@ export default function EntregaMaquinas() {
   return <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-foreground">Entrega de Máquinas</h1>
-        <p className="text-muted-foreground">
-          Registre la entrega de máquinas reparadas con firma digital
-        </p>
+        
       </div>
 
       {/* Búsqueda Rápida */}
@@ -297,9 +295,7 @@ export default function EntregaMaquinas() {
             <Search className="h-5 w-5" />
             Búsqueda Rápida
           </CardTitle>
-          <CardDescription>
-            Ingrese el código del incidente para búsqueda directa
-          </CardDescription>
+          
         </CardHeader>
         <CardContent>
           <div className="flex gap-4">
