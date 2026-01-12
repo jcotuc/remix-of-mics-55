@@ -64,6 +64,7 @@ export default function FamiliasProductos() {
   const [showRelacionesDialog, setShowRelacionesDialog] = useState(false);
   const [relacionesData, setRelacionesData] = useState<RelacionRow[]>([]);
   const [importingRelaciones, setImportingRelaciones] = useState(false);
+  const [showFormatDialog, setShowFormatDialog] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const relacionesInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -97,6 +98,7 @@ export default function FamiliasProductos() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    setShowFormatDialog(false);
     const reader = new FileReader();
     reader.onload = (event) => {
       try {
@@ -644,18 +646,11 @@ export default function FamiliasProductos() {
             className="hidden"
           />
           <Button
-            onClick={() => fileInputRef.current?.click()}
+            onClick={() => setShowFormatDialog(true)}
             variant="outline"
           >
             <Upload className="h-4 w-4 mr-2" />
-            Importar
-          </Button>
-          <Button
-            onClick={() => relacionesInputRef.current?.click()}
-            variant="outline"
-          >
-            <Link className="h-4 w-4 mr-2" />
-            Importar Relaciones
+            Importar Excel
           </Button>
           <Button onClick={() => setShowAddDialog(true)}>
             <Plus className="h-4 w-4 mr-2" />
@@ -1005,6 +1000,73 @@ export default function FamiliasProductos() {
                   Importar {relacionesData.length} relaciones
                 </>
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Format Dialog */}
+      <Dialog open={showFormatDialog} onOpenChange={setShowFormatDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Upload className="h-5 w-5 text-primary" />
+              Formato de archivo Excel
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              El archivo Excel debe tener las siguientes columnas para importar correctamente las familias de productos:
+            </p>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Columna</TableHead>
+                    <TableHead>Alternativas aceptadas</TableHead>
+                    <TableHead>Requerido</TableHead>
+                    <TableHead>Descripción</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow>
+                    <TableCell className="font-mono font-medium">id</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">ID, Id, Numero, No, #</TableCell>
+                    <TableCell><span className="text-amber-600">Opcional</span></TableCell>
+                    <TableCell className="text-sm">Se auto-genera si no se proporciona</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell className="font-mono font-medium">Categoria</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">Nombre, Descripcion, Familia, Category, Name</TableCell>
+                    <TableCell><span className="text-green-600 font-medium">Requerido</span></TableCell>
+                    <TableCell className="text-sm">Nombre de la categoría (se capitaliza automáticamente)</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell className="font-mono font-medium">Padre</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">Parent, PadreId, padre_id, IdPadre</TableCell>
+                    <TableCell><span className="text-amber-600">Opcional</span></TableCell>
+                    <TableCell className="text-sm">ID de la categoría padre (para subcategorías)</TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </div>
+            <div className="bg-muted/50 p-4 rounded-lg space-y-2">
+              <p className="text-sm font-medium">Notas importantes:</p>
+              <ul className="text-sm text-muted-foreground list-disc list-inside space-y-1">
+                <li>Las categorías duplicadas se ignorarán automáticamente</li>
+                <li>El nombre de la categoría se formateará con primera letra mayúscula</li>
+                <li>Si no se proporciona ID, se asignará automáticamente el siguiente disponible</li>
+                <li>El campo Padre debe ser un ID numérico válido de una categoría existente</li>
+              </ul>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowFormatDialog(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={() => fileInputRef.current?.click()}>
+              <Upload className="h-4 w-4 mr-2" />
+              Seleccionar archivo
             </Button>
           </DialogFooter>
         </DialogContent>
