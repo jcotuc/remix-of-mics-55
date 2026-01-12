@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Search, Eye, Edit, Trash2, Users, Truck, Phone, Mail, MapPin } from "lucide-react";
+import { Search, Eye, Edit, Users, Truck, Phone, Mail, MapPin } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -303,9 +303,7 @@ export default function ClientesUnificado({
                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(cliente)}>
                             <Edit className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => handleDeleteConfirm(cliente)}>
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          
                         </div>
                       </TableCell>
                     </TableRow>)}
