@@ -65,6 +65,7 @@ export default function Usuarios() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isPuestosDialogOpen, setIsPuestosDialogOpen] = useState(false);
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [isFormatDialogOpen, setIsFormatDialogOpen] = useState(false);
 
   // Excel import states
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -503,6 +504,8 @@ export default function Usuarios() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    setIsFormatDialogOpen(false); // Close format dialog
+
     const reader = new FileReader();
     reader.onload = (event) => {
       try {
@@ -673,7 +676,7 @@ export default function Usuarios() {
                 accept=".xlsx,.xls"
                 className="hidden"
               />
-              <Button onClick={() => fileInputRef.current?.click()} variant="outline">
+              <Button onClick={() => setIsFormatDialogOpen(true)} variant="outline">
                 <FileSpreadsheet className="h-4 w-4 mr-2" />
                 Importar Excel
               </Button>
@@ -1037,14 +1040,100 @@ export default function Usuarios() {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Format Info Dialog */}
+      <Dialog open={isFormatDialogOpen} onOpenChange={setIsFormatDialogOpen}>
+        <DialogContent className="sm:max-w-[650px]">
+          <DialogHeader>
+            <DialogTitle>Formato de Excel para Importación</DialogTitle>
+            <DialogDescription>
+              Asegúrate de que tu archivo Excel contenga las siguientes columnas
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="border rounded-lg overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Columna</TableHead>
+                  <TableHead>Alternativas</TableHead>
+                  <TableHead>Obligatoria</TableHead>
+                  <TableHead>Valor por defecto</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow>
+                  <TableCell className="font-mono text-sm">codigo_empleado</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">Código, codigo</TableCell>
+                  <TableCell><Badge variant="destructive">Sí</Badge></TableCell>
+                  <TableCell className="text-muted-foreground">-</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-mono text-sm">nombre</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">Nombre</TableCell>
+                  <TableCell><Badge variant="destructive">Sí</Badge></TableCell>
+                  <TableCell className="text-muted-foreground">-</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-mono text-sm">apellido</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">Apellido</TableCell>
+                  <TableCell><Badge variant="secondary">No</Badge></TableCell>
+                  <TableCell className="text-muted-foreground">Vacío</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-mono text-sm">email</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">Email</TableCell>
+                  <TableCell><Badge variant="secondary">No</Badge></TableCell>
+                  <TableCell className="font-mono text-xs">{"{codigo}@sistema.local"}</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-mono text-sm">password</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">contraseña</TableCell>
+                  <TableCell><Badge variant="secondary">No</Badge></TableCell>
+                  <TableCell className="font-mono text-xs">123456</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-mono text-sm">puesto</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">rol, Puesto, Rol</TableCell>
+                  <TableCell><Badge variant="secondary">No</Badge></TableCell>
+                  <TableCell className="text-muted-foreground">mostrador</TableCell>
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-mono text-sm">centro</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">Centro, centro_servicio</TableCell>
+                  <TableCell><Badge variant="secondary">No</Badge></TableCell>
+                  <TableCell className="text-muted-foreground">Sin asignar</TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </div>
+
+          <div className="text-sm text-muted-foreground space-y-1 bg-muted/50 p-3 rounded-lg">
+            <p><strong>Notas:</strong></p>
+            <ul className="list-disc list-inside space-y-1">
+              <li>Los roles deben coincidir con los roles del sistema (ej: "Técnico", "Administrador")</li>
+              <li>Los centros deben coincidir con los nombres de centros de servicio existentes</li>
+            </ul>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsFormatDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={() => fileInputRef.current?.click()}>
+              <FileSpreadsheet className="h-4 w-4 mr-2" />
+              Seleccionar archivo
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Import Excel Dialog */}
       <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
         <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Importar Usuarios desde Excel</DialogTitle>
             <DialogDescription>
-              Se encontraron {importData.length} registros. Columnas requeridas: codigo_empleado, nombre. 
-              Opcionales: apellido, email, password, puesto, centro.
+              Se encontraron {importData.length} registros. Revisa los datos antes de importar.
             </DialogDescription>
           </DialogHeader>
           
