@@ -621,19 +621,56 @@ export default function DiagnosticoInicial() {
       fetchProductosAlternativos();
     }
   }, [tipoResolucion]);
+
   const fetchProductosAlternativos = async () => {
     try {
       const { data, error } = await supabase
         .from("productos")
-        .select("*")
+        .select("*, familia_padre:CDS_Familias!productos_familia_padre_id_fkey(id, Categoria, Padre)")
         .eq("descontinuado", false)
         .order("descripcion");
       if (error) throw error;
-      setProductosAlternativos(data || []);
+
+      // Obtener la familia del producto original para ordenar sugerencias
+      const familiaOriginal = incidente?.familia_padre_id || productoInfo?.familia_padre_id;
+      
+      // Buscar el abuelo de la familia original para agrupar productos similares
+      let familiaAbueloOriginal: number | null = null;
+      if (familiaOriginal && familiasDB.length > 0) {
+        const familiaPadre = familiasDB.find(f => f.id === familiaOriginal);
+        familiaAbueloOriginal = familiaPadre?.Padre || familiaOriginal;
+      }
+
+      // Ordenar productos: primero los de la misma familia/categoría
+      const productosOrdenados = (data || []).map(p => {
+        const productoFamiliaId = p.familia_padre_id;
+        let productoAbueloId: number | null = null;
+        
+        if (productoFamiliaId && familiasDB.length > 0) {
+          const famPadre = familiasDB.find(f => f.id === productoFamiliaId);
+          productoAbueloId = famPadre?.Padre || productoFamiliaId;
+        }
+
+        // Determinar si es sugerido (misma familia abuelo)
+        const esSugerido = familiaAbueloOriginal && productoAbueloId === familiaAbueloOriginal;
+        
+        return {
+          ...p,
+          esSugerido: esSugerido || false
+        };
+      }).sort((a, b) => {
+        // Primero los sugeridos
+        if (a.esSugerido && !b.esSugerido) return -1;
+        if (!a.esSugerido && b.esSugerido) return 1;
+        // Luego ordenar por descripción
+        return a.descripcion.localeCompare(b.descripcion);
+      });
+
+      setProductosAlternativos(productosOrdenados);
 
       // Si el producto actual es vigente, pre-seleccionarlo como alternativo
       if (productoInfo && !productoInfo.descontinuado && incidente?.codigo_producto) {
-        const productoActual = data?.find((p) => p.codigo === incidente.codigo_producto);
+        const productoActual = productosOrdenados.find((p) => p.codigo === incidente.codigo_producto);
         if (productoActual) {
           setProductoSeleccionado(productoActual);
           toast.info("Producto vigente pre-seleccionado como alternativa");
@@ -1516,49 +1553,70 @@ export default function DiagnosticoInicial() {
                       p.codigo.toLowerCase().includes(searchProducto.toLowerCase()) ||
                       p.clave.toLowerCase().includes(searchProducto.toLowerCase()),
                   )
-                  .map((producto) => (
-                    <div
-                      key={producto.id}
-                      className={`p-4 border-b last:border-b-0 cursor-pointer transition-colors ${productoSeleccionado?.id === producto.id ? "bg-primary/10 border-l-4 border-l-primary" : "hover:bg-muted/50"}`}
-                      onClick={() => setProductoSeleccionado(producto)}
-                    >
-                      <div className="flex items-start gap-4">
-                        {producto.url_foto && (
-                          <div className="w-16 h-16 rounded border bg-muted flex-shrink-0">
-                            <img
-                              src={producto.url_foto}
-                              alt={producto.descripcion}
-                              className="w-full h-full object-contain"
-                              onError={(e) => {
-                                e.currentTarget.src = "/placeholder.svg";
-                              }}
-                            />
-                          </div>
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-start justify-between gap-2 mb-1">
-                            <p className="font-semibold">{producto.descripcion}</p>
-                            {producto.codigo === incidente?.codigo_producto && (
-                              <Badge className="bg-blue-500 text-white text-xs shrink-0">Modelo Actual</Badge>
+                  .map((producto, index) => {
+                    // Mostrar separador cuando terminan los sugeridos
+                    const esUltimoSugerido = producto.esSugerido && 
+                      productosAlternativos.filter(p => 
+                        p.descripcion.toLowerCase().includes(searchProducto.toLowerCase()) ||
+                        p.codigo.toLowerCase().includes(searchProducto.toLowerCase()) ||
+                        p.clave.toLowerCase().includes(searchProducto.toLowerCase())
+                      )[index + 1]?.esSugerido === false;
+                    
+                    return (
+                      <div key={producto.id}>
+                        <div
+                          className={`p-4 border-b last:border-b-0 cursor-pointer transition-colors ${productoSeleccionado?.id === producto.id ? "bg-primary/10 border-l-4 border-l-primary" : producto.esSugerido ? "bg-amber-50 dark:bg-amber-950/20 hover:bg-amber-100 dark:hover:bg-amber-950/30" : "hover:bg-muted/50"}`}
+                          onClick={() => setProductoSeleccionado(producto)}
+                        >
+                          <div className="flex items-start gap-4">
+                            {producto.url_foto && (
+                              <div className="w-16 h-16 rounded border bg-muted flex-shrink-0">
+                                <img
+                                  src={producto.url_foto}
+                                  alt={producto.descripcion}
+                                  className="w-full h-full object-contain"
+                                  onError={(e) => {
+                                    e.currentTarget.src = "/placeholder.svg";
+                                  }}
+                                />
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-start justify-between gap-2 mb-1">
+                                <p className="font-semibold">{producto.descripcion}</p>
+                                <div className="flex gap-1 shrink-0">
+                                  {producto.esSugerido && producto.codigo !== incidente?.codigo_producto && (
+                                    <Badge className="bg-amber-500 text-white text-xs">⭐ Sugerido</Badge>
+                                  )}
+                                  {producto.codigo === incidente?.codigo_producto && (
+                                    <Badge className="bg-blue-500 text-white text-xs">Modelo Actual</Badge>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex gap-3 mt-1 text-sm text-muted-foreground">
+                                <span>Código: {producto.codigo}</span>
+                                <span>Clave: {producto.clave}</span>
+                              </div>
+                              <div className="flex gap-2 mt-2 flex-wrap">
+                                <Badge className="bg-green-500 text-white text-xs">
+                                  <Package className="w-3 h-3 mr-1" />
+                                  Disponible para despacho
+                                </Badge>
+                              </div>
+                            </div>
+                            {productoSeleccionado?.id === producto.id && (
+                              <CheckCircle2 className="w-6 h-6 text-primary flex-shrink-0" />
                             )}
                           </div>
-                          <div className="flex gap-3 mt-1 text-sm text-muted-foreground">
-                            <span>Código: {producto.codigo}</span>
-                            <span>Clave: {producto.clave}</span>
-                          </div>
-                          <div className="flex gap-2 mt-2 flex-wrap">
-                            <Badge className="bg-green-500 text-white text-xs">
-                              <Package className="w-3 h-3 mr-1" />
-                              Disponible para despacho
-                            </Badge>
-                          </div>
                         </div>
-                        {productoSeleccionado?.id === producto.id && (
-                          <CheckCircle2 className="w-6 h-6 text-primary flex-shrink-0" />
+                        {esUltimoSugerido && (
+                          <div className="px-4 py-2 bg-muted/50 text-xs text-muted-foreground text-center border-b">
+                            — Otros productos disponibles —
+                          </div>
                         )}
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
               </div>
 
               {/* Resumen de la Cotización */}
