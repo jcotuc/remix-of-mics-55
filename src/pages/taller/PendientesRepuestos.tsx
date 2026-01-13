@@ -19,11 +19,13 @@ interface IncidentePendiente {
   codigo: string;
   codigo_producto: string;
   codigo_tecnico: string | null;
+  tecnico_asignado_id: string | null;
   updated_at: string;
   created_at: string;
   centro_servicio: string | null;
   cliente: { nombre: string } | null;
   producto: { descripcion: string } | null;
+  tecnico: { nombre: string; apellido: string } | null;
   solicitudes_repuestos: {
     id: string;
     estado: string;
@@ -63,6 +65,7 @@ export default function PendientesRepuestos() {
           codigo,
           codigo_producto,
           codigo_tecnico,
+          tecnico_asignado_id,
           updated_at,
           created_at,
           centro_servicio,
@@ -86,17 +89,31 @@ export default function PendientesRepuestos() {
         (pedidosData || []).map(p => [p.incidente_id, { id: p.id, estado: p.estado, created_at: p.created_at }])
       );
 
+      // Fetch technician names from profiles
+      const tecnicoIds = [...new Set((data || []).map(i => i.tecnico_asignado_id).filter(Boolean))] as string[];
+      const { data: tecnicosData } = await supabase
+        .from("profiles")
+        .select("user_id, nombre, apellido")
+        .in("user_id", tecnicoIds);
+
+      const tecnicosMap = new Map(
+        (tecnicosData || []).map(t => [t.user_id, { nombre: t.nombre, apellido: t.apellido }])
+      );
+
       const formattedData = (data || []).map(item => ({
         ...item,
         cliente: item.clientes,
         producto: item.productos,
+        tecnico: item.tecnico_asignado_id ? tecnicosMap.get(item.tecnico_asignado_id) || null : null,
         pedido_bodega: pedidosMap.get(item.id) || null,
       }));
 
-      setIncidentes(formattedData);
+      setIncidentes(formattedData as IncidentePendiente[]);
 
-      // Extract unique technicians
-      const uniqueTecnicos = [...new Set(formattedData.map(i => i.codigo_tecnico).filter(Boolean))] as string[];
+      // Extract unique technicians with names
+      const uniqueTecnicos = [...new Set(formattedData.map(i => 
+        i.tecnico ? `${i.tecnico.nombre} ${i.tecnico.apellido}` : null
+      ).filter(Boolean))] as string[];
       setTecnicos(uniqueTecnicos);
     } catch (error) {
       console.error("Error fetching incidentes:", error);
@@ -357,7 +374,7 @@ export default function PendientesRepuestos() {
                   </div>
                   <div>
                     <p className="text-muted-foreground">Técnico</p>
-                    <p className="font-medium">{inc.codigo_tecnico || "Sin asignar"}</p>
+                    <p className="font-medium">{inc.tecnico ? `${inc.tecnico.nombre} ${inc.tecnico.apellido}` : "Sin asignar"}</p>
                   </div>
                 </div>
 
