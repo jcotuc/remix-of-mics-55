@@ -767,6 +767,109 @@ export default function DiagnosticoInicial() {
       toast.error("Debes agregar al menos un repuesto");
       return;
     }
+
+    // Verificar stock de cada repuesto solicitado
+    const repuestosConStock: typeof repuestosSolicitados = [];
+    const repuestosSinStock: Array<{
+      codigo: string;
+      descripcion: string;
+      cantidad: number;
+      stockActual: number;
+    }> = [];
+
+    repuestosSolicitados.forEach((rep) => {
+      // Buscar el repuesto en repuestosDisponibles para obtener su stock actual
+      const repuestoInfo = repuestosDisponibles.find((r) => r.codigo === rep.codigo);
+      const stockActual = repuestoInfo?.stock_actual || 0;
+
+      if (stockActual >= rep.cantidad) {
+        repuestosConStock.push(rep);
+      } else {
+        repuestosSinStock.push({
+          codigo: rep.codigo,
+          descripcion: rep.descripcion,
+          cantidad: rep.cantidad,
+          stockActual,
+        });
+      }
+    });
+
+    // Si hay repuestos sin stock, NO enviar a bodega
+    if (repuestosSinStock.length > 0) {
+      toast.error(
+        `${repuestosSinStock.length} repuesto(s) sin stock suficiente. El incidente pasará a "Pendiente por repuestos".`,
+        { duration: 5000 }
+      );
+
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) throw new Error("No user found");
+
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("nombre, apellido")
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        const tecnicoNombre = profile ? `${profile.nombre} ${profile.apellido}` : user.email || "Técnico";
+
+        // Guardar repuestos pendientes en el diagnóstico (no crear solicitud a bodega)
+        const { data: existingDiag } = await supabase
+          .from("diagnosticos")
+          .select("id, repuestos_utilizados")
+          .eq("incidente_id", id)
+          .maybeSingle();
+
+        const repuestosPendientesData = {
+          repuestos_sin_stock: repuestosSinStock.map((r) => ({
+            codigo: r.codigo,
+            descripcion: r.descripcion,
+            cantidad_solicitada: r.cantidad,
+            stock_disponible: (r as any).stockActual || 0,
+          })),
+          fecha_solicitud: new Date().toISOString(),
+          solicitado_por: tecnicoNombre,
+        };
+
+        if (existingDiag) {
+          await supabase
+            .from("diagnosticos")
+            .update({
+              repuestos_utilizados: repuestosPendientesData,
+            })
+            .eq("id", existingDiag.id);
+        }
+
+        // Cambiar estado del incidente a "Pendiente por repuestos"
+        await supabase
+          .from("incidentes")
+          .update({
+            status: "Pendiente por repuestos",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", id);
+
+        // Limpiar repuestos solicitados
+        setRepuestosSolicitados([]);
+
+        toast.success("Incidente marcado como 'Pendiente por repuestos'. Jefe de taller dará seguimiento.", {
+          duration: 5000,
+        });
+
+        // Avanzar al paso 3 con resolución forzada
+        setTipoResolucion("Pendiente por Repuestos");
+        setPaso(3);
+
+      } catch (error) {
+        console.error("Error:", error);
+        toast.error("Error al procesar la solicitud");
+      }
+      return;
+    }
+
+    // Si todos tienen stock, continuar con el flujo normal
     try {
       const {
         data: { user },
@@ -783,7 +886,7 @@ export default function DiagnosticoInicial() {
         .insert({
           incidente_id: id,
           tecnico_solicitante: tecnicoNombre,
-          repuestos: repuestosSolicitados,
+          repuestos: repuestosConStock,
           estado: "pendiente",
           tipo_despacho: tipoDespacho,
         })
@@ -1643,67 +1746,123 @@ export default function DiagnosticoInicial() {
                         </div>
                         {repuestosSolicitados.length > 0 ? (
                           <div className="space-y-1.5">
-                            {repuestosSolicitados.map((item) => (
-                              <div
-                                key={item.codigo}
-                                className="flex items-center gap-2 p-2 bg-primary/5 rounded-lg border border-primary/30"
-                              >
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-xs font-medium truncate">{item.descripcion}</p>
-                                  <p className="text-[10px] text-muted-foreground font-mono">{item.codigo}</p>
-                                </div>
-                                <Badge className="bg-primary/20 text-primary border-0 text-[10px] h-5 px-2">
-                                  x{item.cantidad}
-                                </Badge>
-                                <button
-                                  onClick={() => eliminarRepuesto(item.codigo)}
-                                  className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
-                                >
-                                  <X className="w-3.5 h-3.5" />
-                                </button>
-                              </div>
-                            ))}
+                            {repuestosSolicitados.map((item) => {
+                              // Verificar stock del repuesto
+                              const repuestoInfo = repuestosDisponibles.find((r) => r.codigo === item.codigo);
+                              const stockActual = repuestoInfo?.stock_actual || 0;
+                              const sinStock = stockActual < item.cantidad;
 
-                            {/* Botones de despacho - condicional según ubicación */}
-                            <div className="mt-3 space-y-2">
-                              {tieneRepuestosAutoservicio ? (
-                                <>
-                                  <p className="text-[10px] text-muted-foreground text-center">
-                                    Repuestos disponibles en estación de autoservicio
-                                  </p>
-                                  <div className="grid grid-cols-2 gap-2">
+                              return (
+                                <div
+                                  key={item.codigo}
+                                  className={cn(
+                                    "flex items-center gap-2 p-2 rounded-lg border",
+                                    sinStock
+                                      ? "bg-red-50 dark:bg-red-950/30 border-red-300 dark:border-red-800"
+                                      : "bg-primary/5 border-primary/30"
+                                  )}
+                                >
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-xs font-medium truncate">{item.descripcion}</p>
+                                    <div className="flex items-center gap-2">
+                                      <p className="text-[10px] text-muted-foreground font-mono">{item.codigo}</p>
+                                      {sinStock && (
+                                        <Badge className="bg-red-500 text-white text-[9px] h-4 px-1">
+                                          Sin stock ({stockActual})
+                                        </Badge>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <Badge className={cn(
+                                    "border-0 text-[10px] h-5 px-2",
+                                    sinStock ? "bg-red-200 text-red-700" : "bg-primary/20 text-primary"
+                                  )}>
+                                    x{item.cantidad}
+                                  </Badge>
+                                  <button
+                                    onClick={() => eliminarRepuesto(item.codigo)}
+                                    className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                                  >
+                                    <X className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              );
+                            })}
+
+                            {/* Verificar si hay repuestos sin stock */}
+                            {(() => {
+                              const repuestosSinStockList = repuestosSolicitados.filter((item) => {
+                                const repuestoInfo = repuestosDisponibles.find((r) => r.codigo === item.codigo);
+                                return (repuestoInfo?.stock_actual || 0) < item.cantidad;
+                              });
+                              const haySinStock = repuestosSinStockList.length > 0;
+                              const todosSinStock = repuestosSinStockList.length === repuestosSolicitados.length;
+
+                              return (
+                                <div className="mt-3 space-y-2">
+                                  {/* Alerta de repuestos sin stock */}
+                                  {haySinStock && (
+                                    <div className="p-2 rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800">
+                                      <p className="text-[10px] text-red-700 dark:text-red-400 flex items-center gap-1">
+                                        <AlertCircle className="w-3 h-3" />
+                                        {todosSinStock
+                                          ? "Ningún repuesto tiene stock. El incidente pasará a 'Pendiente por repuestos'."
+                                          : `${repuestosSinStockList.length} repuesto(s) sin stock suficiente.`}
+                                      </p>
+                                    </div>
+                                  )}
+
+                                  {/* Botones de despacho */}
+                                  {tieneRepuestosAutoservicio && !haySinStock ? (
+                                    <>
+                                      <p className="text-[10px] text-muted-foreground text-center">
+                                        Repuestos disponibles en estación de autoservicio
+                                      </p>
+                                      <div className="grid grid-cols-2 gap-2">
+                                        <Button
+                                          onClick={() => handleEnviarSolicitudRepuestos("bodega")}
+                                          variant="outline"
+                                          size="sm"
+                                          className="w-full"
+                                        >
+                                          <Package className="w-4 h-4 mr-1" />
+                                          Bodega
+                                        </Button>
+                                        <Button
+                                          onClick={() => handleEnviarSolicitudRepuestos("autoservicio")}
+                                          variant="default"
+                                          size="sm"
+                                          className="w-full bg-green-600 hover:bg-green-700"
+                                        >
+                                          <ShoppingCart className="w-4 h-4 mr-1" />
+                                          Autoservicio
+                                        </Button>
+                                      </div>
+                                    </>
+                                  ) : haySinStock ? (
                                     <Button
                                       onClick={() => handleEnviarSolicitudRepuestos("bodega")}
-                                      variant="outline"
+                                      variant="destructive"
+                                      size="sm"
+                                      className="w-full"
+                                    >
+                                      <AlertCircle className="w-4 h-4 mr-1" />
+                                      Continuar - Pendiente por Repuestos
+                                    </Button>
+                                  ) : (
+                                    <Button
+                                      onClick={() => handleEnviarSolicitudRepuestos("bodega")}
+                                      variant="default"
                                       size="sm"
                                       className="w-full"
                                     >
                                       <Package className="w-4 h-4 mr-1" />
-                                      Bodega
+                                      Enviar a Bodega
                                     </Button>
-                                    <Button
-                                      onClick={() => handleEnviarSolicitudRepuestos("autoservicio")}
-                                      variant="default"
-                                      size="sm"
-                                      className="w-full bg-green-600 hover:bg-green-700"
-                                    >
-                                      <ShoppingCart className="w-4 h-4 mr-1" />
-                                      Autoservicio
-                                    </Button>
-                                  </div>
-                                </>
-                              ) : (
-                                <Button
-                                  onClick={() => handleEnviarSolicitudRepuestos("bodega")}
-                                  variant="default"
-                                  size="sm"
-                                  className="w-full"
-                                >
-                                  <Package className="w-4 h-4 mr-1" />
-                                  Enviar a Bodega
-                                </Button>
-                              )}
-                            </div>
+                                  )}
+                                </div>
+                              );
+                            })()}
                           </div>
                         ) : (
                           <div className="text-center py-6 text-muted-foreground border-2 border-dashed rounded-lg">
