@@ -41,53 +41,77 @@ type Solicitud = {
 };
 
 // Component for displaying a spare part with its locations
-function RepuestoCard({ 
-  repuesto, 
-  ubicaciones 
-}: { 
-  repuesto: Repuesto; 
+function RepuestoCard({
+  repuesto,
+  ubicaciones,
+}: {
+  repuesto: Repuesto;
   ubicaciones: Ubicacion[] | undefined;
 }) {
   const stockTotal = ubicaciones?.reduce((sum, u) => sum + u.cantidad, 0) || 0;
   const hayStock = stockTotal >= repuesto.cantidad;
+  const ubicacionDespacho = ubicaciones?.[0];
+  const otrasUbicaciones = ubicaciones?.slice(1) || [];
 
   return (
     <div className="border rounded-lg p-3 bg-muted/30 hover:bg-muted/50 transition-colors">
       <div className="flex justify-between items-start gap-3">
         <div className="flex-1 min-w-0">
-          {/* Code badge */}
+          {/* Código */}
           <Badge variant="outline" className="font-mono text-xs mb-1.5">
             {repuesto.codigo}
           </Badge>
-          
-          {/* Description */}
+
+          {/* Descripción */}
           <p className="text-sm text-muted-foreground truncate" title={repuesto.descripcion}>
-            {repuesto.descripcion || 'Sin descripción'}
+            {repuesto.descripcion || "Sin descripción"}
           </p>
-          
-          {/* Locations list */}
+
+          {/* Ubicación / existencias */}
           {ubicaciones && ubicaciones.length > 0 ? (
-            <div className="mt-2 space-y-1">
-              <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
-                <MapPin className="h-3 w-3" />
-                Ubicaciones disponibles:
-              </p>
-              <div className="space-y-1 max-h-24 overflow-y-auto">
-                {ubicaciones.map((ub) => (
-                  <div 
-                    key={ub.id}
-                    className="flex items-center justify-between text-xs bg-background rounded px-2 py-1.5 border"
-                  >
-                    <span className="font-mono font-medium">{ub.ubicacion_legacy}</span>
-                    <Badge 
-                      variant={ub.cantidad > 0 ? "secondary" : "destructive"} 
-                      className="text-xs h-5"
-                    >
-                      {ub.cantidad} disp.
+            <div className="mt-2 space-y-2">
+              <div>
+                <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                  <MapPin className="h-3 w-3" />
+                  Ubicación de despacho:
+                </p>
+                {ubicacionDespacho && (
+                  <div className="mt-1 flex items-center justify-between text-xs bg-background rounded px-2 py-1.5 border">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="font-mono font-semibold truncate">
+                        {ubicacionDespacho.ubicacion_legacy}
+                      </span>
+                      {ubicaciones.length > 1 && (
+                        <Badge variant="outline" className="text-[10px] h-5">
+                          +{ubicaciones.length - 1}
+                        </Badge>
+                      )}
+                    </div>
+                    <Badge variant="secondary" className="text-xs h-5">
+                      {ubicacionDespacho.cantidad} disp.
                     </Badge>
                   </div>
-                ))}
+                )}
               </div>
+
+              {otrasUbicaciones.length > 0 && (
+                <div>
+                  <p className="text-xs text-muted-foreground">Otras ubicaciones:</p>
+                  <div className="space-y-1 max-h-24 overflow-y-auto mt-1">
+                    {otrasUbicaciones.map((ub) => (
+                      <div
+                        key={ub.id}
+                        className="flex items-center justify-between text-xs bg-background rounded px-2 py-1.5 border"
+                      >
+                        <span className="font-mono font-medium">{ub.ubicacion_legacy}</span>
+                        <Badge variant="secondary" className="text-xs h-5">
+                          {ub.cantidad} disp.
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <div className="mt-2 text-xs text-destructive flex items-center gap-1">
@@ -96,11 +120,11 @@ function RepuestoCard({
             </div>
           )}
         </div>
-        
-        {/* Requested quantity - prominent */}
+
+        {/* Cantidad solicitada (más visible) */}
         <div className="text-right flex-shrink-0">
           <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Solicitado</p>
-          <p className={`text-3xl font-bold ${hayStock ? 'text-primary' : 'text-destructive'}`}>
+          <p className={`text-3xl font-bold ${hayStock ? "text-primary" : "text-destructive"}`}>
             {repuesto.cantidad}
           </p>
           {!hayStock && stockTotal > 0 && (
