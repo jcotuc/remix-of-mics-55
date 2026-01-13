@@ -41,7 +41,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { GembaSidebar, GembaPhoto } from "@/components/GembaSidebar";
+import { SidebarMediaCapture, SidebarPhoto } from "@/components/SidebarMediaCapture";
 export default function DiagnosticoInicial() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -113,7 +113,7 @@ export default function DiagnosticoInicial() {
   const [observaciones, setObservaciones] = useState("");
 
   // Gemba Docs - Fotos con comentarios (disponible en cualquier paso)
-  const [gembaPhotos, setGembaPhotos] = useState<GembaPhoto[]>([]);
+  const [gembaPhotos, setGembaPhotos] = useState<SidebarPhoto[]>([]);
 
   // Estado para flujo mejorado de garantía/reparable
   const [esReparable, setEsReparable] = useState<boolean | null>(null);
@@ -1165,12 +1165,9 @@ export default function DiagnosticoInicial() {
     );
   }
   return (
-    <div className="flex min-h-screen">
-      {/* Sidebar Gemba Docs */}
-      <GembaSidebar photos={gembaPhotos} onPhotosChange={setGembaPhotos} maxPhotos={20} />
-      
-      {/* Main content - with right padding for sidebar */}
-      <div className="flex-1 pr-16 lg:pr-80 container mx-auto p-6 max-w-4xl">
+    <div className="min-h-screen">
+      {/* Main content */}
+      <div className="container mx-auto p-6 max-w-4xl">
         <div className="flex items-center gap-2 mb-4">
         <Button variant="ghost" onClick={() => navigate("/taller/mis-asignaciones")}>
           <ArrowLeft className="w-4 h-4 mr-2" />
@@ -2227,6 +2224,14 @@ export default function DiagnosticoInicial() {
         </DialogContent>
       </Dialog>
       </div>
+
+      {/* Sidebar de cámara - igual que NuevoIncidente y DetalleEntrega */}
+      <SidebarMediaCapture 
+        photos={gembaPhotos} 
+        onPhotosChange={setGembaPhotos} 
+        tipo="gemba" 
+        maxPhotos={20} 
+      />
     </div>
   );
 }

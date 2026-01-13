@@ -21,13 +21,13 @@ export interface SidebarPhoto {
   preview: string;
   comment?: string;
   timestamp: Date;
-  tipo: 'ingreso' | 'salida' | 'diagnostico';
+  tipo: 'ingreso' | 'salida' | 'diagnostico' | 'gemba';
 }
 
 interface SidebarMediaCaptureProps {
   photos: SidebarPhoto[];
   onPhotosChange: (photos: SidebarPhoto[]) => void;
-  tipo: 'ingreso' | 'salida' | 'diagnostico';
+  tipo: 'ingreso' | 'salida' | 'diagnostico' | 'gemba';
   maxPhotos?: number;
   commentRequired?: boolean;
 }
@@ -126,6 +126,7 @@ export function SidebarMediaCapture({
     ingreso: "Ingreso",
     salida: "Salida",
     diagnostico: "Diagnóstico",
+    gemba: "Gemba Docs",
   }[tipo];
 
   return (
