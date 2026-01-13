@@ -298,7 +298,7 @@ export default function DetalleSolicitud() {
     }
   };
 
-  // Nueva función para cerrar solicitud por falta de stock
+  // Nueva función para notificar falta de stock al técnico (sin cambiar status automáticamente)
   const handleCerrarSinStock = async () => {
     if (!notaCierreSinStock.trim()) {
       toast.error("Debe agregar un motivo para cerrar sin stock");
@@ -314,41 +314,34 @@ export default function DetalleSolicitud() {
         cantidad_disponible: 0
       }));
 
-      // 1. Actualizar solicitud a sin_stock
+      // 1. Actualizar solicitud a "pendiente_decision_tecnico" en lugar de sin_stock
       const { error: updateSolicitudError } = await supabase
         .from("solicitudes_repuestos")
         .update({
-          estado: "sin_stock",
-          notas: `Cerrado sin stock por ${currentUserName}: ${notaCierreSinStock}. Repuestos sin stock: ${JSON.stringify(repuestosSinStockInfo)}`
+          estado: "pendiente_decision_tecnico",
+          notas: `Sin stock reportado por ${currentUserName}: ${notaCierreSinStock}. Repuestos sin stock: ${JSON.stringify(repuestosSinStockInfo)}. Esperando decisión del técnico.`
         })
         .eq("id", id);
 
       if (updateSolicitudError) throw updateSolicitudError;
 
-      // 2. Actualizar incidente a "Pendiente por repuestos"
-      if (solicitud?.incidente_id) {
-        const { error: updateIncidenteError } = await supabase
-          .from("incidentes")
-          .update({
-            status: "Pendiente por repuestos",
-            updated_at: new Date().toISOString()
-          })
-          .eq("id", solicitud.incidente_id);
+      // 2. NO cambiar automáticamente el status del incidente
+      // El técnico decidirá si el repuesto es indispensable
 
-        if (updateIncidenteError) throw updateIncidenteError;
-      }
-
-      // 3. Crear notificación para el técnico
+      // 3. Crear notificación para el técnico preguntando si desea continuar
       if (tecnicoUserId) {
         await supabase.from("notificaciones").insert({
           user_id: tecnicoUserId,
           incidente_id: solicitud?.incidente_id,
-          tipo: "sin_stock",
-          mensaje: `❌ Bodega no pudo despachar repuestos para ${incidente?.codigo || "incidente"}. Motivo: ${notaCierreSinStock}`,
+          tipo: "sin_stock_decision",
+          mensaje: `⚠️ Sin stock para ${incidente?.codigo || "incidente"}: ${repuestosSinStockInfo.map(r => r.codigo).join(", ")}. ¿Continuar sin estos repuestos o esperar?`,
           metadata: {
             repuestos_sin_stock: repuestosSinStockInfo,
+            solicitud_id: id,
             cerrado_por: currentUserName,
-            fecha: new Date().toISOString()
+            motivo: notaCierreSinStock,
+            fecha: new Date().toISOString(),
+            requiere_decision: true
           }
         });
       }
@@ -359,16 +352,16 @@ export default function DetalleSolicitud() {
         registro_id: id,
         accion: "UPDATE",
         usuario_id: currentUserId,
-        valores_nuevos: { estado: "sin_stock", repuestos_sin_stock: repuestosSinStockInfo },
-        motivo: `Solicitud cerrada por falta de stock por ${currentUserName}: ${notaCierreSinStock}`
+        valores_nuevos: { estado: "pendiente_decision_tecnico", repuestos_sin_stock: repuestosSinStockInfo },
+        motivo: `Sin stock reportado por ${currentUserName}: ${notaCierreSinStock}. Pendiente decisión del técnico.`
       });
 
-      toast.success("Solicitud cerrada por falta de stock. El incidente pasó a 'Pendiente por repuestos'");
+      toast.success("Se notificó al técnico sobre la falta de stock. Esperando su decisión.");
       navigate("/bodega/solicitudes");
 
     } catch (error) {
       console.error("Error:", error);
-      toast.error("Error al cerrar solicitud");
+      toast.error("Error al procesar solicitud");
     } finally {
       setCerrandoSinStock(false);
       setShowSinStockDialog(false);

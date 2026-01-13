@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ShoppingCart, Clock, CheckCircle, Package, User, ChevronRight, Search, Calendar } from "lucide-react";
+import { ShoppingCart, Clock, CheckCircle, Package, User, ChevronRight, Search, Calendar, AlertTriangle, XCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -142,10 +142,13 @@ export default function Solicitudes() {
 
   const sinAsignar = solicitudesFiltradas.filter(s => s.estado === "pendiente" && !s.asignado_a);
   const misAsignadas = solicitudesFiltradas.filter(s => s.asignado_a === currentUserId && s.estado === "en_proceso");
+  const pendientesDecision = solicitudesFiltradas.filter(s => s.estado === "pendiente_decision_tecnico");
   const despachadas = solicitudesFiltradas.filter(s => s.estado === "entregado");
+  const sinStock = solicitudesFiltradas.filter(s => s.estado === "sin_stock" || s.estado === "cancelado_tecnico");
 
   const totalPendientes = solicitudes.filter(s => s.estado === "pendiente" && !s.asignado_a).length;
   const totalMias = solicitudes.filter(s => s.asignado_a === currentUserId && s.estado === "en_proceso").length;
+  const totalPendientesDecision = solicitudes.filter(s => s.estado === "pendiente_decision_tecnico").length;
   const totalDespachadas = solicitudes.filter(s => s.estado === "entregado").length;
 
   const SolicitudCard = ({ 
@@ -221,7 +224,7 @@ export default function Solicitudes() {
         </div>
         
         {/* Quick Stats */}
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-orange-100 dark:bg-orange-950/50 text-orange-700 dark:text-orange-300 text-sm">
             <Clock className="h-4 w-4" />
             <span className="font-semibold">{totalPendientes}</span>
@@ -229,6 +232,10 @@ export default function Solicitudes() {
           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-100 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 text-sm">
             <User className="h-4 w-4" />
             <span className="font-semibold">{totalMias}</span>
+          </div>
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 text-sm">
+            <AlertTriangle className="h-4 w-4" />
+            <span className="font-semibold">{totalPendientesDecision}</span>
           </div>
           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-green-100 dark:bg-green-950/50 text-green-700 dark:text-green-300 text-sm">
             <CheckCircle className="h-4 w-4" />
@@ -253,8 +260,8 @@ export default function Solicitudes() {
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
         </div>
       ) : (
-        /* 3 Column Layout */
-        <div className="grid gap-4 lg:grid-cols-3">
+        /* 4 Column Layout */
+        <div className="grid gap-4 lg:grid-cols-4">
           {/* Sin Asignar */}
           <Card className="border-orange-200 dark:border-orange-900">
             <CardHeader className="py-3 px-4 bg-orange-50 dark:bg-orange-950/30 border-b border-orange-200 dark:border-orange-900">
@@ -314,6 +321,57 @@ export default function Solicitudes() {
                         solicitud={solicitud} 
                         variant="mine" 
                       />
+                    ))}
+                  </div>
+                )}
+              </ScrollArea>
+            </CardContent>
+          </Card>
+
+          {/* Esperando Decisión Técnico */}
+          <Card className="border-amber-200 dark:border-amber-900">
+            <CardHeader className="py-3 px-4 bg-amber-50 dark:bg-amber-950/30 border-b border-amber-200 dark:border-amber-900">
+              <CardTitle className="text-base font-semibold flex items-center gap-2 text-amber-700 dark:text-amber-300">
+                <AlertTriangle className="h-4 w-4" />
+                Esperando Técnico
+                <Badge className="ml-auto bg-amber-500 text-white">
+                  {pendientesDecision.length}
+                </Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <ScrollArea className="h-[calc(100vh-320px)] min-h-[300px]">
+                {pendientesDecision.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+                    <Package className="h-10 w-10 mb-2 opacity-30" />
+                    <p className="text-sm">Sin solicitudes pendientes</p>
+                  </div>
+                ) : (
+                  <div className="divide-y">
+                    {pendientesDecision.map((solicitud) => (
+                      <div 
+                        key={solicitud.id}
+                        onClick={() => navigate(`/bodega/solicitudes/${solicitud.id}`)}
+                        className="flex items-center gap-3 px-3 py-2.5 hover:bg-muted/50 cursor-pointer transition-colors"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="font-mono font-medium text-sm truncate">
+                            {solicitud.incidente_codigo}
+                          </p>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {solicitud.tecnico_solicitante}
+                          </p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <Badge variant="secondary" className="bg-amber-100 text-amber-700 text-[10px]">
+                            Sin stock
+                          </Badge>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">
+                            Esperando decisión
+                          </p>
+                        </div>
+                        <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                      </div>
                     ))}
                   </div>
                 )}
