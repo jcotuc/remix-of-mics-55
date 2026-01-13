@@ -36,12 +36,15 @@ import ConsultaUbicaciones from "./pages/logistica/ConsultaUbicaciones";
 import Asignaciones from "./pages/taller/Asignaciones";
 import MisAsignaciones from "./pages/taller/MisAsignaciones";
 import BusquedaIncidentes from "./pages/taller/BusquedaIncidentes";
+import WaterspiderPendientes from "./pages/taller/WaterspiderPendientes";
+import WaterspiderEntrega from "./pages/taller/WaterspiderEntrega";
 import PendientesRepuestos from "./pages/taller/PendientesRepuestos";
 import AsignacionTecnicos from "./pages/taller/AsignacionTecnicos";
 import ConfiguracionColas from "./pages/taller/ConfiguracionColas";
 import Transferencias from "./pages/taller/Transferencias";
 import Reasignaciones from "./pages/taller/Reasignaciones";
 import AprobacionesGarantia from "./pages/gerencia/AprobacionesGarantia";
+import MaquinasPendientesEnvio from "./pages/logistica/MaquinasPendientesEnvio";
 
 import DiagnosticoInicial from "./pages/taller/DiagnosticoInicial";
 import InventarioNuevo from "./pages/bodega/InventarioNuevo";
@@ -131,9 +134,12 @@ function App() {
                 <Route path="/logistica/consulta-precios" element={<ConsultaPreciosLogistica />} />
                 <Route path="/logistica/consulta-ubicaciones" element={<ConsultaUbicaciones />} />
                 <Route path="/logistica/clientes" element={<ClientesUnificado defaultTab="logistica" />} />
+                <Route path="/logistica/pendientes-envio" element={<MaquinasPendientesEnvio />} />
                 <Route path="/taller/asignaciones" element={<Asignaciones />} />
                 <Route path="/taller/mis-asignaciones" element={<MisAsignaciones />} />
                 <Route path="/taller/busqueda-incidentes" element={<BusquedaIncidentes />} />
+                <Route path="/taller/waterspider" element={<WaterspiderPendientes />} />
+                <Route path="/taller/waterspider/:incidenteId" element={<WaterspiderEntrega />} />
                 <Route path="/taller/revision-stock-cemaco" element={<RevisionStockCemaco />} />
                 <Route path="/taller/aprobaciones-stock-cemaco" element={<AprobacionesStockCemaco />} />
                 <Route path="/taller/pendientes-repuestos" element={<PendientesRepuestos />} />

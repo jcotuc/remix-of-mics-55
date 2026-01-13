@@ -44,6 +44,7 @@ const menuAreas = {
     { title: "Guías", url: "/logistica/guias", icon: FileSpreadsheet },
     { title: "Ingreso de Máquinas", url: "/logistica/ingreso-maquinas", icon: LogIn },
     { title: "Salida de Máquinas", url: "/logistica/salida-maquinas", icon: Send },
+    { title: "Pendientes Envío", url: "/logistica/pendientes-envio", icon: PackageCheck },
     { title: "Faltante de Accesorios", url: "/logistica/faltante-accesorios", icon: AlertTriangle },
     { title: "Máquinas Nuevas RT", url: "/logistica/maquinas-nuevas-rt", icon: PackageCheck },
     { title: "Daños por Transporte", url: "/logistica/danos-transporte", icon: AlertCircle },
@@ -54,6 +55,7 @@ const menuAreas = {
     { title: "Cola de reparación", url: "/taller/asignaciones", icon: Wrench },
     { title: "Mis diagnósticos", url: "/taller/mis-asignaciones", icon: ClipboardList },
     { title: "Búsqueda Incidentes", url: "/taller/busqueda-incidentes", icon: FileText },
+    { title: "Waterspider", url: "/taller/waterspider", icon: Truck },
   ],
   jefeTaller: [
     { title: "Dashboard Jefe", url: "/taller/dashboard-jefe", icon: BarChart3 },

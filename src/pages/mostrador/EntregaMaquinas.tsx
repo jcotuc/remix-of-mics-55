@@ -42,7 +42,7 @@ export default function EntregaMaquinas() {
       const { data: incidentesData, error: incidentesError } = await supabase
         .from('incidentes')
         .select('*')
-        .eq('status', 'Reparado')
+        .eq('status', 'Pendiente entrega')
         .order('fecha_ingreso', { ascending: false });
 
       if (incidentesError) throw incidentesError;
@@ -115,8 +115,8 @@ export default function EntregaMaquinas() {
         return;
       }
 
-      if (incidenteData.status !== 'Reparado') {
-        toast.error("Este incidente no está en estado 'Reparado' y listo para entrega");
+      if (incidenteData.status !== 'Pendiente entrega') {
+        toast.error("Este incidente no está en estado 'Pendiente entrega' y listo para entrega");
         return;
       }
 
