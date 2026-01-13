@@ -21,6 +21,7 @@ import SeguimientoIncidente from "./pages/mostrador/SeguimientoIncidente";
 import IncidentesMostrador from "./pages/mostrador/Incidentes";
 import HerramientasManuales from "./pages/mostrador/HerramientasManuales";
 import EntregaMaquinas from "./pages/mostrador/EntregaMaquinas";
+import DetalleEntrega from "./pages/mostrador/DetalleEntrega";
 import Embarques from "./pages/logistica/Embarques";
 import GarantiasManuales from "./pages/logistica/GarantiasManuales";
 import Guias from "./pages/logistica/Guias";
@@ -113,6 +114,7 @@ function App() {
                 <Route path="/mostrador/incidentes/nuevo" element={<NuevoIncidente />} />
                 <Route path="/mostrador/herramientas-manuales" element={<HerramientasManuales />} />
                 <Route path="/mostrador/entrega-maquinas" element={<EntregaMaquinas />} />
+                <Route path="/mostrador/entrega-maquinas/:incidenteId" element={<DetalleEntrega />} />
                 <Route path="/mostrador/repuestos" element={<Repuestos />} />
                 <Route path="/mostrador/productos" element={<Productos />} />
                 <Route path="/mostrador/clientes/:codigo" element={<DetalleCliente />} />
