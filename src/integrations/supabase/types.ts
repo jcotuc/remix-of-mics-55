@@ -2380,9 +2380,11 @@ export type Database = {
           id: string
           incidente_id: string
           notas: string | null
+          presupuesto_aprobado: boolean | null
           repuestos: Json
           tecnico_solicitante: string
           tipo_despacho: string | null
+          tipo_resolucion: string | null
           updated_at: string | null
         }
         Insert: {
@@ -2395,9 +2397,11 @@ export type Database = {
           id?: string
           incidente_id: string
           notas?: string | null
+          presupuesto_aprobado?: boolean | null
           repuestos: Json
           tecnico_solicitante: string
           tipo_despacho?: string | null
+          tipo_resolucion?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -2410,9 +2414,11 @@ export type Database = {
           id?: string
           incidente_id?: string
           notas?: string | null
+          presupuesto_aprobado?: boolean | null
           repuestos?: Json
           tecnico_solicitante?: string
           tipo_despacho?: string | null
+          tipo_resolucion?: string | null
           updated_at?: string | null
         }
         Relationships: [
