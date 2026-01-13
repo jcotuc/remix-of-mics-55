@@ -229,13 +229,17 @@ export default function CambioGarantia() {
     );
   }
 
+  // Determinar si se puede continuar (hay stock del producto original O del alternativo seleccionado)
+  const puedeConfirmar = hayStock || (productoSeleccionado && hayStockAlternativo === true);
+  const productoParaCambio = productoSeleccionado && hayStockAlternativo === true 
+    ? productoSeleccionado.codigo 
+    : hayStock 
+      ? productoOriginal?.codigo 
+      : null;
+
   return (
-    <div className="container mx-auto p-6 max-w-4xl">
+    <div className="container mx-auto p-6 max-w-4xl pb-24">
       <div className="flex items-center gap-2 mb-6">
-        <Button variant="ghost" onClick={() => navigate(-1)}>
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Volver
-        </Button>
         <h1 className="text-2xl font-bold">Cambio por Garantía</h1>
       </div>
 
@@ -294,25 +298,16 @@ export default function CambioGarantia() {
                 ))}
               </div>
               
-              <div className="flex gap-3 pt-4">
-                <Button 
-                  className="flex-1 bg-green-600 hover:bg-green-700"
-                  onClick={() => handleConfirmarCambio(productoOriginal!.codigo)}
-                  disabled={saving}
-                >
-                  {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
-                  Confirmar Cambio con Producto Original
-                </Button>
-                <Button 
-                  variant="outline"
-                  onClick={() => {
-                    setMostrarAlternativos(true);
-                    fetchProductosAlternativos();
-                  }}
-                >
-                  Seleccionar Otro Producto
-                </Button>
-              </div>
+              <Button 
+                variant="outline"
+                onClick={() => {
+                  setMostrarAlternativos(true);
+                  fetchProductosAlternativos();
+                }}
+                className="w-full"
+              >
+                Seleccionar Otro Producto
+              </Button>
             </div>
           ) : (
             <div className="space-y-4">
@@ -327,7 +322,7 @@ export default function CambioGarantia() {
 
       {/* Selección de producto alternativo */}
       {mostrarAlternativos && (
-        <Card>
+        <Card className="mb-6">
           <CardHeader>
             <CardTitle>Seleccionar Producto Alternativo</CardTitle>
             <CardDescription>
@@ -420,14 +415,6 @@ export default function CambioGarantia() {
                           </div>
                         ))}
                       </div>
-                      <Button 
-                        className="w-full bg-green-600 hover:bg-green-700"
-                        onClick={() => handleConfirmarCambio(productoSeleccionado.codigo)}
-                        disabled={saving}
-                      >
-                        {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
-                        Confirmar Cambio con {productoSeleccionado.codigo}
-                      </Button>
                     </div>
                   ) : hayStockAlternativo === false ? (
                     <div className="space-y-3">
@@ -446,6 +433,30 @@ export default function CambioGarantia() {
           </CardContent>
         </Card>
       )}
+
+      {/* Botones fijos en la parte inferior */}
+      <div className="fixed bottom-0 left-0 right-0 bg-background border-t p-4 flex justify-between gap-4 z-50">
+        <Button 
+          variant="outline" 
+          onClick={() => navigate(-1)}
+          className="flex-1"
+        >
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Regresar
+        </Button>
+        <Button 
+          className="flex-1"
+          disabled={!puedeConfirmar || saving}
+          onClick={() => productoParaCambio && handleConfirmarCambio(productoParaCambio)}
+        >
+          {saving ? (
+            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+          ) : (
+            <CheckCircle2 className="h-4 w-4 mr-2" />
+          )}
+          Continuar
+        </Button>
+      </div>
     </div>
   );
 }
