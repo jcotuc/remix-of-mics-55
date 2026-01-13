@@ -828,8 +828,70 @@ export default function DiagnosticoInicial() {
       }
     });
 
-    // Si hay repuestos sin stock, NO enviar a bodega
+    // Si hay repuestos sin stock
     if (repuestosSinStock.length > 0) {
+      // CASO ESPECIAL: Si es Presupuesto, crear solicitud de todas formas (bloqueada)
+      if (tipoResolucion === "Presupuesto") {
+        try {
+          const {
+            data: { user },
+          } = await supabase.auth.getUser();
+          if (!user) throw new Error("No user found");
+
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("nombre, apellido")
+            .eq("user_id", user.id)
+            .maybeSingle();
+
+          const tecnicoNombre = profile ? `${profile.nombre} ${profile.apellido}` : user.email || "Técnico";
+
+          // Crear solicitud con TODOS los repuestos (con y sin stock)
+          // Marcarla como presupuesto pendiente de aprobación
+          const notaSinStock = repuestosSinStock.map(r => `${r.codigo} (stock: ${r.stockActual})`).join(', ');
+          
+          const { data, error } = await supabase
+            .from("solicitudes_repuestos")
+            .insert({
+              incidente_id: id,
+              tecnico_solicitante: tecnicoNombre,
+              repuestos: repuestosSolicitados, // Todos los repuestos
+              estado: "pendiente",
+              tipo_despacho: tipoDespacho,
+              tipo_resolucion: "Presupuesto",
+              presupuesto_aprobado: false,
+              notas: `⚠️ Repuestos sin stock suficiente: ${notaSinStock}`,
+            })
+            .select()
+            .single();
+
+          if (error) throw error;
+
+          // Limpiar la lista de repuestos seleccionados
+          setRepuestosSolicitados([]);
+
+          // Recargar solicitudes
+          await verificarSolicitudRepuestos();
+
+          // Guardar borrador
+          await guardarBorradorSilencioso();
+
+          toast.info(
+            "Solicitud registrada como Presupuesto. Cuando el cliente apruebe, se gestionará el pedido de repuestos faltantes.",
+            { duration: 6000 }
+          );
+
+          // Continuar al paso 3 normalmente (mantener tipoResolucion = "Presupuesto")
+          setPaso(3);
+
+        } catch (error) {
+          console.error("Error:", error);
+          toast.error("Error al procesar la solicitud");
+        }
+        return;
+      }
+
+      // Para otros tipos de resolución (Garantía, etc.), flujo original
       toast.error(
         `${repuestosSinStock.length} repuesto(s) sin stock suficiente. El incidente pasará a "Pendiente por repuestos".`,
         { duration: 5000 }
@@ -1861,10 +1923,20 @@ export default function DiagnosticoInicial() {
                               const haySinStock = repuestosSinStockList.length > 0;
                               const todosSinStock = repuestosSinStockList.length === repuestosSolicitados.length;
 
+                              // Determinar si es presupuesto
+                              const esPresupuesto = tipoResolucion === "Presupuesto";
+
                               return (
                                 <div className="mt-3 space-y-2">
                                   {/* Alerta de repuestos sin stock */}
-                                  {haySinStock && (
+                                  {haySinStock && esPresupuesto ? (
+                                    <div className="p-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800">
+                                      <p className="text-[10px] text-amber-700 dark:text-amber-400 flex items-center gap-1">
+                                        <AlertCircle className="w-3 h-3" />
+                                        Algunos repuestos sin stock. Se registrará la solicitud y se gestionará cuando el cliente apruebe el presupuesto.
+                                      </p>
+                                    </div>
+                                  ) : haySinStock ? (
                                     <div className="p-2 rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800">
                                       <p className="text-[10px] text-red-700 dark:text-red-400 flex items-center gap-1">
                                         <AlertCircle className="w-3 h-3" />
@@ -1873,7 +1945,7 @@ export default function DiagnosticoInicial() {
                                           : `${repuestosSinStockList.length} repuesto(s) sin stock suficiente.`}
                                       </p>
                                     </div>
-                                  )}
+                                  ) : null}
 
                                   {/* Botones de despacho */}
                                   {tieneRepuestosAutoservicio && !haySinStock ? (
@@ -1902,6 +1974,16 @@ export default function DiagnosticoInicial() {
                                         </Button>
                                       </div>
                                     </>
+                                  ) : haySinStock && esPresupuesto ? (
+                                    <Button
+                                      onClick={() => handleEnviarSolicitudRepuestos("bodega")}
+                                      variant="default"
+                                      size="sm"
+                                      className="w-full bg-amber-600 hover:bg-amber-700"
+                                    >
+                                      <ShoppingCart className="w-4 h-4 mr-1" />
+                                      Registrar Presupuesto
+                                    </Button>
                                   ) : haySinStock ? (
                                     <Button
                                       onClick={() => handleEnviarSolicitudRepuestos("bodega")}
