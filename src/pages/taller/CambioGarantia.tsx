@@ -40,6 +40,11 @@ export default function CambioGarantia() {
   const [productosAlternativos, setProductosAlternativos] = useState<(Producto & { esSugerido?: boolean })[]>([]);
   const [searchProducto, setSearchProducto] = useState("");
   const [productoSeleccionado, setProductoSeleccionado] = useState<Producto | null>(null);
+  
+  // Stock del producto alternativo seleccionado
+  const [verificandoStockAlternativo, setVerificandoStockAlternativo] = useState(false);
+  const [stockAlternativo, setStockAlternativo] = useState<StockInfo[]>([]);
+  const [hayStockAlternativo, setHayStockAlternativo] = useState<boolean | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -142,6 +147,46 @@ export default function CambioGarantia() {
     } catch (error) {
       console.error("Error cargando productos alternativos:", error);
     }
+  };
+
+  const verificarStockAlternativo = async (codigoProducto: string) => {
+    setVerificandoStockAlternativo(true);
+    setHayStockAlternativo(null);
+    setStockAlternativo([]);
+    
+    try {
+      const { data: stockData, error } = await supabase
+        .from("inventario")
+        .select(`
+          centro_servicio_id,
+          cantidad,
+          centro:centros_servicio!inventario_centro_servicio_id_fkey(nombre)
+        `)
+        .eq("codigo_repuesto", codigoProducto)
+        .gt("cantidad", 0);
+
+      if (error) throw error;
+
+      const stockInfo: StockInfo[] = (stockData || []).map((s: any) => ({
+        centro_servicio_id: s.centro_servicio_id,
+        centro_nombre: s.centro?.nombre || "Desconocido",
+        cantidad: s.cantidad
+      }));
+
+      setStockAlternativo(stockInfo);
+      setHayStockAlternativo(stockInfo.length > 0);
+
+    } catch (error) {
+      console.error("Error verificando stock alternativo:", error);
+      setHayStockAlternativo(false);
+    } finally {
+      setVerificandoStockAlternativo(false);
+    }
+  };
+
+  const handleSeleccionarProducto = async (producto: Producto) => {
+    setProductoSeleccionado(producto);
+    await verificarStockAlternativo(producto.codigo);
   };
 
   const handleConfirmarCambio = async (codigoProducto: string) => {
@@ -303,11 +348,11 @@ export default function CambioGarantia() {
               />
             </div>
 
-            <div className="max-h-80 overflow-y-auto space-y-2 border rounded-lg p-2">
+            <div className="max-h-60 overflow-y-auto space-y-2 border rounded-lg p-2">
               {productosFiltrados.slice(0, 50).map((producto) => (
                 <div
                   key={producto.codigo}
-                  onClick={() => setProductoSeleccionado(producto)}
+                  onClick={() => handleSeleccionarProducto(producto)}
                   className={`p-3 rounded-lg cursor-pointer transition-colors ${
                     productoSeleccionado?.codigo === producto.codigo
                       ? "bg-primary text-primary-foreground"
@@ -345,15 +390,58 @@ export default function CambioGarantia() {
               )}
             </div>
 
+            {/* Stock del producto alternativo seleccionado */}
             {productoSeleccionado && (
-              <Button 
-                className="w-full"
-                onClick={() => handleConfirmarCambio(productoSeleccionado.codigo)}
-                disabled={saving}
-              >
-                {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
-                Confirmar Cambio con {productoSeleccionado.codigo}
-              </Button>
+              <Card className={`mt-4 ${hayStockAlternativo === true ? "border-green-500" : hayStockAlternativo === false ? "border-amber-500" : ""}`}>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    Disponibilidad: {productoSeleccionado.descripcion}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {verificandoStockAlternativo ? (
+                    <div className="flex items-center gap-2 text-muted-foreground py-4">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Verificando disponibilidad...</span>
+                    </div>
+                  ) : hayStockAlternativo === true ? (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 text-green-600">
+                        <CheckCircle2 className="h-5 w-5" />
+                        <span className="font-medium">¡Hay stock disponible!</span>
+                      </div>
+                      <div className="space-y-2">
+                        {stockAlternativo.map((stock, idx) => (
+                          <div key={idx} className="flex justify-between items-center p-2 bg-green-50 rounded-lg border border-green-200">
+                            <span className="text-sm">{stock.centro_nombre}</span>
+                            <Badge variant="secondary" className="bg-green-100 text-green-800">
+                              {stock.cantidad} unidad{stock.cantidad !== 1 ? "es" : ""}
+                            </Badge>
+                          </div>
+                        ))}
+                      </div>
+                      <Button 
+                        className="w-full bg-green-600 hover:bg-green-700"
+                        onClick={() => handleConfirmarCambio(productoSeleccionado.codigo)}
+                        disabled={saving}
+                      >
+                        {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
+                        Confirmar Cambio con {productoSeleccionado.codigo}
+                      </Button>
+                    </div>
+                  ) : hayStockAlternativo === false ? (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 text-amber-600">
+                        <AlertTriangle className="h-5 w-5" />
+                        <span className="font-medium">Sin stock disponible</span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Este producto no tiene unidades disponibles. Selecciona otro producto.
+                      </p>
+                    </div>
+                  ) : null}
+                </CardContent>
+              </Card>
             )}
           </CardContent>
         </Card>
