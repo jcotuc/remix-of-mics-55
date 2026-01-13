@@ -915,6 +915,10 @@ export default function DiagnosticoInicial() {
         .eq("user_id", user.id)
         .maybeSingle();
       const tecnicoNombre = profile ? `${profile.nombre} ${profile.apellido}` : user.email || "Técnico";
+      
+      // Determinar si es presupuesto para bloquear el despacho hasta aprobación
+      const esPresupuesto = tipoResolucion === "Presupuesto";
+      
       const { data, error } = await supabase
         .from("solicitudes_repuestos")
         .insert({
@@ -923,6 +927,8 @@ export default function DiagnosticoInicial() {
           repuestos: repuestosConStock,
           estado: "pendiente",
           tipo_despacho: tipoDespacho,
+          tipo_resolucion: tipoResolucion || null,
+          presupuesto_aprobado: esPresupuesto ? false : null,
         })
         .select()
         .single();

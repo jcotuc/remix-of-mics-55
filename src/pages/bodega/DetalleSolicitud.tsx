@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { 
   Package, ArrowLeft, Check, AlertTriangle, Send, Minus, Plus, 
-  MapPin, User, Calendar, Clock, CheckCircle2, Box, Truck, XCircle
+  MapPin, User, Calendar, Clock, CheckCircle2, Box, Truck, XCircle, FileText
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -386,6 +386,11 @@ export default function DetalleSolicitud() {
     return sum + stockRep;
   }, 0);
 
+  // Detectar si es una solicitud de presupuesto pendiente de aprobación
+  const esBloqueadoPorPresupuesto = 
+    solicitud?.tipo_resolucion === "Presupuesto" && 
+    solicitud?.presupuesto_aprobado === false;
+
   return (
     <div className="container mx-auto py-6 space-y-6 max-w-5xl">
       {/* Header */}
@@ -423,6 +428,22 @@ export default function DetalleSolicitud() {
           </div>
         </div>
       </div>
+
+      {/* Banner de bloqueo por presupuesto pendiente */}
+      {esBloqueadoPorPresupuesto && (
+        <div className="flex items-start gap-3 p-4 rounded-lg bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800">
+          <FileText className="h-5 w-5 text-purple-600 dark:text-purple-400 shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="font-medium text-purple-700 dark:text-purple-300">
+              Solicitud bloqueada - Pendiente aprobación de presupuesto
+            </p>
+            <p className="text-sm text-purple-600 dark:text-purple-400 mt-1">
+              Esta solicitud corresponde a un diagnóstico tipo "Presupuesto". 
+              El despacho está bloqueado hasta que el cliente apruebe el presupuesto y SAC confirme la aprobación en el sistema.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -738,7 +759,7 @@ export default function DetalleSolicitud() {
       </div>
 
       {/* Footer Actions */}
-      {esEditable && (
+      {esEditable && !esBloqueadoPorPresupuesto && (
         <Card className="sticky bottom-4 shadow-lg">
           <CardContent className="py-4">
             {/* Alerta de repuestos sin stock */}
@@ -809,6 +830,27 @@ export default function DetalleSolicitud() {
                     Despachar Solicitud
                   </Button>
                 )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Footer bloqueado por presupuesto */}
+      {esEditable && esBloqueadoPorPresupuesto && (
+        <Card className="sticky bottom-4 shadow-lg border-purple-200 dark:border-purple-800">
+          <CardContent className="py-4">
+            <div className="flex items-center justify-between flex-wrap gap-4">
+              <div className="text-sm">
+                <p className="text-purple-600 dark:text-purple-400 flex items-center gap-1">
+                  <FileText className="h-4 w-4" />
+                  Despacho bloqueado - Esperando aprobación del presupuesto
+                </p>
+              </div>
+              <div className="flex gap-3 flex-wrap">
+                <Button variant="outline" onClick={() => navigate(-1)}>
+                  Regresar
+                </Button>
               </div>
             </div>
           </CardContent>
