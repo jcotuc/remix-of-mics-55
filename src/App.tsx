@@ -48,6 +48,7 @@ import AprobacionesGarantia from "./pages/gerencia/AprobacionesGarantia";
 import MaquinasPendientesEnvio from "./pages/logistica/MaquinasPendientesEnvio";
 
 import DiagnosticoInicial from "./pages/taller/DiagnosticoInicial";
+import CambioGarantia from "./pages/taller/CambioGarantia";
 import InventarioNuevo from "./pages/bodega/InventarioNuevo";
 import InventarioCiclico from "./pages/bodega/InventarioCiclico";
 import Importacion from "./pages/bodega/Importacion";
@@ -151,6 +152,7 @@ function App() {
                 <Route path="/taller/reasignaciones" element={<Reasignaciones />} />
                 
                 <Route path="/taller/diagnostico/:id" element={<DiagnosticoInicial />} />
+                <Route path="/taller/cambio-garantia/:id" element={<CambioGarantia />} />
                 <Route path="/bodega/inventario" element={<InventarioNuevo />} />
                 <Route path="/bodega/inventario-ciclico" element={<InventarioCiclico />} />
                 <Route path="/bodega/consulta-cardex" element={<ConsultaCardex />} />

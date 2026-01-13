@@ -693,6 +693,12 @@ export default function DiagnosticoInicial() {
     // Guardar borrador antes de continuar
     await guardarBorradorSilencioso();
 
+    // Si es Cambio por Garantía, redirigir a la página dedicada
+    if (tipoResolucion === "Cambio por Garantía") {
+      navigate(`/taller/cambio-garantia/${id}`);
+      return;
+    }
+    
     // Si es Canje, ir al paso 1.5 (cotización de canje)
     if (tipoResolucion === "Canje") {
       setPaso(1.5);
