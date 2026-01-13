@@ -1668,6 +1668,81 @@ export type Database = {
           },
         ]
       }
+      pedidos_bodega_central: {
+        Row: {
+          aprobado_jefe_taller_id: string | null
+          aprobado_supervisor_id: string | null
+          centro_servicio_id: string
+          convertido_cxg: boolean | null
+          created_at: string
+          dias_sin_stock: number | null
+          estado: string
+          fecha_aprobacion_jt: string | null
+          fecha_aprobacion_sr: string | null
+          fecha_convertido_cxg: string | null
+          id: string
+          incidente_id: string
+          notas: string | null
+          notas_rechazo: string | null
+          repuestos: Json
+          solicitado_por: string
+          updated_at: string
+        }
+        Insert: {
+          aprobado_jefe_taller_id?: string | null
+          aprobado_supervisor_id?: string | null
+          centro_servicio_id: string
+          convertido_cxg?: boolean | null
+          created_at?: string
+          dias_sin_stock?: number | null
+          estado?: string
+          fecha_aprobacion_jt?: string | null
+          fecha_aprobacion_sr?: string | null
+          fecha_convertido_cxg?: string | null
+          id?: string
+          incidente_id: string
+          notas?: string | null
+          notas_rechazo?: string | null
+          repuestos?: Json
+          solicitado_por: string
+          updated_at?: string
+        }
+        Update: {
+          aprobado_jefe_taller_id?: string | null
+          aprobado_supervisor_id?: string | null
+          centro_servicio_id?: string
+          convertido_cxg?: boolean | null
+          created_at?: string
+          dias_sin_stock?: number | null
+          estado?: string
+          fecha_aprobacion_jt?: string | null
+          fecha_aprobacion_sr?: string | null
+          fecha_convertido_cxg?: string | null
+          id?: string
+          incidente_id?: string
+          notas?: string | null
+          notas_rechazo?: string | null
+          repuestos?: Json
+          solicitado_por?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pedidos_bodega_central_centro_servicio_id_fkey"
+            columns: ["centro_servicio_id"]
+            isOneToOne: false
+            referencedRelation: "centros_servicio"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pedidos_bodega_central_incidente_id_fkey"
+            columns: ["incidente_id"]
+            isOneToOne: false
+            referencedRelation: "incidentes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       permisos: {
         Row: {
           activo: boolean | null
