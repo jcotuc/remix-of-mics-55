@@ -54,6 +54,7 @@ type RepuestoDespacho = RepuestoSolicitado & {
   tieneDescuadre: boolean;
   notaDescuadre: string;
   ubicaciones: Ubicacion[];
+  ubicacionSeleccionadaId: string | null;
 };
 
 export default function DetalleSolicitud() {
@@ -157,14 +158,18 @@ export default function DetalleSolicitud() {
         const codigos = repuestosList.map(r => r.codigo);
         const ubicacionesPorCodigo = await fetchUbicaciones(codigos);
 
-        const repuestosConDespacho: RepuestoDespacho[] = repuestosList.map(rep => ({
-          ...rep,
-          checked: false,
-          cantidadDespachar: rep.cantidad,
-          tieneDescuadre: false,
-          notaDescuadre: "",
-          ubicaciones: ubicacionesPorCodigo[rep.codigo] || []
-        }));
+        const repuestosConDespacho: RepuestoDespacho[] = repuestosList.map(rep => {
+          const ubicaciones = ubicacionesPorCodigo[rep.codigo] || [];
+          return {
+            ...rep,
+            checked: false,
+            cantidadDespachar: rep.cantidad,
+            tieneDescuadre: false,
+            notaDescuadre: "",
+            ubicaciones,
+            ubicacionSeleccionadaId: ubicaciones[0]?.id || null
+          };
+        });
         setRepuestos(repuestosConDespacho);
       }
 
@@ -195,6 +200,12 @@ export default function DetalleSolicitud() {
       }
       return rep;
     }));
+  };
+
+  const handleUbicacionChange = (index: number, ubicacionId: string) => {
+    setRepuestos(prev => prev.map((rep, i) => 
+      i === index ? { ...rep, ubicacionSeleccionadaId: ubicacionId } : rep
+    ));
   };
 
   const handleOpenDescuadreDialog = (index: number) => {
@@ -457,8 +468,7 @@ export default function DetalleSolicitud() {
             {repuestos.map((rep, index) => {
               const stockRep = rep.ubicaciones.reduce((s, u) => s + u.cantidad, 0);
               const hayStockSuficiente = stockRep >= rep.cantidad;
-              const ubicacionPrincipal = rep.ubicaciones[0];
-              const otrasUbicaciones = rep.ubicaciones.slice(1);
+              const ubicacionSeleccionada = rep.ubicaciones.find(u => u.id === rep.ubicacionSeleccionadaId);
 
               return (
                 <Card 
@@ -520,46 +530,57 @@ export default function DetalleSolicitud() {
                           </div>
 
                           {/* Ubicaciones */}
-                          <div className="md:w-64 shrink-0">
+                          <div className="md:w-72 shrink-0">
                             {rep.ubicaciones.length > 0 ? (
                               <div className="space-y-2">
                                 <p className="text-xs font-medium text-muted-foreground flex items-center gap-1">
                                   <MapPin className="h-3 w-3" />
-                                  Ubicación de despacho
+                                  {esEditable ? "Seleccionar ubicación de despacho" : "Ubicación de despacho"}
                                 </p>
-                                {ubicacionPrincipal && (
-                                  <div className="flex items-center justify-between bg-background rounded-lg px-3 py-2 border">
-                                    <div className="flex items-center gap-2">
-                                      <span className="font-mono font-semibold text-sm">
-                                        {ubicacionPrincipal.ubicacion_legacy}
-                                      </span>
-                                      {otrasUbicaciones.length > 0 && (
-                                        <Badge variant="outline" className="text-[10px] h-5">
-                                          +{otrasUbicaciones.length}
-                                        </Badge>
-                                      )}
-                                    </div>
-                                    <Badge 
-                                      variant="secondary" 
-                                      className={`text-xs ${hayStockSuficiente ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}
-                                    >
-                                      {ubicacionPrincipal.cantidad} disp.
-                                    </Badge>
-                                  </div>
-                                )}
-                                
-                                {otrasUbicaciones.length > 0 && (
-                                  <div className="space-y-1 max-h-20 overflow-y-auto">
-                                    {otrasUbicaciones.map((ub) => (
+                                <div className="space-y-1.5 max-h-32 overflow-y-auto">
+                                  {rep.ubicaciones.map((ub) => {
+                                    const isSelected = ub.id === rep.ubicacionSeleccionadaId;
+                                    return (
                                       <div
                                         key={ub.id}
-                                        className="flex items-center justify-between text-xs bg-muted/50 rounded px-2 py-1.5"
+                                        onClick={() => esEditable && handleUbicacionChange(index, ub.id)}
+                                        className={`flex items-center justify-between text-xs rounded-lg px-3 py-2 border cursor-pointer transition-all ${
+                                          isSelected 
+                                            ? "bg-primary/10 border-primary ring-1 ring-primary/30" 
+                                            : "bg-background hover:bg-muted/50 border-border"
+                                        } ${!esEditable ? "cursor-default" : ""}`}
                                       >
-                                        <span className="font-mono">{ub.ubicacion_legacy}</span>
-                                        <span className="text-muted-foreground">{ub.cantidad}</span>
+                                        <div className="flex items-center gap-2">
+                                          {esEditable && (
+                                            <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                                              isSelected ? "border-primary bg-primary" : "border-muted-foreground/40"
+                                            }`}>
+                                              {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                                            </div>
+                                          )}
+                                          <span className={`font-mono ${isSelected ? "font-bold" : "font-medium"}`}>
+                                            {ub.ubicacion_legacy}
+                                          </span>
+                                        </div>
+                                        <Badge 
+                                          variant="secondary" 
+                                          className={`text-xs ${
+                                            isSelected 
+                                              ? (ub.cantidad >= rep.cantidad ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700')
+                                              : ''
+                                          }`}
+                                        >
+                                          {ub.cantidad} disp.
+                                        </Badge>
                                       </div>
-                                    ))}
-                                  </div>
+                                    );
+                                  })}
+                                </div>
+                                {ubicacionSeleccionada && ubicacionSeleccionada.cantidad < rep.cantidad && (
+                                  <p className="text-xs text-amber-600 flex items-center gap-1">
+                                    <AlertTriangle className="h-3 w-3" />
+                                    Stock insuficiente en ubicación seleccionada
+                                  </p>
                                 )}
                               </div>
                             ) : (
