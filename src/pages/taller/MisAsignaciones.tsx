@@ -116,7 +116,7 @@ export default function MisAsignaciones() {
     }
   };
 
-  const marcarNotificacionLeida = async (id: string, incidenteId?: string) => {
+  const marcarNotificacionLeida = async (id: string, incidenteId?: string | null) => {
     try {
       const { error } = await supabase
         .from('notificaciones')
@@ -131,6 +131,69 @@ export default function MisAsignaciones() {
       }
     } catch (error) {
       console.error('Error:', error);
+    }
+  };
+
+  // Manejar decisión del técnico sobre falta de stock
+  const handleDecisionStock = async (notif: NotificacionDB, continuar: boolean) => {
+    try {
+      const metadata = notif.metadata as any;
+      const solicitudId = metadata?.solicitud_id;
+      const incidenteId = notif.incidente_id;
+
+      if (continuar) {
+        // El técnico decide continuar sin estos repuestos
+        // Actualizar solicitud a "cancelado_tecnico"
+        if (solicitudId) {
+          await supabase
+            .from("solicitudes_repuestos")
+            .update({
+              estado: "cancelado_tecnico",
+              notas: `${metadata?.notas || ""} | Técnico decidió continuar sin estos repuestos.`
+            })
+            .eq("id", solicitudId);
+        }
+
+        toast.success("Se continuará la reparación sin los repuestos faltantes");
+      } else {
+        // El técnico decide esperar - cambiar incidente a Pendiente por repuestos
+        if (incidenteId) {
+          await supabase
+            .from("incidentes")
+            .update({
+              status: "Pendiente por repuestos",
+              updated_at: new Date().toISOString()
+            })
+            .eq("id", incidenteId);
+        }
+
+        // Actualizar solicitud a sin_stock
+        if (solicitudId) {
+          await supabase
+            .from("solicitudes_repuestos")
+            .update({
+              estado: "sin_stock",
+              notas: `${metadata?.notas || ""} | Técnico confirmó que repuestos son indispensables.`
+            })
+            .eq("id", solicitudId);
+        }
+
+        toast.success("Incidente marcado como pendiente por repuestos");
+      }
+
+      // Marcar notificación como leída
+      await supabase
+        .from('notificaciones')
+        .update({ leido: true })
+        .eq('id', notif.id);
+
+      setNotificaciones(prev => prev.filter(n => n.id !== notif.id));
+      
+      // Refrescar asignaciones
+      fetchAsignaciones();
+    } catch (error) {
+      console.error('Error:', error);
+      toast.error('Error al procesar decisión');
     }
   };
 
@@ -207,36 +270,96 @@ export default function MisAsignaciones() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            {notificaciones.map((notif) => (
-              <div
-                key={notif.id}
-                className="p-3 bg-card rounded-lg border flex items-center justify-between hover:bg-muted/50 transition-colors"
-              >
-                <div className="flex-1">
-                  <p className="font-medium">{notif.mensaje}</p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {new Date(notif.created_at).toLocaleString()}
-                  </p>
+            {notificaciones.map((notif) => {
+              const metadata = notif.metadata as any;
+              const esDecisionStock = notif.tipo === "sin_stock_decision" && metadata?.requiere_decision;
+              const repuestosSinStock = metadata?.repuestos_sin_stock || [];
+              
+              return (
+                <div
+                  key={notif.id}
+                  className={`p-4 bg-card rounded-lg border ${esDecisionStock ? 'border-amber-300 bg-amber-50/50' : ''}`}
+                >
+                  <div className="flex-1 space-y-2">
+                    <p className="font-medium">{notif.mensaje}</p>
+                    
+                    {/* Mostrar repuestos sin stock si es notificación de decisión */}
+                    {esDecisionStock && repuestosSinStock.length > 0 && (
+                      <div className="mt-2 p-2 bg-muted rounded text-sm">
+                        <p className="font-medium text-muted-foreground mb-1">Repuestos sin stock:</p>
+                        <ul className="list-disc list-inside space-y-1">
+                          {repuestosSinStock.map((rep: any, idx: number) => (
+                            <li key={idx} className="text-muted-foreground">
+                              <span className="font-mono">{rep.codigo}</span> - {rep.descripcion} 
+                              <span className="text-amber-600 ml-1">(solicitados: {rep.cantidad_solicitada})</span>
+                            </li>
+                          ))}
+                        </ul>
+                        {metadata?.motivo && (
+                          <p className="mt-2 text-xs text-muted-foreground">
+                            <span className="font-medium">Motivo bodega:</span> {metadata.motivo}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                    
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(notif.created_at || '').toLocaleString()}
+                    </p>
+                  </div>
+                  
+                  <div className="flex gap-2 mt-3 flex-wrap">
+                    {esDecisionStock ? (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="bg-green-50 text-green-700 border-green-300 hover:bg-green-100"
+                          onClick={() => handleDecisionStock(notif, true)}
+                        >
+                          ✓ Continuar sin estos repuestos
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="bg-amber-50 text-amber-700 border-amber-300 hover:bg-amber-100"
+                          onClick={() => handleDecisionStock(notif, false)}
+                        >
+                          ⏸ Esperar repuestos (indispensables)
+                        </Button>
+                        {notif.incidente_id && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => navigate(`/mostrador/seguimiento/${notif.incidente_id}`)}
+                          >
+                            Ver Incidente
+                          </Button>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        {notif.incidente_id && (
+                          <Button
+                            size="sm"
+                            onClick={() => marcarNotificacionLeida(notif.id, notif.incidente_id)}
+                          >
+                            Ver Incidente
+                          </Button>
+                        )}
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => marcarNotificacionLeida(notif.id)}
+                        >
+                          Marcar leída
+                        </Button>
+                      </>
+                    )}
+                  </div>
                 </div>
-                <div className="flex gap-2">
-                  {notif.incidente_id && (
-                    <Button
-                      size="sm"
-                      onClick={() => marcarNotificacionLeida(notif.id, notif.incidente_id)}
-                    >
-                      Ver Incidente
-                    </Button>
-                  )}
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => marcarNotificacionLeida(notif.id)}
-                  >
-                    Marcar leída
-                  </Button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </CardContent>
         </Card>
       )}
