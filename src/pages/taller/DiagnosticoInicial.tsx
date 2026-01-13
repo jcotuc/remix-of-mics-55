@@ -634,25 +634,12 @@ export default function DiagnosticoInicial() {
       // Obtener la familia del producto original para ordenar sugerencias
       const familiaOriginal = incidente?.familia_padre_id || productoInfo?.familia_padre_id;
       
-      // Buscar el abuelo de la familia original para agrupar productos similares
-      let familiaAbueloOriginal: number | null = null;
-      if (familiaOriginal && familiasDB.length > 0) {
-        const familiaPadre = familiasDB.find(f => f.id === familiaOriginal);
-        familiaAbueloOriginal = familiaPadre?.Padre || familiaOriginal;
-      }
+      console.log("Familia original del producto:", familiaOriginal);
 
-      // Ordenar productos: primero los de la misma familia/categoría
+      // Ordenar productos: primero los de la MISMA familia (familia_padre_id)
       const productosOrdenados = (data || []).map(p => {
-        const productoFamiliaId = p.familia_padre_id;
-        let productoAbueloId: number | null = null;
-        
-        if (productoFamiliaId && familiasDB.length > 0) {
-          const famPadre = familiasDB.find(f => f.id === productoFamiliaId);
-          productoAbueloId = famPadre?.Padre || productoFamiliaId;
-        }
-
-        // Determinar si es sugerido (misma familia abuelo)
-        const esSugerido = familiaAbueloOriginal && productoAbueloId === familiaAbueloOriginal;
+        // Comparar directamente familia_padre_id
+        const esSugerido = familiaOriginal && p.familia_padre_id === familiaOriginal;
         
         return {
           ...p,
