@@ -615,12 +615,15 @@ export default function DiagnosticoInicial() {
     }
   }, [esReparable, aplicaGarantia]);
 
-  // Buscar productos alternativos cuando se selecciona Canje
+  // Buscar productos alternativos cuando se selecciona Canje (esperar a que incidente esté cargado)
   useEffect(() => {
-    if (tipoResolucion === "Canje") {
+    if (tipoResolucion === "Canje" && incidente) {
       fetchProductosAlternativos();
     }
-  }, [tipoResolucion]);
+  }, [tipoResolucion, incidente?.familia_padre_id, productoInfo?.familia_padre_id]);
+
+  // Familia a excluir: Herramienta Manual
+  const FAMILIA_HERRAMIENTA_MANUAL = 130;
 
   const fetchProductosAlternativos = async () => {
     try {
@@ -628,13 +631,14 @@ export default function DiagnosticoInicial() {
         .from("productos")
         .select("*, familia_padre:CDS_Familias!productos_familia_padre_id_fkey(id, Categoria, Padre)")
         .eq("descontinuado", false)
+        .neq("familia_padre_id", FAMILIA_HERRAMIENTA_MANUAL) // Excluir Herramienta Manual
         .order("descripcion");
       if (error) throw error;
 
       // Obtener la familia del producto original para ordenar sugerencias
       const familiaOriginal = incidente?.familia_padre_id || productoInfo?.familia_padre_id;
       
-      console.log("Familia original del producto:", familiaOriginal);
+      console.log("Familia original del producto:", familiaOriginal, "Incidente:", incidente?.codigo);
 
       // Ordenar productos: primero los de la MISMA familia (familia_padre_id)
       const productosOrdenados = (data || []).map(p => {
