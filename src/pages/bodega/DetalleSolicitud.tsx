@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { 
   Package, ArrowLeft, Check, AlertTriangle, Send, Minus, Plus, 
-  MapPin, User, Calendar, Clock, CheckCircle2, Box, Truck
+  MapPin, User, Calendar, Clock, CheckCircle2, Box, Truck, XCircle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -65,13 +65,17 @@ export default function DetalleSolicitud() {
   const [repuestos, setRepuestos] = useState<RepuestoDespacho[]>([]);
   const [loading, setLoading] = useState(true);
   const [despachando, setDespachando] = useState(false);
+  const [cerrandoSinStock, setCerrandoSinStock] = useState(false);
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [showSinStockDialog, setShowSinStockDialog] = useState(false);
   const [showDescuadreDialog, setShowDescuadreDialog] = useState(false);
   const [selectedRepuestoIndex, setSelectedRepuestoIndex] = useState<number | null>(null);
   const [tempNotaDescuadre, setTempNotaDescuadre] = useState("");
+  const [notaCierreSinStock, setNotaCierreSinStock] = useState("");
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [currentUserName, setCurrentUserName] = useState("");
   const [userCentroServicioId, setUserCentroServicioId] = useState<string | null>(null);
+  const [tecnicoUserId, setTecnicoUserId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchCurrentUser();
@@ -142,14 +146,19 @@ export default function DetalleSolicitud() {
       if (solError) throw solError;
       setSolicitud(sol);
 
-      // Fetch incidente info
+      // Fetch incidente info and technician user_id
       if (sol?.incidente_id) {
         const { data: inc } = await supabase
           .from("incidentes")
-          .select("codigo, codigo_producto, codigo_cliente")
+          .select("codigo, codigo_producto, codigo_cliente, tecnico_asignado_id")
           .eq("id", sol.incidente_id)
           .maybeSingle();
         setIncidente(inc);
+        
+        // Get technician user_id for notifications
+        if (inc?.tecnico_asignado_id) {
+          setTecnicoUserId(inc.tecnico_asignado_id);
+        }
       }
 
       // Parse repuestos from JSON field
@@ -230,6 +239,12 @@ export default function DetalleSolicitud() {
   const todosCheckeados = repuestos.length > 0 && repuestos.every(r => r.checked);
   const hayDescuadres = repuestos.some(r => r.tieneDescuadre);
   const descuadresSinNota = repuestos.filter(r => r.tieneDescuadre && !r.notaDescuadre.trim());
+  
+  // Detectar repuestos sin stock (cantidad a despachar = 0)
+  const repuestosSinStock = repuestos.filter(r => r.cantidadDespachar === 0);
+  const haySinStock = repuestosSinStock.length > 0;
+  const todosSinStock = repuestos.length > 0 && repuestos.every(r => r.cantidadDespachar === 0);
+  const hayAlgoParaDespachar = repuestos.some(r => r.cantidadDespachar > 0);
 
   const handleDespachar = async () => {
     if (descuadresSinNota.length > 0) {
@@ -280,6 +295,83 @@ export default function DetalleSolicitud() {
     } finally {
       setDespachando(false);
       setShowConfirmDialog(false);
+    }
+  };
+
+  // Nueva función para cerrar solicitud por falta de stock
+  const handleCerrarSinStock = async () => {
+    if (!notaCierreSinStock.trim()) {
+      toast.error("Debe agregar un motivo para cerrar sin stock");
+      return;
+    }
+
+    setCerrandoSinStock(true);
+    try {
+      const repuestosSinStockInfo = repuestosSinStock.map(rep => ({
+        codigo: rep.codigo,
+        descripcion: rep.descripcion,
+        cantidad_solicitada: rep.cantidad,
+        cantidad_disponible: 0
+      }));
+
+      // 1. Actualizar solicitud a sin_stock
+      const { error: updateSolicitudError } = await supabase
+        .from("solicitudes_repuestos")
+        .update({
+          estado: "sin_stock",
+          notas: `Cerrado sin stock por ${currentUserName}: ${notaCierreSinStock}. Repuestos sin stock: ${JSON.stringify(repuestosSinStockInfo)}`
+        })
+        .eq("id", id);
+
+      if (updateSolicitudError) throw updateSolicitudError;
+
+      // 2. Actualizar incidente a "Pendiente por repuestos"
+      if (solicitud?.incidente_id) {
+        const { error: updateIncidenteError } = await supabase
+          .from("incidentes")
+          .update({
+            status: "Pendiente por repuestos",
+            updated_at: new Date().toISOString()
+          })
+          .eq("id", solicitud.incidente_id);
+
+        if (updateIncidenteError) throw updateIncidenteError;
+      }
+
+      // 3. Crear notificación para el técnico
+      if (tecnicoUserId) {
+        await supabase.from("notificaciones").insert({
+          user_id: tecnicoUserId,
+          incidente_id: solicitud?.incidente_id,
+          tipo: "sin_stock",
+          mensaje: `❌ Bodega no pudo despachar repuestos para ${incidente?.codigo || "incidente"}. Motivo: ${notaCierreSinStock}`,
+          metadata: {
+            repuestos_sin_stock: repuestosSinStockInfo,
+            cerrado_por: currentUserName,
+            fecha: new Date().toISOString()
+          }
+        });
+      }
+
+      // 4. Registrar en audit_logs
+      await supabase.from("audit_logs").insert({
+        tabla_afectada: "solicitudes_repuestos",
+        registro_id: id,
+        accion: "UPDATE",
+        usuario_id: currentUserId,
+        valores_nuevos: { estado: "sin_stock", repuestos_sin_stock: repuestosSinStockInfo },
+        motivo: `Solicitud cerrada por falta de stock por ${currentUserName}: ${notaCierreSinStock}`
+      });
+
+      toast.success("Solicitud cerrada por falta de stock. El incidente pasó a 'Pendiente por repuestos'");
+      navigate("/bodega/solicitudes");
+
+    } catch (error) {
+      console.error("Error:", error);
+      toast.error("Error al cerrar solicitud");
+    } finally {
+      setCerrandoSinStock(false);
+      setShowSinStockDialog(false);
     }
   };
 
@@ -656,20 +748,30 @@ export default function DetalleSolicitud() {
       {esEditable && (
         <Card className="sticky bottom-4 shadow-lg">
           <CardContent className="py-4">
-            <div className="flex items-center justify-between">
+            {/* Alerta de repuestos sin stock */}
+            {haySinStock && todosCheckeados && (
+              <div className="flex items-center gap-2 p-3 mb-4 rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400">
+                <XCircle className="h-5 w-5 shrink-0" />
+                <p className="text-sm">
+                  <strong>{repuestosSinStock.length}</strong> repuesto(s) sin stock disponible para despachar
+                </p>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between flex-wrap gap-4">
               <div className="text-sm">
                 {!todosCheckeados && (
                   <p className="text-muted-foreground">
-                    Verifique todos los repuestos para habilitar el despacho
+                    Verifique todos los repuestos para habilitar acciones
                   </p>
                 )}
-                {todosCheckeados && !hayDescuadres && (
+                {todosCheckeados && !hayDescuadres && !haySinStock && (
                   <p className="text-green-600 flex items-center gap-1">
                     <CheckCircle2 className="h-4 w-4" />
                     Todos los repuestos verificados
                   </p>
                 )}
-                {todosCheckeados && hayDescuadres && (
+                {todosCheckeados && hayDescuadres && !todosSinStock && (
                   <p className="text-amber-600 flex items-center gap-1">
                     <AlertTriangle className="h-4 w-4" />
                     {descuadresSinNota.length > 0 
@@ -678,26 +780,49 @@ export default function DetalleSolicitud() {
                     }
                   </p>
                 )}
+                {todosCheckeados && todosSinStock && (
+                  <p className="text-red-600 flex items-center gap-1">
+                    <XCircle className="h-4 w-4" />
+                    No hay stock para despachar ningún repuesto
+                  </p>
+                )}
               </div>
-              <div className="flex gap-3">
+              <div className="flex gap-3 flex-wrap">
                 <Button variant="outline" onClick={() => navigate(-1)}>
                   Cancelar
                 </Button>
-                <Button
-                  onClick={() => setShowConfirmDialog(true)}
-                  disabled={!todosCheckeados || despachando || descuadresSinNota.length > 0}
-                  className="gap-2"
-                >
-                  <Send className="h-4 w-4" />
-                  Despachar Solicitud
-                </Button>
+                
+                {/* Botón Cerrar sin Stock - visible cuando hay repuestos sin stock */}
+                {haySinStock && todosCheckeados && (
+                  <Button
+                    variant="destructive"
+                    onClick={() => setShowSinStockDialog(true)}
+                    disabled={cerrandoSinStock}
+                    className="gap-2"
+                  >
+                    <XCircle className="h-4 w-4" />
+                    Cerrar sin Stock
+                  </Button>
+                )}
+
+                {/* Botón Despachar - solo si hay algo para despachar */}
+                {hayAlgoParaDespachar && (
+                  <Button
+                    onClick={() => setShowConfirmDialog(true)}
+                    disabled={!todosCheckeados || despachando || descuadresSinNota.length > 0}
+                    className="gap-2"
+                  >
+                    <Send className="h-4 w-4" />
+                    Despachar Solicitud
+                  </Button>
+                )}
               </div>
             </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Confirm Dialog */}
+      {/* Confirm Despacho Dialog */}
       <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -723,6 +848,69 @@ export default function DetalleSolicitud() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Dialog Cerrar sin Stock */}
+      <Dialog open={showSinStockDialog} onOpenChange={setShowSinStockDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <XCircle className="h-5 w-5" />
+              Cerrar Solicitud sin Stock
+            </DialogTitle>
+            <DialogDescription>
+              Esta acción cerrará la solicitud y el incidente pasará a estado <strong>"Pendiente por repuestos"</strong>.
+              Se notificará al técnico asignado.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="py-4 space-y-4">
+            {/* Lista de repuestos sin stock */}
+            <div className="p-3 rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800">
+              <p className="text-sm font-medium text-red-700 dark:text-red-400 mb-2">
+                Repuestos sin stock:
+              </p>
+              <ul className="text-sm space-y-1">
+                {repuestosSinStock.map((rep, idx) => (
+                  <li key={idx} className="flex items-center gap-2 text-red-600 dark:text-red-400">
+                    <span className="font-mono text-xs bg-red-100 dark:bg-red-900/30 px-1.5 py-0.5 rounded">
+                      {rep.codigo}
+                    </span>
+                    <span className="truncate text-xs">{rep.descripcion}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Motivo */}
+            <div>
+              <Label htmlFor="nota-sin-stock" className="text-sm font-medium">
+                Motivo del cierre (obligatorio)
+              </Label>
+              <Textarea
+                id="nota-sin-stock"
+                value={notaCierreSinStock}
+                onChange={(e) => setNotaCierreSinStock(e.target.value)}
+                placeholder="Ej: Descuadre de inventario, repuesto dañado, etc..."
+                className="mt-2"
+                rows={3}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowSinStockDialog(false)}>
+              Cancelar
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={handleCerrarSinStock}
+              disabled={cerrandoSinStock || !notaCierreSinStock.trim()}
+            >
+              {cerrandoSinStock ? "Cerrando..." : "Confirmar Cierre"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Descuadre Dialog */}
       <Dialog open={showDescuadreDialog} onOpenChange={setShowDescuadreDialog}>
