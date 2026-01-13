@@ -424,7 +424,7 @@ export default function PendientesRepuestos() {
                           </div>
                           <div>
                             <p className="text-muted-foreground">Técnico</p>
-                            <p className="font-medium">{inc.codigo_tecnico || "Sin asignar"}</p>
+                            <p className="font-medium">{inc.tecnico ? `${inc.tecnico.nombre} ${inc.tecnico.apellido}` : "Sin asignar"}</p>
                           </div>
                           <div>
                             <p className="text-muted-foreground">Cliente</p>
