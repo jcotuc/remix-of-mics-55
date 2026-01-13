@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ShoppingCart, Clock, CheckCircle, Package, User, ChevronRight, Search, Calendar, AlertTriangle, XCircle, FileText } from "lucide-react";
+import { ShoppingCart, Clock, CheckCircle, Package, User, ChevronRight, Search, Calendar, AlertTriangle, XCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -144,12 +144,7 @@ export default function Solicitudes() {
     return true;
   });
 
-  // Solicitudes de presupuesto pendientes de aprobación del cliente
-  const pendientesAprobacionPresupuesto = solicitudesFiltradas.filter(
-    s => s.tipo_resolucion === "Presupuesto" && s.presupuesto_aprobado === false
-  );
-  
-  // Sin asignar: excluir las de presupuesto no aprobado
+  // Sin asignar: excluir las de presupuesto no aprobado (se ocultan hasta que se apruebe)
   const sinAsignar = solicitudesFiltradas.filter(
     s => s.estado === "pendiente" && !s.asignado_a && 
     !(s.tipo_resolucion === "Presupuesto" && s.presupuesto_aprobado === false)
@@ -166,9 +161,6 @@ export default function Solicitudes() {
   const totalMias = solicitudes.filter(s => s.asignado_a === currentUserId && s.estado === "en_proceso").length;
   const totalPendientesDecision = solicitudes.filter(s => s.estado === "pendiente_decision_tecnico").length;
   const totalDespachadas = solicitudes.filter(s => s.estado === "entregado").length;
-  const totalPendientesPresupuesto = solicitudes.filter(
-    s => s.tipo_resolucion === "Presupuesto" && s.presupuesto_aprobado === false
-  ).length;
 
   const SolicitudCard = ({ 
     solicitud, 
@@ -260,12 +252,6 @@ export default function Solicitudes() {
             <CheckCircle className="h-4 w-4" />
             <span className="font-semibold">{totalDespachadas}</span>
           </div>
-          {totalPendientesPresupuesto > 0 && (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-purple-100 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 text-sm">
-              <FileText className="h-4 w-4" />
-              <span className="font-semibold">{totalPendientesPresupuesto}</span>
-            </div>
-          )}
         </div>
       </div>
 
@@ -285,8 +271,8 @@ export default function Solicitudes() {
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
         </div>
       ) : (
-        /* 5 Column Layout */
-        <div className="grid gap-4 lg:grid-cols-5">
+        /* 4 Column Layout */
+        <div className="grid gap-4 lg:grid-cols-4">
           {/* Sin Asignar */}
           <Card className="border-orange-200 dark:border-orange-900">
             <CardHeader className="py-3 px-4 bg-orange-50 dark:bg-orange-950/30 border-b border-orange-200 dark:border-orange-900">
@@ -393,57 +379,6 @@ export default function Solicitudes() {
                           </Badge>
                           <p className="text-[10px] text-muted-foreground mt-0.5">
                             Esperando decisión
-                          </p>
-                        </div>
-                        <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </ScrollArea>
-            </CardContent>
-          </Card>
-
-          {/* Pendiente Aprobación (Presupuestos) */}
-          <Card className="border-purple-200 dark:border-purple-900">
-            <CardHeader className="py-3 px-4 bg-purple-50 dark:bg-purple-950/30 border-b border-purple-200 dark:border-purple-900">
-              <CardTitle className="text-base font-semibold flex items-center gap-2 text-purple-700 dark:text-purple-300">
-                <FileText className="h-4 w-4" />
-                Pendiente Aprobación
-                <Badge className="ml-auto bg-purple-500 text-white">
-                  {pendientesAprobacionPresupuesto.length}
-                </Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <ScrollArea className="h-[calc(100vh-320px)] min-h-[300px]">
-                {pendientesAprobacionPresupuesto.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
-                    <Package className="h-10 w-10 mb-2 opacity-30" />
-                    <p className="text-sm">Sin presupuestos pendientes</p>
-                  </div>
-                ) : (
-                  <div className="divide-y">
-                    {pendientesAprobacionPresupuesto.map((solicitud) => (
-                      <div 
-                        key={solicitud.id}
-                        onClick={() => navigate(`/bodega/solicitudes/${solicitud.id}`)}
-                        className="flex items-center gap-3 px-3 py-2.5 hover:bg-muted/50 cursor-pointer transition-colors"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <p className="font-mono font-medium text-sm truncate">
-                            {solicitud.incidente_codigo}
-                          </p>
-                          <p className="text-xs text-muted-foreground truncate">
-                            {solicitud.tecnico_solicitante}
-                          </p>
-                        </div>
-                        <div className="text-right shrink-0">
-                          <Badge variant="secondary" className="bg-purple-100 text-purple-700 text-[10px]">
-                            Presupuesto
-                          </Badge>
-                          <p className="text-[10px] text-muted-foreground mt-0.5">
-                            Esperando cliente
                           </p>
                         </div>
                         <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
