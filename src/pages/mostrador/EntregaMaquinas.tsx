@@ -310,18 +310,32 @@ export default function EntregaMaquinas() {
       </Card>
 
       {/* Indicador de Pendientes de Entrega */}
-      <Card className="border-primary/50 bg-primary/5">
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <PackageCheck className="h-5 w-5 text-primary" />
-            Máquinas Pendientes de Entrega
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-4xl font-bold text-primary">{incidentesReparados.length}</div>
-          <p className="text-sm text-muted-foreground mt-2">
-            máquinas reparadas esperando entrega
-          </p>
+      <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent shadow-lg">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full -translate-y-1/2 translate-x-1/2" />
+        <div className="absolute bottom-0 left-0 w-20 h-20 bg-primary/5 rounded-full translate-y-1/2 -translate-x-1/2" />
+        <CardContent className="relative p-6">
+          <div className="flex items-center justify-between">
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-lg bg-primary/15">
+                  <PackageCheck className="h-5 w-5 text-primary" />
+                </div>
+                <span className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+                  Pendientes de Entrega
+                </span>
+              </div>
+              <div className="flex items-baseline gap-2">
+                <span className="text-5xl font-bold text-primary">{incidentesReparados.length}</span>
+                <span className="text-lg text-muted-foreground">máquinas</span>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Reparadas y listas para entregar al cliente
+              </p>
+            </div>
+            <div className="hidden sm:flex items-center justify-center w-20 h-20 rounded-full bg-primary/10 ring-4 ring-primary/5">
+              <PackageCheck className="h-10 w-10 text-primary/70" />
+            </div>
+          </div>
         </CardContent>
       </Card>
 
