@@ -2,8 +2,8 @@ import { useState, useRef, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, PackageCheck, User, Calendar, FileSignature, FileCheck, Printer, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { OutlinedInput } from "@/components/ui/outlined-input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
@@ -410,14 +410,18 @@ export default function DetalleEntrega() {
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="nombre-recibe">Nombre Completo de Quien Recibe *</Label>
-              <Input id="nombre-recibe" value={nombreRecibe} onChange={e => setNombreRecibe(e.target.value)} placeholder="Ej: Juan Pérez García" />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="dpi-recibe">DPI / Identificación *</Label>
-              <Input id="dpi-recibe" value={dpiRecibe} onChange={e => setDpiRecibe(e.target.value)} placeholder="Ej: 1234567890101" />
-            </div>
+            <OutlinedInput 
+              label="Nombre Completo de Quien Recibe" 
+              value={nombreRecibe} 
+              onChange={e => setNombreRecibe(e.target.value)} 
+              required 
+            />
+            <OutlinedInput 
+              label="DPI / Identificación" 
+              value={dpiRecibe} 
+              onChange={e => setDpiRecibe(e.target.value)} 
+              required 
+            />
           </div>
 
           <SignatureCanvasComponent ref={signatureRef} />
