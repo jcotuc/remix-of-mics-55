@@ -13,15 +13,16 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { SidebarMediaCapture, SidebarPhoto } from "@/components/SidebarMediaCapture";
 import type { Database } from "@/integrations/supabase/types";
 import type { StatusIncidente } from "@/types";
-
 type IncidenteDB = Database['public']['Tables']['incidentes']['Row'];
 type ClienteDB = Database['public']['Tables']['clientes']['Row'];
 type DiagnosticoDB = Database['public']['Tables']['diagnosticos']['Row'];
-
 export default function DetalleEntrega() {
-  const { incidenteId } = useParams<{ incidenteId: string }>();
+  const {
+    incidenteId
+  } = useParams<{
+    incidenteId: string;
+  }>();
   const navigate = useNavigate();
-  
   const [loading, setLoading] = useState(true);
   const [delivering, setDelivering] = useState(false);
   const [incidente, setIncidente] = useState<IncidenteDB | null>(null);
@@ -32,23 +33,18 @@ export default function DetalleEntrega() {
   const [dpiRecibe, setDpiRecibe] = useState("");
   const [fotosSalida, setFotosSalida] = useState<SidebarPhoto[]>([]);
   const signatureRef = useRef<SignatureCanvasRef>(null);
-
   useEffect(() => {
     if (incidenteId) {
       fetchData();
     }
   }, [incidenteId]);
-
   useEffect(() => {
     // Cargar nombre del técnico cuando tengamos el diagnóstico
     const loadTecnicoNombre = async () => {
       if (diagnostico?.tecnico_codigo) {
-        const { data } = await supabase
-          .from('profiles')
-          .select('nombre, apellido')
-          .eq('codigo_empleado', diagnostico.tecnico_codigo)
-          .maybeSingle();
-        
+        const {
+          data
+        } = await supabase.from('profiles').select('nombre, apellido').eq('codigo_empleado', diagnostico.tecnico_codigo).maybeSingle();
         if (data) {
           setTecnicoNombre(`${data.nombre} ${data.apellido}`);
         }
@@ -56,52 +52,40 @@ export default function DetalleEntrega() {
     };
     loadTecnicoNombre();
   }, [diagnostico]);
-
   const fetchData = async () => {
     setLoading(true);
     try {
       // Cargar incidente
-      const { data: incidenteData, error: incidenteError } = await supabase
-        .from('incidentes')
-        .select('*')
-        .eq('id', incidenteId)
-        .single();
-
+      const {
+        data: incidenteData,
+        error: incidenteError
+      } = await supabase.from('incidentes').select('*').eq('id', incidenteId).single();
       if (incidenteError) throw incidenteError;
-      
       if (!incidenteData) {
         toast.error("Incidente no encontrado");
         navigate('/mostrador/entrega-maquinas');
         return;
       }
-
       if (incidenteData.status !== 'Reparado') {
         toast.error("Este incidente no está listo para entrega");
         navigate('/mostrador/entrega-maquinas');
         return;
       }
-
       setIncidente(incidenteData);
 
       // Cargar cliente
-      const { data: clienteData, error: clienteError } = await supabase
-        .from('clientes')
-        .select('*')
-        .eq('codigo', incidenteData.codigo_cliente)
-        .single();
-
+      const {
+        data: clienteData,
+        error: clienteError
+      } = await supabase.from('clientes').select('*').eq('codigo', incidenteData.codigo_cliente).single();
       if (clienteError) throw clienteError;
       setCliente(clienteData);
 
       // Cargar diagnóstico
-      const { data: diagData } = await supabase
-        .from('diagnosticos')
-        .select('*')
-        .eq('incidente_id', incidenteId)
-        .maybeSingle();
-      
+      const {
+        data: diagData
+      } = await supabase.from('diagnosticos').select('*').eq('incidente_id', incidenteId).maybeSingle();
       setDiagnostico(diagData);
-
     } catch (error) {
       console.error('Error al cargar datos:', error);
       toast.error("Error al cargar la información del incidente");
@@ -110,7 +94,6 @@ export default function DetalleEntrega() {
       setLoading(false);
     }
   };
-
   const handleDeliver = async () => {
     if (!incidente) {
       toast.error("No hay incidente seleccionado");
@@ -128,27 +111,22 @@ export default function DetalleEntrega() {
       toast.error("Se requiere la firma del cliente");
       return;
     }
-
     setDelivering(true);
     try {
       const firmaBase64 = signatureRef.current?.toDataURL();
-
-      const { error: updateError } = await supabase
-        .from('incidentes')
-        .update({
-          status: 'Entregado' as any,
-          confirmacion_cliente: {
-            fecha_entrega: new Date().toISOString(),
-            nombre_recibe: nombreRecibe,
-            dpi_recibe: dpiRecibe,
-            firma_base64: firmaBase64,
-            fotos_salida: fotosSalida.map(f => f.comment || 'Sin comentario')
-          }
-        })
-        .eq('id', incidente.id);
-
+      const {
+        error: updateError
+      } = await supabase.from('incidentes').update({
+        status: 'Entregado' as any,
+        confirmacion_cliente: {
+          fecha_entrega: new Date().toISOString(),
+          nombre_recibe: nombreRecibe,
+          dpi_recibe: dpiRecibe,
+          firma_base64: firmaBase64,
+          fotos_salida: fotosSalida.map(f => f.comment || 'Sin comentario')
+        }
+      }).eq('id', incidente.id);
       if (updateError) throw updateError;
-
       toast.success("Entrega registrada exitosamente");
       navigate('/mostrador/entrega-maquinas');
     } catch (error) {
@@ -158,13 +136,10 @@ export default function DetalleEntrega() {
       setDelivering(false);
     }
   };
-
   const handlePrintDiagnostico = () => {
     if (!diagnostico || !incidente || !cliente) return;
-    
     const printWindow = window.open('', '', 'width=800,height=600');
     if (!printWindow) return;
-
     const html = `
       <!DOCTYPE html>
       <html>
@@ -249,21 +224,15 @@ export default function DetalleEntrega() {
     printWindow.document.write(html);
     printWindow.document.close();
   };
-
   if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
+    return <div className="flex items-center justify-center min-h-[400px]">
         <p className="text-muted-foreground">Cargando información...</p>
-      </div>
-    );
+      </div>;
   }
-
   if (!incidente || !cliente) {
     return null;
   }
-
-  return (
-    <div className="space-y-6">
+  return <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" onClick={() => navigate('/mostrador/entrega-maquinas')}>
@@ -343,20 +312,17 @@ export default function DetalleEntrega() {
                 <Label className="text-xs text-muted-foreground">Correo</Label>
                 <p className="text-sm">{cliente.correo || "No registrado"}</p>
               </div>
-              {cliente.direccion && (
-                <div className="col-span-2">
+              {cliente.direccion && <div className="col-span-2">
                   <Label className="text-xs text-muted-foreground">Dirección</Label>
                   <p className="text-sm">{cliente.direccion}</p>
-                </div>
-              )}
+                </div>}
             </div>
           </CardContent>
         </Card>
       </div>
 
       {/* Diagnóstico Técnico - Simplificado */}
-      {diagnostico && (
-        <Card className="border-2 border-primary/20">
+      {diagnostico && <Card className="border-2 border-primary/20">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className="flex items-center gap-2 text-lg">
@@ -371,80 +337,56 @@ export default function DetalleEntrega() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {diagnostico.fallas && diagnostico.fallas.length > 0 && (
-                <div>
+              {diagnostico.fallas && diagnostico.fallas.length > 0 && <div>
                   <p className="text-sm text-muted-foreground mb-2 font-medium">Fallas Detectadas</p>
                   <ul className="list-disc list-inside space-y-1 bg-muted p-3 rounded-md">
-                    {diagnostico.fallas.map((falla, idx) => (
-                      <li key={idx} className="text-sm">{falla}</li>
-                    ))}
+                    {diagnostico.fallas.map((falla, idx) => <li key={idx} className="text-sm">{falla}</li>)}
                   </ul>
-                </div>
-              )}
+                </div>}
 
-              {diagnostico.causas && diagnostico.causas.length > 0 && (
-                <div>
+              {diagnostico.causas && diagnostico.causas.length > 0 && <div>
                   <p className="text-sm text-muted-foreground mb-2 font-medium">Causas Identificadas</p>
                   <ul className="list-disc list-inside space-y-1 bg-muted p-3 rounded-md">
-                    {diagnostico.causas.map((causa, idx) => (
-                      <li key={idx} className="text-sm">{causa}</li>
-                    ))}
+                    {diagnostico.causas.map((causa, idx) => <li key={idx} className="text-sm">{causa}</li>)}
                   </ul>
-                </div>
-              )}
+                </div>}
             </div>
 
             {/* Resolución - Solo mostrar "Reparar en Garantía" */}
-            {diagnostico.resolucion && (
-              <div>
+            {diagnostico.resolucion && <div>
                 <p className="text-sm text-muted-foreground mb-2 font-medium">Resolución</p>
                 {(() => {
-                  try {
-                    const resolucionData = typeof diagnostico.resolucion === 'string' 
-                      ? JSON.parse(diagnostico.resolucion) 
-                      : diagnostico.resolucion;
-                    return (
-                      <div className="bg-muted p-4 rounded-md flex items-center gap-4 flex-wrap">
-                        {resolucionData.aplicaGarantia !== undefined && (
-                          <div className="flex items-center gap-2">
+            try {
+              const resolucionData = typeof diagnostico.resolucion === 'string' ? JSON.parse(diagnostico.resolucion) : diagnostico.resolucion;
+              return <div className="bg-muted p-4 rounded-md flex items-center gap-4 flex-wrap">
+                        {resolucionData.aplicaGarantia !== undefined && <div className="flex items-center gap-2">
                             <span className="text-sm font-medium">Reparado en Garantía:</span>
-                            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                              resolucionData.aplicaGarantia 
-                                ? 'bg-green-500/20 text-green-700 dark:text-green-400' 
-                                : 'bg-red-500/20 text-red-700 dark:text-red-400'
-                            }`}>
+                            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${resolucionData.aplicaGarantia ? 'bg-green-500/20 text-green-700 dark:text-green-400' : 'bg-red-500/20 text-red-700 dark:text-red-400'}`}>
                               {resolucionData.aplicaGarantia ? 'Sí' : 'No'}
                             </span>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  } catch {
-                    return <p className="text-sm bg-muted p-3 rounded-md">{diagnostico.resolucion}</p>;
-                  }
-                })()}
-              </div>
-            )}
+                          </div>}
+                      </div>;
+            } catch {
+              return <p className="text-sm bg-muted p-3 rounded-md">{diagnostico.resolucion}</p>;
+            }
+          })()}
+              </div>}
 
-            {diagnostico.recomendaciones && (
-              <div>
+            {diagnostico.recomendaciones && <div>
                 <p className="text-sm text-muted-foreground mb-2 font-medium">Recomendaciones</p>
                 <p className="text-sm bg-muted p-3 rounded-md">{diagnostico.recomendaciones}</p>
-              </div>
-            )}
+              </div>}
 
             <Separator />
 
             {/* Info del técnico y costo - Sin tiempo estimado */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {diagnostico.costo_estimado && (
-                <div>
+              {diagnostico.costo_estimado && <div>
                   <p className="text-sm text-muted-foreground">Costo Estimado</p>
                   <p className="text-xl font-bold text-primary">
                     Q {Number(diagnostico.costo_estimado).toFixed(2)}
                   </p>
-                </div>
-              )}
+                </div>}
 
               <div>
                 <p className="text-sm text-muted-foreground">Técnico que revisó</p>
@@ -455,8 +397,7 @@ export default function DetalleEntrega() {
               </div>
             </div>
           </CardContent>
-        </Card>
-      )}
+        </Card>}
 
       {/* Formulario de Entrega */}
       <Card className="border-2 border-primary/20">
@@ -465,39 +406,24 @@ export default function DetalleEntrega() {
             <FileSignature className="h-5 w-5 text-primary" />
             Registro de Entrega
           </CardTitle>
-          <CardDescription>
-            Complete la información de quien recibe la máquina y su firma
-          </CardDescription>
+          
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="nombre-recibe">Nombre Completo de Quien Recibe *</Label>
-              <Input
-                id="nombre-recibe"
-                value={nombreRecibe}
-                onChange={(e) => setNombreRecibe(e.target.value)}
-                placeholder="Ej: Juan Pérez García"
-              />
+              <Input id="nombre-recibe" value={nombreRecibe} onChange={e => setNombreRecibe(e.target.value)} placeholder="Ej: Juan Pérez García" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="dpi-recibe">DPI / Identificación *</Label>
-              <Input
-                id="dpi-recibe"
-                value={dpiRecibe}
-                onChange={(e) => setDpiRecibe(e.target.value)}
-                placeholder="Ej: 1234567890101"
-              />
+              <Input id="dpi-recibe" value={dpiRecibe} onChange={e => setDpiRecibe(e.target.value)} placeholder="Ej: 1234567890101" />
             </div>
           </div>
 
           <SignatureCanvasComponent ref={signatureRef} />
 
           <div className="flex justify-end gap-4">
-            <Button
-              variant="outline"
-              onClick={() => navigate('/mostrador/entrega-maquinas')}
-            >
+            <Button variant="outline" onClick={() => navigate('/mostrador/entrega-maquinas')}>
               Cancelar
             </Button>
             <Button onClick={handleDeliver} disabled={delivering} className="min-w-32">
@@ -508,13 +434,6 @@ export default function DetalleEntrega() {
       </Card>
 
       {/* Widget de fotos en sidebar */}
-      <SidebarMediaCapture
-        photos={fotosSalida}
-        onPhotosChange={setFotosSalida}
-        tipo="salida"
-        maxPhotos={10}
-        commentRequired
-      />
-    </div>
-  );
+      <SidebarMediaCapture photos={fotosSalida} onPhotosChange={setFotosSalida} tipo="salida" maxPhotos={10} commentRequired />
+    </div>;
 }
