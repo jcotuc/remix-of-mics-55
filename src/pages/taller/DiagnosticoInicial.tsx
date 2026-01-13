@@ -41,7 +41,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { GembaDocsCamera, GembaPhoto } from "@/components/GembaDocsCamera";
+import { GembaSidebar, GembaPhoto } from "@/components/GembaSidebar";
 export default function DiagnosticoInicial() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -1165,8 +1165,13 @@ export default function DiagnosticoInicial() {
     );
   }
   return (
-    <div className="container mx-auto p-6 max-w-4xl">
-      <div className="flex items-center gap-2 mb-4">
+    <div className="flex min-h-screen">
+      {/* Sidebar Gemba Docs */}
+      <GembaSidebar photos={gembaPhotos} onPhotosChange={setGembaPhotos} maxPhotos={20} />
+      
+      {/* Main content - with right padding for sidebar */}
+      <div className="flex-1 pr-16 lg:pr-80 container mx-auto p-6 max-w-4xl">
+        <div className="flex items-center gap-2 mb-4">
         <Button variant="ghost" onClick={() => navigate("/taller/mis-asignaciones")}>
           <ArrowLeft className="w-4 h-4 mr-2" />
           Volver
@@ -2180,8 +2185,6 @@ export default function DiagnosticoInicial() {
         </DialogContent>
       </Dialog>
 
-      {/* Widget flotante Gemba Docs - disponible en cualquier paso */}
-      <GembaDocsCamera photos={gembaPhotos} onPhotosChange={setGembaPhotos} maxPhotos={20} />
 
       {/* Dialog para confirmar desasignación */}
       <Dialog open={showDesasignarDialog} onOpenChange={setShowDesasignarDialog}>
@@ -2223,6 +2226,7 @@ export default function DiagnosticoInicial() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      </div>
     </div>
   );
 }
