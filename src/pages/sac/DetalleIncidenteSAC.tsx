@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -6,11 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, Send, Phone, Mail, MessageCircle, FileText, Package, MapPin, User, DollarSign, Percent, AlertTriangle, Clock } from "lucide-react";
+import { ArrowLeft, Send, Phone, Mail, MessageCircle, FileText, Package, MapPin, User, DollarSign, Percent, AlertTriangle, Clock, Printer, Download } from "lucide-react";
 import { toast } from "sonner";
 import { StatusBadge } from "@/components/StatusBadge";
 import { OutlinedSelect, OutlinedTextarea } from "@/components/ui/outlined-input";
 import { differenceInDays } from "date-fns";
+import DiagnosticoPrintSheet, { DiagnosticoPrintData } from "@/components/DiagnosticoPrintSheet";
 
 type RepuestoConPrecio = {
   codigo: string;
@@ -34,6 +35,8 @@ export default function DetalleIncidenteSAC() {
   const [repuestosConPrecios, setRepuestosConPrecios] = useState<RepuestoConPrecio[]>([]);
   const [notificaciones, setNotificaciones] = useState<any[]>([]);
   const [asignacion, setAsignacion] = useState<any>(null);
+  const [tecnico, setTecnico] = useState<any>(null);
+  const printRef = useRef<HTMLDivElement>(null);
   
   // Estado para nueva notificación
   const [canal, setCanal] = useState<string>("whatsapp");
@@ -155,7 +158,7 @@ export default function DetalleIncidenteSAC() {
       const codigosRepuestos: string[] = [];
       const repuestosTemp: RepuestoConPrecio[] = [];
 
-      // From diagnostico
+      // From diagnostico repuestos_utilizados
       if (diagnosticoData?.repuestos_utilizados && Array.isArray(diagnosticoData.repuestos_utilizados)) {
         (diagnosticoData.repuestos_utilizados as any[]).forEach((r: any) => {
           if (r.codigo) codigosRepuestos.push(r.codigo);
@@ -172,6 +175,7 @@ export default function DetalleIncidenteSAC() {
 
       // Fetch detalle de repuestos si existe solicitud
       if (solicitudData) {
+        // Try from repuestos_solicitud_detalle first
         const { data: detalleData, error: detalleError } = await supabase
           .from("repuestos_solicitud_detalle")
           .select("*")
@@ -195,17 +199,66 @@ export default function DetalleIncidenteSAC() {
 
           detalleData.forEach((detalle: any) => {
             const info = repuestosInfo?.find(r => r.codigo === detalle.codigo_repuesto);
-            repuestosTemp.push({
-              codigo: detalle.codigo_repuesto,
-              descripcion: info?.descripcion || detalle.codigo_repuesto,
-              cantidad: detalle.cantidad_solicitada || 1,
-              precio_unitario: 0,
-              subtotal: 0,
-              origen: 'solicitud',
-              estado: detalle.estado
-            });
+            // Avoid duplicates from diagnostico
+            const exists = repuestosTemp.find(rt => rt.codigo === detalle.codigo_repuesto);
+            if (!exists) {
+              repuestosTemp.push({
+                codigo: detalle.codigo_repuesto,
+                descripcion: info?.descripcion || detalle.codigo_repuesto,
+                cantidad: detalle.cantidad_solicitada || 1,
+                precio_unitario: 0,
+                subtotal: 0,
+                origen: 'solicitud',
+                estado: detalle.estado
+              });
+            }
           });
+        } else if (solicitudData.repuestos) {
+          // Fallback: use JSON field 'repuestos' from solicitud
+          const repuestosFromJson = Array.isArray(solicitudData.repuestos) 
+            ? solicitudData.repuestos 
+            : [];
+          
+          if (repuestosFromJson.length > 0) {
+            const codigosFromJson = repuestosFromJson.map((r: any) => r.codigo).filter(Boolean);
+            codigosFromJson.forEach((c: string) => {
+              if (!codigosRepuestos.includes(c)) codigosRepuestos.push(c);
+            });
+
+            const { data: repuestosInfo } = await supabase
+              .from("repuestos")
+              .select("codigo, descripcion")
+              .in("codigo", codigosFromJson);
+
+            repuestosFromJson.forEach((rep: any) => {
+              const info = repuestosInfo?.find(r => r.codigo === rep.codigo);
+              // Avoid duplicates from diagnostico
+              const exists = repuestosTemp.find(rt => rt.codigo === rep.codigo);
+              if (!exists) {
+                repuestosTemp.push({
+                  codigo: rep.codigo || 'N/A',
+                  descripcion: info?.descripcion || rep.descripcion || rep.codigo || 'Sin descripción',
+                  cantidad: rep.cantidad || 1,
+                  precio_unitario: 0,
+                  subtotal: 0,
+                  origen: 'solicitud',
+                  estado: rep.estado
+                });
+              }
+            });
+          }
         }
+      }
+
+      // Fetch tecnico info if diagnostico exists
+      if (diagnosticoData?.tecnico_codigo) {
+        const { data: tecnicoData } = await supabase
+          .from("profiles")
+          .select("nombre, apellido, codigo_empleado")
+          .eq("codigo_empleado", diagnosticoData.tecnico_codigo)
+          .maybeSingle();
+        
+        setTecnico(tecnicoData);
       }
 
       // Fetch prices from inventario
@@ -352,6 +405,76 @@ export default function DetalleIncidenteSAC() {
 
   const diasDesdeIngreso = incidente ? differenceInDays(new Date(), new Date(incidente.fecha_ingreso)) : 0;
 
+  // Prepare print data for diagnostico
+  const printData: DiagnosticoPrintData | null = incidente && diagnostico ? {
+    codigo: incidente.codigo,
+    fechaIngreso: new Date(incidente.fecha_ingreso),
+    fechaDiagnostico: diagnostico?.created_at ? new Date(diagnostico.created_at) : new Date(),
+    centroServicio: incidente.centro_servicio || 'Centro de Servicio',
+    codigoCliente: incidente.codigo_cliente,
+    nombreCliente: cliente?.nombre || 'N/A',
+    telefonoCliente: cliente?.celular || cliente?.telefono_principal || 'N/A',
+    direccionEnvio: cliente?.direccion,
+    codigoProducto: incidente.codigo_producto,
+    descripcionProducto: producto?.descripcion || 'N/A',
+    skuMaquina: incidente.sku_maquina || '',
+    accesorios: incidente.accesorios ? incidente.accesorios.split(',').map((a: string) => a.trim()) : [],
+    fallas: diagnostico?.fallas || [],
+    causas: diagnostico?.causas || [],
+    recomendaciones: diagnostico?.recomendaciones || '',
+    tecnicoNombre: tecnico ? `${tecnico.nombre} ${tecnico.apellido}` : diagnostico?.tecnico_codigo || 'N/A',
+    tipoResolucion: solicitudRepuestos?.tipo_resolucion || (incidente.status === 'Porcentaje' ? 'Canje' : incidente.status === 'Presupuesto' ? 'Presupuesto' : 'Diagnóstico'),
+    aplicaGarantia: incidente.cobertura_garantia,
+    repuestos: repuestosConPrecios.map(r => ({
+      codigo: r.codigo,
+      descripcion: r.descripcion,
+      cantidad: r.cantidad,
+      precioUnitario: r.precio_unitario
+    })),
+    costoManoObra: totales.manoObra,
+    porcentajeDescuento: totales.porcentajeDescuento > 0 ? totales.porcentajeDescuento : undefined
+  } : null;
+
+  const handlePrintDiagnostico = () => {
+    if (!printData) {
+      toast.error("No hay diagnóstico disponible para imprimir");
+      return;
+    }
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      toast.error("No se pudo abrir la ventana de impresión");
+      return;
+    }
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Diagnóstico ${incidente.codigo}</title>
+        <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+        <style>
+          @media print {
+            body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            @page { margin: 0.5in; size: letter; }
+          }
+          body { font-size: 11px; font-family: Arial, sans-serif; }
+        </style>
+      </head>
+      <body class="bg-white p-4">
+        ${printRef.current?.innerHTML || ''}
+        <script>
+          setTimeout(() => {
+            window.print();
+            window.close();
+          }, 500);
+        </script>
+      </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -370,14 +493,29 @@ export default function DetalleIncidenteSAC() {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center justify-between">
+      {/* Hidden print component */}
+      <div className="hidden">
+        <div ref={printRef}>
+          {printData && <DiagnosticoPrintSheet data={printData} />}
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <Button variant="ghost" onClick={() => navigate("/sac/incidentes")}>
           <ArrowLeft className="mr-2 h-4 w-4" />
           Volver a Incidentes
         </Button>
-        <Button variant="outline" onClick={handleReleaseIncident}>
-          Liberar Incidente
-        </Button>
+        <div className="flex gap-2">
+          {diagnostico && (
+            <Button variant="outline" onClick={handlePrintDiagnostico}>
+              <Printer className="mr-2 h-4 w-4" />
+              Imprimir Diagnóstico
+            </Button>
+          )}
+          <Button variant="outline" onClick={handleReleaseIncident}>
+            Liberar Incidente
+          </Button>
+        </div>
       </div>
 
       {/* Header with key info */}
