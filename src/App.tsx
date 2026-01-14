@@ -39,6 +39,7 @@ import BusquedaIncidentes from "./pages/taller/BusquedaIncidentes";
 import WaterspiderPendientes from "./pages/taller/WaterspiderPendientes";
 import WaterspiderEntrega from "./pages/taller/WaterspiderEntrega";
 import PendientesRepuestos from "./pages/taller/PendientesRepuestos";
+import DetallePendienteRepuesto from "./pages/taller/DetallePendienteRepuesto";
 import PedidosBodegaCentral from "./pages/taller/PedidosBodegaCentral";
 import AsignacionTecnicos from "./pages/taller/AsignacionTecnicos";
 import ConfiguracionColas from "./pages/taller/ConfiguracionColas";
@@ -145,6 +146,7 @@ function App() {
                 <Route path="/taller/revision-stock-cemaco" element={<RevisionStockCemaco />} />
                 <Route path="/taller/aprobaciones-stock-cemaco" element={<AprobacionesStockCemaco />} />
                 <Route path="/taller/pendientes-repuestos" element={<PendientesRepuestos />} />
+                <Route path="/taller/pendientes-repuestos/:id" element={<DetallePendienteRepuesto />} />
                 <Route path="/taller/pedidos-bodega" element={<PedidosBodegaCentral />} />
                 <Route path="/taller/asignacion-tecnicos" element={<AsignacionTecnicos />} />
                 <Route path="/taller/configuracion-colas" element={<ConfiguracionColas />} />

@@ -340,7 +340,8 @@ export default function PendientesRepuestos() {
           return (
             <Card 
               key={inc.id} 
-              className={`relative overflow-hidden transition-all hover:shadow-lg ${priority.bgLight} ${priority.urgent ? "ring-2 ring-red-500" : ""}`}
+              className={`relative overflow-hidden transition-all hover:shadow-lg cursor-pointer ${priority.bgLight} ${priority.urgent ? "ring-2 ring-red-500" : ""}`}
+              onClick={() => navigate(`/taller/pendientes-repuestos/${inc.id}`)}
             >
               {/* Priority indicator bar */}
               <div className={`absolute top-0 left-0 right-0 h-1 ${priority.color}`} />
