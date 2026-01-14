@@ -178,6 +178,9 @@ export default function DetalleEntrega() {
   const handlePrintDiagnostico = () => {
     if (!diagnostico || !incidente || !cliente) return;
 
+    // Obtener el nombre del técnico (usar el estado o un fallback)
+    const tecnicoDisplay = tecnicoNombre || diagnostico.tecnico_codigo || 'Sin asignar';
+
     // Parsear resolución del diagnóstico
     let resolucionData: any = {};
     try {
@@ -243,13 +246,24 @@ export default function DetalleEntrega() {
         </div>
         <div class="mb-4 border-2 border-orange-200 rounded-lg overflow-hidden">
           <div class="bg-orange-100 px-3 py-2"><h3 class="font-bold text-orange-800">DIAGNÓSTICO TÉCNICO</h3></div>
-          <div class="p-3">
+        <div class="p-3">
             <p class="font-semibold text-gray-600">Fallas:</p><ul class="list-disc list-inside mb-2">${(diagnostico.fallas || []).map((f: string) => `<li>${f}</li>`).join('')}</ul>
             <p class="font-semibold text-gray-600">Causas:</p><ul class="list-disc list-inside mb-2">${(diagnostico.causas || []).map((c: string) => `<li>${c}</li>`).join('')}</ul>
             ${diagnostico.recomendaciones ? `<p class="font-semibold text-gray-600">Recomendaciones:</p><p class="bg-gray-50 p-2 rounded">${diagnostico.recomendaciones}</p>` : ''}
-            <p class="text-xs mt-2 pt-2 border-t">Técnico: <strong>${tecnicoNombre || diagnostico.tecnico_codigo}</strong></p>
+            <p class="text-xs mt-2 pt-2 border-t">Técnico: <strong>${tecnicoDisplay}</strong></p>
           </div>
         </div>
+        ${repuestosConPrecios.length > 0 ? `
+        <div class="mb-4">
+          <h3 class="font-bold mb-2 text-gray-700">REPUESTOS UTILIZADOS</h3>
+          <table class="w-full border-collapse text-sm">
+            <thead><tr class="bg-blue-50"><th class="border px-3 py-2 text-left">Código</th><th class="border px-3 py-2 text-left">Descripción</th><th class="border px-2 py-2 text-center w-16">Cant.</th></tr></thead>
+            <tbody>
+              ${repuestosConPrecios.map(r => `<tr><td class="border px-3 py-1 font-mono text-xs">${r.codigo}</td><td class="border px-3 py-1">${r.descripcion}</td><td class="border px-2 py-1 text-center">${r.cantidad}</td></tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+        ` : ''}
         ${(repuestosConPrecios.length > 0 || costoManoObra > 0) ? `
         <div class="mb-4"><h3 class="font-bold mb-2">DETALLE DE COSTOS</h3>
           <table class="w-full border-collapse text-sm">
