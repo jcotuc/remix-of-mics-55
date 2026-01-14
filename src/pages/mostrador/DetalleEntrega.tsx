@@ -296,13 +296,21 @@ export default function DetalleEntrega() {
             <p><span class="text-gray-500">Accesorios:</span> ${accesorios}</p>
           </div>
         </div>
-        <div class="mb-4 border-2 border-orange-200 rounded-lg overflow-hidden">
-          <div class="bg-orange-100 px-3 py-2"><h3 class="font-bold text-orange-800">DIAGNÓSTICO TÉCNICO</h3></div>
-        <div class="p-3">
-            <p class="font-semibold text-gray-600">Fallas:</p><ul class="list-disc list-inside mb-2">${(diagnostico.fallas || []).map((f: string) => `<li>${f}</li>`).join('')}</ul>
-            <p class="font-semibold text-gray-600">Causas:</p><ul class="list-disc list-inside mb-2">${(diagnostico.causas || []).map((c: string) => `<li>${c}</li>`).join('')}</ul>
-            ${diagnostico.recomendaciones ? `<p class="font-semibold text-gray-600">Recomendaciones:</p><p class="bg-gray-50 p-2 rounded">${diagnostico.recomendaciones}</p>` : ''}
-            <p class="text-xs mt-2 pt-2 border-t">Técnico: <strong>${tecnicoDisplay}</strong></p>
+        <div class="mb-3 border-2 border-orange-200 rounded-lg overflow-hidden">
+          <div class="bg-orange-100 px-3 py-1"><h3 class="font-bold text-orange-800 text-sm">DIAGNÓSTICO TÉCNICO</h3></div>
+          <div class="p-2">
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <p class="font-semibold text-gray-600 text-xs mb-1">Fallas:</p>
+                <ul class="list-disc list-inside text-sm">${(diagnostico.fallas || []).map((f: string) => `<li>${f}</li>`).join('')}</ul>
+              </div>
+              <div>
+                <p class="font-semibold text-gray-600 text-xs mb-1">Causas:</p>
+                <ul class="list-disc list-inside text-sm">${(diagnostico.causas || []).map((c: string) => `<li>${c}</li>`).join('')}</ul>
+              </div>
+            </div>
+            ${diagnostico.recomendaciones ? `<p class="font-semibold text-gray-600 text-xs mt-2">Recomendaciones:</p><p class="bg-gray-50 p-1 rounded text-sm">${diagnostico.recomendaciones}</p>` : ''}
+            <p class="text-xs mt-2 pt-1 border-t">Técnico: <strong>${tecnicoDisplay}</strong></p>
           </div>
         </div>
         ${repuestosConPrecios.length > 0 ? `
