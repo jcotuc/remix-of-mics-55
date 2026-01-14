@@ -73,7 +73,9 @@ export default function DetalleEntrega() {
         navigate('/mostrador/entrega-maquinas');
         return;
       }
-      if (incidenteData.status !== 'Reparado') {
+      // Validar que el incidente esté en un estado válido para entrega
+      const estadosValidosEntrega = ['Reparado', 'Pendiente entrega'];
+      if (!estadosValidosEntrega.includes(incidenteData.status)) {
         toast.error("Este incidente no está listo para entrega");
         navigate('/mostrador/entrega-maquinas');
         return;
