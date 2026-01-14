@@ -85,24 +85,27 @@ export default function DetalleEntrega() {
       // Cargar cliente, diagnóstico, producto y centro de servicio en paralelo
       const [clienteRes, diagRes, productoRes, centroRes] = await Promise.all([
         supabase.from('clientes').select('*').eq('codigo', incidenteData.codigo_cliente).single(),
-        supabase.from('diagnosticos').select('*').eq('incidente_id', incidenteId).maybeSingle(),
+        supabase.from('diagnosticos').select('*').eq('incidente_id', incidenteId).eq('estado', 'finalizado').order('created_at', { ascending: false }).limit(1),
         supabase.from('productos').select('descripcion').eq('codigo', incidenteData.codigo_producto).maybeSingle(),
         incidenteData.centro_servicio 
-          ? supabase.from('centros_servicio').select('nombre').eq('id', incidenteData.centro_servicio).maybeSingle()
+          ? supabase.from('centros_servicio').select('nombre').eq('nombre', incidenteData.centro_servicio).maybeSingle()
           : Promise.resolve({ data: null, error: null })
       ]);
 
       if (clienteRes.error) throw clienteRes.error;
       setCliente(clienteRes.data);
-      setDiagnostico(diagRes.data);
+      
+      // diagRes.data es un array, tomamos el primer elemento
+      const diagData = diagRes.data && diagRes.data.length > 0 ? diagRes.data[0] : null;
+      setDiagnostico(diagData);
       setProductoInfo(productoRes.data);
       if (centroRes.data) {
         setCentroServicio(centroRes.data.nombre);
       }
 
       // Cargar repuestos utilizados con precios
-      if (diagRes.data?.repuestos_utilizados) {
-        const repuestosUtilizados = diagRes.data.repuestos_utilizados as any[];
+      if (diagData?.repuestos_utilizados) {
+        const repuestosUtilizados = diagData.repuestos_utilizados as any[];
         if (repuestosUtilizados && repuestosUtilizados.length > 0) {
           const codigosRepuestos = repuestosUtilizados.map((r: any) => r.codigo);
           const { data: inventarioData } = await supabase

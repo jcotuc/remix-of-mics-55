@@ -2918,6 +2918,7 @@ export type Database = {
         | "Pendiente entrega"
         | "Logistica envio"
         | "Pendiente de aprobación NC"
+        | "Entregado"
       tipo_movimiento_inventario:
         | "entrada"
         | "salida"
@@ -3095,6 +3096,7 @@ export const Constants = {
         "Pendiente entrega",
         "Logistica envio",
         "Pendiente de aprobación NC",
+        "Entregado",
       ],
       tipo_movimiento_inventario: [
         "entrada",
