@@ -11,8 +11,11 @@ import { toast } from "sonner";
 import { SignatureCanvasComponent, SignatureCanvasRef } from "@/components/SignatureCanvas";
 import { StatusBadge } from "@/components/StatusBadge";
 import { SidebarMediaCapture, SidebarPhoto } from "@/components/SidebarMediaCapture";
+import DiagnosticoPrintSheet, { DiagnosticoPrintData } from "@/components/DiagnosticoPrintSheet";
+import { createRoot } from 'react-dom/client';
 import type { Database } from "@/integrations/supabase/types";
 import type { StatusIncidente } from "@/types";
+
 type IncidenteDB = Database['public']['Tables']['incidentes']['Row'];
 type ClienteDB = Database['public']['Tables']['clientes']['Row'];
 type DiagnosticoDB = Database['public']['Tables']['diagnosticos']['Row'];
@@ -32,7 +35,11 @@ export default function DetalleEntrega() {
   const [nombreRecibe, setNombreRecibe] = useState("");
   const [dpiRecibe, setDpiRecibe] = useState("");
   const [fotosSalida, setFotosSalida] = useState<SidebarPhoto[]>([]);
+  const [productoInfo, setProductoInfo] = useState<{ descripcion: string } | null>(null);
+  const [centroServicio, setCentroServicio] = useState<string>("HPC Centro de Servicio");
+  const [repuestosConPrecios, setRepuestosConPrecios] = useState<Array<{codigo: string; descripcion: string; cantidad: number; precioUnitario: number}>>([]);
   const signatureRef = useRef<SignatureCanvasRef>(null);
+
   useEffect(() => {
     if (incidenteId) {
       fetchData();
@@ -73,19 +80,46 @@ export default function DetalleEntrega() {
       }
       setIncidente(incidenteData);
 
-      // Cargar cliente
-      const {
-        data: clienteData,
-        error: clienteError
-      } = await supabase.from('clientes').select('*').eq('codigo', incidenteData.codigo_cliente).single();
-      if (clienteError) throw clienteError;
-      setCliente(clienteData);
+      // Cargar cliente, diagnóstico, producto y centro de servicio en paralelo
+      const [clienteRes, diagRes, productoRes, centroRes] = await Promise.all([
+        supabase.from('clientes').select('*').eq('codigo', incidenteData.codigo_cliente).single(),
+        supabase.from('diagnosticos').select('*').eq('incidente_id', incidenteId).maybeSingle(),
+        supabase.from('productos').select('descripcion').eq('codigo', incidenteData.codigo_producto).maybeSingle(),
+        incidenteData.centro_servicio 
+          ? supabase.from('centros_servicio').select('nombre').eq('id', incidenteData.centro_servicio).maybeSingle()
+          : Promise.resolve({ data: null, error: null })
+      ]);
 
-      // Cargar diagnóstico
-      const {
-        data: diagData
-      } = await supabase.from('diagnosticos').select('*').eq('incidente_id', incidenteId).maybeSingle();
-      setDiagnostico(diagData);
+      if (clienteRes.error) throw clienteRes.error;
+      setCliente(clienteRes.data);
+      setDiagnostico(diagRes.data);
+      setProductoInfo(productoRes.data);
+      if (centroRes.data) {
+        setCentroServicio(centroRes.data.nombre);
+      }
+
+      // Cargar repuestos utilizados con precios
+      if (diagRes.data?.repuestos_utilizados) {
+        const repuestosUtilizados = diagRes.data.repuestos_utilizados as any[];
+        if (repuestosUtilizados && repuestosUtilizados.length > 0) {
+          const codigosRepuestos = repuestosUtilizados.map((r: any) => r.codigo);
+          const { data: inventarioData } = await supabase
+            .from('inventario')
+            .select('codigo_repuesto, costo_unitario, descripcion')
+            .in('codigo_repuesto', codigosRepuestos);
+
+          const repuestosConPrecio = repuestosUtilizados.map((r: any) => {
+            const inv = inventarioData?.find(i => i.codigo_repuesto === r.codigo);
+            return {
+              codigo: r.codigo,
+              descripcion: r.descripcion || inv?.descripcion || 'Sin descripción',
+              cantidad: r.cantidad || 1,
+              precioUnitario: inv?.costo_unitario || 0
+            };
+          });
+          setRepuestosConPrecios(repuestosConPrecio);
+        }
+      }
     } catch (error) {
       console.error('Error al cargar datos:', error);
       toast.error("Error al cargar la información del incidente");
@@ -138,90 +172,101 @@ export default function DetalleEntrega() {
   };
   const handlePrintDiagnostico = () => {
     if (!diagnostico || !incidente || !cliente) return;
-    const printWindow = window.open('', '', 'width=800,height=600');
+
+    // Parsear resolución del diagnóstico
+    let resolucionData: any = {};
+    try {
+      resolucionData = typeof diagnostico.resolucion === 'string' 
+        ? JSON.parse(diagnostico.resolucion) 
+        : diagnostico.resolucion || {};
+    } catch {
+      resolucionData = {};
+    }
+
+    const tipoResolucion = resolucionData.tipoResolucion || 'Reparar en Garantía';
+    const aplicaGarantia = resolucionData.aplicaGarantia ?? incidente.cobertura_garantia ?? false;
+    const accesorios = incidente.accesorios || 'Ninguno';
+    
+    // Calcular costos
+    const subtotalRepuestos = repuestosConPrecios.reduce((sum, r) => sum + (r.cantidad * r.precioUnitario), 0);
+    const costoManoObra = 150;
+    const costoEnvio = incidente.quiere_envio ? 75 : 0;
+    const subtotalGeneral = subtotalRepuestos + costoManoObra + costoEnvio;
+    
+    let descuento = 0;
+    let porcentajeDesc = 0;
+    if (tipoResolucion === 'Reparar en Garantía' && aplicaGarantia) {
+      descuento = subtotalGeneral;
+      porcentajeDesc = 100;
+    } else if (tipoResolucion === 'Canje' && resolucionData.porcentajeDescuento) {
+      porcentajeDesc = resolucionData.porcentajeDescuento;
+      descuento = subtotalGeneral * (porcentajeDesc / 100);
+    }
+    const totalFinal = subtotalGeneral - descuento;
+
+    // Generar filas de repuestos
+    const repuestosRows = repuestosConPrecios.map(r => 
+      `<tr><td class="border px-3 py-1">${r.codigo} - ${r.descripcion}</td><td class="border px-2 py-1 text-center">${r.cantidad}</td><td class="border px-3 py-1 text-right">Q ${r.precioUnitario.toFixed(2)}</td><td class="border px-3 py-1 text-right">Q ${(r.cantidad * r.precioUnitario).toFixed(2)}</td></tr>`
+    ).join('');
+
+    const printWindow = window.open('', '', 'width=900,height=700');
     if (!printWindow) return;
-    const html = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Diagnóstico - ${incidente.codigo}</title>
-          <style>
-            body { font-family: Arial, sans-serif; padding: 20px; }
-            h1 { color: #333; border-bottom: 2px solid #333; padding-bottom: 10px; }
-            h2 { color: #666; margin-top: 20px; }
-            .section { margin-bottom: 20px; }
-            .label { font-weight: bold; color: #666; }
-            .value { margin-left: 10px; }
-            ul { margin: 5px 0; padding-left: 20px; }
-            @media print {
-              button { display: none; }
-            }
-          </style>
-        </head>
-        <body>
-          <h1>Diagnóstico Técnico</h1>
-          
-          <div class="section">
-            <h2>Información del Incidente</h2>
-            <p><span class="label">Código:</span><span class="value">${incidente.codigo}</span></p>
-            <p><span class="label">Fecha Ingreso:</span><span class="value">${new Date(incidente.fecha_ingreso).toLocaleDateString()}</span></p>
-            <p><span class="label">Estado:</span><span class="value">${incidente.status}</span></p>
-          </div>
 
-          <div class="section">
-            <h2>Cliente</h2>
-            <p><span class="label">Nombre:</span><span class="value">${cliente.nombre}</span></p>
-            <p><span class="label">NIT:</span><span class="value">${cliente.nit}</span></p>
-            <p><span class="label">Teléfono:</span><span class="value">${cliente.celular}</span></p>
+    printWindow.document.write(`<!DOCTYPE html><html><head><title>Diagnóstico - ${incidente.codigo}</title>
+      <script src="https://cdn.tailwindcss.com"><\/script>
+      <style>@media print { .no-print { display: none !important; } body { -webkit-print-color-adjust: exact; } }</style>
+    </head><body class="p-6 bg-white text-black text-sm font-sans">
+      <div class="max-w-4xl mx-auto">
+        <div class="flex justify-between items-start border-b-2 border-black pb-4 mb-4">
+          <div class="flex items-center gap-4">
+            <div class="w-16 h-16 bg-orange-500 rounded-lg flex items-center justify-center text-white font-bold text-xl">HPC</div>
+            <div><h1 class="font-bold text-xl">HPC Centro de Servicio</h1><p class="text-sm text-gray-600">${centroServicio}</p></div>
           </div>
-
-          <div class="section">
-            <h2>Producto</h2>
-            <p><span class="label">Código:</span><span class="value">${incidente.codigo_producto}</span></p>
-            <p><span class="label">Descripción:</span><span class="value">${incidente.descripcion_problema}</span></p>
+          <div class="text-right"><h2 class="font-bold text-lg text-orange-600">${tipoResolucion}</h2><p class="font-mono text-lg font-bold">${incidente.codigo}</p></div>
+        </div>
+        <div class="grid grid-cols-2 gap-4 mb-4">
+          <div class="border rounded-lg p-3"><h3 class="font-bold text-sm mb-2 border-b pb-1">Cliente</h3>
+            <p><span class="text-gray-500">Código:</span> ${cliente.codigo}</p>
+            <p><span class="text-gray-500">Nombre:</span> ${cliente.nombre}</p>
+            <p><span class="text-gray-500">Teléfono:</span> ${cliente.celular}</p>
           </div>
-
-          <div class="section">
-            <h2>Diagnóstico</h2>
-            <p><span class="label">Técnico:</span><span class="value">${tecnicoNombre || diagnostico.tecnico_codigo}</span></p>
-            <p><span class="label">Estado:</span><span class="value">${diagnostico.estado}</span></p>
-            
-            ${diagnostico.fallas && diagnostico.fallas.length > 0 ? `
-              <p class="label">Fallas Detectadas:</p>
-              <ul>
-                ${diagnostico.fallas.map((f: string) => `<li>${f}</li>`).join('')}
-              </ul>
-            ` : ''}
-            
-            ${diagnostico.causas && diagnostico.causas.length > 0 ? `
-              <p class="label">Causas:</p>
-              <ul>
-                ${diagnostico.causas.map((c: string) => `<li>${c}</li>`).join('')}
-              </ul>
-            ` : ''}
-            
-            ${diagnostico.resolucion ? `
-              <p class="label">Resolución:</p>
-              <p>${diagnostico.resolucion}</p>
-            ` : ''}
-            
-            ${diagnostico.recomendaciones ? `
-              <p class="label">Recomendaciones:</p>
-              <p>${diagnostico.recomendaciones}</p>
-            ` : ''}
-            
-            ${diagnostico.costo_estimado ? `
-              <p><span class="label">Costo Estimado:</span><span class="value">Q ${Number(diagnostico.costo_estimado).toFixed(2)}</span></p>
-            ` : ''}
+          <div class="border rounded-lg p-3"><h3 class="font-bold text-sm mb-2 border-b pb-1">Equipo</h3>
+            <p><span class="text-gray-500">Código:</span> ${incidente.codigo_producto}</p>
+            <p><span class="text-gray-500">SKU:</span> ${incidente.sku_maquina || 'N/A'}</p>
+            <p><span class="text-gray-500">Accesorios:</span> ${accesorios}</p>
           </div>
-
-          <button onclick="window.print()" style="margin-top: 20px; padding: 10px 20px; background: #333; color: white; border: none; cursor: pointer;">
-            Imprimir
-          </button>
-        </body>
-      </html>
-    `;
-    printWindow.document.write(html);
+        </div>
+        <div class="mb-4 border-2 border-orange-200 rounded-lg overflow-hidden">
+          <div class="bg-orange-100 px-3 py-2"><h3 class="font-bold text-orange-800">DIAGNÓSTICO TÉCNICO</h3></div>
+          <div class="p-3">
+            <p class="font-semibold text-gray-600">Fallas:</p><ul class="list-disc list-inside mb-2">${(diagnostico.fallas || []).map((f: string) => `<li>${f}</li>`).join('')}</ul>
+            <p class="font-semibold text-gray-600">Causas:</p><ul class="list-disc list-inside mb-2">${(diagnostico.causas || []).map((c: string) => `<li>${c}</li>`).join('')}</ul>
+            ${diagnostico.recomendaciones ? `<p class="font-semibold text-gray-600">Recomendaciones:</p><p class="bg-gray-50 p-2 rounded">${diagnostico.recomendaciones}</p>` : ''}
+            <p class="text-xs mt-2 pt-2 border-t">Técnico: <strong>${tecnicoNombre || diagnostico.tecnico_codigo}</strong></p>
+          </div>
+        </div>
+        ${(repuestosConPrecios.length > 0 || costoManoObra > 0) ? `
+        <div class="mb-4"><h3 class="font-bold mb-2">DETALLE DE COSTOS</h3>
+          <table class="w-full border-collapse text-sm">
+            <thead><tr class="bg-gray-100"><th class="border px-3 py-2 text-left">Concepto</th><th class="border px-2 py-2 text-center w-16">Cant.</th><th class="border px-3 py-2 text-right w-24">Precio</th><th class="border px-3 py-2 text-right w-24">Subtotal</th></tr></thead>
+            <tbody>
+              ${repuestosRows}
+              <tr><td class="border px-3 py-1">Mano de Obra</td><td class="border px-2 py-1 text-center">1</td><td class="border px-3 py-1 text-right">Q ${costoManoObra.toFixed(2)}</td><td class="border px-3 py-1 text-right">Q ${costoManoObra.toFixed(2)}</td></tr>
+              ${costoEnvio > 0 ? `<tr><td class="border px-3 py-1">Envío</td><td class="border px-2 py-1 text-center">1</td><td class="border px-3 py-1 text-right">Q ${costoEnvio.toFixed(2)}</td><td class="border px-3 py-1 text-right">Q ${costoEnvio.toFixed(2)}</td></tr>` : ''}
+              <tr class="bg-gray-50"><td colspan="3" class="border px-3 py-2 text-right font-semibold">SUBTOTAL</td><td class="border px-3 py-2 text-right font-semibold">Q ${subtotalGeneral.toFixed(2)}</td></tr>
+              ${descuento > 0 ? `<tr class="bg-green-50"><td colspan="3" class="border px-3 py-2 text-right font-semibold text-green-700">DESCUENTO (${porcentajeDesc}%)</td><td class="border px-3 py-2 text-right font-semibold text-green-700">-Q ${descuento.toFixed(2)}</td></tr>` : ''}
+              <tr class="bg-orange-100"><td colspan="3" class="border px-3 py-2 text-right font-bold text-lg">TOTAL</td><td class="border px-3 py-2 text-right font-bold text-lg text-orange-700">Q ${totalFinal.toFixed(2)}</td></tr>
+            </tbody>
+          </table>
+          ${aplicaGarantia && tipoResolucion === 'Reparar en Garantía' ? '<div class="mt-2 p-2 bg-green-50 border border-green-200 rounded text-xs text-green-700"><strong>✓ Reparación cubierta por garantía.</strong></div>' : ''}
+        </div>` : ''}
+        <div class="grid grid-cols-2 gap-8 mt-8"><div class="text-center"><div class="border-t-2 border-black w-48 mx-auto mb-1 pt-2"></div><p class="text-xs">Técnico</p></div><div class="text-center"><div class="border-t-2 border-black w-48 mx-auto mb-1 pt-2"></div><p class="text-xs">Cliente</p></div></div>
+      </div>
+      <div class="no-print fixed bottom-4 right-4 flex gap-2">
+        <button onclick="window.print()" class="px-4 py-2 bg-orange-500 text-white rounded-lg font-semibold">Imprimir</button>
+        <button onclick="window.close()" class="px-4 py-2 bg-gray-500 text-white rounded-lg font-semibold">Cerrar</button>
+      </div>
+    </body></html>`);
     printWindow.document.close();
   };
   if (loading) {
