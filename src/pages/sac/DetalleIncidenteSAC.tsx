@@ -378,52 +378,80 @@ export default function DetalleIncidenteSAC() {
       setProcessingDecision(true);
       const { data: { user } } = await supabase.auth.getUser();
 
-      // Determinar el nuevo estado según el tipo de incidente
+      // Determinar el flujo según el tipo de incidente
       const esCanjeoPorcentaje = incidente.status === "Porcentaje";
-      const nuevoEstado = esCanjeoPorcentaje 
-        ? "Bodega pedido" as const
-        : "Pendiente por repuestos" as const;
-      const mensajeExito = esCanjeoPorcentaje 
-        ? "Cliente aprobó el canje. El incidente pasó a Bodega Pedido."
-        : "Cliente aprobó el presupuesto. El incidente pasó a Pendiente por Repuestos.";
-
-      if (!esCanjeoPorcentaje && solicitudRepuestos) {
-        // Aprobar la solicitud de repuestos si existe (solo para presupuestos)
-        await supabase
-          .from("solicitudes_repuestos")
+      
+      if (esCanjeoPorcentaje) {
+        // CANJE: Va directo a "Bodega pedido" (mismo flujo que CXG pero cliente pagó)
+        const { error } = await supabase
+          .from("incidentes")
           .update({ 
-            presupuesto_aprobado: true,
+            status: "Bodega pedido" as const,
+            presupuesto_cliente_aprobado: true,
             updated_at: new Date().toISOString()
           })
-          .eq("id", solicitudRepuestos.id);
+          .eq("id", id);
+
+        if (error) throw error;
+
+        // Registrar la notificación de aprobación
+        await supabase
+          .from("notificaciones_cliente")
+          .insert({
+            incidente_id: id,
+            numero_notificacion: notificaciones.length + 1,
+            canal: "sistema",
+            mensaje: `Cliente aprobó canje (pago ${incidente.porcentaje_descuento || 40}%)`,
+            notas: `Aprobación registrada por agente SAC. Incidente pasa a Bodega Pedido.`,
+            enviado_por: user?.id,
+            respondido: true,
+            fecha_respuesta: new Date().toISOString()
+          });
+
+        toast.success("Cliente aprobó el canje. El incidente pasó a Bodega Pedido.");
+      } else {
+        // PRESUPUESTO: Vuelve a cola de reparación para que técnico verifique stock
+        // Marcar la solicitud como aprobada
+        if (solicitudRepuestos) {
+          await supabase
+            .from("solicitudes_repuestos")
+            .update({ 
+              presupuesto_aprobado: true,
+              updated_at: new Date().toISOString()
+            })
+            .eq("id", solicitudRepuestos.id);
+        }
+
+        // Volver a "Ingresado" para que entre a la cola de reparación
+        // Con marca de presupuesto aprobado y sin técnico asignado
+        const { error } = await supabase
+          .from("incidentes")
+          .update({ 
+            status: "Ingresado" as const,
+            presupuesto_cliente_aprobado: true,
+            tecnico_asignado_id: null, // Desasignar para que vuelva a la cola
+            updated_at: new Date().toISOString()
+          })
+          .eq("id", id);
+
+        if (error) throw error;
+
+        // Registrar la notificación de aprobación
+        await supabase
+          .from("notificaciones_cliente")
+          .insert({
+            incidente_id: id,
+            numero_notificacion: notificaciones.length + 1,
+            canal: "sistema",
+            mensaje: `Cliente aprobó presupuesto`,
+            notas: `Aprobación registrada por agente SAC. Incidente vuelve a cola de reparación para verificar stock.`,
+            enviado_por: user?.id,
+            respondido: true,
+            fecha_respuesta: new Date().toISOString()
+          });
+
+        toast.success("Cliente aprobó presupuesto. El incidente vuelve a cola de reparación.");
       }
-
-      // Actualizar estado del incidente
-      const { error } = await supabase
-        .from("incidentes")
-        .update({ 
-          status: nuevoEstado,
-          updated_at: new Date().toISOString()
-        })
-        .eq("id", id);
-
-      if (error) throw error;
-
-      // Registrar la notificación de aprobación
-      await supabase
-        .from("notificaciones_cliente")
-        .insert({
-          incidente_id: id,
-          numero_notificacion: notificaciones.length + 1,
-          canal: "sistema",
-          mensaje: `Cliente aprobó ${incidente.status === "Porcentaje" ? "canje" : "presupuesto"}`,
-          notas: `Aprobación registrada por agente SAC`,
-          enviado_por: user?.id,
-          respondido: true,
-          fecha_respuesta: new Date().toISOString()
-        });
-
-      toast.success(mensajeExito);
       
       // Liberar el incidente y volver a la lista
       await handleReleaseIncident();

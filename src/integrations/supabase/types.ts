@@ -1161,6 +1161,7 @@ export type Database = {
           log_observaciones: string | null
           observaciones_recepcion: string | null
           persona_deja_maquina: string | null
+          presupuesto_cliente_aprobado: boolean | null
           producto_descontinuado: boolean | null
           producto_sugerido_alternativo: string | null
           quiere_envio: boolean | null
@@ -1196,6 +1197,7 @@ export type Database = {
           log_observaciones?: string | null
           observaciones_recepcion?: string | null
           persona_deja_maquina?: string | null
+          presupuesto_cliente_aprobado?: boolean | null
           producto_descontinuado?: boolean | null
           producto_sugerido_alternativo?: string | null
           quiere_envio?: boolean | null
@@ -1231,6 +1233,7 @@ export type Database = {
           log_observaciones?: string | null
           observaciones_recepcion?: string | null
           persona_deja_maquina?: string | null
+          presupuesto_cliente_aprobado?: boolean | null
           producto_descontinuado?: boolean | null
           producto_sugerido_alternativo?: string | null
           quiere_envio?: boolean | null
