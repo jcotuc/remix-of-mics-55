@@ -2,15 +2,14 @@ import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, Filter, AlertCircle } from "lucide-react";
+import { Search, AlertCircle, Clock, FileText, Percent } from "lucide-react";
 import { toast } from "sonner";
 import { StatusBadge } from "@/components/StatusBadge";
 import { TablePagination } from "@/components/TablePagination";
+import { OutlinedInput, OutlinedSelect } from "@/components/ui/outlined-input";
+import { differenceInDays } from "date-fns";
 
 type IncidenteDB = {
   id: string;
@@ -42,6 +41,11 @@ type NotificacionCount = {
   count: number;
 };
 
+type DiagnosticoInfo = {
+  incidente_id: string;
+  costo_estimado: number | null;
+};
+
 export default function IncidentesSAC() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
@@ -50,6 +54,7 @@ export default function IncidentesSAC() {
   const [clientes, setClientes] = useState<ClienteDB[]>([]);
   const [asignaciones, setAsignaciones] = useState<AsignacionSAC[]>([]);
   const [notificacionesCount, setNotificacionesCount] = useState<NotificacionCount[]>([]);
+  const [diagnosticos, setDiagnosticos] = useState<DiagnosticoInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -99,6 +104,19 @@ export default function IncidentesSAC() {
         .select("incidente_id, numero_notificacion");
 
       if (notificacionesError) throw notificacionesError;
+
+      // Fetch diagnosticos for cost info
+      const incidenteIds = incidentesData?.map(i => i.id) || [];
+      const { data: diagnosticosData, error: diagnosticosError } = await supabase
+        .from("diagnosticos")
+        .select("incidente_id, costo_estimado")
+        .in("incidente_id", incidenteIds);
+
+      if (diagnosticosError) {
+        console.error("Error fetching diagnosticos:", diagnosticosError);
+      }
+
+      setDiagnosticos(diagnosticosData || []);
 
       const notifCounts: NotificacionCount[] = [];
       if (notificacionesData) {
@@ -151,6 +169,15 @@ export default function IncidentesSAC() {
     return notif ? notif.count : 0;
   };
 
+  const getCostoEstimado = (incidenteId: string) => {
+    const diag = diagnosticos.find((d) => d.incidente_id === incidenteId);
+    return diag?.costo_estimado || null;
+  };
+
+  const getDiasDesdeIngreso = (fechaIngreso: string) => {
+    return differenceInDays(new Date(), new Date(fechaIngreso));
+  };
+
   const handleRowClick = (incidente: IncidenteDB) => {
     if (isAssignedToOther(incidente.id)) {
       toast.error("Este incidente está siendo atendido por otro agente");
@@ -176,7 +203,11 @@ export default function IncidentesSAC() {
   const startIndex = (currentPage - 1) * itemsPerPage;
   const paginatedIncidentes = filteredIncidentes.slice(startIndex, startIndex + itemsPerPage);
 
-  const statusOptions = ["Presupuesto", "Porcentaje"];
+  const statusOptions = [
+    { value: "todos", label: "Todos los estados" },
+    { value: "Presupuesto", label: "Presupuesto" },
+    { value: "Porcentaje", label: "Porcentaje" }
+  ];
 
   if (loading) {
     return (
@@ -189,74 +220,73 @@ export default function IncidentesSAC() {
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Pendientes por Notificar</h1>
-        <p className="text-muted-foreground">Presupuestos y Porcentajes</p>
+        <div>
+          <h1 className="text-3xl font-bold">Pendientes por Notificar</h1>
+          <p className="text-muted-foreground">Gestión de Presupuestos y Porcentajes</p>
+        </div>
       </div>
 
+      {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+        <Card className="border-l-4 border-l-orange-500">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <FileText className="h-4 w-4" />
               Presupuestos
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="text-3xl font-bold text-orange-600">
               {incidentesList.filter((i) => i.status === "Presupuesto").length}
             </div>
+            <p className="text-xs text-muted-foreground mt-1">Pendientes de aprobación cliente</p>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
+        <Card className="border-l-4 border-l-purple-500">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              <Percent className="h-4 w-4" />
               Porcentajes
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="text-3xl font-bold text-purple-600">
               {incidentesList.filter((i) => i.status === "Porcentaje").length}
             </div>
+            <p className="text-xs text-muted-foreground mt-1">Con descuento aplicado</p>
           </CardContent>
         </Card>
       </div>
 
+      {/* Filters */}
       <Card>
-        <CardHeader>
-          <CardTitle>Filtros</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex gap-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar por código o cliente..."
+        <CardContent className="pt-6">
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="flex-1">
+              <OutlinedInput
+                label="Buscar por código o cliente"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
+                icon={<Search className="h-4 w-4" />}
               />
             </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[250px]">
-                <Filter className="mr-2 h-4 w-4" />
-                <SelectValue placeholder="Filtrar por estado" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todos los estados</SelectItem>
-                {statusOptions.map((status) => (
-                  <SelectItem key={status} value={status}>
-                    {status}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="w-full md:w-64">
+              <OutlinedSelect
+                label="Filtrar por Estado"
+                value={statusFilter}
+                onValueChange={setStatusFilter}
+                options={statusOptions}
+              />
+            </div>
           </div>
         </CardContent>
       </Card>
 
+      {/* Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Listado de Incidentes</CardTitle>
+          <CardTitle>Listado de Incidentes ({filteredIncidentes.length})</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="rounded-md border">
@@ -266,9 +296,9 @@ export default function IncidentesSAC() {
                   <TableHead>Código</TableHead>
                   <TableHead>Cliente</TableHead>
                   <TableHead>Estado</TableHead>
-                  <TableHead>Garantía</TableHead>
-                  <TableHead>Notificaciones</TableHead>
-                  <TableHead>Fecha Ingreso</TableHead>
+                  <TableHead className="text-right">Costo Est.</TableHead>
+                  <TableHead className="text-center">Días</TableHead>
+                  <TableHead className="text-center">Notif.</TableHead>
                   <TableHead>Asignación</TableHead>
                 </TableRow>
               </TableHeader>
@@ -280,47 +310,65 @@ export default function IncidentesSAC() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  paginatedIncidentes.map((incidente) => (
-                    <TableRow
-                      key={incidente.id}
-                      className={`cursor-pointer hover:bg-muted/50 ${
-                        isAssignedToOther(incidente.id) ? "opacity-60" : ""
-                      }`}
-                      onClick={() => handleRowClick(incidente)}
-                    >
-                      <TableCell className="font-medium">{incidente.codigo}</TableCell>
-                      <TableCell>{getClienteName(incidente.codigo_cliente)}</TableCell>
-                      <TableCell>
-                        <StatusBadge status={incidente.status as any} />
-                      </TableCell>
-                      <TableCell>
-                        {incidente.cobertura_garantia ? (
-                          <Badge variant="default">Sí</Badge>
-                        ) : (
-                          <Badge variant="secondary">No</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="font-semibold">
-                          {getNotificacionCount(incidente.id)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {new Date(incidente.fecha_ingreso).toLocaleDateString()}
-                      </TableCell>
-                      <TableCell>
-                        {isAssignedToMe(incidente.id) && (
-                          <Badge variant="default">Asignado a mí</Badge>
-                        )}
-                        {isAssignedToOther(incidente.id) && (
-                          <Badge variant="secondary" className="gap-1">
-                            <AlertCircle className="h-3 w-3" />
-                            En uso
+                  paginatedIncidentes.map((incidente) => {
+                    const dias = getDiasDesdeIngreso(incidente.fecha_ingreso);
+                    const costo = getCostoEstimado(incidente.id);
+                    
+                    return (
+                      <TableRow
+                        key={incidente.id}
+                        className={`cursor-pointer hover:bg-muted/50 ${
+                          isAssignedToOther(incidente.id) ? "opacity-60" : ""
+                        }`}
+                        onClick={() => handleRowClick(incidente)}
+                      >
+                        <TableCell className="font-medium">{incidente.codigo}</TableCell>
+                        <TableCell className="max-w-[200px] truncate">
+                          {getClienteName(incidente.codigo_cliente)}
+                        </TableCell>
+                        <TableCell>
+                          <StatusBadge status={incidente.status as any} />
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {costo ? (
+                            <span className="font-semibold text-primary">
+                              Q {Number(costo).toFixed(2)}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Badge 
+                            variant={dias > 7 ? "destructive" : dias > 3 ? "secondary" : "outline"}
+                            className="gap-1"
+                          >
+                            <Clock className="h-3 w-3" />
+                            {dias}
                           </Badge>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Badge 
+                            variant={getNotificacionCount(incidente.id) >= 3 ? "destructive" : "outline"} 
+                            className="font-semibold"
+                          >
+                            {getNotificacionCount(incidente.id)}/3
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {isAssignedToMe(incidente.id) && (
+                            <Badge variant="default" className="bg-green-600">Mío</Badge>
+                          )}
+                          {isAssignedToOther(incidente.id) && (
+                            <Badge variant="secondary" className="gap-1">
+                              <AlertCircle className="h-3 w-3" />
+                              En uso
+                            </Badge>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
                 )}
               </TableBody>
             </Table>
