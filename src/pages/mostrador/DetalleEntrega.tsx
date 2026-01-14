@@ -274,72 +274,60 @@ export default function DetalleEntrega() {
 
     printWindow.document.write(`<!DOCTYPE html><html><head><title>Diagnóstico - ${incidente.codigo}</title>
       <script src="https://cdn.tailwindcss.com"><\/script>
-      <style>@media print { .no-print { display: none !important; } body { -webkit-print-color-adjust: exact; } }</style>
-    </head><body class="p-6 bg-white text-black text-sm font-sans">
+      <style>@media print { .no-print { display: none !important; } body { -webkit-print-color-adjust: exact; } } body { font-size: 11px; }</style>
+    </head><body class="p-4 bg-white text-black font-sans">
       <div class="max-w-4xl mx-auto">
-        <div class="flex justify-between items-start border-b-2 border-black pb-4 mb-4">
-          <div class="flex items-center gap-4">
-            <div class="w-16 h-16 bg-orange-500 rounded-lg flex items-center justify-center text-white font-bold text-xl">HPC</div>
-            <div><h1 class="font-bold text-xl">HPC Centro de Servicio</h1><p class="text-sm text-gray-600">${centroServicio}</p></div>
+        <div class="flex justify-between items-start border-b-2 border-black pb-2 mb-2">
+          <div class="flex items-center gap-3">
+            <div class="w-12 h-12 bg-orange-500 rounded-lg flex items-center justify-center text-white font-bold text-lg">HPC</div>
+            <div><h1 class="font-bold text-lg">HPC Centro de Servicio</h1><p class="text-xs text-gray-600">${centroServicio}</p></div>
           </div>
-          <div class="text-right"><h2 class="font-bold text-lg text-orange-600">${tipoResolucion}</h2><p class="font-mono text-lg font-bold">${incidente.codigo}</p></div>
+          <div class="text-right"><h2 class="font-bold text-base text-orange-600">${tipoResolucion}</h2><p class="font-mono text-base font-bold">${incidente.codigo}</p></div>
         </div>
-        <div class="grid grid-cols-2 gap-4 mb-4">
-          <div class="border rounded-lg p-3"><h3 class="font-bold text-sm mb-2 border-b pb-1">Cliente</h3>
-            <p><span class="text-gray-500">Código:</span> ${cliente.codigo}</p>
-            <p><span class="text-gray-500">Nombre:</span> ${cliente.nombre}</p>
-            <p><span class="text-gray-500">Teléfono:</span> ${cliente.celular}</p>
+        <div class="grid grid-cols-2 gap-2 mb-2">
+          <div class="border rounded p-2"><h3 class="font-bold text-xs mb-1 border-b pb-1">Cliente</h3>
+            <p class="text-xs"><span class="text-gray-500">Código:</span> ${cliente.codigo}</p>
+            <p class="text-xs"><span class="text-gray-500">Nombre:</span> ${cliente.nombre}</p>
+            <p class="text-xs"><span class="text-gray-500">Teléfono:</span> ${cliente.celular}</p>
           </div>
-          <div class="border rounded-lg p-3"><h3 class="font-bold text-sm mb-2 border-b pb-1">Equipo</h3>
-            <p><span class="text-gray-500">Código:</span> ${incidente.codigo_producto}</p>
-            <p><span class="text-gray-500">SKU:</span> ${incidente.sku_maquina || 'N/A'}</p>
-            <p><span class="text-gray-500">Accesorios:</span> ${accesorios}</p>
+          <div class="border rounded p-2"><h3 class="font-bold text-xs mb-1 border-b pb-1">Equipo</h3>
+            <p class="text-xs"><span class="text-gray-500">Código:</span> ${incidente.codigo_producto}</p>
+            <p class="text-xs"><span class="text-gray-500">SKU:</span> ${incidente.sku_maquina || 'N/A'}</p>
+            <p class="text-xs"><span class="text-gray-500">Accesorios:</span> ${accesorios}</p>
           </div>
         </div>
-        <div class="mb-3 border-2 border-orange-200 rounded-lg overflow-hidden">
-          <div class="bg-orange-100 px-3 py-1"><h3 class="font-bold text-orange-800 text-sm">DIAGNÓSTICO TÉCNICO</h3></div>
+        <div class="mb-2 border-2 border-orange-200 rounded overflow-hidden">
+          <div class="bg-orange-100 px-2 py-1"><h3 class="font-bold text-orange-800 text-xs">DIAGNÓSTICO TÉCNICO</h3></div>
           <div class="p-2">
-            <div class="grid grid-cols-2 gap-4">
+            <div class="grid grid-cols-2 gap-2">
               <div>
-                <p class="font-semibold text-gray-600 text-xs mb-1">Fallas:</p>
-                <ul class="list-disc list-inside text-sm">${(diagnostico.fallas || []).map((f: string) => `<li>${f}</li>`).join('')}</ul>
+                <p class="font-semibold text-gray-600 text-xs">Fallas:</p>
+                <ul class="list-disc list-inside text-xs">${(diagnostico.fallas || []).map((f: string) => `<li>${f}</li>`).join('')}</ul>
               </div>
               <div>
-                <p class="font-semibold text-gray-600 text-xs mb-1">Causas:</p>
-                <ul class="list-disc list-inside text-sm">${(diagnostico.causas || []).map((c: string) => `<li>${c}</li>`).join('')}</ul>
+                <p class="font-semibold text-gray-600 text-xs">Causas:</p>
+                <ul class="list-disc list-inside text-xs">${(diagnostico.causas || []).map((c: string) => `<li>${c}</li>`).join('')}</ul>
               </div>
             </div>
-            ${diagnostico.recomendaciones ? `<p class="font-semibold text-gray-600 text-xs mt-2">Recomendaciones:</p><p class="bg-gray-50 p-1 rounded text-sm">${diagnostico.recomendaciones}</p>` : ''}
-            <p class="text-xs mt-2 pt-1 border-t">Técnico: <strong>${tecnicoDisplay}</strong></p>
+            ${diagnostico.recomendaciones ? `<p class="font-semibold text-gray-600 text-xs mt-1">Recomendaciones:</p><p class="bg-gray-50 p-1 rounded text-xs">${diagnostico.recomendaciones}</p>` : ''}
+            <p class="text-xs mt-1 pt-1 border-t">Técnico: <strong>${tecnicoDisplay}</strong></p>
           </div>
         </div>
-        ${repuestosConPrecios.length > 0 ? `
-        <div class="mb-4">
-          <h3 class="font-bold mb-2 text-gray-700">REPUESTOS UTILIZADOS</h3>
-          <table class="w-full border-collapse text-sm">
-            <thead><tr class="bg-blue-50"><th class="border px-3 py-2 text-left">Código</th><th class="border px-3 py-2 text-left">Descripción</th><th class="border px-2 py-2 text-center w-16">Cant.</th></tr></thead>
-            <tbody>
-              ${repuestosConPrecios.map(r => `<tr><td class="border px-3 py-1 font-mono text-xs">${r.codigo}</td><td class="border px-3 py-1">${r.descripcion}</td><td class="border px-2 py-1 text-center">${r.cantidad}</td></tr>`).join('')}
-            </tbody>
-          </table>
-        </div>
-        ` : ''}
         ${(repuestosConPrecios.length > 0 || costoManoObra > 0) ? `
-        <div class="mb-4"><h3 class="font-bold mb-2">DETALLE DE COSTOS</h3>
-          <table class="w-full border-collapse text-sm">
-            <thead><tr class="bg-gray-100"><th class="border px-3 py-2 text-left">Concepto</th><th class="border px-2 py-2 text-center w-16">Cant.</th><th class="border px-3 py-2 text-right w-24">Precio</th><th class="border px-3 py-2 text-right w-24">Subtotal</th></tr></thead>
+        <div class="mb-2"><h3 class="font-bold mb-1 text-xs">DETALLE DE COSTOS</h3>
+          <table class="w-full border-collapse text-xs">
+            <thead><tr class="bg-gray-100"><th class="border px-2 py-1 text-left">Concepto</th><th class="border px-1 py-1 text-center w-12">Cant.</th><th class="border px-2 py-1 text-right w-20">Precio</th><th class="border px-2 py-1 text-right w-20">Subtotal</th></tr></thead>
             <tbody>
               ${repuestosRows}
-              <tr><td class="border px-3 py-1">Mano de Obra</td><td class="border px-2 py-1 text-center">1</td><td class="border px-3 py-1 text-right">Q ${costoManoObra.toFixed(2)}</td><td class="border px-3 py-1 text-right">Q ${costoManoObra.toFixed(2)}</td></tr>
-              ${costoEnvio > 0 ? `<tr><td class="border px-3 py-1">Envío</td><td class="border px-2 py-1 text-center">1</td><td class="border px-3 py-1 text-right">Q ${costoEnvio.toFixed(2)}</td><td class="border px-3 py-1 text-right">Q ${costoEnvio.toFixed(2)}</td></tr>` : ''}
-              <tr class="bg-gray-50"><td colspan="3" class="border px-3 py-2 text-right font-semibold">SUBTOTAL</td><td class="border px-3 py-2 text-right font-semibold">Q ${subtotalGeneral.toFixed(2)}</td></tr>
-              ${descuento > 0 ? `<tr class="bg-green-50"><td colspan="3" class="border px-3 py-2 text-right font-semibold text-green-700">DESCUENTO (${porcentajeDesc}%)</td><td class="border px-3 py-2 text-right font-semibold text-green-700">-Q ${descuento.toFixed(2)}</td></tr>` : ''}
-              <tr class="bg-orange-100"><td colspan="3" class="border px-3 py-2 text-right font-bold text-lg">TOTAL</td><td class="border px-3 py-2 text-right font-bold text-lg text-orange-700">Q ${totalFinal.toFixed(2)}</td></tr>
+              <tr><td class="border px-2 py-1">Mano de Obra</td><td class="border px-1 py-1 text-center">1</td><td class="border px-2 py-1 text-right">Q ${costoManoObra.toFixed(2)}</td><td class="border px-2 py-1 text-right">Q ${costoManoObra.toFixed(2)}</td></tr>
+              ${costoEnvio > 0 ? `<tr><td class="border px-2 py-1">Envío</td><td class="border px-1 py-1 text-center">1</td><td class="border px-2 py-1 text-right">Q ${costoEnvio.toFixed(2)}</td><td class="border px-2 py-1 text-right">Q ${costoEnvio.toFixed(2)}</td></tr>` : ''}
+              <tr class="bg-gray-50"><td colspan="3" class="border px-2 py-1 text-right font-semibold">SUBTOTAL</td><td class="border px-2 py-1 text-right font-semibold">Q ${subtotalGeneral.toFixed(2)}</td></tr>
+              ${descuento > 0 ? `<tr class="bg-green-50"><td colspan="3" class="border px-2 py-1 text-right font-semibold text-green-700">DESCUENTO (${porcentajeDesc}%)</td><td class="border px-2 py-1 text-right font-semibold text-green-700">-Q ${descuento.toFixed(2)}</td></tr>` : ''}
+              <tr class="bg-orange-100"><td colspan="3" class="border px-2 py-1 text-right font-bold">TOTAL</td><td class="border px-2 py-1 text-right font-bold text-orange-700">Q ${totalFinal.toFixed(2)}</td></tr>
             </tbody>
           </table>
-          ${aplicaGarantia && tipoResolucion === 'Reparar en Garantía' ? '<div class="mt-2 p-2 bg-green-50 border border-green-200 rounded text-xs text-green-700"><strong>✓ Reparación cubierta por garantía.</strong></div>' : ''}
+          ${aplicaGarantia && tipoResolucion === 'Reparar en Garantía' ? '<div class="mt-1 p-1 bg-green-50 border border-green-200 rounded text-xs text-green-700"><strong>✓ Reparación cubierta por garantía.</strong></div>' : ''}
         </div>` : ''}
-        <div class="grid grid-cols-2 gap-8 mt-8"><div class="text-center"><div class="border-t-2 border-black w-48 mx-auto mb-1 pt-2"></div><p class="text-xs">Técnico</p></div><div class="text-center"><div class="border-t-2 border-black w-48 mx-auto mb-1 pt-2"></div><p class="text-xs">Cliente</p></div></div>
       </div>
       <div class="no-print fixed bottom-4 right-4 flex gap-2">
         <button onclick="window.print()" class="px-4 py-2 bg-orange-500 text-white rounded-lg font-semibold">Imprimir</button>
