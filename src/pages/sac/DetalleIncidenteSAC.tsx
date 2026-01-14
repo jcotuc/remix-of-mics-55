@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, Send, Phone, Mail, MessageCircle, FileText, Package, MapPin, User, DollarSign, Percent, AlertTriangle, Clock, Printer, Download } from "lucide-react";
+import { ArrowLeft, Send, Phone, Mail, MessageCircle, FileText, Package, MapPin, User, DollarSign, Percent, AlertTriangle, Clock, Printer, Download, CheckCircle, XCircle } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { StatusBadge } from "@/components/StatusBadge";
 import { OutlinedSelect, OutlinedTextarea } from "@/components/ui/outlined-input";
@@ -42,6 +43,7 @@ export default function DetalleIncidenteSAC() {
   const [canal, setCanal] = useState<string>("whatsapp");
   const [mensaje, setMensaje] = useState<string>("");
   const [notas, setNotas] = useState<string>("");
+  const [processingDecision, setProcessingDecision] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -370,6 +372,118 @@ export default function DetalleIncidenteSAC() {
       toast.error("Error al liberar el incidente");
     }
   };
+
+  const handleAprobarPresupuesto = async () => {
+    try {
+      setProcessingDecision(true);
+      const { data: { user } } = await supabase.auth.getUser();
+
+      // Determinar el nuevo estado según el tipo de incidente
+      const esCanjeoPorcentaje = incidente.status === "Porcentaje";
+      const nuevoEstado = esCanjeoPorcentaje 
+        ? "Bodega pedido" as const
+        : "Pendiente por repuestos" as const;
+      const mensajeExito = esCanjeoPorcentaje 
+        ? "Cliente aprobó el canje. El incidente pasó a Bodega Pedido."
+        : "Cliente aprobó el presupuesto. El incidente pasó a Pendiente por Repuestos.";
+
+      if (!esCanjeoPorcentaje && solicitudRepuestos) {
+        // Aprobar la solicitud de repuestos si existe (solo para presupuestos)
+        await supabase
+          .from("solicitudes_repuestos")
+          .update({ 
+            presupuesto_aprobado: true,
+            updated_at: new Date().toISOString()
+          })
+          .eq("id", solicitudRepuestos.id);
+      }
+
+      // Actualizar estado del incidente
+      const { error } = await supabase
+        .from("incidentes")
+        .update({ 
+          status: nuevoEstado,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", id);
+
+      if (error) throw error;
+
+      // Registrar la notificación de aprobación
+      await supabase
+        .from("notificaciones_cliente")
+        .insert({
+          incidente_id: id,
+          numero_notificacion: notificaciones.length + 1,
+          canal: "sistema",
+          mensaje: `Cliente aprobó ${incidente.status === "Porcentaje" ? "canje" : "presupuesto"}`,
+          notas: `Aprobación registrada por agente SAC`,
+          enviado_por: user?.id,
+          respondido: true,
+          fecha_respuesta: new Date().toISOString()
+        });
+
+      toast.success(mensajeExito);
+      
+      // Liberar el incidente y volver a la lista
+      await handleReleaseIncident();
+      
+    } catch (error: any) {
+      console.error("Error al aprobar presupuesto:", error);
+      toast.error("Error al aprobar el presupuesto");
+    } finally {
+      setProcessingDecision(false);
+    }
+  };
+
+  const handleRechazarPresupuesto = async () => {
+    try {
+      setProcessingDecision(true);
+      const { data: { user } } = await supabase.auth.getUser();
+
+      // Rechazado - va a Pendiente Entrega para que el waterspider lo prepare
+      const nuevoEstado = "Pendiente entrega" as const;
+
+      // Actualizar estado del incidente
+      const { error } = await supabase
+        .from("incidentes")
+        .update({ 
+          status: nuevoEstado,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", id);
+
+      if (error) throw error;
+
+      // Registrar la notificación de rechazo
+      await supabase
+        .from("notificaciones_cliente")
+        .insert({
+          incidente_id: id,
+          numero_notificacion: notificaciones.length + 1,
+          canal: "sistema",
+          mensaje: `Cliente rechazó ${incidente.status === "Porcentaje" ? "canje" : "presupuesto"}`,
+          notas: `Rechazo registrado por agente SAC. Máquina lista para entrega.`,
+          enviado_por: user?.id,
+          respondido: true,
+          fecha_respuesta: new Date().toISOString()
+        });
+
+      toast.success("Presupuesto rechazado. El incidente pasó a Pendiente Entrega para el Waterspider.");
+      
+      // Liberar el incidente y volver a la lista
+      await handleReleaseIncident();
+      
+    } catch (error: any) {
+      console.error("Error al rechazar presupuesto:", error);
+      toast.error("Error al rechazar el presupuesto");
+    } finally {
+      setProcessingDecision(false);
+    }
+  };
+
+  // Check if current status allows budget decisions
+  const puedeTomarDecision = incidente?.status === "Presupuesto" || incidente?.status === "Porcentaje";
 
   // Calculate totals
   const totales = useMemo(() => {
@@ -714,6 +828,102 @@ export default function DetalleIncidenteSAC() {
                   <div className="flex justify-between text-lg font-bold text-orange-700 bg-orange-100 p-3 rounded-lg">
                     <span>TOTAL PRESUPUESTO:</span>
                     <span>Q {totales.total.toFixed(2)}</span>
+                  </div>
+                )}
+
+                {/* Botones de decisión */}
+                {puedeTomarDecision && (
+                  <div className="mt-6 pt-4 border-t border-orange-200">
+                    <p className="text-sm text-center text-muted-foreground mb-4">
+                      ¿Cuál fue la decisión del cliente?
+                    </p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button 
+                            className="w-full bg-green-600 hover:bg-green-700"
+                            disabled={processingDecision}
+                          >
+                            <CheckCircle className="mr-2 h-4 w-4" />
+                            Aprobó {incidente.status === "Porcentaje" ? "Canje" : "Presupuesto"}
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle className="flex items-center gap-2 text-green-700">
+                              <CheckCircle className="h-5 w-5" />
+                              Confirmar Aprobación
+                            </AlertDialogTitle>
+                            <AlertDialogDescription className="space-y-2">
+                              <p>El cliente <strong>aprobó</strong> el {incidente.status === "Porcentaje" ? "canje" : "presupuesto"}.</p>
+                              {incidente.status === "Porcentaje" ? (
+                                <p className="text-sm bg-blue-50 p-2 rounded">
+                                  El incidente pasará a <strong>Bodega Pedido</strong> y seguirá el flujo de cambio (cliente ya pagó).
+                                </p>
+                              ) : (
+                                <p className="text-sm bg-blue-50 p-2 rounded">
+                                  El incidente pasará a <strong>Pendiente por Repuestos</strong> y la solicitud aparecerá en bodega.
+                                </p>
+                              )}
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction 
+                              onClick={handleAprobarPresupuesto}
+                              className="bg-green-600 hover:bg-green-700"
+                            >
+                              Confirmar Aprobación
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button 
+                            variant="destructive"
+                            className="w-full"
+                            disabled={processingDecision}
+                          >
+                            <XCircle className="mr-2 h-4 w-4" />
+                            Rechazó {incidente.status === "Porcentaje" ? "Canje" : "Presupuesto"}
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+                              <XCircle className="h-5 w-5" />
+                              Confirmar Rechazo
+                            </AlertDialogTitle>
+                            <AlertDialogDescription className="space-y-2">
+                              <p>El cliente <strong>rechazó</strong> el {incidente.status === "Porcentaje" ? "canje" : "presupuesto"}.</p>
+                              <p className="text-sm bg-amber-50 p-2 rounded">
+                                El incidente pasará a <strong>Pendiente Entrega</strong> para que el Waterspider prepare la devolución al cliente.
+                              </p>
+                              {incidente.quiere_envio ? (
+                                <p className="text-xs text-muted-foreground">
+                                  📦 El cliente indicó que quiere <strong>envío</strong>.
+                                </p>
+                              ) : (
+                                <p className="text-xs text-muted-foreground">
+                                  🏪 El cliente vendrá a <strong>recoger</strong> la máquina.
+                                </p>
+                              )}
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                            <AlertDialogAction 
+                              onClick={handleRechazarPresupuesto}
+                              className="bg-destructive hover:bg-destructive/90"
+                            >
+                              Confirmar Rechazo
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
                   </div>
                 )}
               </div>
