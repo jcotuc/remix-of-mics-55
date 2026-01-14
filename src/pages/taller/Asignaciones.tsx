@@ -20,6 +20,7 @@ type IncidenteConProducto = IncidenteDB & {
   producto: {
     familia_padre_id: number | null;
   } | null;
+  presupuesto_cliente_aprobado?: boolean;
 };
 type FamiliaDB = {
   id: number;
@@ -569,6 +570,12 @@ export default function Asignaciones() {
                           {grupo.familias.length > 1 && <p className="text-[10px] text-muted-foreground mt-0.5">
                               {grupo.familias.map(id => getNombreFamilia(id)).join(' + ')}
                             </p>}
+                          {/* Badge si el primer incidente tiene presupuesto aprobado */}
+                          {primerIncidente?.presupuesto_cliente_aprobado && (
+                            <Badge className="mt-1 text-[10px] py-0.5 bg-emerald-500/30 text-emerald-700 border-emerald-400/50">
+                              ✓ Presupuesto Aprobado
+                            </Badge>
+                          )}
                         </div>
                         {hasIncidentes && incidentesGrupo.length > 1 && <Tooltip>
                             <TooltipTrigger asChild>
@@ -599,8 +606,15 @@ export default function Asignaciones() {
                         <p className="text-[10px] text-muted-foreground font-medium px-1 uppercase tracking-wide">
                           En espera ({incidentesGrupo.length - 1})
                         </p>
-                        {incidentesGrupo.slice(1).map(inc => <div key={inc.id} className="p-2 rounded-md bg-background/80 border border-border/30">
-                            <p className="text-xs font-medium truncate">{inc.codigo_producto}</p>
+                        {incidentesGrupo.slice(1).map(inc => <div key={inc.id} className={`p-2 rounded-md border ${inc.presupuesto_cliente_aprobado ? 'bg-emerald-500/10 border-emerald-400/50' : 'bg-background/80 border-border/30'}`}>
+                            <div className="flex items-center gap-1">
+                              <p className="text-xs font-medium truncate">{inc.codigo_producto}</p>
+                              {inc.presupuesto_cliente_aprobado && (
+                                <Badge className="text-[9px] py-0 px-1 h-4 bg-emerald-500/20 text-emerald-700 border-emerald-400/50">
+                                  Presup.
+                                </Badge>
+                              )}
+                            </div>
                             <p className="text-[10px] text-muted-foreground line-clamp-1">
                               {inc.descripcion_problema}
                             </p>
