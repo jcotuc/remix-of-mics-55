@@ -1,12 +1,21 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Truck, Search, Filter, Clock, MapPin, Package, User, Calendar, RefreshCw } from "lucide-react";
+import { Truck, Search, Clock, MapPin, Package, User, Calendar, RefreshCw, CheckCircle2, Square, CheckSquare, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Separator } from "@/components/ui/separator";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format, formatDistanceToNow } from "date-fns";
@@ -32,7 +41,16 @@ export default function WaterspiderPendientes() {
   const [incidentes, setIncidentes] = useState<IncidenteReparado[]>([]);
   const [clientes, setClientes] = useState<ClienteMap>({});
   const [filtroTexto, setFiltroTexto] = useState("");
-  const [filtroDestino, setFiltroDestino] = useState<string>("todos");
+  
+  // Selection states
+  const [selectedMostrador, setSelectedMostrador] = useState<Set<string>>(new Set());
+  const [selectedLogistica, setSelectedLogistica] = useState<Set<string>>(new Set());
+  
+  // Dialog states
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [confirmingType, setConfirmingType] = useState<"mostrador" | "logistica" | null>(null);
+  const [observaciones, setObservaciones] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   const fetchIncidentes = async () => {
     setLoading(true);
@@ -46,6 +64,8 @@ export default function WaterspiderPendientes() {
       if (error) throw error;
 
       setIncidentes(data || []);
+      setSelectedMostrador(new Set());
+      setSelectedLogistica(new Set());
 
       // Fetch client data
       const codigosClientes = [...new Set((data || []).map(i => i.codigo_cliente))];
@@ -73,203 +93,452 @@ export default function WaterspiderPendientes() {
     fetchIncidentes();
   }, []);
 
-  const incidentesFiltrados = useMemo(() => {
-    return incidentes.filter(inc => {
-      // Filtro por texto
-      const textoMatch = !filtroTexto || 
+  // Separate incidents by destination
+  const { incidentesMostrador, incidentesLogistica } = useMemo(() => {
+    const mostrador: IncidenteReparado[] = [];
+    const logistica: IncidenteReparado[] = [];
+    
+    incidentes.forEach(inc => {
+      const matchesFilter = !filtroTexto || 
         inc.codigo.toLowerCase().includes(filtroTexto.toLowerCase()) ||
         inc.codigo_cliente.toLowerCase().includes(filtroTexto.toLowerCase()) ||
         inc.codigo_producto.toLowerCase().includes(filtroTexto.toLowerCase()) ||
         clientes[inc.codigo_cliente]?.nombre?.toLowerCase().includes(filtroTexto.toLowerCase());
-
-      // Filtro por destino
-      const destinoMatch = filtroDestino === "todos" ||
-        (filtroDestino === "mostrador" && inc.ingresado_en_mostrador === true) ||
-        (filtroDestino === "logistica" && inc.ingresado_en_mostrador !== true);
-
-      return textoMatch && destinoMatch;
+      
+      if (matchesFilter) {
+        if (inc.ingresado_en_mostrador === true) {
+          mostrador.push(inc);
+        } else {
+          logistica.push(inc);
+        }
+      }
     });
-  }, [incidentes, filtroTexto, filtroDestino, clientes]);
-
-  const handleRecoger = (incidenteId: string) => {
-    navigate(`/taller/waterspider/${incidenteId}`);
-  };
-
-  const getDestinoBadge = (ingresadoEnMostrador: boolean | null) => {
-    if (ingresadoEnMostrador === true) {
-      return <Badge className="bg-blue-500 hover:bg-blue-600">Mostrador</Badge>;
-    }
-    return <Badge className="bg-orange-500 hover:bg-orange-600">Logística</Badge>;
-  };
+    
+    return { incidentesMostrador: mostrador, incidentesLogistica: logistica };
+  }, [incidentes, filtroTexto, clientes]);
 
   const getTiempoEspera = (updatedAt: string) => {
     return formatDistanceToNow(new Date(updatedAt), { locale: es, addSuffix: false });
   };
 
+  // Toggle selection handlers
+  const toggleSelectMostrador = (id: string) => {
+    const newSet = new Set(selectedMostrador);
+    if (newSet.has(id)) {
+      newSet.delete(id);
+    } else {
+      newSet.add(id);
+    }
+    setSelectedMostrador(newSet);
+  };
+
+  const toggleSelectLogistica = (id: string) => {
+    const newSet = new Set(selectedLogistica);
+    if (newSet.has(id)) {
+      newSet.delete(id);
+    } else {
+      newSet.add(id);
+    }
+    setSelectedLogistica(newSet);
+  };
+
+  const selectAllMostrador = () => {
+    if (selectedMostrador.size === incidentesMostrador.length) {
+      setSelectedMostrador(new Set());
+    } else {
+      setSelectedMostrador(new Set(incidentesMostrador.map(i => i.id)));
+    }
+  };
+
+  const selectAllLogistica = () => {
+    if (selectedLogistica.size === incidentesLogistica.length) {
+      setSelectedLogistica(new Set());
+    } else {
+      setSelectedLogistica(new Set(incidentesLogistica.map(i => i.id)));
+    }
+  };
+
+  // Batch delivery handler
+  const handleBatchDelivery = async () => {
+    if (!confirmingType) return;
+    
+    const selectedIds = confirmingType === "mostrador" 
+      ? Array.from(selectedMostrador) 
+      : Array.from(selectedLogistica);
+    
+    if (selectedIds.length === 0) {
+      toast.error("Selecciona al menos un incidente");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const nuevoStatus = confirmingType === "mostrador" ? "Pendiente entrega" : "Logistica envio";
+      const destinoLabel = confirmingType === "mostrador" ? "Mostrador" : "Logística";
+      
+      // Update all selected incidents
+      const { error } = await supabase
+        .from("incidentes")
+        .update({ 
+          status: nuevoStatus,
+          updated_at: new Date().toISOString()
+        })
+        .in("id", selectedIds);
+
+      if (error) throw error;
+
+      // Update logs for each incident
+      const logEntry = `[${format(new Date(), "dd/MM/yyyy HH:mm")}] Waterspider: Entregado a ${destinoLabel}${observaciones ? ` - ${observaciones}` : ''}`;
+      
+      for (const incId of selectedIds) {
+        const { data: currentInc } = await supabase
+          .from("incidentes")
+          .select("log_observaciones")
+          .eq("id", incId)
+          .single();
+
+        const newLog = currentInc?.log_observaciones 
+          ? `${currentInc.log_observaciones}\n${logEntry}` 
+          : logEntry;
+        
+        await supabase
+          .from("incidentes")
+          .update({ log_observaciones: newLog })
+          .eq("id", incId);
+      }
+
+      toast.success(
+        `${selectedIds.length} incidente(s) entregados a ${destinoLabel}`,
+        { duration: 4000 }
+      );
+      
+      setShowConfirmDialog(false);
+      setObservaciones("");
+      setConfirmingType(null);
+      fetchIncidentes();
+    } catch (error) {
+      console.error("Error updating incidents:", error);
+      toast.error("Error al confirmar las entregas");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const openConfirmDialog = (type: "mostrador" | "logistica") => {
+    const count = type === "mostrador" ? selectedMostrador.size : selectedLogistica.size;
+    if (count === 0) {
+      toast.error("Selecciona al menos un incidente");
+      return;
+    }
+    setConfirmingType(type);
+    setShowConfirmDialog(true);
+  };
+
+  // Card component for each incident
+  const IncidentCard = ({ 
+    inc, 
+    isSelected, 
+    onToggle,
+    colorScheme 
+  }: { 
+    inc: IncidenteReparado; 
+    isSelected: boolean; 
+    onToggle: () => void;
+    colorScheme: "blue" | "orange";
+  }) => {
+    const bgSelected = colorScheme === "blue" 
+      ? "bg-blue-100 dark:bg-blue-900/40 border-blue-400" 
+      : "bg-orange-100 dark:bg-orange-900/40 border-orange-400";
+    const bgNormal = colorScheme === "blue"
+      ? "bg-blue-50/50 dark:bg-blue-950/20 border-blue-200 hover:border-blue-300"
+      : "bg-orange-50/50 dark:bg-orange-950/20 border-orange-200 hover:border-orange-300";
+
+    return (
+      <Card 
+        className={`cursor-pointer transition-all border-2 ${isSelected ? bgSelected : bgNormal}`}
+        onClick={onToggle}
+      >
+        <CardContent className="p-3">
+          <div className="flex items-start gap-3">
+            <Checkbox 
+              checked={isSelected}
+              onClick={(e) => e.stopPropagation()}
+              onCheckedChange={onToggle}
+              className="mt-1"
+            />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-bold text-sm">{inc.codigo}</span>
+                <Badge variant="outline" className="text-xs shrink-0">
+                  <Clock className="w-3 h-3 mr-1" />
+                  {getTiempoEspera(inc.updated_at)}
+                </Badge>
+              </div>
+              <p className="text-sm font-medium text-foreground truncate mt-1">
+                {clientes[inc.codigo_cliente]?.nombre || inc.codigo_cliente}
+              </p>
+              <p className="text-xs text-muted-foreground truncate">
+                {inc.codigo_producto}
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
+
   return (
-    <div className="container mx-auto p-4 space-y-6">
+    <div className="container mx-auto p-4 space-y-4">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
             <Truck className="h-6 w-6 text-primary" />
-            Waterspider - Pendientes de Recolección
+            Waterspider - Recolección
           </h1>
-          <p className="text-muted-foreground">
-            Máquinas reparadas listas para entregar a su destino
+          <p className="text-muted-foreground text-sm">
+            Selecciona las máquinas y entrega por lotes
           </p>
         </div>
-        <Button onClick={fetchIncidentes} variant="outline" className="gap-2">
+        <Button onClick={fetchIncidentes} variant="outline" size="sm" className="gap-2">
           <RefreshCw className="h-4 w-4" />
           Actualizar
         </Button>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card>
-          <CardContent className="pt-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Total Pendientes</p>
-                <p className="text-2xl font-bold">{incidentes.length}</p>
-              </div>
-              <Package className="h-8 w-8 text-muted-foreground" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="border-blue-200 bg-blue-50/50 dark:bg-blue-950/20">
-          <CardContent className="pt-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-blue-600 dark:text-blue-400">Para Mostrador</p>
-                <p className="text-2xl font-bold text-blue-700 dark:text-blue-300">
-                  {incidentes.filter(i => i.ingresado_en_mostrador === true).length}
-                </p>
-              </div>
-              <User className="h-8 w-8 text-blue-500" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="border-orange-200 bg-orange-50/50 dark:bg-orange-950/20">
-          <CardContent className="pt-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-orange-600 dark:text-orange-400">Para Logística</p>
-                <p className="text-2xl font-bold text-orange-700 dark:text-orange-300">
-                  {incidentes.filter(i => i.ingresado_en_mostrador !== true).length}
-                </p>
-              </div>
-              <Truck className="h-8 w-8 text-orange-500" />
-            </div>
-          </CardContent>
-        </Card>
+      {/* Search */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Buscar por código, cliente o producto..."
+          value={filtroTexto}
+          onChange={(e) => setFiltroTexto(e.target.value)}
+          className="pl-10"
+        />
       </div>
 
-      {/* Filters */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Filter className="h-4 w-4" />
-            Filtros
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar por código, cliente o producto..."
-                value={filtroTexto}
-                onChange={(e) => setFiltroTexto(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <Select value={filtroDestino} onValueChange={setFiltroDestino}>
-              <SelectTrigger className="w-full sm:w-48">
-                <SelectValue placeholder="Destino" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todos los destinos</SelectItem>
-                <SelectItem value="mostrador">Solo Mostrador</SelectItem>
-                <SelectItem value="logistica">Solo Logística</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
+      {loading ? (
+        <div className="flex items-center justify-center py-12">
+          <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
+          <span className="ml-2 text-muted-foreground">Cargando...</span>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* MOSTRADOR Section */}
+          <Card className="border-2 border-blue-200 dark:border-blue-800">
+            <CardHeader className="bg-blue-50 dark:bg-blue-950/30 pb-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <User className="h-5 w-5 text-blue-600" />
+                  <CardTitle className="text-blue-700 dark:text-blue-300">
+                    Mostrador
+                  </CardTitle>
+                  <Badge className="bg-blue-500">{incidentesMostrador.length}</Badge>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={selectAllMostrador}
+                  className="text-blue-600 hover:text-blue-700 hover:bg-blue-100"
+                >
+                  {selectedMostrador.size === incidentesMostrador.length && incidentesMostrador.length > 0 ? (
+                    <>
+                      <CheckSquare className="h-4 w-4 mr-1" />
+                      Deseleccionar
+                    </>
+                  ) : (
+                    <>
+                      <Square className="h-4 w-4 mr-1" />
+                      Seleccionar todo
+                    </>
+                  )}
+                </Button>
+              </div>
+              <CardDescription>
+                Máquinas para entregar al cliente en mostrador
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-4 space-y-3">
+              {incidentesMostrador.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Package className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No hay máquinas para mostrador</p>
+                </div>
+              ) : (
+                <>
+                  <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1">
+                    {incidentesMostrador.map((inc) => (
+                      <IncidentCard
+                        key={inc.id}
+                        inc={inc}
+                        isSelected={selectedMostrador.has(inc.id)}
+                        onToggle={() => toggleSelectMostrador(inc.id)}
+                        colorScheme="blue"
+                      />
+                    ))}
+                  </div>
+                  <Separator />
+                  <Button
+                    onClick={() => openConfirmDialog("mostrador")}
+                    disabled={selectedMostrador.size === 0}
+                    className="w-full bg-blue-600 hover:bg-blue-700 gap-2"
+                  >
+                    <CheckCircle2 className="h-4 w-4" />
+                    Entregar a Mostrador ({selectedMostrador.size})
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </>
+              )}
+            </CardContent>
+          </Card>
 
-      {/* Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Incidentes Reparados ({incidentesFiltrados.length})</CardTitle>
-          <CardDescription>
-            Ordenados por antigüedad (FIFO - primero en repararse, primero en recoger)
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="flex items-center justify-center py-8">
-              <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
-              <span className="ml-2 text-muted-foreground">Cargando...</span>
+          {/* LOGISTICA Section */}
+          <Card className="border-2 border-orange-200 dark:border-orange-800">
+            <CardHeader className="bg-orange-50 dark:bg-orange-950/30 pb-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Truck className="h-5 w-5 text-orange-600" />
+                  <CardTitle className="text-orange-700 dark:text-orange-300">
+                    Logística
+                  </CardTitle>
+                  <Badge className="bg-orange-500">{incidentesLogistica.length}</Badge>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={selectAllLogistica}
+                  className="text-orange-600 hover:text-orange-700 hover:bg-orange-100"
+                >
+                  {selectedLogistica.size === incidentesLogistica.length && incidentesLogistica.length > 0 ? (
+                    <>
+                      <CheckSquare className="h-4 w-4 mr-1" />
+                      Deseleccionar
+                    </>
+                  ) : (
+                    <>
+                      <Square className="h-4 w-4 mr-1" />
+                      Seleccionar todo
+                    </>
+                  )}
+                </Button>
+              </div>
+              <CardDescription>
+                Máquinas para envío a domicilio
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-4 space-y-3">
+              {incidentesLogistica.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Package className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No hay máquinas para logística</p>
+                </div>
+              ) : (
+                <>
+                  <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1">
+                    {incidentesLogistica.map((inc) => (
+                      <IncidentCard
+                        key={inc.id}
+                        inc={inc}
+                        isSelected={selectedLogistica.has(inc.id)}
+                        onToggle={() => toggleSelectLogistica(inc.id)}
+                        colorScheme="orange"
+                      />
+                    ))}
+                  </div>
+                  <Separator />
+                  <Button
+                    onClick={() => openConfirmDialog("logistica")}
+                    disabled={selectedLogistica.size === 0}
+                    className="w-full bg-orange-600 hover:bg-orange-700 gap-2"
+                  >
+                    <CheckCircle2 className="h-4 w-4" />
+                    Entregar a Logística ({selectedLogistica.size})
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Confirmation Dialog */}
+      <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {confirmingType === "mostrador" ? (
+                <User className="h-5 w-5 text-blue-600" />
+              ) : (
+                <Truck className="h-5 w-5 text-orange-600" />
+              )}
+              Confirmar Entrega a {confirmingType === "mostrador" ? "Mostrador" : "Logística"}
+            </DialogTitle>
+            <DialogDescription>
+              Vas a entregar {confirmingType === "mostrador" ? selectedMostrador.size : selectedLogistica.size} máquina(s) 
+              al área de {confirmingType === "mostrador" ? "Mostrador" : "Logística"}.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {/* Selected items summary */}
+          <div className="max-h-32 overflow-y-auto border rounded-md p-2 bg-muted/50">
+            <p className="text-xs font-medium text-muted-foreground mb-1">Incidentes seleccionados:</p>
+            <div className="flex flex-wrap gap-1">
+              {(confirmingType === "mostrador" 
+                ? incidentesMostrador.filter(i => selectedMostrador.has(i.id))
+                : incidentesLogistica.filter(i => selectedLogistica.has(i.id))
+              ).map(inc => (
+                <Badge key={inc.id} variant="secondary" className="text-xs">
+                  {inc.codigo}
+                </Badge>
+              ))}
             </div>
-          ) : incidentesFiltrados.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>No hay incidentes pendientes de recolección</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Código</TableHead>
-                    <TableHead>Cliente</TableHead>
-                    <TableHead>Producto</TableHead>
-                    <TableHead>Fecha Reparación</TableHead>
-                    <TableHead>Tiempo Espera</TableHead>
-                    <TableHead>Destino</TableHead>
-                    <TableHead className="text-right">Acción</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {incidentesFiltrados.map((inc) => (
-                    <TableRow key={inc.id} className="hover:bg-muted/50">
-                      <TableCell className="font-medium">{inc.codigo}</TableCell>
-                      <TableCell>
-                        <div>
-                          <p className="font-medium">{clientes[inc.codigo_cliente]?.nombre || inc.codigo_cliente}</p>
-                          <p className="text-xs text-muted-foreground">{inc.codigo_cliente}</p>
-                        </div>
-                      </TableCell>
-                      <TableCell>{inc.codigo_producto}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1 text-sm">
-                          <Calendar className="h-3 w-3" />
-                          {format(new Date(inc.updated_at), "dd/MM/yyyy HH:mm", { locale: es })}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-1 text-sm text-amber-600 dark:text-amber-400">
-                          <Clock className="h-3 w-3" />
-                          {getTiempoEspera(inc.updated_at)}
-                        </div>
-                      </TableCell>
-                      <TableCell>{getDestinoBadge(inc.ingresado_en_mostrador)}</TableCell>
-                      <TableCell className="text-right">
-                        <Button size="sm" onClick={() => handleRecoger(inc.id)} className="gap-1">
-                          <MapPin className="h-4 w-4" />
-                          Recoger
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+          </div>
+          
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Observaciones (opcional)</label>
+            <Textarea
+              value={observaciones}
+              onChange={(e) => setObservaciones(e.target.value)}
+              placeholder="Ej: Entregado en buenas condiciones..."
+              rows={2}
+            />
+          </div>
+          
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowConfirmDialog(false);
+                setObservaciones("");
+              }}
+              disabled={submitting}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleBatchDelivery}
+              disabled={submitting}
+              className={confirmingType === "mostrador" 
+                ? "bg-blue-600 hover:bg-blue-700" 
+                : "bg-orange-600 hover:bg-orange-700"
+              }
+            >
+              {submitting ? (
+                <>
+                  <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2" />
+                  Procesando...
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                  Confirmar Entrega
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
