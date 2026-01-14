@@ -82,19 +82,31 @@ export default function DetalleEntrega() {
       }
       setIncidente(incidenteData);
 
-      // Cargar cliente, diagnóstico, producto y centro de servicio en paralelo
-      const [clienteRes, diagRes, productoRes, centroRes] = await Promise.all([
+      // Cargar cliente, diagnóstico, producto, centro de servicio y solicitudes de repuestos en paralelo
+      const [clienteRes, diagRes, productoRes, centroRes, solicitudesRes] = await Promise.all([
         supabase.from('clientes').select('*').eq('codigo', incidenteData.codigo_cliente).single(),
-        supabase.from('diagnosticos').select('*').eq('incidente_id', incidenteId).eq('estado', 'finalizado').order('created_at', { ascending: false }).limit(1),
+        supabase
+          .from('diagnosticos')
+          .select('*')
+          .eq('incidente_id', incidenteId)
+          .eq('estado', 'finalizado')
+          .order('created_at', { ascending: false })
+          .limit(1),
         supabase.from('productos').select('descripcion').eq('codigo', incidenteData.codigo_producto).maybeSingle(),
         incidenteData.centro_servicio 
           ? supabase.from('centros_servicio').select('nombre').eq('nombre', incidenteData.centro_servicio).maybeSingle()
-          : Promise.resolve({ data: null, error: null })
+          : Promise.resolve({ data: null, error: null }),
+        supabase
+          .from('solicitudes_repuestos')
+          .select('repuestos, estado, created_at')
+          .eq('incidente_id', incidenteId)
+          .order('created_at', { ascending: false })
+          .limit(20)
       ]);
 
       if (clienteRes.error) throw clienteRes.error;
       setCliente(clienteRes.data);
-      
+
       // diagRes.data es un array, tomamos el primer elemento
       const diagData = diagRes.data && diagRes.data.length > 0 ? diagRes.data[0] : null;
       setDiagnostico(diagData);
@@ -103,27 +115,67 @@ export default function DetalleEntrega() {
         setCentroServicio(centroRes.data.nombre);
       }
 
-      // Cargar repuestos utilizados con precios
-      if (diagData?.repuestos_utilizados) {
-        const repuestosUtilizados = diagData.repuestos_utilizados as any[];
-        if (repuestosUtilizados && repuestosUtilizados.length > 0) {
-          const codigosRepuestos = repuestosUtilizados.map((r: any) => r.codigo);
-          const { data: inventarioData } = await supabase
-            .from('inventario')
-            .select('codigo_repuesto, costo_unitario, descripcion')
-            .in('codigo_repuesto', codigosRepuestos);
+      // Cargar repuestos utilizados (preferir diagnostico.repuestos_utilizados; si no existe, tomar de solicitudes_repuestos)
+      let repuestosUtilizados: any[] = [];
 
-          const repuestosConPrecio = repuestosUtilizados.map((r: any) => {
-            const inv = inventarioData?.find(i => i.codigo_repuesto === r.codigo);
-            return {
-              codigo: r.codigo,
-              descripcion: r.descripcion || inv?.descripcion || 'Sin descripción',
-              cantidad: r.cantidad || 1,
-              precioUnitario: inv?.costo_unitario || 0
-            };
+      if (Array.isArray(diagData?.repuestos_utilizados) && diagData?.repuestos_utilizados?.length > 0) {
+        repuestosUtilizados = diagData.repuestos_utilizados as any[];
+      } else if (Array.isArray(solicitudesRes.data) && solicitudesRes.data.length > 0) {
+        const entregadas = solicitudesRes.data.filter((s: any) => (s.estado || '').toLowerCase().includes('entreg'));
+        const fuente = entregadas.length > 0 ? entregadas : solicitudesRes.data;
+        repuestosUtilizados = fuente.flatMap((s: any) => (Array.isArray(s.repuestos) ? s.repuestos : []));
+      }
+
+      if (repuestosUtilizados.length > 0) {
+        // Normalizar + agrupar por código
+        const grouped = new Map<string, { codigo: string; descripcion: string; cantidad: number }>();
+        for (const r of repuestosUtilizados) {
+          const codigo = r?.codigo || r?.codigo_repuesto;
+          if (!codigo) continue;
+          const cantidad = Number(r?.cantidad ?? r?.cantidad_solicitada ?? 1) || 1;
+          const descripcion = r?.descripcion || r?.descripcion_repuesto || '';
+
+          const prev = grouped.get(codigo);
+          grouped.set(codigo, {
+            codigo,
+            descripcion: prev?.descripcion || descripcion,
+            cantidad: (prev?.cantidad || 0) + cantidad,
           });
-          setRepuestosConPrecios(repuestosConPrecio);
         }
+
+        const repuestosAgrupados = Array.from(grouped.values());
+        const codigosRepuestos = repuestosAgrupados.map(r => r.codigo);
+
+        const { data: inventarioData } = await supabase
+          .from('inventario')
+          .select('codigo_repuesto, costo_unitario, descripcion')
+          .in('codigo_repuesto', codigosRepuestos);
+
+        const invMap = new Map<string, { costo: number; descripcion: string }>();
+        for (const inv of (inventarioData || [])) {
+          const codigo = inv.codigo_repuesto;
+          const costo = Number(inv.costo_unitario || 0);
+          const desc = inv.descripcion || '';
+          const prev = invMap.get(codigo);
+          // Elegir el costo más alto como referencia (evita tomar 0 si hay múltiples filas)
+          if (!prev || costo > prev.costo) {
+            invMap.set(codigo, { costo, descripcion: desc });
+          }
+        }
+
+        const repuestosConPrecio = repuestosAgrupados.map((r) => {
+          const inv = invMap.get(r.codigo);
+          return {
+            codigo: r.codigo,
+            descripcion: r.descripcion || inv?.descripcion || 'Sin descripción',
+            cantidad: r.cantidad,
+            precioUnitario: inv?.costo ?? 0,
+          };
+        });
+
+        setRepuestosConPrecios(repuestosConPrecio);
+      } else {
+        setRepuestosConPrecios([]);
       }
     } catch (error) {
       console.error('Error al cargar datos:', error);
