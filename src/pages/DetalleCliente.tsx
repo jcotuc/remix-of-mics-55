@@ -1,18 +1,22 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Package, Calendar, AlertCircle, Edit, CheckCircle, FileText, RefreshCw, CreditCard, Repeat } from "lucide-react";
+import { ArrowLeft, Package, Calendar, AlertCircle, Edit, CheckCircle, FileText, RefreshCw, CreditCard, Repeat, Truck, Eye, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { OutlinedInput } from "@/components/ui/outlined-input";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { StatusBadge } from "@/components/StatusBadge";
+import { GuiaHPCLabel } from "@/components/GuiaHPCLabel";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
+
 type Cliente = Database['public']['Tables']['clientes']['Row'];
 type Incidente = Database['public']['Tables']['incidentes']['Row'];
+type GuiaEnvio = Database['public']['Tables']['guias_envio']['Row'];
+
 export default function DetalleCliente() {
   const {
     codigo
@@ -20,10 +24,12 @@ export default function DetalleCliente() {
   const navigate = useNavigate();
   const [cliente, setCliente] = useState<Cliente | null>(null);
   const [incidentes, setIncidentes] = useState<Incidente[]>([]);
+  const [guiasEnvio, setGuiasEnvio] = useState<GuiaEnvio[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingCliente, setEditingCliente] = useState<Cliente | null>(null);
+  const [guiaSeleccionada, setGuiaSeleccionada] = useState<GuiaEnvio | null>(null);
   useEffect(() => {
     if (codigo) {
       fetchClienteData();
@@ -50,6 +56,17 @@ export default function DetalleCliente() {
       });
       if (incidentesError) throw incidentesError;
       setIncidentes(incidentesData || []);
+
+      // Fetch guías de envío relacionadas a los incidentes del cliente
+      if (incidentesData && incidentesData.length > 0) {
+        const codigosIncidentes = incidentesData.map(inc => inc.codigo);
+        const { data: guiasData } = await supabase
+          .from('guias_envio')
+          .select('*')
+          .overlaps('incidentes_codigos', codigosIncidentes)
+          .order('fecha_guia', { ascending: false });
+        setGuiasEnvio(guiasData || []);
+      }
     } catch (error) {
       console.error('Error al cargar datos del cliente:', error);
       toast.error('Error al cargar los datos del cliente');
@@ -347,6 +364,58 @@ export default function DetalleCliente() {
         </CardContent>
       </Card>
 
+      {/* Guías de Envío */}
+      {guiasEnvio.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Truck className="h-5 w-5" />
+              Guías de Envío ({guiasEnvio.length})
+            </CardTitle>
+            <CardDescription>
+              Guías de envío asociadas a los incidentes del cliente
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {guiasEnvio.map((guia) => (
+                <div key={guia.id} className="bg-muted/50 p-4 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-medium">{guia.numero_guia}</span>
+                        <Badge variant={guia.estado === "entregado" ? "default" : "secondary"}>
+                          {guia.estado}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        <span className="font-medium">Destino:</span> {guia.destinatario}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {guia.ciudad_destino} • {new Date(guia.fecha_guia).toLocaleDateString('es-GT')}
+                      </p>
+                      {guia.referencia_1 && (
+                        <p className="text-xs text-muted-foreground">
+                          <span className="font-medium">Ref:</span> {guia.referencia_1}
+                        </p>
+                      )}
+                    </div>
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={() => setGuiaSeleccionada(guia)}
+                    >
+                      <Eye className="w-3 h-3 mr-1" />
+                      Ver Etiqueta
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Dialog de Edición */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -441,6 +510,32 @@ export default function DetalleCliente() {
                 </Button>
               </div>
             </form>}
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog para ver etiqueta de guía */}
+      <Dialog open={guiaSeleccionada !== null} onOpenChange={() => setGuiaSeleccionada(null)}>
+        <DialogContent className="sm:max-w-md print:max-w-full print:border-none print:shadow-none">
+          <DialogHeader className="print:hidden">
+            <DialogTitle>Etiqueta de Guía</DialogTitle>
+            <DialogDescription>Vista previa de la etiqueta para impresión</DialogDescription>
+          </DialogHeader>
+
+          {guiaSeleccionada && (
+            <div className="print-content">
+              <GuiaHPCLabel guia={guiaSeleccionada} />
+            </div>
+          )}
+
+          <DialogFooter className="print:hidden">
+            <Button variant="outline" onClick={() => setGuiaSeleccionada(null)}>
+              Cerrar
+            </Button>
+            <Button onClick={() => window.print()}>
+              <Printer className="w-4 h-4 mr-2" />
+              Imprimir
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>;
