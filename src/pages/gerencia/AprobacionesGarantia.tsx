@@ -123,16 +123,47 @@ export default function AprobacionesGarantia() {
 
       if (error) throw error;
 
-      // Actualizar status del incidente según decisión
-      if (selectedSolicitud.incidente_id) {
-        const nuevoStatus = aprobado ? "Bodega pedido" : "En diagnostico";
-        await supabase
-          .from("incidentes")
-          .update({ status: nuevoStatus })
-          .eq("id", selectedSolicitud.incidente_id);
+      // Determinar nuevo status según tipo y decisión
+      type StatusType = "Bodega pedido" | "NC Autorizada" | "En diagnostico";
+      let nuevoStatus: StatusType;
+      if (aprobado) {
+        // Si es nota de crédito aprobada, va a NC Autorizada
+        if (selectedSolicitud.tipo_cambio === "nota_credito") {
+          nuevoStatus = "NC Autorizada";
+        } else {
+          // Cambio por garantía aprobado va a Bodega pedido
+          nuevoStatus = "Bodega pedido";
+        }
+      } else {
+        // Rechazado vuelve a diagnóstico para reparar
+        nuevoStatus = "En diagnostico";
       }
 
-      toast.success(aprobado ? "Solicitud aprobada - Máquina lista para cambio" : "Solicitud rechazada - Regresa a diagnóstico");
+      // Actualizar status del incidente
+      if (selectedSolicitud.incidente_id) {
+        await supabase
+          .from("incidentes")
+          .update({ 
+            status: nuevoStatus,
+            updated_at: new Date().toISOString()
+          })
+          .eq("id", selectedSolicitud.incidente_id);
+
+        // Marcar notificaciones relacionadas como leídas
+        await supabase
+          .from("notificaciones")
+          .update({ leido: true })
+          .eq("incidente_id", selectedSolicitud.incidente_id)
+          .in("tipo", ["aprobacion_cxg", "aprobacion_nc"]);
+      }
+
+      toast.success(
+        aprobado 
+          ? selectedSolicitud.tipo_cambio === "nota_credito"
+            ? "NC aprobada - Pendiente de emisión"
+            : "Solicitud aprobada - Máquina lista para cambio"
+          : "Solicitud rechazada - Regresa a diagnóstico para reparar"
+      );
       setIsDialogOpen(false);
       fetchSolicitudes();
     } catch (error: any) {

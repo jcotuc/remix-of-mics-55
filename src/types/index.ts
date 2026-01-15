@@ -46,6 +46,8 @@ export type StatusIncidente =
   | "Pendiente entrega"
   | "Logistica envio"
   | "Pendiente de aprobación NC"
+  | "NC Autorizada"
+  | "NC Emitida"
   | "Entregado";
 
 export type CategoriaProducto = 

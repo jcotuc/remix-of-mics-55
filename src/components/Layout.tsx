@@ -1,5 +1,6 @@
 import { SidebarProvider, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import { AppSidebar } from "./AppSidebar";
+import { NotificationBadge } from "./NotificationBadge";
 import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -51,6 +52,11 @@ function LayoutContent({ children }: LayoutProps) {
               Centro de Servicio
             </p>
           </div>
+        </div>
+
+        {/* Notificaciones */}
+        <div className="ml-auto text-secondary-foreground">
+          <NotificationBadge />
         </div>
       </header>
       
