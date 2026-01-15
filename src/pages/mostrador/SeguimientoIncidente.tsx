@@ -691,6 +691,7 @@ export default function SeguimientoIncidente() {
                 codigo: incidente.codigo,
                 codigoCliente: incidente.codigo_cliente,
                 nombreCliente: cliente.nombre,
+                telefonoCliente: cliente.celular || cliente.telefono_principal || "",
                 codigoProducto: incidente.codigo_producto,
                 descripcionProducto: producto.descripcion,
                 skuMaquina: incidente.sku_maquina || "",
@@ -701,6 +702,7 @@ export default function SeguimientoIncidente() {
                 personaDejaMaquina: incidente.persona_deja_maquina || "",
                 tipologia: incidente.tipologia || "N/A",
                 esReingreso: incidente.es_reingreso || false,
+                coberturaGarantia: incidente.cobertura_garantia,
               }}
             />
           )}
