@@ -3,9 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Wrench, Clock, Bell } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Wrench, Clock, Bell, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useActiveIncidents } from "@/contexts/ActiveIncidentsContext";
 import type { Database } from "@/integrations/supabase/types";
 
 type IncidenteDB = Database['public']['Tables']['incidentes']['Row'];
@@ -13,6 +15,7 @@ type NotificacionDB = Database['public']['Tables']['notificaciones']['Row'];
 
 export default function MisAsignaciones() {
   const navigate = useNavigate();
+  const { currentAssignments, maxAssignments, canTakeMoreAssignments } = useActiveIncidents();
   const [incidentes, setIncidentes] = useState<IncidenteDB[]>([]);
   const [notificaciones, setNotificaciones] = useState<NotificacionDB[]>([]);
   const [loading, setLoading] = useState(true);
@@ -250,15 +253,37 @@ export default function MisAsignaciones() {
 
   return (
     <div className="container mx-auto py-8 space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold flex items-center gap-2">
-          <Wrench className="h-8 w-8 text-primary" />
-          Mis Asignaciones
-        </h1>
-        <p className="text-muted-foreground mt-2">
-          Máquinas asignadas a ti para diagnóstico
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold flex items-center gap-2">
+            <Wrench className="h-8 w-8 text-primary" />
+            Mis Asignaciones
+          </h1>
+          <p className="text-muted-foreground mt-2">
+            Máquinas asignadas a ti para diagnóstico
+          </p>
+        </div>
+        <Badge 
+          variant="outline" 
+          className={`text-lg px-4 py-2 ${
+            !canTakeMoreAssignments 
+              ? "bg-red-100 text-red-700 border-red-300" 
+              : "bg-primary/10 text-primary border-primary/30"
+          }`}
+        >
+          {currentAssignments} / {maxAssignments}
+        </Badge>
       </div>
+
+      {/* Alerta de límite alcanzado */}
+      {!canTakeMoreAssignments && (
+        <Alert variant="destructive" className="border-red-300 bg-red-50">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>
+            Has alcanzado el límite de {maxAssignments} asignaciones. Completa un diagnóstico para tomar más máquinas.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Notificaciones */}
       {notificaciones.length > 0 && (
@@ -366,12 +391,17 @@ export default function MisAsignaciones() {
 
       {/* Métricas */}
       <div className="grid gap-4 md:grid-cols-5">
-        <Card>
+        <Card className={!canTakeMoreAssignments ? "border-red-300 bg-red-50" : "border-primary/30 bg-primary/5"}>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium">Total Asignadas</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-primary">{totalAsignadas}</div>
+            <div className="flex items-baseline gap-1">
+              <span className={`text-3xl font-bold ${!canTakeMoreAssignments ? "text-red-600" : "text-primary"}`}>
+                {currentAssignments}
+              </span>
+              <span className="text-lg text-muted-foreground">/ {maxAssignments}</span>
+            </div>
           </CardContent>
         </Card>
 

@@ -2928,6 +2928,10 @@ export type Database = {
           ubicacion: string
         }[]
       }
+      contar_asignaciones_tecnico: {
+        Args: { tecnico_id: string }
+        Returns: number
+      }
       generar_codigo_hpc: { Args: never; Returns: string }
       generar_codigo_incidente: { Args: never; Returns: string }
       generar_numero_guia: { Args: never; Returns: string }
