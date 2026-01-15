@@ -1115,7 +1115,9 @@ export default function DiagnosticoInicial() {
         | "Bodega pedido"
         | "Rechazado"
         | "Pendiente entrega"
-        | "Logistica envio";
+        | "Logistica envio"
+        | "NC Autorizada"
+        | "NC Emitida";
       let nuevoStatus: StatusIncidente = "Reparado";
 
       // Determinar el siguiente status basado en el tipo de resolución
@@ -1141,6 +1143,59 @@ export default function DiagnosticoInicial() {
       }
       const { error: incidenteError } = await supabase.from("incidentes").update(updateData).eq("id", id);
       if (incidenteError) throw incidenteError;
+
+      // Si es Nota de Crédito, crear solicitud de cambio para aprobación
+      if (tipoResolucion === "Nota de Crédito") {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("nombre, apellido, centro_servicio_id")
+            .eq("user_id", user.id)
+            .maybeSingle();
+
+          const tecnicoNombre = profile ? `${profile.nombre} ${profile.apellido}` : user.email || "Técnico";
+
+          // Crear solicitud de cambio
+          const { data: solicitud } = await supabase
+            .from("solicitudes_cambio")
+            .insert({
+              incidente_id: id,
+              tipo_cambio: "nota_credito",
+              justificacion: `Solicitud de Nota de Crédito. Fallas: ${fallas.join(", ")}. Causas: ${causas.join(", ")}.`,
+              tecnico_solicitante: tecnicoNombre,
+              estado: "pendiente",
+              fotos_urls: [],
+            })
+            .select()
+            .single();
+
+          // Obtener supervisores y crear notificaciones
+          const centroId = incidente?.centro_servicio || profile?.centro_servicio_id;
+          if (centroId && solicitud) {
+            const { data: supervisores } = await supabase
+              .from("centros_supervisor")
+              .select("supervisor_id")
+              .eq("centro_servicio_id", centroId);
+
+            if (supervisores && supervisores.length > 0) {
+              const notificaciones = supervisores.map(s => ({
+                user_id: s.supervisor_id,
+                tipo: "aprobacion_nc",
+                mensaje: `Nueva solicitud de Nota de Crédito - Incidente ${incidente?.codigo}`,
+                incidente_id: id,
+                metadata: { 
+                  solicitud_id: solicitud.id, 
+                  tipo_cambio: "nota_credito"
+                }
+              }));
+
+              await supabase.from("notificaciones").insert(notificaciones);
+            }
+          }
+        }
+      }
+
       toast.success("Diagnóstico finalizado exitosamente");
       setShowTipoTrabajoDialog(false);
       navigate("/taller/mis-asignaciones");
@@ -1312,6 +1367,55 @@ export default function DiagnosticoInicial() {
                       Vigente
                     </Badge>
                   )}
+                </div>
+              )}
+
+              {/* Alerta de producto descontinuado */}
+              {productoInfo?.descontinuado && (
+                <div className="p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5" />
+                    <div>
+                      <p className="font-medium text-amber-800 dark:text-amber-300">Producto Descontinuado</p>
+                      <p className="text-sm text-amber-700 dark:text-amber-400 mt-1">
+                        Este producto está descontinuado. Puedes intentar repararlo, pero si no hay repuestos disponibles, 
+                        deberás optar por un Canje o Porcentaje.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Alerta de Stock Cemaco */}
+              {incidente?.es_stock_cemaco && (
+                <div className="p-4 bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800 rounded-lg">
+                  <div className="flex items-start gap-3">
+                    <Package className="h-5 w-5 text-purple-600 mt-0.5" />
+                    <div>
+                      <p className="font-medium text-purple-800 dark:text-purple-300">Stock Cemaco</p>
+                      <p className="text-sm text-purple-700 dark:text-purple-400 mt-1">
+                        Este incidente es de Stock Cemaco. Después del diagnóstico podrás indicar si aplica Nota de Crédito o no.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Alerta de Reincidencia */}
+              {incidente?.es_reingreso && (
+                <div className="p-4 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg">
+                  <div className="flex items-start gap-3">
+                    <Undo2 className="h-5 w-5 text-red-600 mt-0.5" />
+                    <div>
+                      <p className="font-medium text-red-800 dark:text-red-300">Reincidencia</p>
+                      <p className="text-sm text-red-700 dark:text-red-400 mt-1">
+                        Este incidente está marcado como reincidencia.
+                        {incidente?.incidente_reingreso_de && (
+                          <span className="ml-1">Incidente anterior: <strong>{incidente.incidente_reingreso_de}</strong></span>
+                        )}
+                      </p>
+                    </div>
+                  </div>
                 </div>
               )}
 

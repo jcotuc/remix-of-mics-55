@@ -22,6 +22,8 @@ const statusConfig: Record<StatusIncidente, { bg: string; text: string; border?:
   "Pendiente entrega": { bg: "bg-cyan-200", text: "text-cyan-900", border: "border-cyan-400" },
   "Logistica envio": { bg: "bg-fuchsia-200", text: "text-fuchsia-900", border: "border-fuchsia-400" },
   "Pendiente de aprobación NC": { bg: "bg-rose-200", text: "text-rose-900", border: "border-rose-400" },
+  "NC Autorizada": { bg: "bg-lime-200", text: "text-lime-900", border: "border-lime-400" },
+  "NC Emitida": { bg: "bg-green-200", text: "text-green-900", border: "border-green-400" },
   "Entregado": { bg: "bg-green-300", text: "text-green-900", border: "border-green-500" },
 };
 

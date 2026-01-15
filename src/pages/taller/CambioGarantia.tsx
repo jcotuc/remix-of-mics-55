@@ -192,7 +192,61 @@ export default function CambioGarantia() {
   const handleConfirmarCambio = async (codigoProducto: string) => {
     setSaving(true);
     try {
-      // Actualizar incidente con el producto para cambio
+      // Obtener usuario y perfil
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Usuario no autenticado");
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("nombre, apellido, centro_servicio_id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      const tecnicoNombre = profile ? `${profile.nombre} ${profile.apellido}` : user.email || "Técnico";
+
+      // Crear solicitud de cambio para aprobación
+      const { data: solicitud, error: solicitudError } = await supabase
+        .from("solicitudes_cambio")
+        .insert({
+          incidente_id: id,
+          tipo_cambio: "cambio_garantia",
+          justificacion: `Cambio por garantía solicitado. Producto: ${codigoProducto}${codigoProducto !== productoOriginal?.codigo ? ` (alternativo a ${productoOriginal?.codigo})` : ""}`,
+          tecnico_solicitante: tecnicoNombre,
+          estado: "pendiente",
+          fotos_urls: [],
+        })
+        .select()
+        .single();
+
+      if (solicitudError) throw solicitudError;
+
+      // Obtener supervisores asignados al centro de servicio
+      const centroId = incidente?.centro_servicio || profile?.centro_servicio_id;
+      if (centroId) {
+        const { data: supervisores } = await supabase
+          .from("centros_supervisor")
+          .select("supervisor_id")
+          .eq("centro_servicio_id", centroId);
+
+        // Crear notificación para cada supervisor
+        if (supervisores && supervisores.length > 0) {
+          const notificaciones = supervisores.map(s => ({
+            user_id: s.supervisor_id,
+            tipo: "aprobacion_cxg",
+            mensaje: `Nueva solicitud de Cambio por Garantía - Incidente ${incidente?.codigo}`,
+            incidente_id: id,
+            metadata: { 
+              solicitud_id: solicitud.id, 
+              tipo_cambio: "cambio_garantia",
+              producto: codigoProducto 
+            }
+          }));
+
+          await supabase.from("notificaciones").insert(notificaciones);
+        }
+      }
+
+      // Actualizar incidente a estado pendiente de aprobación
       const { error } = await supabase
         .from("incidentes")
         .update({
@@ -204,7 +258,7 @@ export default function CambioGarantia() {
 
       if (error) throw error;
 
-      toast.success("Cambio por garantía confirmado");
+      toast.success("Solicitud de cambio por garantía enviada para aprobación");
       navigate("/taller/mis-asignaciones");
 
     } catch (error) {

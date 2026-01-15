@@ -1157,6 +1157,7 @@ export type Database = {
           fecha_ingreso: string
           garantia_manual_id: string | null
           id: string
+          incidente_reingreso_de: string | null
           ingresado_en_mostrador: boolean | null
           log_observaciones: string | null
           observaciones_recepcion: string | null
@@ -1193,6 +1194,7 @@ export type Database = {
           fecha_ingreso?: string
           garantia_manual_id?: string | null
           id?: string
+          incidente_reingreso_de?: string | null
           ingresado_en_mostrador?: boolean | null
           log_observaciones?: string | null
           observaciones_recepcion?: string | null
@@ -1229,6 +1231,7 @@ export type Database = {
           fecha_ingreso?: string
           garantia_manual_id?: string | null
           id?: string
+          incidente_reingreso_de?: string | null
           ingresado_en_mostrador?: boolean | null
           log_observaciones?: string | null
           observaciones_recepcion?: string | null
@@ -1284,6 +1287,13 @@ export type Database = {
             columns: ["garantia_manual_id"]
             isOneToOne: false
             referencedRelation: "garantias_manuales"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "incidentes_incidente_reingreso_de_fkey"
+            columns: ["incidente_reingreso_de"]
+            isOneToOne: false
+            referencedRelation: "incidentes"
             referencedColumns: ["id"]
           },
         ]
@@ -1842,6 +1852,59 @@ export type Database = {
             columns: ["permiso_id"]
             isOneToOne: false
             referencedRelation: "permisos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      presupuestos: {
+        Row: {
+          aprobado_por: string | null
+          created_at: string | null
+          created_by: string | null
+          estado: string | null
+          fecha_aprobacion: string | null
+          id: string
+          incidente_id: string
+          mano_obra: number | null
+          notas: string | null
+          repuestos: Json | null
+          total: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          aprobado_por?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          estado?: string | null
+          fecha_aprobacion?: string | null
+          id?: string
+          incidente_id: string
+          mano_obra?: number | null
+          notas?: string | null
+          repuestos?: Json | null
+          total?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          aprobado_por?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          estado?: string | null
+          fecha_aprobacion?: string | null
+          id?: string
+          incidente_id?: string
+          mano_obra?: number | null
+          notas?: string | null
+          repuestos?: Json | null
+          total?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "presupuestos_incidente_id_fkey"
+            columns: ["incidente_id"]
+            isOneToOne: false
+            referencedRelation: "incidentes"
             referencedColumns: ["id"]
           },
         ]
@@ -2922,6 +2985,8 @@ export type Database = {
         | "Logistica envio"
         | "Pendiente de aprobación NC"
         | "Entregado"
+        | "NC Autorizada"
+        | "NC Emitida"
       tipo_movimiento_inventario:
         | "entrada"
         | "salida"
@@ -3100,6 +3165,8 @@ export const Constants = {
         "Logistica envio",
         "Pendiente de aprobación NC",
         "Entregado",
+        "NC Autorizada",
+        "NC Emitida",
       ],
       tipo_movimiento_inventario: [
         "entrada",
