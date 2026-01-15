@@ -59,7 +59,7 @@ export function GuiaHPCLabel({ guia }: GuiaHPCLabelProps) {
   const horaFormateada = format(fechaGuia, "HH:mm", { locale: es });
 
   return (
-    <div className="guia-label bg-white border-2 border-black p-4 font-mono text-sm max-w-md mx-auto print:border-black print:max-w-none">
+    <div className="print-sheet guia-label bg-white border-2 border-black p-4 font-mono text-sm max-w-md mx-auto print:border-black print:max-w-none">
       {/* Header con logo y número de guía */}
       <div className="flex items-center justify-between border-b-2 border-black pb-3 mb-3">
         <div className="flex items-center gap-2">

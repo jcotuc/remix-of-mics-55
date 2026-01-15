@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
@@ -30,6 +30,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { HistorialConObservaciones } from "@/components/HistorialConObservaciones";
 import { CompactPhotoGallery } from "@/components/CompactPhotoGallery";
 import { GuiaHPCLabel } from "@/components/GuiaHPCLabel";
+import IncidentePrintSheet from "@/components/IncidentePrintSheet";
 import {
   Dialog,
   DialogContent,
@@ -68,6 +69,9 @@ export default function SeguimientoIncidente() {
   const [isEditingProductCode, setIsEditingProductCode] = useState(false);
   const [editedProductCode, setEditedProductCode] = useState("");
   const [guiaSeleccionada, setGuiaSeleccionada] = useState<GuiaEnvio | null>(null);
+  const [showPrintPreview, setShowPrintPreview] = useState(false);
+  const printRef = useRef<HTMLDivElement>(null);
+  
   useEffect(() => {
     fetchData();
   }, [id]);
@@ -213,7 +217,11 @@ export default function SeguimientoIncidente() {
       });
     }
   };
-  const handlePrint = () => {
+  const handlePrintIngreso = () => {
+    setShowPrintPreview(true);
+  };
+
+  const handlePrintFromPreview = () => {
     window.print();
   };
   return (
@@ -238,9 +246,9 @@ export default function SeguimientoIncidente() {
             </p>
           </div>
         </div>
-        <Button onClick={handlePrint} variant="outline" size="sm">
+        <Button onClick={handlePrintIngreso} variant="outline" size="sm">
           <Printer className="w-4 h-4 mr-2" />
-          Imprimir
+          Imprimir Hoja de Ingreso
         </Button>
       </div>
 
@@ -661,6 +669,47 @@ export default function SeguimientoIncidente() {
               Cerrar
             </Button>
             <Button onClick={() => window.print()}>
+              <Printer className="w-4 h-4 mr-2" />
+              Imprimir
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog para imprimir hoja de ingreso */}
+      <Dialog open={showPrintPreview} onOpenChange={setShowPrintPreview}>
+        <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto print:max-w-full print:border-none print:shadow-none print:max-h-none print:overflow-visible">
+          <DialogHeader className="print:hidden">
+            <DialogTitle>Hoja de Ingreso</DialogTitle>
+            <DialogDescription>Vista previa del documento para impresión</DialogDescription>
+          </DialogHeader>
+
+          {incidente && cliente && producto && (
+            <IncidentePrintSheet
+              ref={printRef}
+              data={{
+                codigo: incidente.codigo,
+                codigoCliente: incidente.codigo_cliente,
+                nombreCliente: cliente.nombre,
+                codigoProducto: incidente.codigo_producto,
+                descripcionProducto: producto.descripcion,
+                skuMaquina: incidente.sku_maquina || "",
+                descripcionProblema: incidente.descripcion_problema,
+                accesorios: incidente.accesorios || "",
+                fechaIngreso: new Date(incidente.fecha_ingreso),
+                centroServicio: incidente.centro_servicio || "Centro de Servicio HPC",
+                personaDejaMaquina: incidente.persona_deja_maquina || "",
+                tipologia: incidente.tipologia || "N/A",
+                esReingreso: incidente.es_reingreso || false,
+              }}
+            />
+          )}
+
+          <DialogFooter className="print:hidden">
+            <Button variant="outline" onClick={() => setShowPrintPreview(false)}>
+              Cerrar
+            </Button>
+            <Button onClick={handlePrintFromPreview}>
               <Printer className="w-4 h-4 mr-2" />
               Imprimir
             </Button>
