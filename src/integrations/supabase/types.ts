@@ -944,6 +944,7 @@ export type Database = {
           destinatario: string
           direccion_destinatario: string
           direccion_remitente: string | null
+          empacador: string | null
           estado: string
           fecha_entrega: string | null
           fecha_guia: string
@@ -959,6 +960,7 @@ export type Database = {
           referencia_2: string | null
           remitente: string
           tarifa: number | null
+          telefono_destinatario: string | null
           updated_at: string
         }
         Insert: {
@@ -969,6 +971,7 @@ export type Database = {
           destinatario: string
           direccion_destinatario: string
           direccion_remitente?: string | null
+          empacador?: string | null
           estado?: string
           fecha_entrega?: string | null
           fecha_guia?: string
@@ -984,6 +987,7 @@ export type Database = {
           referencia_2?: string | null
           remitente?: string
           tarifa?: number | null
+          telefono_destinatario?: string | null
           updated_at?: string
         }
         Update: {
@@ -994,6 +998,7 @@ export type Database = {
           destinatario?: string
           direccion_destinatario?: string
           direccion_remitente?: string | null
+          empacador?: string | null
           estado?: string
           fecha_entrega?: string | null
           fecha_guia?: string
@@ -1009,6 +1014,7 @@ export type Database = {
           referencia_2?: string | null
           remitente?: string
           tarifa?: number | null
+          telefono_destinatario?: string | null
           updated_at?: string
         }
         Relationships: []

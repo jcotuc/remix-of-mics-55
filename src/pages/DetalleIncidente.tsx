@@ -18,6 +18,8 @@ import {
   Mail,
   History,
   Box,
+  Eye,
+  Printer,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -36,6 +38,7 @@ import { DiagnosticoTecnico } from "@/components/DiagnosticoTecnico";
 import { IncidentTimeline } from "@/components/IncidentTimeline";
 import { ObservacionesLog } from "@/components/ObservacionesLog";
 import { CompactPhotoGallery } from "@/components/CompactPhotoGallery";
+import { GuiaHPCLabel } from "@/components/GuiaHPCLabel";
 import { incidentes, clientes, productos, tecnicos } from "@/data/mockData";
 import { Incidente } from "@/types";
 import { supabase } from "@/integrations/supabase/client";
@@ -62,6 +65,9 @@ export default function DetalleIncidente() {
   // Estado para editar código de producto
   const [isEditingProductCode, setIsEditingProductCode] = useState(false);
   const [editedProductCode, setEditedProductCode] = useState("");
+  
+  // Estado para visualizar etiqueta de guía
+  const [guiaSeleccionada, setGuiaSeleccionada] = useState<any>(null);
 
   useEffect(() => {
     if (id) {
@@ -365,14 +371,31 @@ export default function DetalleIncidente() {
                       </h4>
                       <div className="space-y-2">
                         {guiasEnvio.map((guia) => (
-                          <div key={guia.id} className="bg-muted/50 p-3 rounded-lg flex items-center justify-between">
-                            <div>
-                              <span className="font-medium text-sm">{guia.numero_guia}</span>
-                              <p className="text-xs text-muted-foreground">
-                                {guia.destinatario} - {guia.ciudad_destino}
-                              </p>
+                          <div key={guia.id} className="bg-muted/50 p-3 rounded-lg">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <span className="font-mono font-medium text-sm">{guia.numero_guia}</span>
+                                <p className="text-xs text-muted-foreground">
+                                  {guia.destinatario}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {guia.ciudad_destino}
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Button 
+                                  size="sm" 
+                                  variant="outline"
+                                  onClick={() => setGuiaSeleccionada(guia)}
+                                >
+                                  <Eye className="w-3 h-3 mr-1" />
+                                  Ver Etiqueta
+                                </Button>
+                                <Badge variant={guia.estado === "entregado" ? "default" : "secondary"}>
+                                  {guia.estado}
+                                </Badge>
+                              </div>
                             </div>
-                            <Badge variant={guia.estado === "entregado" ? "default" : "secondary"}>{guia.estado}</Badge>
                           </div>
                         ))}
                       </div>
@@ -599,6 +622,32 @@ export default function DetalleIncidente() {
             <Button onClick={handleSaveProductCode}>
               <Save className="w-4 h-4 mr-2" />
               Guardar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog para ver etiqueta de guía */}
+      <Dialog open={guiaSeleccionada !== null} onOpenChange={() => setGuiaSeleccionada(null)}>
+        <DialogContent className="sm:max-w-md print:max-w-full print:border-none print:shadow-none">
+          <DialogHeader className="print:hidden">
+            <DialogTitle>Etiqueta de Guía</DialogTitle>
+            <DialogDescription>Vista previa de la etiqueta para impresión</DialogDescription>
+          </DialogHeader>
+
+          {guiaSeleccionada && (
+            <div className="print-content">
+              <GuiaHPCLabel guia={guiaSeleccionada} />
+            </div>
+          )}
+
+          <DialogFooter className="print:hidden">
+            <Button variant="outline" onClick={() => setGuiaSeleccionada(null)}>
+              Cerrar
+            </Button>
+            <Button onClick={() => window.print()}>
+              <Printer className="w-4 h-4 mr-2" />
+              Imprimir
             </Button>
           </DialogFooter>
         </DialogContent>
