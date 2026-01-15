@@ -8,12 +8,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { WhatsAppStyleMediaCapture, MediaFile } from "@/components/WhatsAppStyleMediaCapture";
 import { uploadMediaToStorage } from "@/lib/uploadMedia";
-import { Wrench, Store, CheckCircle2, XCircle, Plus, Eye, EyeOff, Settings2 } from "lucide-react";
+import { Wrench, Store, CheckCircle2, XCircle, Plus, Eye, EyeOff, Settings2, AlertTriangle } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useActiveIncidents, MAX_ASSIGNMENTS } from "@/contexts/ActiveIncidentsContext";
 import type { Database } from "@/integrations/supabase/types";
 type IncidenteDB = Database['public']['Tables']['incidentes']['Row'];
 type IncidenteConProducto = IncidenteDB & {
@@ -71,6 +73,7 @@ const COLORES_BADGE: Record<string, string> = {
 };
 export default function Asignaciones() {
   const navigate = useNavigate();
+  const { currentAssignments, maxAssignments, canTakeMoreAssignments, refreshIncidents } = useActiveIncidents();
   const [incidentes, setIncidentes] = useState<IncidenteConProducto[]>([]);
   const [familias, setFamilias] = useState<FamiliaDB[]>([]);
   const [grupos, setGrupos] = useState<GrupoColaFifo[]>([]);
@@ -265,6 +268,13 @@ export default function Asignaciones() {
       toast.error('Solo puedes asignar el primer incidente de la fila (FIFO)');
       return;
     }
+
+    // Verificar límite de asignaciones
+    if (!canTakeMoreAssignments) {
+      toast.error(`Ya tienes ${maxAssignments} máquinas asignadas. Completa un diagnóstico antes de tomar otra.`);
+      return;
+    }
+
     try {
       const {
         data: {
@@ -275,6 +285,19 @@ export default function Asignaciones() {
         toast.error('No se pudo obtener el usuario actual');
         return;
       }
+
+      // Doble verificación en base de datos usando la función
+      const { data: countData, error: countError } = await supabase
+        .rpc('contar_asignaciones_tecnico', { tecnico_id: user.id });
+      
+      if (countError) {
+        console.error('Error al verificar asignaciones:', countError);
+      } else if (countData >= MAX_ASSIGNMENTS) {
+        toast.error(`Ya tienes ${MAX_ASSIGNMENTS} máquinas asignadas. Completa un diagnóstico antes de tomar otra.`);
+        refreshIncidents();
+        return;
+      }
+
       const {
         data: profile
       } = await supabase.from('profiles').select('codigo_empleado, nombre, apellido, email').eq('user_id', user.id).maybeSingle();
@@ -311,6 +334,7 @@ export default function Asignaciones() {
       });
 
       toast.success('Incidente asignado');
+      refreshIncidents();
       navigate(`/taller/diagnostico/${incidenteId}`);
     } catch (error) {
       console.error('Error:', error);
@@ -488,8 +512,32 @@ export default function Asignaciones() {
         
       </div>
 
+      {/* Alerta de límite de asignaciones */}
+      {!canTakeMoreAssignments && (
+        <Alert variant="destructive" className="border-red-300 bg-red-50">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription className="font-medium">
+            Has alcanzado el límite de {maxAssignments} asignaciones simultáneas. 
+            Completa un diagnóstico antes de tomar otra máquina.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Dashboard de métricas */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <Card className={!canTakeMoreAssignments ? "border-red-300 bg-red-50" : "border-primary/30 bg-primary/5"}>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-muted-foreground">Mis Asignaciones</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-baseline gap-1">
+              <p className={`text-2xl font-bold ${!canTakeMoreAssignments ? "text-red-600" : "text-primary"}`}>
+                {currentAssignments}
+              </p>
+              <span className="text-lg text-muted-foreground">/ {maxAssignments}</span>
+            </div>
+          </CardContent>
+        </Card>
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm text-muted-foreground">Pendientes</CardTitle>
