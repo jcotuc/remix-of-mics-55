@@ -197,7 +197,9 @@
   }
 
   .print-sheet,
-  .print-sheet * {
+  .print-sheet *,
+  .print-content,
+  .print-content * {
     visibility: visible !important;
   }
 
