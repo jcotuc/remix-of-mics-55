@@ -19,6 +19,7 @@ import {
   Box,
   Clock,
   History,
+  Eye,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -28,6 +29,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { StatusBadge } from "@/components/StatusBadge";
 import { HistorialConObservaciones } from "@/components/HistorialConObservaciones";
 import { CompactPhotoGallery } from "@/components/CompactPhotoGallery";
+import { GuiaHPCLabel } from "@/components/GuiaHPCLabel";
 import {
   Dialog,
   DialogContent,
@@ -42,12 +44,15 @@ import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import type { Database } from "@/integrations/supabase/types";
+
 type IncidenteDB = Database["public"]["Tables"]["incidentes"]["Row"];
 type ClienteDB = Database["public"]["Tables"]["clientes"]["Row"];
 type ProductoDB = Database["public"]["Tables"]["productos"]["Row"];
 type TecnicoDB = Database["public"]["Tables"]["tecnicos"]["Row"];
 type DiagnosticoDB = Database["public"]["Tables"]["diagnosticos"]["Row"];
 type DireccionEnvio = Database["public"]["Tables"]["direcciones_envio"]["Row"];
+type GuiaEnvio = Database["public"]["Tables"]["guias_envio"]["Row"];
+
 export default function SeguimientoIncidente() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -57,10 +62,12 @@ export default function SeguimientoIncidente() {
   const [tecnico, setTecnico] = useState<TecnicoDB | null>(null);
   const [diagnostico, setDiagnostico] = useState<DiagnosticoDB | null>(null);
   const [direccionEnvio, setDireccionEnvio] = useState<DireccionEnvio | null>(null);
+  const [guiasEnvio, setGuiasEnvio] = useState<GuiaEnvio[]>([]);
   const [clienteHistorial, setClienteHistorial] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [isEditingProductCode, setIsEditingProductCode] = useState(false);
   const [editedProductCode, setEditedProductCode] = useState("");
+  const [guiaSeleccionada, setGuiaSeleccionada] = useState<GuiaEnvio | null>(null);
   useEffect(() => {
     fetchData();
   }, [id]);
@@ -124,6 +131,14 @@ export default function SeguimientoIncidente() {
           .maybeSingle();
         setDireccionEnvio(dirData);
       }
+
+      // Fetch guías de envío asociadas al incidente
+      const { data: guiasData } = await supabase
+        .from("guias_envio")
+        .select("*")
+        .contains("incidentes_codigos", [incData.codigo])
+        .order("fecha_guia", { ascending: false });
+      setGuiasEnvio(guiasData || []);
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
@@ -545,6 +560,45 @@ export default function SeguimientoIncidente() {
               </CardContent>
             </Card>
           )}
+
+          {/* Guías de Envío */}
+          {guiasEnvio.length > 0 && (
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Truck className="w-4 h-4" />
+                  Guías ({guiasEnvio.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0 space-y-2">
+                {guiasEnvio.map((guia) => (
+                  <div key={guia.id} className="bg-muted/50 p-3 rounded-lg">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-mono text-xs font-medium">{guia.numero_guia}</span>
+                          <Badge variant={guia.estado === "entregado" ? "default" : "secondary"} className="text-[10px]">
+                            {guia.estado}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground truncate mt-1">
+                          {guia.ciudad_destino}
+                        </p>
+                      </div>
+                      <Button 
+                        size="sm" 
+                        variant="ghost"
+                        className="h-7 w-7 p-0 shrink-0"
+                        onClick={() => setGuiaSeleccionada(guia)}
+                      >
+                        <Eye className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
 
@@ -583,6 +637,32 @@ export default function SeguimientoIncidente() {
             <Button onClick={handleSaveProductCode}>
               <Save className="w-4 h-4 mr-2" />
               Guardar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog para ver etiqueta de guía */}
+      <Dialog open={guiaSeleccionada !== null} onOpenChange={() => setGuiaSeleccionada(null)}>
+        <DialogContent className="sm:max-w-md print:max-w-full print:border-none print:shadow-none">
+          <DialogHeader className="print:hidden">
+            <DialogTitle>Etiqueta de Guía</DialogTitle>
+            <DialogDescription>Vista previa de la etiqueta para impresión</DialogDescription>
+          </DialogHeader>
+
+          {guiaSeleccionada && (
+            <div className="print-content">
+              <GuiaHPCLabel guia={guiaSeleccionada} />
+            </div>
+          )}
+
+          <DialogFooter className="print:hidden">
+            <Button variant="outline" onClick={() => setGuiaSeleccionada(null)}>
+              Cerrar
+            </Button>
+            <Button onClick={() => window.print()}>
+              <Printer className="w-4 h-4 mr-2" />
+              Imprimir
             </Button>
           </DialogFooter>
         </DialogContent>
