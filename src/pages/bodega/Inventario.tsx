@@ -155,17 +155,22 @@ export default function Inventario() {
     }
   };
 
-  // Fetch inventory when filters change
+  // Fetch inventory and stats when filters change
   useEffect(() => {
     fetchInventario();
+    fetchStats();
+    fetchStockAlerts();
   }, [currentPage, itemsPerPage, debouncedSearch, filterStockBajo, filterCentroId]);
 
   const fetchStats = async () => {
     try {
+      // Use the selected centro or null for all
+      const centroId = filterCentroId && filterCentroId !== "todos" ? filterCentroId : null;
+      
       // Use the optimized database function for totals
       const { data: totalesData, error: totalesError } = await supabase
         .rpc("inventario_totales", { 
-          p_centro_servicio_id: null, 
+          p_centro_servicio_id: centroId, 
           p_search: "" 
         });
 
@@ -175,18 +180,31 @@ export default function Inventario() {
 
       const totales = totalesData?.[0] || { skus: 0, unidades: 0, valor: 0 };
 
-      // Get stock bajo count (lightweight query with head:true)
-      const { count: stockBajo } = await supabase
+      // Get stock bajo count with centro filter
+      let stockBajoQuery = supabase
         .from("inventario")
         .select("id", { count: "exact", head: true })
         .lte("cantidad", 5);
+      
+      if (centroId) {
+        stockBajoQuery = stockBajoQuery.eq("centro_servicio_id", centroId);
+      }
+      
+      const { count: stockBajo } = await stockBajoQuery;
 
       // Get movimientos hoy (lightweight query)
       const today = startOfDay(new Date()).toISOString();
-      const { count: movimientosHoy } = await supabase
+      // Get movimientos hoy with centro filter
+      let movQuery = supabase
         .from("movimientos_inventario")
         .select("id", { count: "exact", head: true })
         .gte("created_at", today);
+      
+      if (centroId) {
+        movQuery = movQuery.eq("centro_servicio_id", centroId);
+      }
+      
+      const { count: movimientosHoy } = await movQuery;
 
       setStats({
         totalItems: Number(totales.skus) || 0,
