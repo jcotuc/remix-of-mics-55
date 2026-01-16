@@ -538,6 +538,53 @@ export type Database = {
           },
         ]
       }
+      conteos_programados: {
+        Row: {
+          activo: boolean | null
+          centro_servicio_id: string
+          clasificacion_abc: string | null
+          created_at: string | null
+          created_by: string | null
+          frecuencia: string | null
+          id: string
+          proximo_conteo: string | null
+          ubicacion: string
+          updated_at: string | null
+        }
+        Insert: {
+          activo?: boolean | null
+          centro_servicio_id: string
+          clasificacion_abc?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          frecuencia?: string | null
+          id?: string
+          proximo_conteo?: string | null
+          ubicacion: string
+          updated_at?: string | null
+        }
+        Update: {
+          activo?: boolean | null
+          centro_servicio_id?: string
+          clasificacion_abc?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          frecuencia?: string | null
+          id?: string
+          proximo_conteo?: string | null
+          ubicacion?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conteos_programados_centro_servicio_id_fkey"
+            columns: ["centro_servicio_id"]
+            isOneToOne: false
+            referencedRelation: "centros_servicio"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cotizaciones: {
         Row: {
           cantidad: number
@@ -1407,39 +1454,69 @@ export type Database = {
       }
       inventario_ciclico: {
         Row: {
+          aprobado_por: string | null
+          auxiliar_asignado: string | null
           centro_servicio_id: string
           created_at: string
           estado: string | null
+          fecha_aprobacion: string | null
           fecha_completado: string | null
           fecha_inicio: string
+          fecha_programada: string | null
           id: string
+          items_contados: number | null
           notas: string | null
           numero_conteo: string
           realizado_por: string | null
+          reconteo_id: string | null
+          requiere_reconteo: boolean | null
+          supervisor_asignador: string | null
+          tipo_conteo: string | null
+          total_items: number | null
           ubicacion: string
         }
         Insert: {
+          aprobado_por?: string | null
+          auxiliar_asignado?: string | null
           centro_servicio_id: string
           created_at?: string
           estado?: string | null
+          fecha_aprobacion?: string | null
           fecha_completado?: string | null
           fecha_inicio?: string
+          fecha_programada?: string | null
           id?: string
+          items_contados?: number | null
           notas?: string | null
           numero_conteo: string
           realizado_por?: string | null
+          reconteo_id?: string | null
+          requiere_reconteo?: boolean | null
+          supervisor_asignador?: string | null
+          tipo_conteo?: string | null
+          total_items?: number | null
           ubicacion: string
         }
         Update: {
+          aprobado_por?: string | null
+          auxiliar_asignado?: string | null
           centro_servicio_id?: string
           created_at?: string
           estado?: string | null
+          fecha_aprobacion?: string | null
           fecha_completado?: string | null
           fecha_inicio?: string
+          fecha_programada?: string | null
           id?: string
+          items_contados?: number | null
           notas?: string | null
           numero_conteo?: string
           realizado_por?: string | null
+          reconteo_id?: string | null
+          requiere_reconteo?: boolean | null
+          supervisor_asignador?: string | null
+          tipo_conteo?: string | null
+          total_items?: number | null
           ubicacion?: string
         }
         Relationships: [
@@ -1450,44 +1527,69 @@ export type Database = {
             referencedRelation: "centros_servicio"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "inventario_ciclico_reconteo_id_fkey"
+            columns: ["reconteo_id"]
+            isOneToOne: false
+            referencedRelation: "inventario_ciclico"
+            referencedColumns: ["id"]
+          },
         ]
       }
       inventario_ciclico_detalle: {
         Row: {
           ajustado: boolean | null
+          aprobado: boolean | null
           cantidad_fisica: number | null
           cantidad_sistema: number
           codigo_repuesto: string
+          contado_por: string | null
           created_at: string
           descripcion: string | null
           diferencia: number | null
+          fecha_conteo: string | null
           id: string
           inventario_id: string
+          metodo_conteo: string | null
+          motivo_diferencia: string | null
           notas: string | null
+          requiere_aprobacion: boolean | null
         }
         Insert: {
           ajustado?: boolean | null
+          aprobado?: boolean | null
           cantidad_fisica?: number | null
           cantidad_sistema: number
           codigo_repuesto: string
+          contado_por?: string | null
           created_at?: string
           descripcion?: string | null
           diferencia?: number | null
+          fecha_conteo?: string | null
           id?: string
           inventario_id: string
+          metodo_conteo?: string | null
+          motivo_diferencia?: string | null
           notas?: string | null
+          requiere_aprobacion?: boolean | null
         }
         Update: {
           ajustado?: boolean | null
+          aprobado?: boolean | null
           cantidad_fisica?: number | null
           cantidad_sistema?: number
           codigo_repuesto?: string
+          contado_por?: string | null
           created_at?: string
           descripcion?: string | null
           diferencia?: number | null
+          fecha_conteo?: string | null
           id?: string
           inventario_id?: string
+          metodo_conteo?: string | null
+          motivo_diferencia?: string | null
           notas?: string | null
+          requiere_aprobacion?: boolean | null
         }
         Relationships: [
           {
