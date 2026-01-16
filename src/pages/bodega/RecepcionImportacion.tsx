@@ -160,12 +160,14 @@ export default function RecepcionImportacion() {
           bodega: null
         }));
 
-      // 4. Get available locations (empty or with space)
+      // 4. Get available locations from Zona 5 centro
       const { data: ubicacionesData } = await supabase
         .from("inventario")
-        .select("ubicacion_legacy")
+        .select("ubicacion_legacy, centro_servicio_id, centros_servicio!inner(nombre)")
+        .ilike("centros_servicio.nombre", "%zona 5%")
+        .not("ubicacion_legacy", "is", null)
         .order("ubicacion_legacy")
-        .limit(20);
+        .limit(50);
 
       // Get unique locations
       const ubicacionesSet = new Set<string>();
