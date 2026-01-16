@@ -2214,6 +2214,48 @@ export type Database = {
         }
         Relationships: []
       }
+      repuestos_equivalentes: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: number
+          notas: string | null
+          padre_id_1: number
+          padre_id_2: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: number
+          notas?: string | null
+          padre_id_1: number
+          padre_id_2: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: number
+          notas?: string | null
+          padre_id_1?: number
+          padre_id_2?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_padre_1"
+            columns: ["padre_id_1"]
+            isOneToOne: false
+            referencedRelation: "repuestos_relaciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_padre_2"
+            columns: ["padre_id_2"]
+            isOneToOne: false
+            referencedRelation: "repuestos_relaciones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       repuestos_productos: {
         Row: {
           codigo_producto: string
