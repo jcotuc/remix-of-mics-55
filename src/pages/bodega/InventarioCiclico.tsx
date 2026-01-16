@@ -290,9 +290,9 @@ export default function InventarioCiclico() {
           centro_servicio_id: centroSeleccionado,
           ubicacion: ubicacionNueva,
           numero_conteo: `IC-${Date.now()}`,
-          estado: auxiliarSeleccionado ? "programado" : "en_proceso",
+          estado: (auxiliarSeleccionado && auxiliarSeleccionado !== "__self__") ? "programado" : "en_proceso",
           supervisor_asignador: user?.id,
-          auxiliar_asignado: auxiliarSeleccionado || user?.id,
+          auxiliar_asignado: (auxiliarSeleccionado && auxiliarSeleccionado !== "__self__") ? auxiliarSeleccionado : user?.id,
           fecha_programada: fechaProgramada || new Date().toISOString().split('T')[0],
           tipo_conteo: "primer_conteo",
           total_items: items.length,
@@ -643,7 +643,7 @@ export default function InventarioCiclico() {
                       <SelectValue placeholder="Yo mismo" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Yo mismo</SelectItem>
+                      <SelectItem value="__self__">Yo mismo</SelectItem>
                       {auxiliares.map((a) => (
                         <SelectItem key={a.user_id} value={a.user_id}>
                           {a.nombre} {a.apellido}
