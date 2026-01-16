@@ -128,11 +128,12 @@ export default function RecepcionImportacion() {
         d.sku.toUpperCase().includes(codigoNormalizado)
       );
 
-      // 2. Get current location from inventario
+      // 2. Get current location from inventario (only Zona 5)
       const { data: inventarioData } = await supabase
         .from("inventario")
-        .select("ubicacion_legacy, cantidad, bodega")
+        .select("ubicacion_legacy, cantidad, bodega, centros_servicio!inner(nombre)")
         .eq("codigo_repuesto", codigoNormalizado)
+        .ilike("centros_servicio.nombre", "%zona 5%")
         .limit(1)
         .maybeSingle();
 
