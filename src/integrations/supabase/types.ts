@@ -2750,6 +2750,7 @@ export type Database = {
         Row: {
           activo: boolean | null
           bodega_id: string | null
+          caja: string | null
           codigo: string | null
           created_at: string
           id: number
@@ -2761,6 +2762,7 @@ export type Database = {
         Insert: {
           activo?: boolean | null
           bodega_id?: string | null
+          caja?: string | null
           codigo?: string | null
           created_at?: string
           id?: number
@@ -2772,6 +2774,7 @@ export type Database = {
         Update: {
           activo?: boolean | null
           bodega_id?: string | null
+          caja?: string | null
           codigo?: string | null
           created_at?: string
           id?: number

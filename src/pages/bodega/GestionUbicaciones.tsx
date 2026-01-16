@@ -18,6 +18,7 @@ interface Ubicacion {
   pasillo: string | null;
   rack: string | null;
   nivel: string | null;
+  caja: string | null;
   activo: boolean;
   bodega_id: string;
   bodega_nombre: string;
@@ -49,7 +50,8 @@ export default function GestionUbicaciones() {
     bodegaId: '',
     pasillo: '',
     rack: '',
-    nivel: ''
+    nivel: '',
+    caja: ''
   });
 
   useEffect(() => {
@@ -94,6 +96,7 @@ export default function GestionUbicaciones() {
           pasillo,
           rack,
           nivel,
+          caja,
           activo,
           bodega_id,
           bodega:Bodegas_CDS!inner(
@@ -126,6 +129,7 @@ export default function GestionUbicaciones() {
         pasillo: ub.pasillo,
         rack: ub.rack,
         nivel: ub.nivel,
+        caja: ub.caja,
         activo: ub.activo,
         bodega_id: ub.bodega_id,
         bodega_nombre: ub.bodega?.nombre || 'Sin bodega',
@@ -143,11 +147,15 @@ export default function GestionUbicaciones() {
 
   const handleCrearUbicacion = async () => {
     if (!formData.bodegaId || !formData.pasillo || !formData.rack || !formData.nivel) {
-      toast.error("Complete todos los campos");
+      toast.error("Complete los campos obligatorios (Bodega, Pasillo, Rack, Nivel)");
       return;
     }
 
-    const codigo = `${formData.pasillo}.${formData.rack}.${formData.nivel}`;
+    // Build code with optional caja
+    let codigo = `${formData.pasillo}.${formData.rack}.${formData.nivel}`;
+    if (formData.caja) {
+      codigo += `.${formData.caja}`;
+    }
     
     try {
       // Check if location already exists for this bodega
@@ -155,7 +163,7 @@ export default function GestionUbicaciones() {
         .from('Ubicación_CDS')
         .select('id')
         .eq('bodega_id', formData.bodegaId)
-        .eq('codigo', codigo)
+        .eq('codigo', codigo.toUpperCase())
         .maybeSingle();
 
       if (existing) {
@@ -171,6 +179,7 @@ export default function GestionUbicaciones() {
           pasillo: formData.pasillo.toUpperCase(),
           rack: formData.rack.toUpperCase(),
           nivel: formData.nivel.toUpperCase(),
+          caja: formData.caja ? formData.caja.toUpperCase() : null,
           activo: true
         });
 
@@ -178,12 +187,24 @@ export default function GestionUbicaciones() {
 
       toast.success(`Ubicación ${codigo} creada exitosamente`);
       setDialogOpen(false);
-      setFormData({ bodegaId: '', pasillo: '', rack: '', nivel: '' });
+      setFormData({ bodegaId: '', pasillo: '', rack: '', nivel: '', caja: '' });
       fetchUbicaciones();
     } catch (error) {
       console.error('Error:', error);
       toast.error("Error al crear ubicación");
     }
+  };
+
+  // Build preview code
+  const getPreviewCode = () => {
+    if (!formData.pasillo || !formData.rack || !formData.nivel) {
+      return 'X.XX.XX';
+    }
+    let code = `${formData.pasillo}.${formData.rack}.${formData.nivel}`;
+    if (formData.caja) {
+      code += `.${formData.caja}`;
+    }
+    return code.toUpperCase();
   };
 
   const totalPages = Math.max(1, Math.ceil(totalCount / itemsPerPage));
@@ -212,7 +233,7 @@ export default function GestionUbicaciones() {
             </DialogHeader>
             <div className="space-y-4">
               <div>
-                <Label>Bodega</Label>
+                <Label>Bodega <span className="text-destructive">*</span></Label>
                 <Select value={formData.bodegaId} onValueChange={(v) => setFormData({...formData, bodegaId: v})}>
                   <SelectTrigger>
                     <SelectValue placeholder="Seleccione bodega" />
@@ -226,42 +247,47 @@ export default function GestionUbicaciones() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-4 gap-3">
                 <div>
-                  <Label>Pasillo</Label>
+                  <Label>Pasillo <span className="text-destructive">*</span></Label>
                   <Input
-                    placeholder="A"
+                    placeholder="A01"
                     value={formData.pasillo}
                     onChange={(e) => setFormData({...formData, pasillo: e.target.value.toUpperCase()})}
-                    maxLength={3}
+                    maxLength={4}
                   />
                 </div>
                 <div>
-                  <Label>Rack</Label>
+                  <Label>Rack <span className="text-destructive">*</span></Label>
                   <Input
-                    placeholder="01"
+                    placeholder="001"
                     value={formData.rack}
                     onChange={(e) => setFormData({...formData, rack: e.target.value})}
-                    maxLength={3}
+                    maxLength={4}
                   />
                 </div>
                 <div>
-                  <Label>Nivel</Label>
+                  <Label>Nivel <span className="text-destructive">*</span></Label>
                   <Input
-                    placeholder="01"
+                    placeholder="02"
                     value={formData.nivel}
                     onChange={(e) => setFormData({...formData, nivel: e.target.value})}
-                    maxLength={3}
+                    maxLength={4}
+                  />
+                </div>
+                <div>
+                  <Label>Caja <span className="text-muted-foreground text-xs">(opc.)</span></Label>
+                  <Input
+                    placeholder="15"
+                    value={formData.caja}
+                    onChange={(e) => setFormData({...formData, caja: e.target.value})}
+                    maxLength={4}
                   />
                 </div>
               </div>
               <div className="p-4 bg-muted rounded-lg">
                 <p className="text-sm text-muted-foreground">Vista previa:</p>
-                <p className="text-lg font-bold font-mono">
-                  {formData.pasillo && formData.rack && formData.nivel 
-                    ? `${formData.pasillo}.${formData.rack}.${formData.nivel}`
-                    : 'X.XX.XX'}
-                </p>
+                <p className="text-lg font-bold font-mono">{getPreviewCode()}</p>
               </div>
               <Button onClick={handleCrearUbicacion} className="w-full">
                 Crear Ubicación
@@ -298,7 +324,7 @@ export default function GestionUbicaciones() {
               <div className="relative">
                 <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Ej: A.01.01"
+                  placeholder="Ej: A01.001.02.15"
                   value={searchTerm}
                   onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
                   className="pl-10"
@@ -329,6 +355,7 @@ export default function GestionUbicaciones() {
                     <TableHead>Pasillo</TableHead>
                     <TableHead>Rack</TableHead>
                     <TableHead>Nivel</TableHead>
+                    <TableHead>Caja</TableHead>
                     <TableHead>Bodega</TableHead>
                     <TableHead>Centro de Servicio</TableHead>
                     <TableHead>Estado</TableHead>
@@ -341,6 +368,7 @@ export default function GestionUbicaciones() {
                       <TableCell>{ub.pasillo || '-'}</TableCell>
                       <TableCell>{ub.rack || '-'}</TableCell>
                       <TableCell>{ub.nivel || '-'}</TableCell>
+                      <TableCell>{ub.caja || '-'}</TableCell>
                       <TableCell>
                         <Badge variant="outline">{ub.bodega_nombre}</Badge>
                       </TableCell>
