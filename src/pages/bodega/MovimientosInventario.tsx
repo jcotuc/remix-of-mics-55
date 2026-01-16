@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ArrowDownCircle, ArrowUpCircle, Plus, Trash2, Package, Search, History, AlertTriangle } from "lucide-react";
+import { ArrowDownCircle, ArrowUpCircle, Plus, Trash2, Package, Search, History, AlertTriangle, Warehouse } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -54,12 +54,27 @@ export default function MovimientosInventario() {
   const [referencia, setReferencia] = useState("");
   const [searchRepuesto, setSearchRepuesto] = useState("");
   const [isSearching, setIsSearching] = useState(false);
+  const [bodegaFiltro, setBodegaFiltro] = useState<string>("todas");
   
   const [formItem, setFormItem] = useState({
     codigo_repuesto: '',
     descripcion: '',
     cantidad: 0,
     ubicacion: ''
+  });
+
+  // Obtener bodegas únicas del inventario
+  const { data: bodegasDisponibles = [] } = useQuery({
+    queryKey: ['bodegas-disponibles'],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('inventario')
+        .select('bodega')
+        .not('bodega', 'is', null);
+      if (!data) return [];
+      const bodegas = [...new Set(data.map(d => d.bodega).filter(Boolean))] as string[];
+      return bodegas.sort();
+    },
   });
 
   // Búsqueda de repuestos
@@ -77,15 +92,21 @@ export default function MovimientosInventario() {
     enabled: searchRepuesto.length >= 2 && isSearching,
   });
 
-  // Stock actual del repuesto seleccionado
+  // Stock actual del repuesto seleccionado (filtrado por bodega)
   const { data: stockActual } = useQuery({
-    queryKey: ['stock-repuesto', formItem.codigo_repuesto],
+    queryKey: ['stock-repuesto', formItem.codigo_repuesto, bodegaFiltro],
     queryFn: async () => {
       if (!formItem.codigo_repuesto) return null;
-      const { data } = await supabase
+      let query = supabase
         .from('inventario')
-        .select('cantidad, ubicacion_legacy')
+        .select('cantidad, ubicacion_legacy, bodega')
         .eq('codigo_repuesto', formItem.codigo_repuesto);
+      
+      if (bodegaFiltro && bodegaFiltro !== "todas") {
+        query = query.eq('bodega', bodegaFiltro);
+      }
+      
+      const { data } = await query;
       return data || [];
     },
     enabled: !!formItem.codigo_repuesto,
@@ -208,32 +229,51 @@ export default function MovimientosInventario() {
         </div>
       </div>
 
-      {/* Toggle de tipo */}
-      <div className="flex gap-2">
-        <Button
-          size="lg"
-          variant={tipoActivo === "entrada" ? "default" : "outline"}
-          className={cn(
-            "flex-1 gap-2 transition-all",
-            tipoActivo === "entrada" && "bg-green-600 hover:bg-green-700"
-          )}
-          onClick={() => setTipoActivo("entrada")}
-        >
-          <ArrowDownCircle className="h-5 w-5" />
-          ENTRADA
-        </Button>
-        <Button
-          size="lg"
-          variant={tipoActivo === "salida" ? "default" : "outline"}
-          className={cn(
-            "flex-1 gap-2 transition-all",
-            tipoActivo === "salida" && "bg-red-600 hover:bg-red-700"
-          )}
-          onClick={() => setTipoActivo("salida")}
-        >
-          <ArrowUpCircle className="h-5 w-5" />
-          SALIDA
-        </Button>
+      {/* Filtro de bodega y Toggle de tipo */}
+      <div className="flex flex-col sm:flex-row gap-4">
+        {/* Filtro de Bodega */}
+        <div className="flex items-center gap-2 sm:min-w-[250px]">
+          <Warehouse className="h-5 w-5 text-muted-foreground" />
+          <Select value={bodegaFiltro} onValueChange={setBodegaFiltro}>
+            <SelectTrigger className="flex-1">
+              <SelectValue placeholder="Filtrar por bodega..." />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todas">Todas las bodegas</SelectItem>
+              {bodegasDisponibles.map((bodega) => (
+                <SelectItem key={bodega} value={bodega}>{bodega}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        
+        {/* Toggle de tipo */}
+        <div className="flex gap-2 flex-1">
+          <Button
+            size="lg"
+            variant={tipoActivo === "entrada" ? "default" : "outline"}
+            className={cn(
+              "flex-1 gap-2 transition-all",
+              tipoActivo === "entrada" && "bg-green-600 hover:bg-green-700"
+            )}
+            onClick={() => setTipoActivo("entrada")}
+          >
+            <ArrowDownCircle className="h-5 w-5" />
+            ENTRADA
+          </Button>
+          <Button
+            size="lg"
+            variant={tipoActivo === "salida" ? "default" : "outline"}
+            className={cn(
+              "flex-1 gap-2 transition-all",
+              tipoActivo === "salida" && "bg-red-600 hover:bg-red-700"
+            )}
+            onClick={() => setTipoActivo("salida")}
+          >
+            <ArrowUpCircle className="h-5 w-5" />
+            SALIDA
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
