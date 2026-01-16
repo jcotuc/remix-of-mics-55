@@ -385,11 +385,27 @@ export default function MovimientosInventario() {
               </div>
               <div>
                 <Label>Ubicación</Label>
-                <Input
-                  placeholder="A-01-01"
-                  value={formItem.ubicacion}
-                  onChange={(e) => setFormItem({...formItem, ubicacion: e.target.value})}
-                />
+                {ubicacionesSugeridas.length > 0 ? (
+                  <Select 
+                    value={formItem.ubicacion} 
+                    onValueChange={(value) => setFormItem({...formItem, ubicacion: value})}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Seleccionar ubicación..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ubicacionesSugeridas.map((ub) => (
+                        <SelectItem key={ub} value={ub}>{ub}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Input
+                    placeholder="A-01-01"
+                    value={formItem.ubicacion}
+                    onChange={(e) => setFormItem({...formItem, ubicacion: e.target.value})}
+                  />
+                )}
               </div>
             </div>
 
