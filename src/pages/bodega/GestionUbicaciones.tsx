@@ -41,12 +41,19 @@ interface InventarioItem {
   costo_unitario: number | null;
 }
 
+interface CentroServicio {
+  id: string;
+  nombre: string;
+}
+
 export default function GestionUbicaciones() {
   const [ubicaciones, setUbicaciones] = useState<UbicacionConStats[]>([]);
   const [topUbicaciones, setTopUbicaciones] = useState<UbicacionConStats[]>([]);
   const [bodegas, setBodegas] = useState<Bodega[]>([]);
+  const [centrosServicio, setCentrosServicio] = useState<CentroServicio[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCentro, setSelectedCentro] = useState<string>("all");
   const [selectedBodega, setSelectedBodega] = useState<string>("all");
   const [kpis, setKpis] = useState({ totalUbicaciones: 0, totalItems: 0, promedioSKU: 0, ubicacionesVacias: 0 });
   const [currentPage, setCurrentPage] = useState(1);
@@ -60,13 +67,28 @@ export default function GestionUbicaciones() {
   const [nuevaUbicacion, setNuevaUbicacion] = useState({ bodega_id: "", pasillo: "", rack: "", nivel: "", caja: "" });
   const [creando, setCreando] = useState(false);
 
-  useEffect(() => { fetchBodegas(); }, []);
+  useEffect(() => { fetchCentrosServicio(); fetchBodegas(); }, []);
+  useEffect(() => { fetchBodegas(); }, [selectedCentro]);
   useEffect(() => { fetchUbicacionesConStats(); }, [searchTerm, selectedBodega, currentPage]);
   useEffect(() => { fetchKPIs(); fetchTopUbicaciones(); }, [selectedBodega]);
 
+  const fetchCentrosServicio = async () => {
+    const { data } = await supabase.from('centros_servicio').select('id, nombre').eq('activo', true).order('nombre');
+    if (data) setCentrosServicio(data);
+  };
+
   const fetchBodegas = async () => {
-    const { data } = await supabase.from('Bodegas_CDS').select('id, cds_id, nombre, codigo').eq('activo', true).order('nombre');
+    let query = supabase.from('Bodegas_CDS').select('id, cds_id, nombre, codigo, centro_servicio_id').eq('activo', true);
+    if (selectedCentro !== "all") {
+      query = query.eq('centro_servicio_id', selectedCentro);
+    }
+    const { data } = await query.order('nombre');
     if (data) setBodegas(data);
+    // Reset bodega selection when centro changes
+    if (selectedCentro !== "all" && selectedBodega !== "all") {
+      const bodegaExists = data?.some(b => b.cds_id === selectedBodega);
+      if (!bodegaExists) setSelectedBodega("all");
+    }
   };
 
   const fetchKPIs = async () => {
@@ -255,12 +277,23 @@ export default function GestionUbicaciones() {
                 className="pl-10"
               />
             </div>
+            <Select value={selectedCentro} onValueChange={(v) => { setSelectedCentro(v); setCurrentPage(1); }}>
+              <SelectTrigger className="w-full md:w-[220px]">
+                <SelectValue placeholder="Centro de Servicio" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos los centros</SelectItem>
+                {centrosServicio.map(c => (
+                  <SelectItem key={c.id} value={c.id}>{c.nombre}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Select value={selectedBodega} onValueChange={(v) => { setSelectedBodega(v); setCurrentPage(1); }}>
               <SelectTrigger className="w-full md:w-[200px]">
                 <SelectValue placeholder="Bodega" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Todas</SelectItem>
+                <SelectItem value="all">Todas las bodegas</SelectItem>
                 {bodegas.map(b => (
                   <SelectItem key={b.id} value={b.cds_id}>{b.nombre || b.codigo}</SelectItem>
                 ))}
