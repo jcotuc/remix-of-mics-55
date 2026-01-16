@@ -400,6 +400,27 @@ export default function RecepcionImportacion() {
     buscarCodigo(code);
   };
 
+  const handleFinalizarImportacion = async () => {
+    setSaving(true);
+    try {
+      await supabase
+        .from("importaciones")
+        .update({ 
+          estado: "completado",
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", id);
+
+      toast.success("Importación finalizada correctamente");
+      navigate("/bodega/importacion");
+    } catch (error) {
+      console.error("Error:", error);
+      toast.error("Error al finalizar importación");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const pendientes = detalles.filter(d => d.estado === "pendiente");
   const recibidos = detalles.filter(d => d.estado !== "pendiente");
   const progreso = detalles.length > 0 ? Math.round((recibidos.length / detalles.length) * 100) : 0;
@@ -433,11 +454,21 @@ export default function RecepcionImportacion() {
             </p>
           </div>
         </div>
-        {detalles.length > 0 && (
-          <div className="w-[200px]">
-            <Progress value={progreso} className="h-3" />
-          </div>
-        )}
+        <div className="flex items-center gap-3">
+          {detalles.length > 0 && (
+            <div className="w-[200px]">
+              <Progress value={progreso} className="h-3" />
+            </div>
+          )}
+          <Button 
+            onClick={handleFinalizarImportacion}
+            disabled={recibidos.length === 0 || saving}
+            className="bg-green-600 hover:bg-green-700"
+          >
+            <Check className="h-4 w-4 mr-2" />
+            Finalizar Importación
+          </Button>
+        </div>
       </div>
 
       {/* Search Section */}
