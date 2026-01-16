@@ -115,26 +115,9 @@ export default function Importacion() {
       return;
     }
 
-    if (!file) {
-      toast.error("Seleccione un archivo Excel con los códigos");
-      return;
-    }
-
     setCreating(true);
 
     try {
-      // Parse Excel file
-      const data = await file.arrayBuffer();
-      const workbook = XLSX.read(data);
-      const sheet = workbook.Sheets[workbook.SheetNames[0]];
-      const rows = XLSX.utils.sheet_to_json(sheet) as any[];
-
-      if (rows.length === 0) {
-        toast.error("El archivo está vacío");
-        setCreating(false);
-        return;
-      }
-
       // Get centro central
       const { data: centroCentral } = await supabase
         .from("centros_servicio")
@@ -158,62 +141,54 @@ export default function Importacion() {
 
       if (importError) throw importError;
 
-      // Prepare detail records
-      const detalles: {
-        importacion_id: string;
-        sku: string;
-        descripcion: string;
-        cantidad: number;
-        cantidad_esperada: number;
-        estado: string;
-      }[] = [];
+      // If file provided, parse and insert details
+      if (file) {
+        const data = await file.arrayBuffer();
+        const workbook = XLSX.read(data);
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(sheet) as any[];
 
-      for (const row of rows) {
-        const sku = row.SKU || row.sku || row.CODIGO || row.codigo || "";
-        const descripcion = row.DESCRIPCION || row.descripcion || row.NOMBRE || row.nombre || "";
-        const cantidad = parseInt(row.CANTIDAD || row.cantidad || row.QTY || row.qty || 1);
+        if (rows.length > 0) {
+          const detalles: {
+            importacion_id: string;
+            sku: string;
+            descripcion: string;
+            cantidad: number;
+            cantidad_esperada: number;
+            estado: string;
+          }[] = [];
 
-        if (!sku) continue;
+          for (const row of rows) {
+            const sku = row.SKU || row.sku || row.CODIGO || row.codigo || "";
+            const descripcion = row.DESCRIPCION || row.descripcion || row.NOMBRE || row.nombre || "";
+            const cantidad = parseInt(row.CANTIDAD || row.cantidad || row.QTY || row.qty || 1);
 
-        detalles.push({
-          importacion_id: nuevaImportacion.id,
-          sku: sku.toString().trim(),
-          descripcion: descripcion.toString().trim(),
-          cantidad: cantidad,
-          cantidad_esperada: cantidad,
-          estado: "pendiente"
-        });
-      }
+            if (!sku) continue;
 
-      if (detalles.length === 0) {
-        // Delete the empty importacion
-        await supabase.from("importaciones").delete().eq("id", nuevaImportacion.id);
-        toast.error("No se encontraron códigos válidos en el archivo");
-        setCreating(false);
-        return;
-      }
+            detalles.push({
+              importacion_id: nuevaImportacion.id,
+              sku: sku.toString().trim(),
+              descripcion: descripcion.toString().trim(),
+              cantidad: cantidad,
+              cantidad_esperada: cantidad,
+              estado: "pendiente"
+            });
+          }
 
-      // Insert details in batches
-      setUploadProgress({ processed: 0, total: detalles.length });
-      const BATCH_SIZE = 100;
-      let inserted = 0;
+          if (detalles.length > 0) {
+            setUploadProgress({ processed: 0, total: detalles.length });
+            const BATCH_SIZE = 100;
 
-      for (let i = 0; i < detalles.length; i += BATCH_SIZE) {
-        const batch = detalles.slice(i, i + BATCH_SIZE);
-        const { error: detailError } = await supabase
-          .from("importaciones_detalle")
-          .insert(batch);
-
-        if (detailError) {
-          console.error("Error inserting batch:", detailError);
-        } else {
-          inserted += batch.length;
+            for (let i = 0; i < detalles.length; i += BATCH_SIZE) {
+              const batch = detalles.slice(i, i + BATCH_SIZE);
+              await supabase.from("importaciones_detalle").insert(batch);
+              setUploadProgress({ processed: Math.min(i + batch.length, detalles.length), total: detalles.length });
+            }
+          }
         }
-
-        setUploadProgress({ processed: Math.min(i + batch.length, detalles.length), total: detalles.length });
       }
 
-      toast.success(`Importación creada con ${inserted} códigos`);
+      toast.success("Importación creada correctamente");
       setShowNuevaDialog(false);
       setFormData({
         numero_embarque: "",
@@ -223,7 +198,9 @@ export default function Importacion() {
       });
       setFile(null);
       setUploadProgress(null);
-      fetchImportaciones();
+      
+      // Navigate directly to reception
+      navigate(`/bodega/recepcion/${nuevaImportacion.id}`);
 
     } catch (error) {
       console.error("Error:", error);
@@ -495,7 +472,7 @@ export default function Importacion() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="file">Archivo Excel con Códigos</Label>
+              <Label htmlFor="file">Archivo Excel con Códigos (Opcional)</Label>
               <Input
                 id="file"
                 type="file"
@@ -504,7 +481,7 @@ export default function Importacion() {
                 disabled={creating}
               />
               <p className="text-xs text-muted-foreground">
-                Columnas requeridas: SKU/CODIGO, DESCRIPCION, CANTIDAD
+                Opcional: Si tiene lista previa, cargue el Excel. Si no, puede agregar códigos durante la recepción.
               </p>
             </div>
 
@@ -529,7 +506,7 @@ export default function Importacion() {
             <Button variant="outline" onClick={() => setShowNuevaDialog(false)} disabled={creating}>
               Cancelar
             </Button>
-            <Button onClick={handleCreateImportacion} disabled={creating || !formData.numero_embarque || !file}>
+            <Button onClick={handleCreateImportacion} disabled={creating || !formData.numero_embarque}>
               {creating ? (
                 <>
                   <Package className="h-4 w-4 mr-2 animate-pulse" />
