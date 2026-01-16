@@ -72,7 +72,15 @@ type Movimiento = {
   codigo_repuesto: string;
 };
 
-const CHART_COLORS = ["hsl(var(--primary))", "#22c55e", "#f97316", "#ef4444", "#8b5cf6", "#06b6d4"];
+const CHART_COLORS = [
+  "hsl(var(--primary))", "#22c55e", "#f97316", "#ef4444", "#8b5cf6", "#06b6d4",
+  "#ec4899", "#14b8a6", "#f59e0b", "#6366f1", "#84cc16", "#0ea5e9", "#d946ef", "#10b981"
+];
+
+type CentroServicio = {
+  id: string;
+  nombre: string;
+};
 
 export default function Inventario() {
   const { user } = useAuth();
@@ -82,6 +90,8 @@ export default function Inventario() {
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [filterStockBajo, setFilterStockBajo] = useState(false);
+  const [filterCentroId, setFilterCentroId] = useState<string>("todos");
+  const [centrosServicio, setCentrosServicio] = useState<CentroServicio[]>([]);
   
   // Data
   const [inventario, setInventario] = useState<InventarioItem[]>([]);
@@ -125,16 +135,30 @@ export default function Inventario() {
 
   // Initial load - only essential data
   useEffect(() => {
+    fetchCentrosServicio();
     fetchStats();
     fetchStockAlerts();
     fetchMovimientosHoy();
     // Don't fetch chart data on initial load - wait for user to click on tab
   }, []);
 
+  const fetchCentrosServicio = async () => {
+    try {
+      const { data } = await supabase
+        .from("centros_servicio")
+        .select("id, nombre")
+        .eq("activo", true)
+        .order("nombre");
+      setCentrosServicio(data || []);
+    } catch (error) {
+      console.error("Error fetching centros:", error);
+    }
+  };
+
   // Fetch inventory when filters change
   useEffect(() => {
     fetchInventario();
-  }, [currentPage, itemsPerPage, debouncedSearch, filterStockBajo]);
+  }, [currentPage, itemsPerPage, debouncedSearch, filterStockBajo, filterCentroId]);
 
   const fetchStats = async () => {
     try {
@@ -228,29 +252,35 @@ export default function Inventario() {
     if (chartDataLoaded) return; // Don't refetch if already loaded
     
     try {
-      // Stock por centro - use a more efficient approach with grouping
-      // For now, get just top centers by limiting the query
+      // Stock por centro - fetch all 14 centers
       const { data: centrosData } = await supabase
         .from("centros_servicio")
-        .select("id, nombre");
+        .select("id, nombre")
+        .eq("activo", true)
+        .order("nombre");
 
       const porCentro: { name: string; value: number }[] = [];
       
-      // Get counts for each center (limited to prevent timeout)
-      for (const centro of (centrosData || []).slice(0, 6)) {
+      // Get counts for ALL centers (14 total)
+      const promises = (centrosData || []).map(async (centro) => {
         const { data: stockData } = await supabase
           .rpc("inventario_totales", { 
             p_centro_servicio_id: centro.id, 
             p_search: "" 
           });
         
-        if (stockData?.[0]?.unidades) {
-          porCentro.push({
-            name: centro.nombre,
-            value: Number(stockData[0].unidades)
-          });
+        return {
+          name: centro.nombre,
+          value: Number(stockData?.[0]?.unidades || 0)
+        };
+      });
+
+      const results = await Promise.all(promises);
+      results.forEach(r => {
+        if (r.value > 0) {
+          porCentro.push(r);
         }
-      }
+      });
 
       setChartPorCentro(porCentro.sort((a, b) => b.value - a.value));
 
@@ -311,6 +341,11 @@ export default function Inventario() {
           *,
           centros_servicio(nombre)
         `, { count: "exact" });
+
+      // Apply centro filter
+      if (filterCentroId && filterCentroId !== "todos") {
+        query = query.eq("centro_servicio_id", filterCentroId);
+      }
 
       // Apply search filter
       if (debouncedSearch) {
@@ -617,6 +652,22 @@ export default function Inventario() {
                     className="pl-9"
                   />
                 </div>
+                <Select value={filterCentroId} onValueChange={(value) => {
+                  setFilterCentroId(value);
+                  setCurrentPage(1);
+                }}>
+                  <SelectTrigger className="w-full sm:w-[220px]">
+                    <SelectValue placeholder="Todos los centros" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos los centros</SelectItem>
+                    {centrosServicio.map((centro) => (
+                      <SelectItem key={centro.id} value={centro.id}>
+                        {centro.nombre}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <Button 
                   variant={filterStockBajo ? "default" : "outline"}
                   onClick={() => setFilterStockBajo(!filterStockBajo)}
