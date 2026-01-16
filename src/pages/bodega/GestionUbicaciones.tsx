@@ -55,6 +55,14 @@ export default function GestionUbicaciones() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCentro, setSelectedCentro] = useState<string>("all");
   const [selectedBodega, setSelectedBodega] = useState<string>("all");
+  const [selectedPasillo, setSelectedPasillo] = useState<string>("all");
+  const [selectedRack, setSelectedRack] = useState<string>("all");
+  const [selectedNivel, setSelectedNivel] = useState<string>("all");
+  const [selectedCaja, setSelectedCaja] = useState<string>("all");
+  const [pasillosDisponibles, setPasillosDisponibles] = useState<string[]>([]);
+  const [racksDisponibles, setRacksDisponibles] = useState<string[]>([]);
+  const [nivelesDisponibles, setNivelesDisponibles] = useState<string[]>([]);
+  const [cajasDisponibles, setCajasDisponibles] = useState<string[]>([]);
   const [kpis, setKpis] = useState({ totalUbicaciones: 0, totalItems: 0, promedioSKU: 0, ubicacionesVacias: 0 });
   const [currentPage, setCurrentPage] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
@@ -69,8 +77,12 @@ export default function GestionUbicaciones() {
 
   useEffect(() => { fetchCentrosServicio(); fetchBodegas(); }, []);
   useEffect(() => { fetchBodegas(); }, [selectedCentro]);
-  useEffect(() => { fetchUbicacionesConStats(); }, [searchTerm, selectedBodega, currentPage]);
-  useEffect(() => { fetchKPIs(); fetchTopUbicaciones(); }, [selectedBodega]);
+  useEffect(() => { fetchUbicacionOptions(); }, [selectedBodega]);
+  useEffect(() => { fetchRacksForPasillo(); }, [selectedPasillo]);
+  useEffect(() => { fetchNivelesForRack(); }, [selectedRack]);
+  useEffect(() => { fetchCajasForNivel(); }, [selectedNivel]);
+  useEffect(() => { fetchUbicacionesConStats(); }, [searchTerm, selectedBodega, selectedPasillo, selectedRack, selectedNivel, selectedCaja, currentPage]);
+  useEffect(() => { fetchKPIs(); fetchTopUbicaciones(); }, [selectedBodega, selectedPasillo, selectedRack, selectedNivel, selectedCaja]);
 
   const fetchCentrosServicio = async () => {
     const { data } = await supabase.from('centros_servicio').select('id, nombre').eq('activo', true).order('nombre');
@@ -91,9 +103,82 @@ export default function GestionUbicaciones() {
     }
   };
 
+  const fetchUbicacionOptions = async () => {
+    let query = supabase.from('Ubicación_CDS').select('pasillo');
+    if (selectedBodega !== "all") query = query.eq('bodega_id', selectedBodega);
+    const { data } = await query;
+    const pasillos = [...new Set((data || []).map(u => u.pasillo).filter(Boolean) as string[])].sort();
+    setPasillosDisponibles(pasillos);
+    setSelectedPasillo("all");
+    setRacksDisponibles([]);
+    setSelectedRack("all");
+    setNivelesDisponibles([]);
+    setSelectedNivel("all");
+    setCajasDisponibles([]);
+    setSelectedCaja("all");
+  };
+
+  const fetchRacksForPasillo = async () => {
+    if (selectedPasillo === "all") {
+      setRacksDisponibles([]);
+      setSelectedRack("all");
+      setNivelesDisponibles([]);
+      setSelectedNivel("all");
+      setCajasDisponibles([]);
+      setSelectedCaja("all");
+      return;
+    }
+    let query = supabase.from('Ubicación_CDS').select('rack').eq('pasillo', selectedPasillo);
+    if (selectedBodega !== "all") query = query.eq('bodega_id', selectedBodega);
+    const { data } = await query;
+    const racks = [...new Set((data || []).map(u => u.rack).filter(Boolean) as string[])].sort();
+    setRacksDisponibles(racks);
+    setSelectedRack("all");
+    setNivelesDisponibles([]);
+    setSelectedNivel("all");
+    setCajasDisponibles([]);
+    setSelectedCaja("all");
+  };
+
+  const fetchNivelesForRack = async () => {
+    if (selectedRack === "all") {
+      setNivelesDisponibles([]);
+      setSelectedNivel("all");
+      setCajasDisponibles([]);
+      setSelectedCaja("all");
+      return;
+    }
+    let query = supabase.from('Ubicación_CDS').select('nivel').eq('pasillo', selectedPasillo).eq('rack', selectedRack);
+    if (selectedBodega !== "all") query = query.eq('bodega_id', selectedBodega);
+    const { data } = await query;
+    const niveles = [...new Set((data || []).map(u => u.nivel).filter(Boolean) as string[])].sort();
+    setNivelesDisponibles(niveles);
+    setSelectedNivel("all");
+    setCajasDisponibles([]);
+    setSelectedCaja("all");
+  };
+
+  const fetchCajasForNivel = async () => {
+    if (selectedNivel === "all") {
+      setCajasDisponibles([]);
+      setSelectedCaja("all");
+      return;
+    }
+    let query = supabase.from('Ubicación_CDS').select('caja').eq('pasillo', selectedPasillo).eq('rack', selectedRack).eq('nivel', selectedNivel);
+    if (selectedBodega !== "all") query = query.eq('bodega_id', selectedBodega);
+    const { data } = await query;
+    const cajas = [...new Set((data || []).map(u => u.caja).filter(Boolean) as string[])].sort();
+    setCajasDisponibles(cajas);
+    setSelectedCaja("all");
+  };
+
   const fetchKPIs = async () => {
     let query = supabase.from('Ubicación_CDS').select('id', { count: 'exact', head: true });
     if (selectedBodega !== "all") query = query.eq('bodega_id', selectedBodega);
+    if (selectedPasillo !== "all") query = query.eq('pasillo', selectedPasillo);
+    if (selectedRack !== "all") query = query.eq('rack', selectedRack);
+    if (selectedNivel !== "all") query = query.eq('nivel', selectedNivel);
+    if (selectedCaja !== "all") query = query.eq('caja', selectedCaja);
     const { count: totalUbicaciones } = await query;
     const { data: inventarioData } = await supabase.from('inventario').select('cantidad, ubicacion_id');
     const ubicacionesConItems = new Set(inventarioData?.map(i => i.ubicacion_id).filter(Boolean) || []);
@@ -149,6 +234,10 @@ export default function GestionUbicaciones() {
     });
     let query = supabase.from('Ubicación_CDS').select('*, bodega:Bodegas_CDS(nombre, codigo)', { count: 'exact' });
     if (selectedBodega !== "all") query = query.eq('bodega_id', selectedBodega);
+    if (selectedPasillo !== "all") query = query.eq('pasillo', selectedPasillo);
+    if (selectedRack !== "all") query = query.eq('rack', selectedRack);
+    if (selectedNivel !== "all") query = query.eq('nivel', selectedNivel);
+    if (selectedCaja !== "all") query = query.eq('caja', selectedCaja);
     if (searchTerm) query = query.ilike('codigo', `%${searchTerm}%`);
     const from = (currentPage - 1) * pageSize;
     const { data, count, error } = await query.order('codigo').range(from, from + pageSize - 1);
@@ -266,7 +355,8 @@ export default function GestionUbicaciones() {
 
       {/* Filtros */}
       <Card>
-        <CardContent className="p-4">
+        <CardContent className="p-4 space-y-4">
+          {/* Primera fila: búsqueda + centro + bodega */}
           <div className="flex flex-col md:flex-row gap-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
@@ -296,6 +386,54 @@ export default function GestionUbicaciones() {
                 <SelectItem value="all">Todas las bodegas</SelectItem>
                 {bodegas.map(b => (
                   <SelectItem key={b.id} value={b.cds_id}>{b.nombre || b.codigo}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          
+          {/* Segunda fila: filtros por ubicación */}
+          <div className="flex flex-col md:flex-row gap-4">
+            <Select value={selectedPasillo} onValueChange={(v) => { setSelectedPasillo(v); setCurrentPage(1); }}>
+              <SelectTrigger className="w-full md:w-[150px]">
+                <SelectValue placeholder="Pasillo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos los pasillos</SelectItem>
+                {pasillosDisponibles.map(p => (
+                  <SelectItem key={p} value={p}>{p}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={selectedRack} onValueChange={(v) => { setSelectedRack(v); setCurrentPage(1); }} disabled={selectedPasillo === "all"}>
+              <SelectTrigger className="w-full md:w-[150px]">
+                <SelectValue placeholder="Rack" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos los racks</SelectItem>
+                {racksDisponibles.map(r => (
+                  <SelectItem key={r} value={r}>{r}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={selectedNivel} onValueChange={(v) => { setSelectedNivel(v); setCurrentPage(1); }} disabled={selectedRack === "all"}>
+              <SelectTrigger className="w-full md:w-[150px]">
+                <SelectValue placeholder="Nivel" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos los niveles</SelectItem>
+                {nivelesDisponibles.map(n => (
+                  <SelectItem key={n} value={n}>{n}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={selectedCaja} onValueChange={(v) => { setSelectedCaja(v); setCurrentPage(1); }} disabled={selectedNivel === "all"}>
+              <SelectTrigger className="w-full md:w-[150px]">
+                <SelectValue placeholder="Caja" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas las cajas</SelectItem>
+                {cajasDisponibles.map(c => (
+                  <SelectItem key={c} value={c}>{c}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
