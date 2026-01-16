@@ -423,13 +423,18 @@ export default function RecepcionImportacion() {
               Recibiendo: {importacion?.numero_embarque}
             </h1>
             <p className="text-muted-foreground">
-              {importacion?.origen} • {recibidos.length}/{detalles.length} recibidos ({progreso}%)
+              {importacion?.origen} • {detalles.length > 0 
+                ? `${recibidos.length}/${detalles.length} códigos (${progreso}%)`
+                : `${recibidos.length} códigos recibidos`
+              }
             </p>
           </div>
         </div>
-        <div className="w-[200px]">
-          <Progress value={progreso} className="h-3" />
-        </div>
+        {detalles.length > 0 && (
+          <div className="w-[200px]">
+            <Progress value={progreso} className="h-3" />
+          </div>
+        )}
       </div>
 
       {/* Search Section */}
