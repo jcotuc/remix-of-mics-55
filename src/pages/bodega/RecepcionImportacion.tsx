@@ -183,6 +183,8 @@ export default function RecepcionImportacion() {
       // Auto-fill quantity and location
       if (detalle) {
         setCantidadRecibida(detalle.cantidad_esperada.toString());
+      } else {
+        setCantidadRecibida("1"); // Default for new codes
       }
       if (ubicacionActual?.ubicacion) {
         setUbicacionSeleccionada(ubicacionActual.ubicacion);
@@ -211,14 +213,16 @@ export default function RecepcionImportacion() {
   };
 
   const handleConfirmarRecepcion = async () => {
-    if (!codigoInfo?.detalle) {
+    const codigoSku = codigoInfo?.detalle?.sku || searchCode.trim().toUpperCase();
+    
+    if (!codigoSku) {
       toast.error("No hay código seleccionado");
       return;
     }
 
     const cantidad = parseInt(cantidadRecibida);
-    if (isNaN(cantidad) || cantidad < 0) {
-      toast.error("Ingrese una cantidad válida");
+    if (isNaN(cantidad) || cantidad <= 0) {
+      toast.error("Ingrese una cantidad válida mayor a 0");
       return;
     }
 
@@ -231,31 +235,47 @@ export default function RecepcionImportacion() {
     setSaving(true);
 
     try {
-      const cantidadEsperada = codigoInfo.detalle.cantidad_esperada;
-      let estado = "recibido";
-      if (cantidad === 0) estado = "faltante";
-      else if (cantidad < cantidadEsperada) estado = "parcial";
-      else if (cantidad > cantidadEsperada) estado = "excedente";
+      const userId = (await supabase.auth.getUser()).data.user?.id;
+      
+      // If this is an existing detalle, update it
+      if (codigoInfo?.detalle) {
+        const cantidadEsperada = codigoInfo.detalle.cantidad_esperada;
+        let estado = "recibido";
+        if (cantidad === 0) estado = "faltante";
+        else if (cantidad < cantidadEsperada) estado = "parcial";
+        else if (cantidad > cantidadEsperada) estado = "excedente";
 
-      // Update detalle
-      const { error: updateError } = await supabase
-        .from("importaciones_detalle")
-        .update({
+        await supabase
+          .from("importaciones_detalle")
+          .update({
+            cantidad_recibida: cantidad,
+            estado: estado,
+            ubicacion_asignada: ubicacion.trim(),
+            recibido_at: new Date().toISOString(),
+            recibido_por: userId
+          })
+          .eq("id", codigoInfo.detalle.id);
+      } else {
+        // Create a new detalle for this code
+        await supabase.from("importaciones_detalle").insert({
+          importacion_id: id,
+          sku: codigoSku,
+          descripcion: "",
+          cantidad: cantidad,
+          cantidad_esperada: cantidad,
           cantidad_recibida: cantidad,
-          estado: estado,
+          estado: "recibido",
           ubicacion_asignada: ubicacion.trim(),
           recibido_at: new Date().toISOString(),
-          recibido_por: (await supabase.auth.getUser()).data.user?.id
-        })
-        .eq("id", codigoInfo.detalle.id);
-
-      if (updateError) throw updateError;
+          recibido_por: userId
+        });
+      }
 
       // Update inventory (add to existing or create)
       const { data: existingInv } = await supabase
         .from("inventario")
-        .select("id, cantidad, centro_servicio_id")
-        .eq("codigo_repuesto", codigoInfo.detalle.sku)
+        .select("id, cantidad, centro_servicio_id, descripcion")
+        .eq("codigo_repuesto", codigoSku)
         .limit(1)
         .maybeSingle();
 
@@ -271,7 +291,7 @@ export default function RecepcionImportacion() {
 
         // Register movement
         await supabase.from("movimientos_inventario").insert({
-          codigo_repuesto: codigoInfo.detalle.sku,
+          codigo_repuesto: codigoSku,
           tipo_movimiento: "entrada",
           cantidad: cantidad,
           ubicacion: ubicacion.trim(),
@@ -291,8 +311,8 @@ export default function RecepcionImportacion() {
 
         if (centroCentral) {
           await supabase.from("inventario").insert({
-            codigo_repuesto: codigoInfo.detalle.sku,
-            descripcion: codigoInfo.detalle.descripcion,
+            codigo_repuesto: codigoSku,
+            descripcion: codigoInfo?.detalle?.descripcion || "",
             cantidad: cantidad,
             ubicacion_legacy: ubicacion.trim(),
             centro_servicio_id: centroCentral.id,
@@ -301,7 +321,7 @@ export default function RecepcionImportacion() {
 
           // Register movement
           await supabase.from("movimientos_inventario").insert({
-            codigo_repuesto: codigoInfo.detalle.sku,
+            codigo_repuesto: codigoSku,
             tipo_movimiento: "entrada",
             cantidad: cantidad,
             ubicacion: ubicacion.trim(),
@@ -314,7 +334,7 @@ export default function RecepcionImportacion() {
         }
       }
 
-      toast.success(`${codigoInfo.detalle.sku} recibido correctamente`);
+      toast.success(`${codigoSku} recibido correctamente`);
 
       // Clear form and refresh
       setSearchCode("");
@@ -326,22 +346,12 @@ export default function RecepcionImportacion() {
       fetchImportacion();
       inputRef.current?.focus();
 
-      // Check if all items are received
-      const pendingCount = detalles.filter(d => d.estado === "pendiente" && d.id !== codigoInfo.detalle?.id).length;
-      if (pendingCount === 0) {
+      // Update import status
+      if (importacion?.estado === "pendiente") {
         await supabase
           .from("importaciones")
-          .update({ estado: "completado" })
+          .update({ estado: "en_recepcion" })
           .eq("id", id);
-        toast.success("¡Importación completada!");
-      } else {
-        // Update to en_recepcion if first item
-        if (importacion?.estado === "pendiente") {
-          await supabase
-            .from("importaciones")
-            .update({ estado: "en_recepcion" })
-            .eq("id", id);
-        }
       }
 
     } catch (error) {
@@ -468,153 +478,157 @@ export default function RecepcionImportacion() {
           </CardHeader>
           <CardContent className="space-y-4">
             {!codigoInfo.detalle && (
-              <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
-                <div className="flex items-center gap-2 text-yellow-800 dark:text-yellow-200">
-                  <AlertTriangle className="h-5 w-5" />
-                  <span className="font-medium">Este código no está en la lista de esta importación</span>
+              <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                <div className="flex items-center gap-2 text-blue-800 dark:text-blue-200">
+                  <Package className="h-5 w-5" />
+                  <span className="font-medium">Código nuevo - Se agregará a esta importación</span>
                 </div>
               </div>
             )}
 
-            {codigoInfo.detalle && (
-              <>
-                {/* Cantidad */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Cantidad Esperada</Label>
-                    <div className="p-3 bg-muted rounded-lg font-bold text-xl text-center">
-                      {codigoInfo.detalle.cantidad_esperada}
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="cantidad">Cantidad Recibida</Label>
-                    <Input
-                      id="cantidad"
-                      type="number"
-                      min="0"
-                      value={cantidadRecibida}
-                      onChange={(e) => setCantidadRecibida(e.target.value)}
-                      className="text-xl font-bold text-center h-[52px]"
-                    />
+            {/* Cantidad - Show for both existing and new codes */}
+            <div className="grid grid-cols-2 gap-4">
+              {codigoInfo.detalle ? (
+                <div className="space-y-2">
+                  <Label>Cantidad Esperada</Label>
+                  <div className="p-3 bg-muted rounded-lg font-bold text-xl text-center">
+                    {codigoInfo.detalle.cantidad_esperada}
                   </div>
                 </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label>Código</Label>
+                  <div className="p-3 bg-muted rounded-lg font-bold text-lg text-center font-mono">
+                    {searchCode.toUpperCase()}
+                  </div>
+                </div>
+              )}
+              <div className="space-y-2">
+                <Label htmlFor="cantidad">Cantidad Recibida</Label>
+                <Input
+                  id="cantidad"
+                  type="number"
+                  min="1"
+                  value={cantidadRecibida}
+                  onChange={(e) => setCantidadRecibida(e.target.value)}
+                  className="text-xl font-bold text-center h-[52px]"
+                />
+              </div>
+            </div>
 
-                {/* Ubicación Actual */}
-                {codigoInfo.ubicacionActual && (
-                  <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <MapPin className="h-5 w-5 text-green-600" />
-                        <div>
-                          <p className="font-medium text-green-800 dark:text-green-200">Ubicación Actual</p>
-                          <p className="text-lg font-mono font-bold text-green-900 dark:text-green-100">
-                            {codigoInfo.ubicacionActual.ubicacion}
-                          </p>
-                          <p className="text-sm text-green-700 dark:text-green-300">
-                            Stock actual: {codigoInfo.ubicacionActual.stock} unidades
-                            {codigoInfo.ubicacionActual.bodega && ` • ${codigoInfo.ubicacionActual.bodega}`}
-                          </p>
-                        </div>
+            {/* Ubicación Actual */}
+            {codigoInfo.ubicacionActual && (
+              <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <MapPin className="h-5 w-5 text-green-600" />
+                    <div>
+                      <p className="font-medium text-green-800 dark:text-green-200">Ubicación Actual</p>
+                      <p className="text-lg font-mono font-bold text-green-900 dark:text-green-100">
+                        {codigoInfo.ubicacionActual.ubicacion}
+                      </p>
+                      <p className="text-sm text-green-700 dark:text-green-300">
+                        Stock actual: {codigoInfo.ubicacionActual.stock} unidades
+                        {codigoInfo.ubicacionActual.bodega && ` • ${codigoInfo.ubicacionActual.bodega}`}
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    variant={ubicacionSeleccionada === codigoInfo.ubicacionActual.ubicacion ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setUbicacionSeleccionada(codigoInfo.ubicacionActual!.ubicacion)}
+                  >
+                    <Check className="h-4 w-4 mr-1" />
+                    Usar esta
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Historial de Ubicaciones */}
+            {codigoInfo.historialUbicaciones.length > 0 && (
+              <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                <div className="flex items-center gap-2 mb-3">
+                  <History className="h-5 w-5 text-blue-600" />
+                  <span className="font-medium text-blue-800 dark:text-blue-200">Historial de Ubicaciones</span>
+                </div>
+                <div className="space-y-2">
+                  {codigoInfo.historialUbicaciones.map((hist, idx) => (
+                    <div key={idx} className="flex items-center justify-between p-2 bg-white dark:bg-gray-800 rounded">
+                      <div>
+                        <span className="font-mono font-medium">{hist.ubicacion}</span>
+                        <span className="text-sm text-muted-foreground ml-2">
+                          {format(new Date(hist.fecha), "dd MMM yyyy", { locale: es })}
+                        </span>
                       </div>
                       <Button
-                        variant={ubicacionSeleccionada === codigoInfo.ubicacionActual.ubicacion ? "default" : "outline"}
+                        variant={ubicacionSeleccionada === hist.ubicacion ? "default" : "ghost"}
                         size="sm"
-                        onClick={() => setUbicacionSeleccionada(codigoInfo.ubicacionActual!.ubicacion)}
+                        onClick={() => setUbicacionSeleccionada(hist.ubicacion)}
                       >
-                        <Check className="h-4 w-4 mr-1" />
-                        Usar esta
+                        Usar
                       </Button>
                     </div>
-                  </div>
-                )}
-
-                {/* Historial de Ubicaciones */}
-                {codigoInfo.historialUbicaciones.length > 0 && (
-                  <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                    <div className="flex items-center gap-2 mb-3">
-                      <History className="h-5 w-5 text-blue-600" />
-                      <span className="font-medium text-blue-800 dark:text-blue-200">Historial de Ubicaciones</span>
-                    </div>
-                    <div className="space-y-2">
-                      {codigoInfo.historialUbicaciones.map((hist, idx) => (
-                        <div key={idx} className="flex items-center justify-between p-2 bg-white dark:bg-gray-800 rounded">
-                          <div>
-                            <span className="font-mono font-medium">{hist.ubicacion}</span>
-                            <span className="text-sm text-muted-foreground ml-2">
-                              {format(new Date(hist.fecha), "dd MMM yyyy", { locale: es })}
-                            </span>
-                          </div>
-                          <Button
-                            variant={ubicacionSeleccionada === hist.ubicacion ? "default" : "ghost"}
-                            size="sm"
-                            onClick={() => setUbicacionSeleccionada(hist.ubicacion)}
-                          >
-                            Usar
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Nueva Ubicación */}
-                {!codigoInfo.ubicacionActual && codigoInfo.historialUbicaciones.length === 0 && (
-                  <div className="p-4 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800">
-                    <div className="flex items-center gap-2 mb-3">
-                      <AlertTriangle className="h-5 w-5 text-orange-600" />
-                      <span className="font-medium text-orange-800 dark:text-orange-200">
-                        Este código nunca ha tenido ubicación
-                      </span>
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Ingresar nueva ubicación</Label>
-                      <Input
-                        placeholder="T06.001.01"
-                        value={nuevaUbicacion}
-                        onChange={(e) => {
-                          setNuevaUbicacion(e.target.value);
-                          setUbicacionSeleccionada("");
-                        }}
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {/* Selected location display */}
-                {(ubicacionSeleccionada || nuevaUbicacion) && (
-                  <div className="p-3 bg-primary/10 rounded-lg flex items-center justify-center gap-2">
-                    <MapPin className="h-4 w-4 text-primary" />
-                    <span className="font-medium">Se guardará en:</span>
-                    <span className="font-mono font-bold">{ubicacionSeleccionada || nuevaUbicacion}</span>
-                  </div>
-                )}
-
-                {/* Action Buttons */}
-                <div className="flex gap-3 pt-2">
-                  <Button 
-                    variant="destructive" 
-                    onClick={handleMarcarFaltante}
-                    disabled={saving}
-                    className="flex-1"
-                  >
-                    <X className="h-4 w-4 mr-2" />
-                    Marcar Faltante
-                  </Button>
-                  <Button 
-                    onClick={handleConfirmarRecepcion}
-                    disabled={saving || (!ubicacionSeleccionada && !nuevaUbicacion)}
-                    className="flex-[2]"
-                  >
-                    {saving ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    ) : (
-                      <Check className="h-4 w-4 mr-2" />
-                    )}
-                    Confirmar Recepción
-                  </Button>
+                  ))}
                 </div>
-              </>
+              </div>
             )}
+
+            {/* Nueva Ubicación - Always show input option */}
+            <div className="p-4 bg-muted/50 rounded-lg border">
+              <div className="flex items-center gap-2 mb-3">
+                <MapPin className="h-5 w-5 text-muted-foreground" />
+                <span className="font-medium">
+                  {!codigoInfo.ubicacionActual && codigoInfo.historialUbicaciones.length === 0 
+                    ? "Ingresar ubicación" 
+                    : "O ingresar otra ubicación"}
+                </span>
+              </div>
+              <Input
+                placeholder="T06.001.01"
+                value={nuevaUbicacion}
+                onChange={(e) => {
+                  setNuevaUbicacion(e.target.value);
+                  setUbicacionSeleccionada("");
+                }}
+              />
+            </div>
+
+            {/* Selected location display */}
+            {(ubicacionSeleccionada || nuevaUbicacion) && (
+              <div className="p-3 bg-primary/10 rounded-lg flex items-center justify-center gap-2">
+                <MapPin className="h-4 w-4 text-primary" />
+                <span className="font-medium">Se guardará en:</span>
+                <span className="font-mono font-bold">{ubicacionSeleccionada || nuevaUbicacion}</span>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="flex gap-3 pt-2">
+              {codigoInfo.detalle && (
+                <Button 
+                  variant="destructive" 
+                  onClick={handleMarcarFaltante}
+                  disabled={saving}
+                  className="flex-1"
+                >
+                  <X className="h-4 w-4 mr-2" />
+                  Marcar Faltante
+                </Button>
+              )}
+              <Button 
+                onClick={handleConfirmarRecepcion}
+                disabled={saving || (!ubicacionSeleccionada && !nuevaUbicacion)}
+                className={codigoInfo.detalle ? "flex-[2]" : "flex-1"}
+              >
+                {saving ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Check className="h-4 w-4 mr-2" />
+                )}
+                Confirmar Recepción
+              </Button>
+            </div>
           </CardContent>
         </Card>
       )}
