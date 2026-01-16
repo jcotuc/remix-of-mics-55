@@ -123,12 +123,12 @@ export default function Inventario() {
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
-  // Initial load
+  // Initial load - only essential data
   useEffect(() => {
     fetchStats();
     fetchStockAlerts();
     fetchMovimientosHoy();
-    fetchChartData();
+    // Don't fetch chart data on initial load - wait for user to click on tab
   }, []);
 
   // Fetch inventory when filters change
@@ -138,48 +138,46 @@ export default function Inventario() {
 
   const fetchStats = async () => {
     try {
-      // Get total count
-      const { count: totalItems } = await supabase
-        .from("inventario")
-        .select("*", { count: "exact", head: true });
+      // Use the optimized database function for totals
+      const { data: totalesData, error: totalesError } = await supabase
+        .rpc("inventario_totales", { 
+          p_centro_servicio_id: null, 
+          p_search: "" 
+        });
 
-      // Get stock bajo count
+      if (totalesError) {
+        console.error("Error fetching totales:", totalesError);
+      }
+
+      const totales = totalesData?.[0] || { skus: 0, unidades: 0, valor: 0 };
+
+      // Get stock bajo count (lightweight query with head:true)
       const { count: stockBajo } = await supabase
         .from("inventario")
-        .select("*", { count: "exact", head: true })
+        .select("id", { count: "exact", head: true })
         .lte("cantidad", 5);
 
-      // Get stock and value
-      const { data: stockData } = await supabase
-        .from("inventario")
-        .select("cantidad, costo_unitario");
-
-      const stockTotal = (stockData || []).reduce((acc, item) => acc + (item.cantidad || 0), 0);
-      const valorTotal = (stockData || []).reduce((acc, item) => 
-        acc + ((item.cantidad || 0) * (item.costo_unitario || 0)), 0
-      );
-
-      // Get movimientos hoy
+      // Get movimientos hoy (lightweight query)
       const today = startOfDay(new Date()).toISOString();
       const { count: movimientosHoy } = await supabase
         .from("movimientos_inventario")
-        .select("*", { count: "exact", head: true })
+        .select("id", { count: "exact", head: true })
         .gte("created_at", today);
 
       setStats({
-        totalItems: totalItems || 0,
+        totalItems: Number(totales.skus) || 0,
         stockBajo: stockBajo || 0,
-        stockTotal,
-        valorTotal,
+        stockTotal: Number(totales.unidades) || 0,
+        valorTotal: Number(totales.valor) || 0,
         movimientosHoy: movimientosHoy || 0
       });
 
       // Generate sparkline (simulated trend)
-      const baseValue = stockTotal;
+      const baseValue = Number(totales.unidades) || 0;
       const sparkline = Array.from({ length: 7 }, (_, i) => 
         Math.round(baseValue * (0.95 + Math.random() * 0.1))
       );
-      sparkline[6] = stockTotal;
+      sparkline[6] = baseValue;
       setSparklineStock(sparkline);
     } catch (error) {
       console.error("Error fetching stats:", error);
@@ -193,7 +191,7 @@ export default function Inventario() {
         .select("codigo_repuesto, descripcion, cantidad, ubicacion_legacy")
         .lte("cantidad", 5)
         .order("cantidad", { ascending: true })
-        .limit(50);
+        .limit(30); // Reduced limit for faster loading
 
       const alerts: StockAlert[] = (data || []).map(item => ({
         codigo: item.codigo_repuesto,
@@ -224,30 +222,39 @@ export default function Inventario() {
     }
   };
 
+  const [chartDataLoaded, setChartDataLoaded] = useState(false);
+
   const fetchChartData = async () => {
+    if (chartDataLoaded) return; // Don't refetch if already loaded
+    
     try {
-      // Stock por centro
+      // Stock por centro - use a more efficient approach with grouping
+      // For now, get just top centers by limiting the query
       const { data: centrosData } = await supabase
-        .from("inventario")
-        .select(`
-          cantidad,
-          centros_servicio(nombre)
-        `);
+        .from("centros_servicio")
+        .select("id, nombre");
 
-      const porCentro: Record<string, number> = {};
-      (centrosData || []).forEach((item: any) => {
-        const nombre = item.centros_servicio?.nombre || "Sin centro";
-        porCentro[nombre] = (porCentro[nombre] || 0) + (item.cantidad || 0);
-      });
+      const porCentro: { name: string; value: number }[] = [];
+      
+      // Get counts for each center (limited to prevent timeout)
+      for (const centro of (centrosData || []).slice(0, 6)) {
+        const { data: stockData } = await supabase
+          .rpc("inventario_totales", { 
+            p_centro_servicio_id: centro.id, 
+            p_search: "" 
+          });
+        
+        if (stockData?.[0]?.unidades) {
+          porCentro.push({
+            name: centro.nombre,
+            value: Number(stockData[0].unidades)
+          });
+        }
+      }
 
-      setChartPorCentro(
-        Object.entries(porCentro)
-          .map(([name, value]) => ({ name, value }))
-          .sort((a, b) => b.value - a.value)
-          .slice(0, 6)
-      );
+      setChartPorCentro(porCentro.sort((a, b) => b.value - a.value));
 
-      // Tendencia últimos 7 días
+      // Tendencia últimos 7 días - this is lightweight since movimientos table is smaller
       const last7Days = Array.from({ length: 7 }, (_, i) => {
         const date = subDays(new Date(), 6 - i);
         return {
@@ -262,7 +269,8 @@ export default function Inventario() {
       const { data: movData } = await supabase
         .from("movimientos_inventario")
         .select("created_at, tipo_movimiento, cantidad")
-        .gte("created_at", sevenDaysAgo);
+        .gte("created_at", sevenDaysAgo)
+        .limit(500);
 
       (movData || []).forEach((mov: any) => {
         const movDate = format(new Date(mov.created_at), "yyyy-MM-dd");
@@ -277,10 +285,18 @@ export default function Inventario() {
       });
 
       setChartTendencia(last7Days.map(({ date, entradas, salidas }) => ({ date, entradas, salidas })));
+      setChartDataLoaded(true);
     } catch (error) {
       console.error("Error fetching chart data:", error);
     }
   };
+
+  // Fetch chart data when tab changes to graficos
+  useEffect(() => {
+    if (activeTab === "graficos" && !chartDataLoaded) {
+      fetchChartData();
+    }
+  }, [activeTab, chartDataLoaded]);
 
   const fetchInventario = async () => {
     try {
