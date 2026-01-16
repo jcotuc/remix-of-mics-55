@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
-import { Package, Truck, Search, Clock, CheckCircle2, AlertCircle, User, MapPin, Calendar, Eye, Send } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Package, Truck, Search, Clock, CheckCircle, User, ChevronRight, MapPin, Eye, Send } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,71 +43,80 @@ interface PedidoBodega {
   centros_servicio: { nombre: string } | null;
 }
 
-const estadoConfig: Record<string, { color: string; label: string; bgClass: string }> = {
-  aprobado_jt: { color: "bg-blue-500", label: "Aprobado JT", bgClass: "bg-blue-50 border-blue-200" },
-  aprobado_sr: { color: "bg-indigo-500", label: "Aprobado SR", bgClass: "bg-indigo-50 border-indigo-200" },
-  en_proceso: { color: "bg-purple-500", label: "En Proceso", bgClass: "bg-purple-50 border-purple-200" },
-};
-
 function PedidoCard({ 
   pedido, 
+  variant,
   onVerDetalle, 
   onDespachar 
 }: { 
   pedido: PedidoBodega; 
+  variant: 'pending' | 'process' | 'done';
   onVerDetalle: () => void; 
   onDespachar: () => void;
 }) {
-  const config = estadoConfig[pedido.estado] || estadoConfig.aprobado_jt;
   const repuestosArray = Array.isArray(pedido.repuestos) ? pedido.repuestos : [];
   const totalRepuestos = repuestosArray.reduce((sum, r) => sum + (r.cantidad || 1), 0);
   
+  const variantStyles = {
+    pending: "border-blue-300 bg-gradient-to-br from-blue-50/80 to-background dark:from-blue-950/30",
+    process: "border-purple-300 bg-gradient-to-br from-purple-50/80 to-background dark:from-purple-950/30",
+    done: "border-green-300 bg-gradient-to-br from-green-50/80 to-background dark:from-green-950/30"
+  };
+
+  const barColors = {
+    pending: "bg-blue-500",
+    process: "bg-purple-500",
+    done: "bg-green-500"
+  };
+  
   return (
-    <Card className={`relative overflow-hidden hover:shadow-md transition-shadow ${config.bgClass}`}>
-      <div className={`absolute top-0 left-0 right-0 h-1 ${config.color}`} />
-      <CardContent className="pt-4 pb-3 px-4">
-        <div className="flex items-start justify-between mb-2">
-          <p className="font-mono font-bold text-sm">
-            {pedido.incidentes?.codigo || pedido.incidente_id.slice(0, 8)}
-          </p>
-          <Badge variant="secondary" className="text-xs">
-            {config.label}
+    <Card className={`cursor-pointer transition-all hover:shadow-md hover:scale-[1.02] active:scale-[0.98] relative overflow-hidden ${variantStyles[variant]}`}>
+      <div className={`absolute top-0 left-0 right-0 h-1 ${barColors[variant]}`} />
+      <CardContent className="pt-4 pb-3 px-3">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <p className="font-mono font-bold text-base truncate">
+              {pedido.incidentes?.codigo || pedido.incidente_id.slice(0, 8)}
+            </p>
+            <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5 truncate">
+              <User className="h-3 w-3 shrink-0" />
+              <span className="truncate">{pedido.solicitado_por || "Sin asignar"}</span>
+            </p>
+          </div>
+          <Badge variant="secondary" className="shrink-0 text-xs">
+            {totalRepuestos} rep
           </Badge>
         </div>
-        
-        <div className="space-y-1.5 text-xs text-muted-foreground mb-3">
-          <div className="flex items-center gap-1.5">
-            <User className="h-3 w-3" />
-            <span className="truncate">{pedido.solicitado_por || "Sin asignar"}</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <Package className="h-3 w-3" />
-            <span>{totalRepuestos} repuesto{totalRepuestos !== 1 ? "s" : ""}</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <MapPin className="h-3 w-3" />
-            <span className="truncate">
-              {pedido.centros_servicio?.nombre || pedido.incidentes?.centro_servicio || "Sin centro"}
-            </span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <Clock className="h-3 w-3" />
-            <span>
-              {formatDistanceToNow(new Date(pedido.created_at), { addSuffix: true, locale: es })}
-            </span>
-          </div>
+
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-2">
+          <MapPin className="h-3 w-3 shrink-0" />
+          <span className="truncate">
+            {(pedido.centros_servicio?.nombre || pedido.incidentes?.centro_servicio || "Sin centro").replace("Centro de Servicio ", "")}
+          </span>
         </div>
-        
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" className="flex-1 text-xs h-7" onClick={onVerDetalle}>
-            <Eye className="h-3 w-3 mr-1" />
-            Detalle
-          </Button>
-          {(pedido.estado === "aprobado_jt" || pedido.estado === "aprobado_sr") && (
-            <Button size="sm" className="flex-1 text-xs h-7" onClick={onDespachar}>
-              <Send className="h-3 w-3 mr-1" />
+
+        <div className="flex items-center justify-between text-[10px] text-muted-foreground mt-3 pt-2 border-t">
+          <span className="flex items-center gap-1">
+            <Clock className="h-3 w-3" />
+            {formatDistanceToNow(new Date(pedido.created_at), { addSuffix: true, locale: es })}
+          </span>
+          {variant === 'pending' && (
+            <span className="flex items-center gap-0.5 font-medium text-blue-600" onClick={(e) => { e.stopPropagation(); onDespachar(); }}>
               Despachar
-            </Button>
+              <ChevronRight className="h-3 w-3" />
+            </span>
+          )}
+          {variant === 'process' && (
+            <span className="flex items-center gap-0.5 font-medium text-purple-600" onClick={(e) => { e.stopPropagation(); onVerDetalle(); }}>
+              Ver detalle
+              <ChevronRight className="h-3 w-3" />
+            </span>
+          )}
+          {variant === 'done' && (
+            <span className="flex items-center gap-0.5 font-medium text-green-600" onClick={(e) => { e.stopPropagation(); onVerDetalle(); }}>
+              Ver
+              <ChevronRight className="h-3 w-3" />
+            </span>
           )}
         </div>
       </CardContent>
@@ -148,8 +157,8 @@ export default function DespachosDepartamentales() {
           ),
           centros_servicio!pedidos_bodega_central_centro_servicio_id_fkey(nombre)
         `)
-        .in("estado", ["aprobado_jt", "aprobado_sr", "en_proceso"])
-        .order("created_at", { ascending: true });
+        .in("estado", ["aprobado_jt", "aprobado_sr", "en_proceso", "despachado"])
+        .order("created_at", { ascending: false });
 
       if (error) throw error;
 
@@ -174,11 +183,12 @@ export default function DespachosDepartamentales() {
     }
   };
 
-  // Get unique centers with counts
+  // Get unique centers with counts (only for non-despachados)
   const centrosConPedidos = useMemo(() => {
+    const pedidosPendientes = pedidos.filter(p => p.estado !== "despachado");
     const centroMap = new Map<string, { nombre: string; count: number }>();
     
-    pedidos.forEach(p => {
+    pedidosPendientes.forEach(p => {
       const nombreCentro = p.centros_servicio?.nombre || p.incidentes?.centro_servicio || "Sin centro";
       const existing = centroMap.get(nombreCentro);
       if (existing) {
@@ -218,17 +228,14 @@ export default function DespachosDepartamentales() {
   }, [pedidos, activeTab, search]);
 
   // Split by estado
-  const pedidosAprobados = pedidosFiltrados.filter(p => p.estado === "aprobado_jt" || p.estado === "aprobado_sr");
-  const pedidosEnProceso = pedidosFiltrados.filter(p => p.estado === "en_proceso");
+  const pendientes = pedidosFiltrados.filter(p => p.estado === "aprobado_jt" || p.estado === "aprobado_sr");
+  const enProceso = pedidosFiltrados.filter(p => p.estado === "en_proceso");
+  const despachados = pedidosFiltrados.filter(p => p.estado === "despachado");
 
-  // KPIs
-  const totalPedidos = pedidos.length;
-  const enProceso = pedidos.filter(p => p.estado === "en_proceso").length;
-  const hoy = pedidos.filter(p => {
-    const created = new Date(p.created_at);
-    const today = new Date();
-    return created.toDateString() === today.toDateString();
-  }).length;
+  // KPIs (global counts)
+  const totalPendientes = pedidos.filter(p => p.estado === "aprobado_jt" || p.estado === "aprobado_sr").length;
+  const totalEnProceso = pedidos.filter(p => p.estado === "en_proceso").length;
+  const totalDespachados = pedidos.filter(p => p.estado === "despachado").length;
 
   const handleVerDetalle = (pedido: PedidoBodega) => {
     setSelectedPedido(pedido);
@@ -280,76 +287,38 @@ export default function DespachosDepartamentales() {
   }
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
+    <div className="container mx-auto py-6 space-y-4">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold flex items-center gap-2">
-          <Truck className="h-8 w-8 text-primary" />
-          Despachos Departamentales
-        </h1>
-        <p className="text-muted-foreground mt-1">
-          Gestión de envíos a centros de servicio
-        </p>
-      </div>
-
-      {/* KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="pt-4 pb-3">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-blue-100">
-                <Package className="h-5 w-5 text-blue-600" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{totalPedidos}</p>
-                <p className="text-xs text-muted-foreground">Total Pendientes</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4 pb-3">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-purple-100">
-                <Clock className="h-5 w-5 text-purple-600" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{enProceso}</p>
-                <p className="text-xs text-muted-foreground">En Proceso</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4 pb-3">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-green-100">
-                <CheckCircle2 className="h-5 w-5 text-green-600" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{pedidosAprobados.length}</p>
-                <p className="text-xs text-muted-foreground">Listos para Despacho</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4 pb-3">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-amber-100">
-                <AlertCircle className="h-5 w-5 text-amber-600" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{hoy}</p>
-                <p className="text-xs text-muted-foreground">Ingresados Hoy</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="flex items-center justify-between flex-wrap gap-4">
+        <div>
+          <h1 className="text-2xl font-bold flex items-center gap-2">
+            <Truck className="h-7 w-7 text-primary" />
+            Despachos Departamentales
+          </h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            Gestión de envíos a centros de servicio
+          </p>
+        </div>
+        
+        {/* Quick Stats */}
+        <div className="flex gap-2 flex-wrap">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-100 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 text-sm">
+            <Clock className="h-4 w-4" />
+            <span className="font-semibold">{totalPendientes}</span>
+          </div>
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-purple-100 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 text-sm">
+            <Package className="h-4 w-4" />
+            <span className="font-semibold">{totalEnProceso}</span>
+          </div>
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-green-100 dark:bg-green-950/50 text-green-700 dark:text-green-300 text-sm">
+            <CheckCircle className="h-4 w-4" />
+            <span className="font-semibold">{totalDespachados}</span>
+          </div>
+        </div>
       </div>
 
       {/* Search */}
-      <div className="relative">
+      <div className="relative max-w-md">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
           placeholder="Buscar por incidente, producto o cliente..."
@@ -364,7 +333,7 @@ export default function DespachosDepartamentales() {
         <ScrollArea className="w-full">
           <TabsList className="inline-flex h-auto p-1 bg-muted/50">
             <TabsTrigger value="todos" className="text-xs px-3 py-1.5">
-              Todos ({pedidos.length})
+              Todos ({pedidos.filter(p => p.estado !== "despachado").length})
             </TabsTrigger>
             {centrosConPedidos.map(centro => (
               <TabsTrigger 
@@ -379,64 +348,126 @@ export default function DespachosDepartamentales() {
         </ScrollArea>
 
         <TabsContent value={activeTab} className="mt-4">
-          {pedidosFiltrados.length === 0 ? (
-            <Card>
-              <CardContent className="py-12 text-center text-muted-foreground">
-                <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>No hay pedidos pendientes</p>
+          {/* 3 Column Layout */}
+          <div className="grid gap-4 lg:grid-cols-3">
+            {/* Pendientes (Aprobados) */}
+            <Card className="border-blue-200 dark:border-blue-900">
+              <CardHeader className="py-3 px-4 bg-blue-50 dark:bg-blue-950/30 border-b border-blue-200 dark:border-blue-900">
+                <CardTitle className="text-base font-semibold flex items-center gap-2 text-blue-700 dark:text-blue-300">
+                  <Clock className="h-4 w-4" />
+                  Pendientes
+                  <Badge className="ml-auto bg-blue-500 text-white">
+                    {pendientes.length}
+                  </Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-2">
+                <ScrollArea className="h-[calc(100vh-320px)] min-h-[300px]">
+                  {pendientes.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+                      <Package className="h-10 w-10 mb-2 opacity-30" />
+                      <p className="text-sm">Sin pedidos pendientes</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2 pr-2">
+                      {pendientes.map((pedido) => (
+                        <PedidoCard
+                          key={pedido.id}
+                          pedido={pedido}
+                          variant="pending"
+                          onVerDetalle={() => handleVerDetalle(pedido)}
+                          onDespachar={() => handleDespacharClick(pedido)}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </ScrollArea>
               </CardContent>
             </Card>
-          ) : (
-            <div className="grid md:grid-cols-2 gap-6">
-              {/* Aprobados Column */}
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 pb-2 border-b">
-                  <div className="w-3 h-3 rounded-full bg-blue-500" />
-                  <h3 className="font-semibold">Aprobados - Listos para Despacho</h3>
-                  <Badge variant="secondary">{pedidosAprobados.length}</Badge>
-                </div>
-                <div className="space-y-3">
-                  {pedidosAprobados.map(pedido => (
-                    <PedidoCard
-                      key={pedido.id}
-                      pedido={pedido}
-                      onVerDetalle={() => handleVerDetalle(pedido)}
-                      onDespachar={() => handleDespacharClick(pedido)}
-                    />
-                  ))}
-                  {pedidosAprobados.length === 0 && (
-                    <p className="text-sm text-muted-foreground text-center py-8">
-                      No hay pedidos aprobados
-                    </p>
-                  )}
-                </div>
-              </div>
 
-              {/* En Proceso Column */}
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 pb-2 border-b">
-                  <div className="w-3 h-3 rounded-full bg-purple-500" />
-                  <h3 className="font-semibold">En Proceso</h3>
-                  <Badge variant="secondary">{pedidosEnProceso.length}</Badge>
-                </div>
-                <div className="space-y-3">
-                  {pedidosEnProceso.map(pedido => (
-                    <PedidoCard
-                      key={pedido.id}
-                      pedido={pedido}
-                      onVerDetalle={() => handleVerDetalle(pedido)}
-                      onDespachar={() => handleDespacharClick(pedido)}
-                    />
-                  ))}
-                  {pedidosEnProceso.length === 0 && (
-                    <p className="text-sm text-muted-foreground text-center py-8">
-                      No hay pedidos en proceso
-                    </p>
+            {/* En Proceso */}
+            <Card className="border-purple-200 dark:border-purple-900">
+              <CardHeader className="py-3 px-4 bg-purple-50 dark:bg-purple-950/30 border-b border-purple-200 dark:border-purple-900">
+                <CardTitle className="text-base font-semibold flex items-center gap-2 text-purple-700 dark:text-purple-300">
+                  <Package className="h-4 w-4" />
+                  En Proceso
+                  <Badge className="ml-auto bg-purple-500 text-white">
+                    {enProceso.length}
+                  </Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-2">
+                <ScrollArea className="h-[calc(100vh-320px)] min-h-[300px]">
+                  {enProceso.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+                      <Package className="h-10 w-10 mb-2 opacity-30" />
+                      <p className="text-sm">Sin pedidos en proceso</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2 pr-2">
+                      {enProceso.map((pedido) => (
+                        <PedidoCard
+                          key={pedido.id}
+                          pedido={pedido}
+                          variant="process"
+                          onVerDetalle={() => handleVerDetalle(pedido)}
+                          onDespachar={() => handleDespacharClick(pedido)}
+                        />
+                      ))}
+                    </div>
                   )}
-                </div>
-              </div>
-            </div>
-          )}
+                </ScrollArea>
+              </CardContent>
+            </Card>
+
+            {/* Despachados */}
+            <Card className="border-green-200 dark:border-green-900">
+              <CardHeader className="py-3 px-4 bg-green-50 dark:bg-green-950/30 border-b border-green-200 dark:border-green-900">
+                <CardTitle className="text-base font-semibold flex items-center gap-2 text-green-700 dark:text-green-300">
+                  <CheckCircle className="h-4 w-4" />
+                  Despachados
+                  <Badge className="ml-auto bg-green-500 text-white">
+                    {despachados.length}
+                  </Badge>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-0">
+                <ScrollArea className="h-[calc(100vh-320px)] min-h-[300px]">
+                  {despachados.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+                      <Package className="h-10 w-10 mb-2 opacity-30" />
+                      <p className="text-sm">Sin despachos recientes</p>
+                    </div>
+                  ) : (
+                    <div className="divide-y">
+                      {despachados.slice(0, 50).map((pedido) => (
+                        <div 
+                          key={pedido.id}
+                          onClick={() => handleVerDetalle(pedido)}
+                          className="flex items-center gap-3 px-3 py-2.5 hover:bg-muted/50 cursor-pointer transition-colors"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <p className="font-mono font-medium text-sm truncate">
+                              {pedido.incidentes?.codigo || pedido.incidente_id.slice(0, 8)}
+                            </p>
+                            <p className="text-xs text-muted-foreground truncate">
+                              {(pedido.centros_servicio?.nombre || pedido.incidentes?.centro_servicio || "").replace("Centro de Servicio ", "")}
+                            </p>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <Badge variant="secondary" className="bg-green-100 text-green-700 text-[10px]">
+                              Despachado
+                            </Badge>
+                          </div>
+                          <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </ScrollArea>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
 
@@ -502,13 +533,13 @@ export default function DespachosDepartamentales() {
                 <div className="text-xs text-muted-foreground space-y-1 pt-2 border-t">
                   {selectedPedido.fecha_aprobacion_jt && (
                     <p className="flex items-center gap-1">
-                      <CheckCircle2 className="h-3 w-3 text-green-500" />
+                      <CheckCircle className="h-3 w-3 text-green-500" />
                       Aprobado JT: {new Date(selectedPedido.fecha_aprobacion_jt).toLocaleString()}
                     </p>
                   )}
                   {selectedPedido.fecha_aprobacion_sr && (
                     <p className="flex items-center gap-1">
-                      <CheckCircle2 className="h-3 w-3 text-green-500" />
+                      <CheckCircle className="h-3 w-3 text-green-500" />
                       Aprobado SR: {new Date(selectedPedido.fecha_aprobacion_sr).toLocaleString()}
                     </p>
                   )}
@@ -518,7 +549,7 @@ export default function DespachosDepartamentales() {
               {selectedPedido.notas && (
                 <div className="text-sm">
                   <p className="text-muted-foreground">Notas</p>
-                  <p className="bg-muted/50 p-2 rounded text-xs">{selectedPedido.notas}</p>
+                  <p className="bg-muted/50 p-2 rounded text-xs whitespace-pre-wrap">{selectedPedido.notas}</p>
                 </div>
               )}
             </div>
@@ -535,7 +566,7 @@ export default function DespachosDepartamentales() {
               Confirmar Despacho
             </DialogTitle>
             <DialogDescription>
-              {selectedPedido?.incidentes?.codigo} → {selectedPedido?.centros_servicio?.nombre || selectedPedido?.incidentes?.centro_servicio}
+              {selectedPedido?.incidentes?.codigo} → {(selectedPedido?.centros_servicio?.nombre || selectedPedido?.incidentes?.centro_servicio || "").replace("Centro de Servicio ", "")}
             </DialogDescription>
           </DialogHeader>
           
