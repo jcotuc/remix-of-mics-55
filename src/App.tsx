@@ -51,7 +51,7 @@ import MaquinasPendientesEnvio from "./pages/logistica/MaquinasPendientesEnvio";
 
 import DiagnosticoInicial from "./pages/taller/DiagnosticoInicial";
 import CambioGarantia from "./pages/taller/CambioGarantia";
-import InventarioNuevo from "./pages/bodega/InventarioNuevo";
+import Inventario from "./pages/bodega/Inventario";
 import InventarioCiclico from "./pages/bodega/InventarioCiclico";
 import Importacion from "./pages/bodega/Importacion";
 import DespachosDepartamentales from "./pages/bodega/DespachosDepartamentales";
@@ -157,7 +157,7 @@ function App() {
                 
                 <Route path="/taller/diagnostico/:id" element={<DiagnosticoInicial />} />
                 <Route path="/taller/cambio-garantia/:id" element={<CambioGarantia />} />
-                <Route path="/bodega/inventario" element={<InventarioNuevo />} />
+                <Route path="/bodega/inventario" element={<Inventario />} />
                 <Route path="/bodega/inventario-ciclico" element={<InventarioCiclico />} />
                 <Route path="/bodega/consulta-cardex" element={<ConsultaCardex />} />
                 <Route path="/bodega/ubicaciones" element={<GestionUbicaciones />} />
