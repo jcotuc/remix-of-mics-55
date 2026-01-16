@@ -1116,31 +1116,46 @@ export type Database = {
       importaciones_detalle: {
         Row: {
           cantidad: number
+          cantidad_esperada: number | null
+          cantidad_recibida: number | null
           created_at: string
           descripcion: string
+          estado: string | null
           id: string
           importacion_id: string
           procesado: boolean | null
+          recibido_at: string | null
+          recibido_por: string | null
           sku: string
           ubicacion_asignada: string | null
         }
         Insert: {
           cantidad: number
+          cantidad_esperada?: number | null
+          cantidad_recibida?: number | null
           created_at?: string
           descripcion: string
+          estado?: string | null
           id?: string
           importacion_id: string
           procesado?: boolean | null
+          recibido_at?: string | null
+          recibido_por?: string | null
           sku: string
           ubicacion_asignada?: string | null
         }
         Update: {
           cantidad?: number
+          cantidad_esperada?: number | null
+          cantidad_recibida?: number | null
           created_at?: string
           descripcion?: string
+          estado?: string | null
           id?: string
           importacion_id?: string
           procesado?: boolean | null
+          recibido_at?: string | null
+          recibido_por?: string | null
           sku?: string
           ubicacion_asignada?: string | null
         }
