@@ -9,10 +9,11 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Switch } from "@/components/ui/switch";
 import { 
   Search, Package, MapPin, CheckCircle2, Clock, ScanLine, 
   Building2, ArrowRight, History, LayoutGrid, AlertTriangle,
-  Calendar, RefreshCw, Layers
+  RefreshCw, Layers, MoveRight
 } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -21,7 +22,6 @@ import { format, differenceInDays, startOfDay } from "date-fns";
 import { es } from "date-fns/locale";
 import { InventoryKPICard } from "@/components/bodega/InventoryKPICard";
 import { BarcodeScanner } from "@/components/bodega/BarcodeScanner";
-import { MovimientoTimeline } from "@/components/bodega/MovimientoTimeline";
 import { TablePagination } from "@/components/TablePagination";
 import { cn } from "@/lib/utils";
 
@@ -46,9 +46,11 @@ type CentroServicio = {
 
 type Ubicacion = {
   id: number;
+  codigo: string | null;
   pasillo: string | null;
   rack: string | null;
   nivel: string | null;
+  caja: string | null;
   bodega_id: string | null;
 };
 
@@ -60,6 +62,7 @@ type MovimientoReubicacion = {
   created_at: string;
   codigo_repuesto: string;
   ubicacion: string | null;
+  referencia: string | null;
   stock_anterior?: number | null;
   stock_nuevo?: number | null;
 };
@@ -68,6 +71,24 @@ type CentroConPendientes = {
   id: string;
   nombre: string;
   pendientes: number;
+};
+
+// Excel-style sorting: numbers first (1,2,3...), then letters (A,B,C...)
+const sortExcelStyle = (a: string | null, b: string | null): number => {
+  if (!a && !b) return 0;
+  if (!a) return 1;
+  if (!b) return -1;
+  
+  const numA = parseInt(a);
+  const numB = parseInt(b);
+  
+  const isNumA = !isNaN(numA);
+  const isNumB = !isNaN(numB);
+  
+  if (isNumA && isNumB) return numA - numB;
+  if (isNumA) return -1;  // Numbers before letters
+  if (isNumB) return 1;
+  return a.localeCompare(b);
 };
 
 export default function ReubicacionRepuestos() {
@@ -82,6 +103,7 @@ export default function ReubicacionRepuestos() {
   const [centroSeleccionado, setCentroSeleccionado] = useState<string>("todos");
   const [busqueda, setBusqueda] = useState("");
   const [soloAntiguos, setSoloAntiguos] = useState(false);
+  const [soloSinUbicar, setSoloSinUbicar] = useState(true); // NEW: Toggle for showing all or only pending
   const [showScanner, setShowScanner] = useState(false);
   
   // Pagination
@@ -97,7 +119,7 @@ export default function ReubicacionRepuestos() {
   const [itemAUbicar, setItemAUbicar] = useState<InventarioItem | null>(null);
   const [modoUbicacion, setModoUbicacion] = useState<"existente" | "nueva">("nueva");
   const [ubicacionSeleccionada, setUbicacionSeleccionada] = useState<string>("");
-  const [nuevaUbicacion, setNuevaUbicacion] = useState({ pasillo: "", rack: "", nivel: "" });
+  const [nuevaUbicacion, setNuevaUbicacion] = useState({ pasillo: "", rack: "", nivel: "", caja: "" });
   
   // Loading & stats
   const [loading, setLoading] = useState(true);
@@ -121,7 +143,7 @@ export default function ReubicacionRepuestos() {
   useEffect(() => {
     fetchInventario();
     fetchStats();
-  }, [centroSeleccionado]);
+  }, [centroSeleccionado, soloSinUbicar]);
 
   useEffect(() => {
     if (activeTab === "historial") {
@@ -153,13 +175,28 @@ export default function ReubicacionRepuestos() {
     try {
       const { data, error } = await supabase
         .from("Ubicación_CDS")
-        .select("id, pasillo, rack, nivel, bodega_id")
+        .select("id, codigo, pasillo, rack, nivel, caja, bodega_id")
         .order("pasillo")
         .order("rack")
         .order("nivel");
 
       if (error) throw error;
-      setUbicaciones(data || []);
+      
+      // Sort with Excel-style for caja
+      const sorted = (data || []).sort((a, b) => {
+        const pasilloCompare = sortExcelStyle(a.pasillo, b.pasillo);
+        if (pasilloCompare !== 0) return pasilloCompare;
+        
+        const rackCompare = sortExcelStyle(a.rack, b.rack);
+        if (rackCompare !== 0) return rackCompare;
+        
+        const nivelCompare = sortExcelStyle(a.nivel, b.nivel);
+        if (nivelCompare !== 0) return nivelCompare;
+        
+        return sortExcelStyle(a.caja, b.caja);
+      });
+      
+      setUbicaciones(sorted);
     } catch (error) {
       console.error("Error fetching ubicaciones:", error);
     }
@@ -182,8 +219,12 @@ export default function ReubicacionRepuestos() {
           centros_servicio (
             nombre
           )
-        `)
-        .is("ubicacion_id", null);
+        `);
+
+      // NEW: Only filter by ubicacion_id if soloSinUbicar is true
+      if (soloSinUbicar) {
+        query = query.is("ubicacion_id", null);
+      }
 
       if (centroSeleccionado && centroSeleccionado !== "todos") {
         query = query.eq("centro_servicio_id", centroSeleccionado);
@@ -196,7 +237,7 @@ export default function ReubicacionRepuestos() {
       setSelectedItems(new Set());
     } catch (error) {
       console.error("Error fetching inventario:", error);
-      toast.error("Error al cargar inventario pendiente");
+      toast.error("Error al cargar inventario");
     } finally {
       setLoading(false);
     }
@@ -204,7 +245,7 @@ export default function ReubicacionRepuestos() {
 
   const fetchStats = async () => {
     try {
-      // Total pendientes
+      // Total pendientes (siempre sin ubicación)
       let pendientesQuery = supabase
         .from("inventario")
         .select("id, centro_servicio_id, created_at", { count: "exact" })
@@ -313,7 +354,8 @@ export default function ReubicacionRepuestos() {
       const search = busqueda.toLowerCase();
       filtered = filtered.filter(item =>
         item.codigo_repuesto.toLowerCase().includes(search) ||
-        item.descripcion?.toLowerCase().includes(search)
+        item.descripcion?.toLowerCase().includes(search) ||
+        item.ubicacion_legacy?.toLowerCase().includes(search)
       );
     }
 
@@ -358,12 +400,39 @@ export default function ReubicacionRepuestos() {
     setShowScanner(false);
   };
 
+  // Helper to get location string from form
+  const getUbicacionFinal = (): string | null => {
+    if (modoUbicacion === "existente" && ubicacionSeleccionada) {
+      const ub = ubicaciones.find(u => u.id.toString() === ubicacionSeleccionada);
+      if (ub && ub.codigo) {
+        return ub.codigo;
+      }
+      // Fallback to building from parts
+      if (ub) {
+        let code = `${ub.pasillo || ""}.${ub.rack || ""}.${ub.nivel || ""}`;
+        if (ub.caja) {
+          code += `.${ub.caja}`;
+        }
+        return code;
+      }
+    } else if (modoUbicacion === "nueva") {
+      if (nuevaUbicacion.pasillo && nuevaUbicacion.rack && nuevaUbicacion.nivel) {
+        let code = `${nuevaUbicacion.pasillo}.${nuevaUbicacion.rack}.${nuevaUbicacion.nivel}`;
+        if (nuevaUbicacion.caja) {
+          code += `.${nuevaUbicacion.caja}`;
+        }
+        return code;
+      }
+    }
+    return null;
+  };
+
   // Reubicación handlers
   const handleIniciarReubicacion = (item: InventarioItem) => {
     setItemAUbicar(item);
     setModoUbicacion("nueva");
     setUbicacionSeleccionada("");
-    setNuevaUbicacion({ pasillo: "", rack: "", nivel: "" });
+    setNuevaUbicacion({ pasillo: "", rack: "", nivel: "", caja: "" });
     setShowReubicacionDialog(true);
   };
 
@@ -374,20 +443,8 @@ export default function ReubicacionRepuestos() {
     }
     setModoUbicacion("nueva");
     setUbicacionSeleccionada("");
-    setNuevaUbicacion({ pasillo: "", rack: "", nivel: "" });
+    setNuevaUbicacion({ pasillo: "", rack: "", nivel: "", caja: "" });
     setShowReubicacionMasivaDialog(true);
-  };
-
-  const getUbicacionFinal = (): string | null => {
-    if (modoUbicacion === "existente" && ubicacionSeleccionada) {
-      const ub = ubicaciones.find(u => u.id.toString() === ubicacionSeleccionada);
-      if (ub) {
-        return `${ub.pasillo || ""}.${ub.rack || ""}.${ub.nivel || ""}`;
-      }
-    } else if (modoUbicacion === "nueva" && nuevaUbicacion.pasillo && nuevaUbicacion.rack && nuevaUbicacion.nivel) {
-      return `${nuevaUbicacion.pasillo}.${nuevaUbicacion.rack}.${nuevaUbicacion.nivel}`;
-    }
-    return null;
   };
 
   const handleConfirmarReubicacion = async () => {
@@ -395,12 +452,19 @@ export default function ReubicacionRepuestos() {
     
     const ubicacionFinal = getUbicacionFinal();
     if (!ubicacionFinal) {
-      toast.error("Completa la ubicación");
+      toast.error("Completa la ubicación (mínimo: pasillo, rack y nivel)");
+      return;
+    }
+
+    // Check if trying to move to same location
+    if (itemAUbicar.ubicacion_legacy === ubicacionFinal) {
+      toast.warning("El repuesto ya está en esta ubicación");
       return;
     }
 
     try {
       const user = await supabase.auth.getUser();
+      const ubicacionAnterior = itemAUbicar.ubicacion_legacy;
 
       const { error: updateError } = await supabase
         .from("inventario")
@@ -415,11 +479,18 @@ export default function ReubicacionRepuestos() {
         tipo_movimiento: "reubicacion",
         cantidad: itemAUbicar.cantidad,
         ubicacion: ubicacionFinal,
-        referencia: `Ubicado en ${ubicacionFinal}`,
+        motivo: ubicacionAnterior 
+          ? `Cambio de ${ubicacionAnterior} a ${ubicacionFinal}` 
+          : `Ubicado en ${ubicacionFinal}`,
+        referencia: ubicacionAnterior ? "cambio_ubicacion" : "asignacion_inicial",
         created_by: user.data.user?.id,
       });
 
-      toast.success(`Repuesto ubicado en ${ubicacionFinal}`);
+      toast.success(
+        ubicacionAnterior 
+          ? `Repuesto movido de ${ubicacionAnterior} a ${ubicacionFinal}` 
+          : `Repuesto ubicado en ${ubicacionFinal}`
+      );
       setShowReubicacionDialog(false);
       fetchInventario();
       fetchStats();
@@ -432,7 +503,7 @@ export default function ReubicacionRepuestos() {
   const handleConfirmarReubicacionMasiva = async () => {
     const ubicacionFinal = getUbicacionFinal();
     if (!ubicacionFinal) {
-      toast.error("Completa la ubicación");
+      toast.error("Completa la ubicación (mínimo: pasillo, rack y nivel)");
       return;
     }
 
@@ -441,6 +512,8 @@ export default function ReubicacionRepuestos() {
       const itemsToUpdate = inventarioItems.filter(item => selectedItems.has(item.id));
 
       for (const item of itemsToUpdate) {
+        const ubicacionAnterior = item.ubicacion_legacy;
+        
         await supabase
           .from("inventario")
           .update({ ubicacion_legacy: ubicacionFinal })
@@ -452,7 +525,10 @@ export default function ReubicacionRepuestos() {
           tipo_movimiento: "reubicacion",
           cantidad: item.cantidad,
           ubicacion: ubicacionFinal,
-          referencia: `Ubicado en ${ubicacionFinal} (masivo)`,
+          motivo: ubicacionAnterior 
+            ? `Cambio masivo de ${ubicacionAnterior} a ${ubicacionFinal}` 
+            : `Ubicado en ${ubicacionFinal} (masivo)`,
+          referencia: "reubicacion_masiva",
           created_by: user.data.user?.id,
         });
       }
@@ -479,6 +555,19 @@ export default function ReubicacionRepuestos() {
     return <Badge variant="outline" className="text-xs">{days}d</Badge>;
   };
 
+  // Preview component for location code
+  const UbicacionPreview = () => {
+    const preview = getUbicacionFinal();
+    if (!preview) return null;
+    
+    return (
+      <div className="p-3 bg-muted/50 rounded-lg border border-dashed">
+        <p className="text-xs text-muted-foreground mb-1">Código de ubicación:</p>
+        <p className="font-mono text-lg font-bold text-primary">{preview}</p>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -486,7 +575,7 @@ export default function ReubicacionRepuestos() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Reubicación de Repuestos</h1>
           <p className="text-muted-foreground mt-1">
-            Asigna ubicación a repuestos pendientes
+            Asigna o cambia la ubicación de repuestos
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={() => { fetchInventario(); fetchStats(); }}>
@@ -525,7 +614,7 @@ export default function ReubicacionRepuestos() {
           color="danger"
           subtitle="Requieren atención"
           isClickable
-          onClick={() => { setSoloAntiguos(true); setActiveTab("pendientes"); }}
+          onClick={() => { setSoloAntiguos(true); setSoloSinUbicar(true); setActiveTab("pendientes"); }}
         />
       </div>
 
@@ -534,7 +623,7 @@ export default function ReubicacionRepuestos() {
         <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-flex">
           <TabsTrigger value="pendientes" className="gap-2">
             <Package className="h-4 w-4" />
-            <span className="hidden sm:inline">Pendientes</span>
+            <span className="hidden sm:inline">Repuestos</span>
             <Badge variant="secondary" className="ml-1">{itemsFiltrados.length}</Badge>
           </TabsTrigger>
           <TabsTrigger value="historial" className="gap-2">
@@ -553,7 +642,7 @@ export default function ReubicacionRepuestos() {
           <Card>
             <CardContent className="pt-6">
               <div className="flex flex-col lg:flex-row gap-4">
-                <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="flex-1 grid grid-cols-1 sm:grid-cols-4 gap-4">
                   <div className="space-y-2">
                     <Label className="text-xs text-muted-foreground">Centro de Servicio</Label>
                     <Select value={centroSeleccionado} onValueChange={setCentroSeleccionado}>
@@ -576,7 +665,7 @@ export default function ReubicacionRepuestos() {
                     <div className="relative">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input
-                        placeholder="Código o descripción..."
+                        placeholder="Código, descripción o ubicación..."
                         value={busqueda}
                         onChange={(e) => setBusqueda(e.target.value)}
                         className="pl-10"
@@ -597,6 +686,20 @@ export default function ReubicacionRepuestos() {
                     >
                       <Clock className={cn("h-4 w-4", soloAntiguos && "text-white")} />
                     </Button>
+                  </div>
+
+                  {/* NEW: Toggle to show all or only pending */}
+                  <div className="flex items-end">
+                    <div className="flex items-center space-x-2 p-2 rounded-lg border bg-muted/30">
+                      <Switch
+                        id="solo-sin-ubicar"
+                        checked={soloSinUbicar}
+                        onCheckedChange={setSoloSinUbicar}
+                      />
+                      <Label htmlFor="solo-sin-ubicar" className="text-sm cursor-pointer">
+                        Solo pendientes
+                      </Label>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -632,7 +735,9 @@ export default function ReubicacionRepuestos() {
                   <p className="text-lg font-medium text-muted-foreground">
                     {itemsFiltrados.length === 0 && inventarioItems.length > 0
                       ? "No hay resultados para tu búsqueda"
-                      : "¡Todos los repuestos están ubicados!"}
+                      : soloSinUbicar 
+                        ? "¡Todos los repuestos están ubicados!"
+                        : "No hay repuestos en este centro"}
                   </p>
                 </div>
               ) : (
@@ -650,6 +755,7 @@ export default function ReubicacionRepuestos() {
                           <TableHead className="w-24">Antigüedad</TableHead>
                           <TableHead>Código</TableHead>
                           <TableHead className="hidden md:table-cell">Descripción</TableHead>
+                          <TableHead>Ubicación Actual</TableHead>
                           <TableHead>Centro</TableHead>
                           <TableHead className="text-right">Cant.</TableHead>
                           <TableHead className="w-28"></TableHead>
@@ -676,6 +782,17 @@ export default function ReubicacionRepuestos() {
                               {item.descripcion || "-"}
                             </TableCell>
                             <TableCell>
+                              {item.ubicacion_legacy ? (
+                                <Badge variant="secondary" className="font-mono">
+                                  {item.ubicacion_legacy}
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-muted-foreground">
+                                  Sin ubicación
+                                </Badge>
+                              )}
+                            </TableCell>
+                            <TableCell>
                               <Badge variant="outline" className="font-normal">
                                 {item.centros_servicio?.nombre}
                               </Badge>
@@ -685,10 +802,20 @@ export default function ReubicacionRepuestos() {
                               <Button
                                 size="sm"
                                 className="w-full"
+                                variant={item.ubicacion_legacy ? "outline" : "default"}
                                 onClick={() => handleIniciarReubicacion(item)}
                               >
-                                <MapPin className="h-4 w-4 mr-1" />
-                                Ubicar
+                                {item.ubicacion_legacy ? (
+                                  <>
+                                    <MoveRight className="h-4 w-4 mr-1" />
+                                    Mover
+                                  </>
+                                ) : (
+                                  <>
+                                    <MapPin className="h-4 w-4 mr-1" />
+                                    Ubicar
+                                  </>
+                                )}
                               </Button>
                             </TableCell>
                           </TableRow>
@@ -743,9 +870,11 @@ export default function ReubicacionRepuestos() {
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-mono font-medium">{mov.codigo_repuesto}</span>
                             <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                            <Badge variant="secondary">{mov.ubicacion}</Badge>
+                            <Badge variant="secondary" className="font-mono">{mov.ubicacion}</Badge>
                           </div>
-                          <p className="text-sm text-muted-foreground mt-1">{mov.cantidad} unidades</p>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            {mov.cantidad} unidades • {mov.motivo || mov.referencia}
+                          </p>
                         </div>
                         <div className="text-right text-sm text-muted-foreground">
                           <p>{format(new Date(mov.created_at), "dd/MM/yyyy", { locale: es })}</p>
@@ -779,6 +908,7 @@ export default function ReubicacionRepuestos() {
                   className="cursor-pointer hover:shadow-md transition-shadow"
                   onClick={() => {
                     setCentroSeleccionado(centro.id);
+                    setSoloSinUbicar(true);
                     setActiveTab("pendientes");
                   }}
                 >
@@ -809,14 +939,16 @@ export default function ReubicacionRepuestos() {
 
       {/* Dialog: Reubicación Individual */}
       <Dialog open={showReubicacionDialog} onOpenChange={setShowReubicacionDialog}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <MapPin className="h-5 w-5 text-primary" />
-              Asignar Ubicación
+              {itemAUbicar?.ubicacion_legacy ? "Cambiar Ubicación" : "Asignar Ubicación"}
             </DialogTitle>
             <DialogDescription>
-              Define dónde se almacenará este repuesto
+              {itemAUbicar?.ubicacion_legacy 
+                ? "Mueve este repuesto a una nueva ubicación"
+                : "Define dónde se almacenará este repuesto"}
             </DialogDescription>
           </DialogHeader>
 
@@ -825,9 +957,14 @@ export default function ReubicacionRepuestos() {
               <div className="p-4 bg-muted/50 rounded-lg space-y-2">
                 <p className="font-mono font-bold">{itemAUbicar.codigo_repuesto}</p>
                 <p className="text-sm text-muted-foreground">{itemAUbicar.descripcion}</p>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <Badge variant="outline">{itemAUbicar.centros_servicio?.nombre}</Badge>
                   <Badge>{itemAUbicar.cantidad} uds</Badge>
+                  {itemAUbicar.ubicacion_legacy && (
+                    <Badge variant="secondary" className="font-mono">
+                      Actual: {itemAUbicar.ubicacion_legacy}
+                    </Badge>
+                  )}
                 </div>
               </div>
 
@@ -839,69 +976,87 @@ export default function ReubicacionRepuestos() {
                 </TabsList>
 
                 <TabsContent value="nueva" className="space-y-4 mt-4">
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-4 gap-3">
                     <div className="space-y-2">
                       <Label className="text-xs">Pasillo</Label>
                       <Input
-                        placeholder="A"
+                        placeholder="A01"
                         value={nuevaUbicacion.pasillo}
                         onChange={(e) => setNuevaUbicacion({ ...nuevaUbicacion, pasillo: e.target.value.toUpperCase() })}
-                        maxLength={3}
+                        maxLength={4}
                       />
                     </div>
                     <div className="space-y-2">
                       <Label className="text-xs">Rack</Label>
                       <Input
-                        placeholder="01"
+                        placeholder="001"
                         value={nuevaUbicacion.rack}
                         onChange={(e) => setNuevaUbicacion({ ...nuevaUbicacion, rack: e.target.value })}
-                        maxLength={3}
+                        maxLength={4}
                       />
                     </div>
                     <div className="space-y-2">
                       <Label className="text-xs">Nivel</Label>
                       <Input
-                        placeholder="03"
+                        placeholder="02"
                         value={nuevaUbicacion.nivel}
                         onChange={(e) => setNuevaUbicacion({ ...nuevaUbicacion, nivel: e.target.value })}
-                        maxLength={3}
+                        maxLength={4}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs">Caja <span className="text-muted-foreground">(opc.)</span></Label>
+                      <Input
+                        placeholder="15"
+                        value={nuevaUbicacion.caja}
+                        onChange={(e) => setNuevaUbicacion({ ...nuevaUbicacion, caja: e.target.value })}
+                        maxLength={4}
                       />
                     </div>
                   </div>
+                  <UbicacionPreview />
                 </TabsContent>
 
-                <TabsContent value="existente" className="mt-4">
+                <TabsContent value="existente" className="mt-4 space-y-4">
                   <Select value={ubicacionSeleccionada} onValueChange={setUbicacionSeleccionada}>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecciona una ubicación" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="max-h-[300px]">
                       {ubicaciones.map((ub) => (
                         <SelectItem key={ub.id} value={ub.id.toString()}>
-                          {ub.pasillo}.{ub.rack}.{ub.nivel}
+                          <span className="font-mono">
+                            {ub.codigo || `${ub.pasillo}.${ub.rack}.${ub.nivel}${ub.caja ? `.${ub.caja}` : ""}`}
+                          </span>
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
+                  <UbicacionPreview />
                 </TabsContent>
               </Tabs>
 
-              {/* Preview */}
-              {getUbicacionFinal() && (
-                <div className="p-3 bg-primary/10 rounded-lg border border-primary/20 text-center">
-                  <p className="text-xs text-muted-foreground mb-1">Ubicación final</p>
-                  <p className="text-xl font-bold text-primary">{getUbicacionFinal()}</p>
+              {/* Show change indicator if item has existing location */}
+              {itemAUbicar.ubicacion_legacy && getUbicacionFinal() && (
+                <div className="flex items-center gap-2 p-3 bg-blue-50 text-blue-700 rounded-lg border border-blue-200">
+                  <MoveRight className="h-4 w-4" />
+                  <span className="text-sm">
+                    <span className="font-mono">{itemAUbicar.ubicacion_legacy}</span>
+                    <ArrowRight className="h-3 w-3 inline mx-2" />
+                    <span className="font-mono font-bold">{getUbicacionFinal()}</span>
+                  </span>
                 </div>
               )}
             </div>
           )}
 
-          <DialogFooter className="gap-2">
+          <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => setShowReubicacionDialog(false)}>
               Cancelar
             </Button>
-            <Button onClick={handleConfirmarReubicacion} disabled={!getUbicacionFinal()}>
-              Confirmar
+            <Button onClick={handleConfirmarReubicacion}>
+              <CheckCircle2 className="h-4 w-4 mr-2" />
+              {itemAUbicar?.ubicacion_legacy ? "Confirmar Cambio" : "Confirmar Ubicación"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -909,35 +1064,34 @@ export default function ReubicacionRepuestos() {
 
       {/* Dialog: Reubicación Masiva */}
       <Dialog open={showReubicacionMasivaDialog} onOpenChange={setShowReubicacionMasivaDialog}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Layers className="h-5 w-5 text-primary" />
               Reubicación Masiva
             </DialogTitle>
             <DialogDescription>
-              Asigna la misma ubicación a {selectedItems.size} repuestos
+              Asigna la misma ubicación a {selectedItems.size} repuestos seleccionados
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
-            <div className="p-3 bg-muted/50 rounded-lg">
-              <p className="text-sm font-medium mb-2">Repuestos seleccionados:</p>
-              <ScrollArea className="h-[120px]">
-                <div className="space-y-1">
+            <div className="p-4 bg-muted/50 rounded-lg">
+              <p className="text-sm font-medium">{selectedItems.size} repuestos seleccionados</p>
+              <ScrollArea className="h-20 mt-2">
+                <div className="flex flex-wrap gap-1">
                   {inventarioItems
                     .filter(item => selectedItems.has(item.id))
                     .map(item => (
-                      <div key={item.id} className="flex items-center gap-2 text-sm">
-                        <Package className="h-3 w-3 text-muted-foreground" />
-                        <span className="font-mono">{item.codigo_repuesto}</span>
-                        <span className="text-muted-foreground">({item.cantidad})</span>
-                      </div>
+                      <Badge key={item.id} variant="outline" className="text-xs font-mono">
+                        {item.codigo_repuesto}
+                      </Badge>
                     ))}
                 </div>
               </ScrollArea>
             </div>
 
+            {/* Modo selector */}
             <Tabs value={modoUbicacion} onValueChange={(v) => setModoUbicacion(v as "existente" | "nueva")}>
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="nueva">Nueva Ubicación</TabsTrigger>
@@ -945,79 +1099,84 @@ export default function ReubicacionRepuestos() {
               </TabsList>
 
               <TabsContent value="nueva" className="space-y-4 mt-4">
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-4 gap-3">
                   <div className="space-y-2">
                     <Label className="text-xs">Pasillo</Label>
                     <Input
-                      placeholder="A"
+                      placeholder="A01"
                       value={nuevaUbicacion.pasillo}
                       onChange={(e) => setNuevaUbicacion({ ...nuevaUbicacion, pasillo: e.target.value.toUpperCase() })}
-                      maxLength={3}
+                      maxLength={4}
                     />
                   </div>
                   <div className="space-y-2">
                     <Label className="text-xs">Rack</Label>
                     <Input
-                      placeholder="01"
+                      placeholder="001"
                       value={nuevaUbicacion.rack}
                       onChange={(e) => setNuevaUbicacion({ ...nuevaUbicacion, rack: e.target.value })}
-                      maxLength={3}
+                      maxLength={4}
                     />
                   </div>
                   <div className="space-y-2">
                     <Label className="text-xs">Nivel</Label>
                     <Input
-                      placeholder="03"
+                      placeholder="02"
                       value={nuevaUbicacion.nivel}
                       onChange={(e) => setNuevaUbicacion({ ...nuevaUbicacion, nivel: e.target.value })}
-                      maxLength={3}
+                      maxLength={4}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs">Caja <span className="text-muted-foreground">(opc.)</span></Label>
+                    <Input
+                      placeholder="15"
+                      value={nuevaUbicacion.caja}
+                      onChange={(e) => setNuevaUbicacion({ ...nuevaUbicacion, caja: e.target.value })}
+                      maxLength={4}
                     />
                   </div>
                 </div>
+                <UbicacionPreview />
               </TabsContent>
 
-              <TabsContent value="existente" className="mt-4">
+              <TabsContent value="existente" className="mt-4 space-y-4">
                 <Select value={ubicacionSeleccionada} onValueChange={setUbicacionSeleccionada}>
                   <SelectTrigger>
                     <SelectValue placeholder="Selecciona una ubicación" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="max-h-[300px]">
                     {ubicaciones.map((ub) => (
                       <SelectItem key={ub.id} value={ub.id.toString()}>
-                        {ub.pasillo}.{ub.rack}.{ub.nivel}
+                        <span className="font-mono">
+                          {ub.codigo || `${ub.pasillo}.${ub.rack}.${ub.nivel}${ub.caja ? `.${ub.caja}` : ""}`}
+                        </span>
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                <UbicacionPreview />
               </TabsContent>
             </Tabs>
-
-            {getUbicacionFinal() && (
-              <div className="p-3 bg-primary/10 rounded-lg border border-primary/20 text-center">
-                <p className="text-xs text-muted-foreground mb-1">Ubicación final</p>
-                <p className="text-xl font-bold text-primary">{getUbicacionFinal()}</p>
-              </div>
-            )}
           </div>
 
-          <DialogFooter className="gap-2">
+          <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => setShowReubicacionMasivaDialog(false)}>
               Cancelar
             </Button>
-            <Button onClick={handleConfirmarReubicacionMasiva} disabled={!getUbicacionFinal()}>
-              Reubicar {selectedItems.size} repuestos
+            <Button onClick={handleConfirmarReubicacionMasiva}>
+              <CheckCircle2 className="h-4 w-4 mr-2" />
+              Confirmar Reubicación
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Barcode Scanner */}
-      <BarcodeScanner
-        open={showScanner}
-        onOpenChange={setShowScanner}
-        onScan={handleScan}
-        title="Buscar Repuesto"
-        description="Escanea o ingresa el código del repuesto a ubicar"
+      {/* Scanner Dialog */}
+      <BarcodeScanner 
+        open={showScanner} 
+        onOpenChange={setShowScanner} 
+        onScan={handleScan} 
       />
     </div>
   );
