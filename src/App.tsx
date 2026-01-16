@@ -66,8 +66,7 @@ import VerificacionReincidencias from "./pages/calidad/VerificacionReincidencias
 import GestionUbicaciones from "./pages/bodega/GestionUbicaciones";
 import DocumentosPendientes from "./pages/bodega/DocumentosPendientes";
 import DocumentosUbicacion from "./pages/bodega/DocumentosUbicacion";
-import IngresosInventario from "./pages/bodega/IngresosInventario";
-import SalidasInventario from "./pages/bodega/SalidasInventario";
+import MovimientosInventario from "./pages/bodega/MovimientosInventario";
 import Despieces from "./pages/bodega/Despieces";
 import IncidentesSAC from "./pages/sac/IncidentesSAC";
 import DetalleIncidenteSAC from "./pages/sac/DetalleIncidenteSAC";
@@ -163,8 +162,7 @@ function App() {
                 <Route path="/bodega/ubicaciones" element={<GestionUbicaciones />} />
                 <Route path="/bodega/documentos-pendientes" element={<DocumentosPendientes />} />
                 <Route path="/bodega/documentos-ubicacion" element={<DocumentosUbicacion />} />
-                <Route path="/bodega/ingresos-inventario" element={<IngresosInventario />} />
-                <Route path="/bodega/salidas-inventario" element={<SalidasInventario />} />
+                <Route path="/bodega/movimientos" element={<MovimientosInventario />} />
                 <Route path="/bodega/despieces" element={<Despieces />} />
                 <Route path="/bodega/importacion" element={<Importacion />} />
                 <Route path="/bodega/despachos" element={<DespachosDepartamentales />} />
