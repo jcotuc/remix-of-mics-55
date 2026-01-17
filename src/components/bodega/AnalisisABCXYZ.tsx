@@ -120,7 +120,8 @@ const AnalisisABCXYZ = () => {
       await fetchAnalisis();
     } catch (error) {
       console.error("Error refreshing analisis:", error);
-      toast.error("Error al actualizar el análisis");
+      const message = (error as any)?.message ? String((error as any).message) : "Error desconocido";
+      toast.error(`Error al actualizar el análisis: ${message}`);
     } finally {
       setRefreshing(false);
     }
