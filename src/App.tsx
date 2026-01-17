@@ -56,7 +56,7 @@ import InventarioCiclico from "./pages/bodega/InventarioCiclico";
 import Importacion from "./pages/bodega/Importacion";
 import RecepcionImportacion from "./pages/bodega/RecepcionImportacion";
 import DespachosDepartamentales from "./pages/bodega/DespachosDepartamentales";
-import AbastecimientoCentros from "./pages/bodega/AbastecimientoCentros";
+import AnalisisYAbastecimiento from "./pages/bodega/AnalisisYAbastecimiento";
 import ListadoPicking from "./pages/bodega/ListadoPicking";
 import Solicitudes from "./pages/bodega/Solicitudes";
 import DetalleSolicitud from "./pages/bodega/DetalleSolicitud";
@@ -169,7 +169,7 @@ function App() {
                 <Route path="/bodega/importacion" element={<Importacion />} />
                 <Route path="/bodega/recepcion/:id" element={<RecepcionImportacion />} />
                 <Route path="/bodega/despachos" element={<DespachosDepartamentales />} />
-                <Route path="/bodega/abastecimiento" element={<AbastecimientoCentros />} />
+                <Route path="/bodega/abastecimiento" element={<AnalisisYAbastecimiento />} />
                 <Route path="/bodega/picking/:id" element={<ListadoPicking />} />
                 <Route path="/bodega/solicitudes" element={<Solicitudes />} />
                 <Route path="/bodega/solicitudes/:id" element={<DetalleSolicitud />} />

@@ -14,6 +14,77 @@ export type Database = {
   }
   public: {
     Tables: {
+      analisis_inventario: {
+        Row: {
+          centro_servicio_id: string
+          clasificacion_abc: string | null
+          clasificacion_xyz: string | null
+          codigo_repuesto: string
+          costo_unitario: number
+          created_at: string
+          dias_en_inventario: number
+          dias_sin_movimiento: number
+          id: string
+          meses_analizados: number
+          meses_con_movimiento: number
+          primera_entrada: string | null
+          stock_actual: number
+          total_movimientos: number
+          total_salidas: number
+          ultimo_movimiento: string | null
+          updated_at: string
+          valor_inventario: number
+        }
+        Insert: {
+          centro_servicio_id: string
+          clasificacion_abc?: string | null
+          clasificacion_xyz?: string | null
+          codigo_repuesto: string
+          costo_unitario?: number
+          created_at?: string
+          dias_en_inventario?: number
+          dias_sin_movimiento?: number
+          id?: string
+          meses_analizados?: number
+          meses_con_movimiento?: number
+          primera_entrada?: string | null
+          stock_actual?: number
+          total_movimientos?: number
+          total_salidas?: number
+          ultimo_movimiento?: string | null
+          updated_at?: string
+          valor_inventario?: number
+        }
+        Update: {
+          centro_servicio_id?: string
+          clasificacion_abc?: string | null
+          clasificacion_xyz?: string | null
+          codigo_repuesto?: string
+          costo_unitario?: number
+          created_at?: string
+          dias_en_inventario?: number
+          dias_sin_movimiento?: number
+          id?: string
+          meses_analizados?: number
+          meses_con_movimiento?: number
+          primera_entrada?: string | null
+          stock_actual?: number
+          total_movimientos?: number
+          total_salidas?: number
+          ultimo_movimiento?: string | null
+          updated_at?: string
+          valor_inventario?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analisis_inventario_centro_servicio_id_fkey"
+            columns: ["centro_servicio_id"]
+            isOneToOne: false
+            referencedRelation: "centros_servicio"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       asignaciones_sac: {
         Row: {
           activo: boolean | null
@@ -2870,6 +2941,110 @@ export type Database = {
           },
         ]
       }
+      sugeridos_mexico: {
+        Row: {
+          created_at: string
+          estado: string
+          fecha_importacion: string
+          id: string
+          importado_por: string | null
+          nombre_archivo: string
+          notas: string | null
+          total_items: number
+          updated_at: string
+          valor_total_aprobado: number
+          valor_total_sugerido: number
+        }
+        Insert: {
+          created_at?: string
+          estado?: string
+          fecha_importacion?: string
+          id?: string
+          importado_por?: string | null
+          nombre_archivo: string
+          notas?: string | null
+          total_items?: number
+          updated_at?: string
+          valor_total_aprobado?: number
+          valor_total_sugerido?: number
+        }
+        Update: {
+          created_at?: string
+          estado?: string
+          fecha_importacion?: string
+          id?: string
+          importado_por?: string | null
+          nombre_archivo?: string
+          notas?: string | null
+          total_items?: number
+          updated_at?: string
+          valor_total_aprobado?: number
+          valor_total_sugerido?: number
+        }
+        Relationships: []
+      }
+      sugeridos_mexico_items: {
+        Row: {
+          cantidad_aprobada: number
+          cantidad_sugerida: number
+          clasificacion_abc: string | null
+          clasificacion_xyz: string | null
+          codigo_repuesto: string
+          created_at: string
+          decision: string
+          descripcion: string | null
+          dias_inventario: number
+          id: string
+          notas: string | null
+          precio_unitario: number
+          stock_actual_zona5: number
+          sugerido_id: string
+          updated_at: string
+        }
+        Insert: {
+          cantidad_aprobada?: number
+          cantidad_sugerida?: number
+          clasificacion_abc?: string | null
+          clasificacion_xyz?: string | null
+          codigo_repuesto: string
+          created_at?: string
+          decision?: string
+          descripcion?: string | null
+          dias_inventario?: number
+          id?: string
+          notas?: string | null
+          precio_unitario?: number
+          stock_actual_zona5?: number
+          sugerido_id: string
+          updated_at?: string
+        }
+        Update: {
+          cantidad_aprobada?: number
+          cantidad_sugerida?: number
+          clasificacion_abc?: string | null
+          clasificacion_xyz?: string | null
+          codigo_repuesto?: string
+          created_at?: string
+          decision?: string
+          descripcion?: string | null
+          dias_inventario?: number
+          id?: string
+          notas?: string | null
+          precio_unitario?: number
+          stock_actual_zona5?: number
+          sugerido_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sugeridos_mexico_items_sugerido_id_fkey"
+            columns: ["sugerido_id"]
+            isOneToOne: false
+            referencedRelation: "sugeridos_mexico"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tecnicos: {
         Row: {
           apellido: string
@@ -3231,6 +3406,10 @@ export type Database = {
           ubicacion: string
         }[]
       }
+      calcular_analisis_inventario: {
+        Args: { p_centro_servicio_id: string }
+        Returns: undefined
+      }
       contar_asignaciones_tecnico: {
         Args: { tecnico_id: string }
         Returns: number
@@ -3281,6 +3460,9 @@ export type Database = {
         | "capacitador"
       audit_action: "INSERT" | "UPDATE" | "DELETE"
       clasificacion_abc: "A" | "B" | "C"
+      clasificacion_xyz: "X" | "Y" | "Z"
+      decision_sugerido: "comprar" | "parcial" | "no_comprar" | "revisar"
+      estado_sugerido: "borrador" | "en_revision" | "aprobado" | "enviado"
       media_tipo: "foto" | "video"
       status_incidente:
         | "Ingresado"
@@ -3461,6 +3643,9 @@ export const Constants = {
       ],
       audit_action: ["INSERT", "UPDATE", "DELETE"],
       clasificacion_abc: ["A", "B", "C"],
+      clasificacion_xyz: ["X", "Y", "Z"],
+      decision_sugerido: ["comprar", "parcial", "no_comprar", "revisar"],
+      estado_sugerido: ["borrador", "en_revision", "aprobado", "enviado"],
       media_tipo: ["foto", "video"],
       status_incidente: [
         "Ingresado",
