@@ -180,7 +180,8 @@ export const RUTAS_PERMISOS: Record<string, string> = {
   '/bodega/solicitudes': 'ver_solicitudes',
   '/bodega/despachos': 'ver_despachos',
   '/bodega/importacion': 'importar_productos',
-  '/bodega/analisis-abc-xyz': 'ver_analisis_abc',
+  '/bodega/abastecimiento': 'ver_analisis_abc',
+  '/bodega/picking': 'ver_analisis_abc',
   // SAC
   '/sac/incidentes': 'ver_incidentes_sac',
   '/sac/consulta-existencias': 'ver_existencias',
