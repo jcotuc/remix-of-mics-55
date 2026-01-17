@@ -534,8 +534,6 @@ const AnalisisABCXYZ = () => {
               <Button variant="outline" size="sm" onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>Siguiente</Button>
             </div>
           )}
-            </div>
-          )}
         </CardContent>
       </Card>
     </div>
