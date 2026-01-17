@@ -79,7 +79,7 @@ const menuAreas = {
     { title: "Solicitudes", url: "/bodega/solicitudes", icon: ShoppingCart },
     { title: "Despachos Dpto", url: "/bodega/despachos", icon: Truck },
     { title: "Importación", url: "/bodega/importacion", icon: Package },
-    { title: "Análisis ABC-XYZ", url: "/bodega/analisis-abc-xyz", icon: BarChart3 },
+    { title: "Abastecimiento", url: "/bodega/abastecimiento", icon: Truck },
   ],
   sac: [
     { title: "Incidentes", url: "/sac/incidentes", icon: FileText },

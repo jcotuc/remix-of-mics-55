@@ -1616,6 +1616,147 @@ export type Database = {
           },
         ]
       }
+      listados_abastecimiento: {
+        Row: {
+          centro_servicio_destino_id: string
+          created_at: string
+          estado: string
+          fecha_generacion: string
+          generado_por: string | null
+          id: string
+          nombre: string
+          notas: string | null
+          updated_at: string
+        }
+        Insert: {
+          centro_servicio_destino_id: string
+          created_at?: string
+          estado?: string
+          fecha_generacion?: string
+          generado_por?: string | null
+          id?: string
+          nombre: string
+          notas?: string | null
+          updated_at?: string
+        }
+        Update: {
+          centro_servicio_destino_id?: string
+          created_at?: string
+          estado?: string
+          fecha_generacion?: string
+          generado_por?: string | null
+          id?: string
+          nombre?: string
+          notas?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "listados_abastecimiento_centro_servicio_destino_id_fkey"
+            columns: ["centro_servicio_destino_id"]
+            isOneToOne: false
+            referencedRelation: "centros_servicio"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      listados_abastecimiento_items: {
+        Row: {
+          cantidad_confirmada: number | null
+          cantidad_pickeada: number | null
+          cantidad_sugerida: number
+          codigo_repuesto: string
+          created_at: string
+          descripcion: string | null
+          estado: string
+          id: string
+          listado_id: string
+          notas: string | null
+          pickeado_at: string | null
+          pickeado_por: string | null
+          picker_asignado_at: string | null
+          picker_asignado_id: string | null
+          ubicacion_origen: string | null
+        }
+        Insert: {
+          cantidad_confirmada?: number | null
+          cantidad_pickeada?: number | null
+          cantidad_sugerida?: number
+          codigo_repuesto: string
+          created_at?: string
+          descripcion?: string | null
+          estado?: string
+          id?: string
+          listado_id: string
+          notas?: string | null
+          pickeado_at?: string | null
+          pickeado_por?: string | null
+          picker_asignado_at?: string | null
+          picker_asignado_id?: string | null
+          ubicacion_origen?: string | null
+        }
+        Update: {
+          cantidad_confirmada?: number | null
+          cantidad_pickeada?: number | null
+          cantidad_sugerida?: number
+          codigo_repuesto?: string
+          created_at?: string
+          descripcion?: string | null
+          estado?: string
+          id?: string
+          listado_id?: string
+          notas?: string | null
+          pickeado_at?: string | null
+          pickeado_por?: string | null
+          picker_asignado_at?: string | null
+          picker_asignado_id?: string | null
+          ubicacion_origen?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "listados_abastecimiento_items_listado_id_fkey"
+            columns: ["listado_id"]
+            isOneToOne: false
+            referencedRelation: "listados_abastecimiento"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      listados_abastecimiento_pickers: {
+        Row: {
+          asignado_at: string
+          estado: string
+          id: string
+          items_pickeados: number | null
+          listado_id: string
+          picker_id: string
+        }
+        Insert: {
+          asignado_at?: string
+          estado?: string
+          id?: string
+          items_pickeados?: number | null
+          listado_id: string
+          picker_id: string
+        }
+        Update: {
+          asignado_at?: string
+          estado?: string
+          id?: string
+          items_pickeados?: number | null
+          listado_id?: string
+          picker_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "listados_abastecimiento_pickers_listado_id_fkey"
+            columns: ["listado_id"]
+            isOneToOne: false
+            referencedRelation: "listados_abastecimiento"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       media_files: {
         Row: {
           created_at: string
@@ -3112,6 +3253,7 @@ export type Database = {
           valor: number
         }[]
       }
+      liberar_items_timeout: { Args: never; Returns: undefined }
     }
     Enums: {
       app_role:
