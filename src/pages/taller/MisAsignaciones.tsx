@@ -15,7 +15,7 @@ type NotificacionDB = Database['public']['Tables']['notificaciones']['Row'];
 
 export default function MisAsignaciones() {
   const navigate = useNavigate();
-  const { currentAssignments, maxAssignments, canTakeMoreAssignments } = useActiveIncidents();
+  const { currentAssignments, maxAssignments, canTakeMoreAssignments, refreshIncidents } = useActiveIncidents();
   const [incidentes, setIncidentes] = useState<IncidenteDB[]>([]);
   const [notificaciones, setNotificaciones] = useState<NotificacionDB[]>([]);
   const [loading, setLoading] = useState(true);
@@ -44,10 +44,11 @@ export default function MisAsignaciones() {
 
   useEffect(() => {
     if (userId) {
+      refreshIncidents();
       fetchAsignaciones();
+      fetchNotificaciones();
     }
-    fetchNotificaciones();
-    
+
     // Suscribirse a cambios en notificaciones
     const channel = supabase
       .channel('notificaciones-changes')
