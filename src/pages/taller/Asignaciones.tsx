@@ -269,12 +269,6 @@ export default function Asignaciones() {
       return;
     }
 
-    // Verificar límite de asignaciones
-    if (!canTakeMoreAssignments) {
-      toast.error(`Ya tienes ${maxAssignments} máquinas asignadas. Completa un diagnóstico antes de tomar otra.`);
-      return;
-    }
-
     try {
       const {
         data: {
