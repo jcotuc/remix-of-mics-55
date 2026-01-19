@@ -863,6 +863,7 @@ export type Database = {
           es_principal: boolean | null
           id: string
           nombre_referencia: string | null
+          telefono_contacto: string | null
           updated_at: string
         }
         Insert: {
@@ -872,6 +873,7 @@ export type Database = {
           es_principal?: boolean | null
           id?: string
           nombre_referencia?: string | null
+          telefono_contacto?: string | null
           updated_at?: string
         }
         Update: {
@@ -881,6 +883,7 @@ export type Database = {
           es_principal?: boolean | null
           id?: string
           nombre_referencia?: string | null
+          telefono_contacto?: string | null
           updated_at?: string
         }
         Relationships: []

@@ -5,7 +5,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { ArrowLeft, Search, User, Package, AlertCircle, UserCircle, ChevronRight, Printer, Copy } from "lucide-react";
+import { ArrowLeft, Search, User, Package, AlertCircle, UserCircle, ChevronRight, Printer, Copy, Edit3 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Producto } from "@/types";
@@ -128,10 +128,19 @@ export default function NuevoIncidente() {
   const [tipoDireccionEnvio, setTipoDireccionEnvio] = useState<'existente' | 'nueva'>('existente');
   const [ingresadoMostrador, setIngresadoMostrador] = useState(true);
   const [esReingreso, setEsReingreso] = useState(false);
+  const [incidentesAnteriores, setIncidentesAnteriores] = useState<any[]>([]);
+  const [incidenteReingresoId, setIncidenteReingresoId] = useState<string | null>(null);
   const [logObservaciones, setLogObservaciones] = useState("");
   const [tipologia, setTipologia] = useState("");
   const [esStockCemaco, setEsStockCemaco] = useState(false);
   const [guardando, setGuardando] = useState(false);
+  
+  // Producto manual
+  const [modoManualProducto, setModoManualProducto] = useState(false);
+  const [productoManual, setProductoManual] = useState({ codigo: '', clave: '', descripcion: '' });
+  
+  // Teléfono envío
+  const [telefonoEnvio, setTelefonoEnvio] = useState("");
 
   // Media
   const [mediaPhotos, setMediaPhotos] = useState<SidebarPhoto[]>([]);
@@ -326,7 +335,7 @@ export default function NuevoIncidente() {
           const {
             data,
             error
-          } = await supabase.from('productos').select('*').or(`codigo.ilike.%${skuMaquina}%,clave.ilike.%${skuMaquina}%`);
+          } = await supabase.from('productos').select('*').or(`codigo.ilike.%${skuMaquina}%,clave.ilike.%${skuMaquina}%,descripcion.ilike.%${skuMaquina}%`);
           if (error) throw error;
           const transformedData: Producto[] = (data || []).map(item => ({
             codigo: item.codigo.trim(),
@@ -339,14 +348,51 @@ export default function NuevoIncidente() {
           setProductosEncontrados(transformedData);
           if (transformedData.length === 1) {
             setProductoSeleccionado(transformedData[0]);
+            setModoManualProducto(false);
           }
         } catch (error) {
           console.error('Error fetching productos:', error);
         }
       };
       fetchProductos();
+    } else {
+      setProductosEncontrados([]);
     }
   }, [skuMaquina]);
+  
+  // Cargar incidentes anteriores cuando es reingreso
+  useEffect(() => {
+    const fetchIncidentesAnteriores = async () => {
+      if (!esReingreso) {
+        setIncidentesAnteriores([]);
+        setIncidenteReingresoId(null);
+        return;
+      }
+      
+      const codigoCliente = clienteSeleccionado?.codigo || (mostrarFormNuevoCliente ? null : null);
+      if (!codigoCliente) {
+        setIncidentesAnteriores([]);
+        return;
+      }
+      
+      try {
+        const { data, error } = await supabase
+          .from('incidentes')
+          .select('id, codigo, descripcion_problema, created_at, status, codigo_producto')
+          .eq('codigo_cliente', codigoCliente)
+          .order('created_at', { ascending: false })
+          .limit(20);
+          
+        if (error) throw error;
+        setIncidentesAnteriores(data || []);
+      } catch (error) {
+        console.error('Error fetching incidentes anteriores:', error);
+        setIncidentesAnteriores([]);
+      }
+    };
+    
+    fetchIncidentesAnteriores();
+  }, [esReingreso, clienteSeleccionado, mostrarFormNuevoCliente]);
   const seleccionarCliente = (cliente: Cliente) => {
     setClienteSeleccionado(cliente);
     setDatosClienteExistente({
@@ -373,10 +419,29 @@ export default function NuevoIncidente() {
     setNuevaDireccion("");
     setTipoDireccionEnvio('existente');
     setEsReingreso(false);
+    setIncidenteReingresoId(null);
+    setIncidentesAnteriores([]);
     setLogObservaciones("");
     setTipologia("");
     setMediaPhotos([]);
+    setModoManualProducto(false);
+    setProductoManual({ codigo: '', clave: '', descripcion: '' });
+    setTelefonoEnvio("");
     setPaso(2);
+  };
+  
+  const copiarTelefonoPrincipal = () => {
+    const telefono = mostrarFormNuevoCliente 
+      ? nuevoCliente.telefono_principal 
+      : (datosClienteExistente.telefono_principal || clienteSeleccionado?.telefono_principal || clienteSeleccionado?.celular);
+    
+    if (telefono) {
+      setTelefonoEnvio(telefono);
+      toast({
+        title: "Teléfono copiado",
+        description: "Se copió el teléfono principal del cliente"
+      });
+    }
   };
 
   // Función para agregar nuevo accesorio a CDS_Accesorios
@@ -470,10 +535,28 @@ export default function NuevoIncidente() {
     return true;
   };
   const validarPaso2 = () => {
-    if (!productoSeleccionado) {
+    // Validar producto: seleccionado o manual
+    if (!productoSeleccionado && !modoManualProducto) {
       toast({
         title: "Error",
         description: "Seleccione un producto (SKU de la máquina)",
+        variant: "destructive"
+      });
+      return false;
+    }
+    if (modoManualProducto && (!productoManual.codigo.trim() || !productoManual.descripcion.trim())) {
+      toast({
+        title: "Error",
+        description: "Complete el código y descripción del producto manual",
+        variant: "destructive"
+      });
+      return false;
+    }
+    // Validar reingreso
+    if (esReingreso && !incidenteReingresoId && incidentesAnteriores.length > 0) {
+      toast({
+        title: "Error",
+        description: "Seleccione el incidente anterior para el reingreso",
         variant: "destructive"
       });
       return false;
@@ -613,7 +696,8 @@ export default function NuevoIncidente() {
           codigo_cliente: codigoCliente,
           direccion: nuevaDireccion,
           nombre_referencia: `Dirección ${new Date().toLocaleDateString()}`,
-          es_principal: direccionesEnvio.length === 0
+          es_principal: direccionesEnvio.length === 0,
+          telefono_contacto: telefonoEnvio || null
         }).select().single();
         if (dirError) throw dirError;
         direccionEnvioId = dirData.id;
@@ -629,11 +713,18 @@ export default function NuevoIncidente() {
             codigo_cliente: codigoCliente,
             direccion: direccionTemp.direccion,
             nombre_referencia: 'Dirección Principal',
-            es_principal: true
+            es_principal: true,
+            telefono_contacto: telefonoEnvio || null
           }).select().single();
           if (dirError) throw dirError;
           direccionEnvioId = dirData.id;
         }
+      }
+      // Si se seleccionó una dirección existente y hay teléfono, actualizar
+      else if (direccionSeleccionada && !direccionSeleccionada.startsWith('temp-') && telefonoEnvio && opcionEnvio !== 'recoger') {
+        await supabase.from('direcciones_envio').update({
+          telefono_contacto: telefonoEnvio
+        }).eq('id', direccionSeleccionada);
       }
       const {
         data: {
@@ -645,20 +736,42 @@ export default function NuevoIncidente() {
         error: codigoError
       } = await supabase.rpc('generar_codigo_incidente');
       if (codigoError) throw codigoError;
-      const {
-        data: productoData,
-        error: productoError
-      } = await supabase.from('productos').select('familia_padre_id').eq('codigo', productoSeleccionado!.codigo).single();
-      if (productoError) throw productoError;
+      
+      // Determinar código de producto y familia según si es manual o seleccionado
+      let codigoProductoFinal: string | null = null;
+      let familiaPadreId: number | null = null;
+      let skuMaquinaFinal = skuMaquina;
+      let descripcionProductoFinal = '';
+      let productoDescontinuado = false;
+      
+      if (modoManualProducto) {
+        // Producto ingresado manualmente - no existe en la BD
+        codigoProductoFinal = null;
+        skuMaquinaFinal = productoManual.codigo;
+        descripcionProductoFinal = productoManual.descripcion;
+        productoDescontinuado = false;
+      } else if (productoSeleccionado) {
+        const {
+          data: productoData,
+          error: productoError
+        } = await supabase.from('productos').select('familia_padre_id').eq('codigo', productoSeleccionado.codigo).single();
+        if (productoError) throw productoError;
+        
+        codigoProductoFinal = productoSeleccionado.codigo;
+        familiaPadreId = productoData?.familia_padre_id || null;
+        descripcionProductoFinal = productoSeleccionado.descripcion;
+        productoDescontinuado = productoSeleccionado.descontinuado;
+      }
+      
       const {
         data: incidenteData,
         error: incidenteError
       } = await supabase.from('incidentes').insert({
         codigo: codigoIncidente,
         codigo_cliente: codigoCliente,
-        codigo_producto: productoSeleccionado!.codigo,
-        familia_padre_id: productoData?.familia_padre_id || null,
-        sku_maquina: skuMaquina,
+        codigo_producto: codigoProductoFinal,
+        familia_padre_id: familiaPadreId,
+        sku_maquina: skuMaquinaFinal,
         descripcion_problema: descripcionProblema,
         persona_deja_maquina: personaDejaMaquina,
         accesorios: accesoriosSeleccionados.join(", ") || null,
@@ -667,12 +780,13 @@ export default function NuevoIncidente() {
         direccion_envio_id: direccionEnvioId || null,
         ingresado_en_mostrador: ingresadoMostrador,
         es_reingreso: esReingreso,
+        incidente_reingreso_de: esReingreso ? incidenteReingresoId : null,
         es_stock_cemaco: esStockCemaco,
         log_observaciones: logObservaciones || null,
         tipologia: tipologia,
         status: ingresadoMostrador ? 'Ingresado' : 'En ruta',
         cobertura_garantia: false,
-        producto_descontinuado: productoSeleccionado!.descontinuado,
+        producto_descontinuado: productoDescontinuado,
         codigo_tecnico: 'TEC-001',
         created_by: user?.id || null
       }).select().single();
@@ -712,9 +826,9 @@ export default function NuevoIncidente() {
         codigo: incidenteData.codigo,
         codigoCliente: codigoCliente!,
         nombreCliente: clienteSeleccionado?.nombre || nuevoCliente.nombre,
-        codigoProducto: productoSeleccionado!.codigo,
-        descripcionProducto: productoSeleccionado!.descripcion,
-        skuMaquina: skuMaquina,
+        codigoProducto: codigoProductoFinal || skuMaquinaFinal,
+        descripcionProducto: descripcionProductoFinal,
+        skuMaquina: skuMaquinaFinal,
         descripcionProblema: descripcionProblema,
         accesorios: accesoriosSeleccionados.join(", ") || 'Ninguno',
         fechaIngreso: new Date(),
@@ -1040,14 +1154,52 @@ export default function NuevoIncidente() {
                       setProductoSeleccionado(null);
                       setSkuMaquina("");
                       setProductosEncontrados([]);
+                      setModoManualProducto(false);
                     }}>
                             Cambiar
                           </Button>
                         </div>
                       </div>
-                    </div> : <>
+                    </div> : modoManualProducto ? (
+                      // Formulario de ingreso manual
+                      <div className="p-4 rounded-lg border-2 border-dashed border-amber-500/50 bg-amber-50/50 space-y-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Edit3 className="w-4 h-4 text-amber-600" />
+                            <span className="text-sm font-medium text-amber-700">Ingreso Manual de Producto</span>
+                          </div>
+                          <Button size="sm" variant="ghost" onClick={() => {
+                            setModoManualProducto(false);
+                            setProductoManual({ codigo: '', clave: '', descripcion: '' });
+                          }}>
+                            Cancelar
+                          </Button>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <OutlinedInput 
+                            label="Código/SKU *" 
+                            value={productoManual.codigo} 
+                            onChange={e => setProductoManual({...productoManual, codigo: e.target.value})} 
+                            required 
+                          />
+                          <OutlinedInput 
+                            label="Clave" 
+                            value={productoManual.clave} 
+                            onChange={e => setProductoManual({...productoManual, clave: e.target.value})} 
+                          />
+                          <div className="sm:col-span-2">
+                            <OutlinedInput 
+                              label="Descripción del producto *" 
+                              value={productoManual.descripcion} 
+                              onChange={e => setProductoManual({...productoManual, descripcion: e.target.value})} 
+                              required 
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ) : <>
                       {/* Búsqueda de producto */}
-                      <OutlinedInput label="SKU de la Máquina" value={skuMaquina} onChange={e => {
+                      <OutlinedInput label="SKU de la Máquina (código, clave o descripción)" value={skuMaquina} onChange={e => {
                   setSkuMaquina(e.target.value);
                   if (!e.target.value) setProductoSeleccionado(null);
                 }} icon={<Search className="w-4 h-4" />} required />
@@ -1068,6 +1220,25 @@ export default function NuevoIncidente() {
                               <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
                             </div>)}
                         </div>}
+                      
+                      {/* Botón para ingreso manual cuando no hay resultados */}
+                      {skuMaquina.length >= 3 && productosEncontrados.length === 0 && (
+                        <div className="p-4 rounded-lg bg-muted/30 border text-center">
+                          <p className="text-sm text-muted-foreground mb-3">No se encontraron productos con "{skuMaquina}"</p>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => {
+                              setModoManualProducto(true);
+                              setProductoManual({ codigo: skuMaquina, clave: '', descripcion: '' });
+                            }}
+                            className="gap-2"
+                          >
+                            <Edit3 className="w-4 h-4" />
+                            Ingresar manualmente
+                          </Button>
+                        </div>
+                      )}
                     </>}
                 </div>
 
@@ -1081,7 +1252,7 @@ export default function NuevoIncidente() {
                   selected={accesoriosSeleccionados}
                   onSelectionChange={setAccesoriosSeleccionados}
                   onAddNew={handleAgregarNuevoAccesorio}
-                  disabled={!productoSeleccionado}
+                  disabled={!productoSeleccionado && !modoManualProducto}
                 />
 
                 {/* Centro de Servicio y Reingreso */}
@@ -1095,6 +1266,27 @@ export default function NuevoIncidente() {
                     <Label htmlFor="reingreso" className="cursor-pointer font-normal flex-1">Es un reingreso</Label>
                   </div>
                 </div>
+                
+                {/* Selector de incidente anterior para reingreso */}
+                {esReingreso && clienteSeleccionado && (
+                  <div className="p-4 rounded-lg bg-amber-50/50 border border-amber-200 space-y-3">
+                    <p className="text-sm font-medium text-amber-700">Seleccione el incidente anterior:</p>
+                    {incidentesAnteriores.length > 0 ? (
+                      <OutlinedSelect 
+                        label="Incidente Original" 
+                        value={incidenteReingresoId || ""} 
+                        onValueChange={setIncidenteReingresoId} 
+                        options={incidentesAnteriores.map(inc => ({
+                          value: inc.id,
+                          label: `${inc.codigo} - ${inc.descripcion_problema?.substring(0, 40) || 'Sin descripción'}... (${new Date(inc.created_at).toLocaleDateString()})`
+                        }))} 
+                        required 
+                      />
+                    ) : (
+                      <p className="text-sm text-muted-foreground">No se encontraron incidentes anteriores para este cliente.</p>
+                    )}
+                  </div>
+                )}
 
                 {/* Tipología */}
                 <div className="space-y-3">
@@ -1154,7 +1346,7 @@ export default function NuevoIncidente() {
                           </div>
                           
                           {tipoDireccionEnvio === 'existente' && (
-                            <div className="pl-8">
+                            <div className="pl-8 space-y-3">
                               {mostrarFormNuevoCliente ? (
                                 nuevoCliente.direccion ? (
                                   <div className="p-3 rounded-lg bg-muted/30 border">
@@ -1178,6 +1370,28 @@ export default function NuevoIncidente() {
                               ) : (
                                 <p className="text-sm text-muted-foreground">No hay direcciones guardadas</p>
                               )}
+                              
+                              {/* Teléfono de contacto para envío */}
+                              <div className="flex gap-2 items-end">
+                                <div className="flex-1">
+                                  <OutlinedInput 
+                                    label="Teléfono de contacto para envío" 
+                                    value={telefonoEnvio} 
+                                    onChange={e => setTelefonoEnvio(e.target.value)} 
+                                    placeholder="Número para coordinación de entrega"
+                                  />
+                                </div>
+                                <Button 
+                                  type="button" 
+                                  variant="outline" 
+                                  size="sm" 
+                                  className="h-[52px] gap-1 shrink-0 text-xs"
+                                  onClick={copiarTelefonoPrincipal}
+                                >
+                                  <Copy className="w-3.5 h-3.5" />
+                                  <span className="hidden sm:inline">Copiar del cliente</span>
+                                </Button>
+                              </div>
                             </div>
                           )}
                         </div>
@@ -1192,13 +1406,35 @@ export default function NuevoIncidente() {
                           </div>
                           
                           {tipoDireccionEnvio === 'nueva' && (
-                            <div className="pl-8">
+                            <div className="pl-8 space-y-3">
                               <OutlinedTextarea 
                                 label="Nueva Dirección" 
                                 value={nuevaDireccion} 
                                 onChange={e => setNuevaDireccion(e.target.value)} 
                                 required
                               />
+                              
+                              {/* Teléfono de contacto para envío */}
+                              <div className="flex gap-2 items-end">
+                                <div className="flex-1">
+                                  <OutlinedInput 
+                                    label="Teléfono de contacto para envío" 
+                                    value={telefonoEnvio} 
+                                    onChange={e => setTelefonoEnvio(e.target.value)} 
+                                    placeholder="Número para coordinación de entrega"
+                                  />
+                                </div>
+                                <Button 
+                                  type="button" 
+                                  variant="outline" 
+                                  size="sm" 
+                                  className="h-[52px] gap-1 shrink-0 text-xs"
+                                  onClick={copiarTelefonoPrincipal}
+                                >
+                                  <Copy className="w-3.5 h-3.5" />
+                                  <span className="hidden sm:inline">Copiar del cliente</span>
+                                </Button>
+                              </div>
                             </div>
                           )}
                         </div>
