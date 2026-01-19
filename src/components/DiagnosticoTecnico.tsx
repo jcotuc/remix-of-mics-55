@@ -445,9 +445,14 @@ export function DiagnosticoTecnico({ incidente, onDiagnosticoCompleto }: Diagnos
           break;
       }
 
+      // Al completar diagnóstico, limpiar tecnico_asignado_id para liberar la asignación
       const { error: incError } = await supabase
         .from('incidentes')
-        .update({ status: nuevoEstatus })
+        .update({ 
+          status: nuevoEstatus,
+          tecnico_asignado_id: null,
+          codigo_tecnico: null
+        })
         .eq('id', incidente.id);
 
       if (incError) throw incError;
