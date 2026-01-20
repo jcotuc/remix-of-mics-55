@@ -2,8 +2,30 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { updateClientCodesHPCtoHPS } from "@/scripts/updateClientCodes";
+import { supabase } from "@/integrations/supabase/client";
 import { RefreshCw, CheckCircle2 } from "lucide-react";
+
+// Función inline para actualizar códigos HPC a HPS
+const updateClientCodesHPCtoHPS = async () => {
+  const { data, error } = await supabase
+    .from('clientes')
+    .select('id, codigo')
+    .ilike('codigo', 'HPC%');
+  
+  if (error) return { success: false, updated: 0 };
+  
+  let updated = 0;
+  for (const cliente of data || []) {
+    const newCodigo = cliente.codigo.replace(/^HPC/, 'HPS');
+    const { error: updateError } = await supabase
+      .from('clientes')
+      .update({ codigo: newCodigo })
+      .eq('id', cliente.id);
+    if (!updateError) updated++;
+  }
+  
+  return { success: true, updated };
+};
 
 export default function ActualizarCodigos() {
   const [loading, setLoading] = useState(false);

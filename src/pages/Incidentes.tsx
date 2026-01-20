@@ -10,11 +10,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { StatusBadge } from "@/components/StatusBadge";
 import { TablePagination } from "@/components/TablePagination";
-import { productos, tecnicos } from "@/data/mockData";
-import { Incidente, StatusIncidente } from "@/types";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
+
+type StatusIncidente = Database["public"]["Enums"]["status_incidente"];
 
 type IncidenteDB = Database['public']['Tables']['incidentes']['Row'];
 type ClienteDB = Database['public']['Tables']['clientes']['Row'];
@@ -95,13 +95,7 @@ export default function Incidentes() {
   };
 
   const getTecnicoName = (codigo: string) => {
-    const tecnico = tecnicos.find(t => t.codigo === codigo);
-    return tecnico ? `${tecnico.nombre} ${tecnico.apellido}` : "Técnico no encontrado";
-  };
-
-  const isProductDiscontinued = (codigoProducto: string) => {
-    const producto = productos.find(p => p.codigo === codigoProducto);
-    return producto?.descontinuado || false;
+    return codigo || "No asignado";
   };
 
   const statusOptions: StatusIncidente[] = [
@@ -120,9 +114,7 @@ export default function Incidentes() {
           getProductDisplayName(incidente.codigo_producto).toLowerCase().includes(searchTerm.toLowerCase());
         
         const matchesStatus = statusFilter === "all" || incidente.status === statusFilter;
-        
-        const producto = productos.find(p => p.codigo === incidente.codigo_producto);
-        const matchesCategory = categoryFilter === "all" || (producto && producto.categoria === categoryFilter);
+        const matchesCategory = categoryFilter === "all";
         
         return matchesSearch && matchesStatus && matchesCategory;
       })
@@ -365,15 +357,7 @@ export default function Incidentes() {
                       <TableCell className="font-medium">{incidente.codigo}</TableCell>
                       <TableCell>{getClienteName(incidente.codigo_cliente)}</TableCell>
                       <TableCell>
-                        <div className="flex items-center space-x-2">
-                          <span className="text-sm">{getProductDisplayName(incidente.codigo_producto)}</span>
-                          {isProductDiscontinued(incidente.codigo_producto) && (
-                            <Badge variant="destructive" className="text-xs">
-                              <AlertTriangle className="h-3 w-3 mr-1" />
-                              Descontinuado
-                            </Badge>
-                          )}
-                        </div>
+                        <span className="text-sm">{getProductDisplayName(incidente.codigo_producto)}</span>
                       </TableCell>
                       <TableCell className="text-sm">{incidente.codigo_tecnico ? getTecnicoName(incidente.codigo_tecnico) : 'No asignado'}</TableCell>
                       <TableCell>
