@@ -7,8 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
-import { formatDistanceToNow } from "date-fns";
-import { es } from "date-fns/locale";
+import { formatFechaRelativa } from "@/utils/dateFormatters";
 
 type Repuesto = {
   codigo: string;
@@ -202,7 +201,7 @@ export default function Solicitudes() {
           <div className="flex items-center justify-between text-[10px] text-muted-foreground mt-3 pt-2 border-t">
             <span className="flex items-center gap-1">
               <Clock className="h-3 w-3" />
-              {formatDistanceToNow(new Date(solicitud.created_at), { addSuffix: true, locale: es })}
+              {formatFechaRelativa(solicitud.created_at)}
             </span>
             <span className="flex items-center gap-0.5 font-medium">
               {variant === 'pending' ? 'Asignar' : 'Despachar'}

@@ -18,8 +18,8 @@ import {
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { format, differenceInDays, startOfDay } from "date-fns";
-import { es } from "date-fns/locale";
+import { differenceInDays, startOfDay } from "date-fns";
+import { formatFechaCorta, formatHora } from "@/utils/dateFormatters";
 import { InventoryKPICard } from "@/components/bodega/InventoryKPICard";
 import { BarcodeScanner } from "@/components/bodega/BarcodeScanner";
 import { TablePagination } from "@/components/TablePagination";
@@ -877,8 +877,8 @@ export default function ReubicacionRepuestos() {
                           </p>
                         </div>
                         <div className="text-right text-sm text-muted-foreground">
-                          <p>{format(new Date(mov.created_at), "dd/MM/yyyy", { locale: es })}</p>
-                          <p>{format(new Date(mov.created_at), "HH:mm")}</p>
+                          <p>{formatFechaCorta(mov.created_at)}</p>
+                          <p>{formatHora(mov.created_at)}</p>
                         </div>
                       </div>
                     ))}

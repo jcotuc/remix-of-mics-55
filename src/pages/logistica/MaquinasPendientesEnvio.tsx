@@ -8,8 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { format, formatDistanceToNow } from "date-fns";
-import { es } from "date-fns/locale";
+import { formatFechaRelativa } from "@/utils/dateFormatters";
 
 interface IncidenteEnvio {
   id: string;
@@ -85,7 +84,7 @@ export default function MaquinasPendientesEnvio() {
   }, [incidentes, filtroTexto, clientes]);
 
   const getTiempoEspera = (updatedAt: string) => {
-    return formatDistanceToNow(new Date(updatedAt), { locale: es, addSuffix: false });
+    return formatFechaRelativa(updatedAt).replace(/^hace /, "");
   };
 
   const handleVerDetalle = (incidenteId: string) => {

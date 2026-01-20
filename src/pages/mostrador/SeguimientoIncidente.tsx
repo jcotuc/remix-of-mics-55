@@ -41,9 +41,8 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { toast } from "@/hooks/use-toast";
-import { format } from "date-fns";
-import { es } from "date-fns/locale";
+import { showSuccess, showError } from "@/utils/toastHelpers";
+import { formatFechaLarga, formatFechaHora } from "@/utils/dateFormatters";
 import type { Database } from "@/integrations/supabase/types";
 
 type IncidenteDB = Database["public"]["Tables"]["incidentes"]["Row"];
@@ -187,11 +186,7 @@ export default function SeguimientoIncidente() {
   const handleSaveProductCode = async () => {
     const codePattern = /^[a-zA-Z0-9-_]+$/;
     if (!editedProductCode.trim() || !codePattern.test(editedProductCode)) {
-      toast({
-        title: "Error de validación",
-        description: "El código solo puede contener letras, números, guiones y guiones bajos",
-        variant: "destructive",
-      });
+      showError("El código solo puede contener letras, números, guiones y guiones bajos", "Error de validación");
       return;
     }
     try {
@@ -203,18 +198,11 @@ export default function SeguimientoIncidente() {
         .eq("id", id);
       if (error) throw error;
       setIsEditingProductCode(false);
-      toast({
-        title: "Código actualizado",
-        description: `Nuevo código: ${editedProductCode}`,
-      });
+      showSuccess(`Nuevo código: ${editedProductCode}`, "Código actualizado");
       fetchData();
     } catch (error) {
       console.error("Error updating product code:", error);
-      toast({
-        title: "Error",
-        description: "No se pudo actualizar el código",
-        variant: "destructive",
-      });
+      showError("No se pudo actualizar el código");
     }
   };
   const handlePrintIngreso = () => {
@@ -240,9 +228,7 @@ export default function SeguimientoIncidente() {
             </div>
             <p className="text-sm text-muted-foreground mt-1">
               Ingresado:{" "}
-              {format(new Date(incidente.fecha_ingreso), "dd 'de' MMMM 'de' yyyy", {
-                locale: es,
-              })}
+              {formatFechaLarga(incidente.fecha_ingreso)}
             </p>
           </div>
         </div>
@@ -391,9 +377,7 @@ export default function SeguimientoIncidente() {
                         <span className="text-muted-foreground">Fecha:</span>
                         <p className="font-medium">
                           {diagnostico.created_at
-                            ? format(new Date(diagnostico.created_at), "dd/MM/yyyy HH:mm", {
-                                locale: es,
-                              })
+                            ? formatFechaHora(diagnostico.created_at)
                             : "N/A"}
                         </p>
                       </div>
