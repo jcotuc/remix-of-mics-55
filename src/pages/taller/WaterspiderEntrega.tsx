@@ -99,12 +99,17 @@ export default function WaterspiderEntrega() {
         ? "Pendiente entrega" 
         : "Logistica envio";
 
-      // Update incident status
+      // Update incident status - registrar fecha_reparacion si aún no existe
+      const fechaActual = new Date().toISOString();
       const { error } = await supabase
         .from("incidentes")
         .update({ 
           status: nuevoStatus,
-          updated_at: new Date().toISOString()
+          updated_at: fechaActual,
+          // Solo establecer fecha_reparacion si no existe (no sobrescribir)
+          ...(nuevoStatus === "Pendiente entrega" || nuevoStatus === "Logistica envio" 
+            ? {} // No modificar fecha_reparacion aquí, ya se estableció en diagnóstico
+            : {})
         })
         .eq("id", incidente.id);
 

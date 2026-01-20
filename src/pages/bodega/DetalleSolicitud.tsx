@@ -263,11 +263,13 @@ export default function DetalleSolicitud() {
         nota_descuadre: rep.notaDescuadre || null
       }));
 
+      const fechaDespachoActual = new Date().toISOString();
       const { error: updateError } = await supabase
         .from("solicitudes_repuestos")
         .update({
           estado: "entregado",
-          fecha_entrega: new Date().toISOString(),
+          fecha_entrega: fechaDespachoActual,
+          fecha_despacho: fechaDespachoActual,
           entregado_por: currentUserId,
           notas: hayDescuadres 
             ? `Despachado con descuadres por ${currentUserName}: ${JSON.stringify(despachoInfo.filter(d => d.descuadre))}`
