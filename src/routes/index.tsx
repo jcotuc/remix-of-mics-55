@@ -15,11 +15,13 @@ const Auth = lazy(() => import("@/pages/Auth"));
 const DetalleIncidente = lazy(() => import("@/pages/DetalleIncidente"));
 const DetalleCliente = lazy(() => import("@/pages/DetalleCliente"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
+const TestActions = lazy(() => import("@/pages/TestActions"));
 
 // Core routes
 export const coreRoutes = [
   <Route key="home" path="/" element={<Index />} />,
   <Route key="auth" path="/auth" element={<Auth />} />,
+  <Route key="test-actions" path="/test-actions" element={<TestActions />} />,
   <Route key="incidente-detalle" path="/incidentes/:id" element={<DetalleIncidente />} />,
   <Route key="cliente-detalle" path="/detalle-cliente/:codigo" element={<DetalleCliente />} />,
   <Route key="not-found" path="*" element={<NotFound />} />,

@@ -24,7 +24,7 @@ export function EquivalenciasWidget() {
   const cargarEstadisticas = async () => {
     // Obtener ID del centro de servicio Zona 5
     const { data: centroData } = await supabase
-      .from('centros_servicio')
+      .from('centros_de_servicio')
       .select('id')
       .ilike('nombre', '%zona 5%')
       .maybeSingle();

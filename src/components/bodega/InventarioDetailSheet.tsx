@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Package, MapPin, Building, TrendingUp, TrendingDown, Edit, History, RefreshCw } from "lucide-react";
+import { Package, MapPin, Building, Edit, History, RefreshCw } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,14 +10,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 
 interface InventarioItem {
-  id: string;
+  id: number;
   codigo_repuesto: string;
   descripcion: string | null;
   cantidad: number;
   ubicacion_legacy: string;
   bodega: string | null;
   costo_unitario: number | null;
-  centro_servicio_id: string;
+  centro_servicio_id: number;
   centro_nombre?: string;
 }
 
@@ -29,8 +29,8 @@ interface InventarioDetailSheetProps {
 }
 
 interface Movimiento {
-  id: string;
-  tipo_movimiento: "entrada" | "salida";
+  id: number;
+  tipo_movimiento: "ENTRADA" | "SALIDA" | "AJUSTE";
   cantidad: number;
   motivo?: string | null;
   created_at: string;
@@ -67,15 +67,27 @@ export function InventarioDetailSheet({
     setLoading(true);
 
     try {
-      // Fetch movimientos
-      const { data: movData } = await supabase
-        .from("movimientos_inventario")
-        .select("*")
-        .eq("codigo_repuesto", item.codigo_repuesto)
-        .order("created_at", { ascending: false })
-        .limit(10);
+      // Fetch movimientos - using repuesto_id instead of codigo_repuesto
+      // First get the repuesto_id from the repuestos table
+      const { data: repuestoData } = await supabase
+        .from("repuestos")
+        .select("id")
+        .eq("codigo", item.codigo_repuesto)
+        .single();
 
-      setMovimientos((movData as Movimiento[]) || []);
+      if (repuestoData) {
+        const { data: movData } = await supabase
+          .from("movimientos_inventario")
+          .select("*")
+          .eq("repuesto_id", repuestoData.id)
+          .eq("centro_servicio_id", item.centro_servicio_id)
+          .order("created_at", { ascending: false })
+          .limit(10);
+
+        setMovimientos((movData || []) as Movimiento[]);
+      } else {
+        setMovimientos([]);
+      }
 
       // Fetch stock en otros centros
       const { data: otrosData } = await supabase
@@ -83,30 +95,30 @@ export function InventarioDetailSheet({
         .select(`
           cantidad,
           ubicacion_legacy,
-          centros_servicio(nombre)
+          centros_de_servicio:centro_servicio_id(nombre)
         `)
         .eq("codigo_repuesto", item.codigo_repuesto)
         .neq("centro_servicio_id", item.centro_servicio_id);
 
       const otrosFormatted = (otrosData || []).map((o: any) => ({
-        centro_nombre: o.centros_servicio?.nombre || "Sin centro",
+        centro_nombre: o.centros_de_servicio?.nombre || "Sin centro",
         cantidad: o.cantidad,
         ubicacion: o.ubicacion_legacy
       }));
       setOtrosCentros(otrosFormatted);
 
       // Fetch sustitutos (buscar en repuestos con relación padre-hijo)
-      const { data: repuestoData } = await supabase
+      const { data: repuestoInfo } = await supabase
         .from("repuestos")
         .select("codigo_padre")
         .eq("codigo", item.codigo_repuesto)
         .single();
 
-      if (repuestoData?.codigo_padre) {
+      if (repuestoInfo?.codigo_padre) {
         const { data: sustData } = await supabase
           .from("repuestos")
           .select("codigo, descripcion")
-          .eq("codigo_padre", repuestoData.codigo_padre)
+          .eq("codigo_padre", repuestoInfo.codigo_padre)
           .neq("codigo", item.codigo_repuesto)
           .limit(5);
         

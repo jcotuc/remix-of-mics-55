@@ -5,7 +5,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { supabase } from "@/integrations/supabase/client";
 
 type InventarioItem = {
-  id: string;
+  id: number;
   codigo_repuesto: string;
   descripcion: string | null;
   cantidad: number;
@@ -25,7 +25,7 @@ export function BodegaDashboard() {
       .from('inventario')
       .select('*')
       .order('codigo_repuesto');
-    if (data) setInventario(data);
+    if (data) setInventario(data as InventarioItem[]);
   };
 
   // Métricas para bodega
@@ -86,10 +86,10 @@ export function BodegaDashboard() {
         <Card className="hover:shadow-lg transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Unidades</CardTitle>
-            <CheckCircle className="h-5 w-5 text-success" />
+            <CheckCircle className="h-5 w-5 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-success">{totalUnidades.toLocaleString()}</div>
+            <div className="text-3xl font-bold text-green-600">{totalUnidades.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground mt-1">
               En stock
             </p>
@@ -99,10 +99,10 @@ export function BodegaDashboard() {
         <Card className="hover:shadow-lg transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Stock Bajo</CardTitle>
-            <TrendingDown className="h-5 w-5 text-warning" />
+            <TrendingDown className="h-5 w-5 text-orange-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-warning">{stockBajo}</div>
+            <div className="text-3xl font-bold text-orange-600">{stockBajo}</div>
             <p className="text-xs text-muted-foreground mt-1">
               Menos de 5 unidades
             </p>
@@ -112,10 +112,10 @@ export function BodegaDashboard() {
         <Card className="hover:shadow-lg transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Sin Ubicación</CardTitle>
-            <AlertTriangle className="h-5 w-5 text-info" />
+            <AlertTriangle className="h-5 w-5 text-blue-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-info">{sinUbicacion}</div>
+            <div className="text-3xl font-bold text-blue-600">{sinUbicacion}</div>
             <p className="text-xs text-muted-foreground mt-1">
               Pendientes de ubicar
             </p>
