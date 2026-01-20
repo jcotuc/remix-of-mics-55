@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/select";
 import ImportFormatDialog from "@/components/ImportFormatDialog";
 import { Upload, Edit, Trash2, Search, Plus, Save, X, Link, Package } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { showError, showSuccess } from "@/utils/toastHelpers";
 import * as XLSX from "xlsx";
 
 interface Relacion {
@@ -74,7 +74,7 @@ export default function SustitutosRepuestos() {
   
   const padresInputRef = useRef<HTMLInputElement>(null);
   const relacionesInputRef = useRef<HTMLInputElement>(null);
-  const { toast } = useToast();
+  
 
   useEffect(() => {
     fetchRelaciones();
@@ -107,11 +107,7 @@ export default function SustitutosRepuestos() {
       
       setRelaciones(allData);
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      showError(error.message);
     } finally {
       setLoading(false);
     }
@@ -155,11 +151,7 @@ export default function SustitutosRepuestos() {
         console.log("Padres únicos encontrados:", mappedData.length);
 
         if (mappedData.length === 0) {
-          toast({
-            title: "Sin datos válidos",
-            description: "No se encontraron códigos padre en el archivo.",
-            variant: "destructive",
-          });
+          showError("No se encontraron códigos padre en el archivo.", "Sin datos válidos");
           return;
         }
 
@@ -167,11 +159,7 @@ export default function SustitutosRepuestos() {
         setShowImportPadresDialog(true);
       } catch (error: any) {
         console.error("Error parsing Excel:", error);
-        toast({
-          title: "Error al leer archivo",
-          description: error.message,
-          variant: "destructive",
-        });
+        showError(error.message, "Error al leer archivo");
       }
     };
     reader.readAsBinaryString(file);
@@ -203,10 +191,7 @@ export default function SustitutosRepuestos() {
       const newPadres = importPadresData.filter(p => !existingCodes.has(p.codigo.toLowerCase()));
 
       if (newPadres.length === 0) {
-        toast({
-          title: "Sin nuevos registros",
-          description: "Todos los códigos padre ya existen en la base de datos.",
-        });
+        showSuccess("Todos los códigos padre ya existen en la base de datos.", "Sin nuevos registros");
         setShowImportPadresDialog(false);
         return;
       }
@@ -230,20 +215,13 @@ export default function SustitutosRepuestos() {
         if (error) throw error;
       }
 
-      toast({
-        title: "Importación exitosa",
-        description: `Se importaron ${inserts.length} códigos padre`,
-      });
+      showSuccess(`Se importaron ${inserts.length} códigos padre`, "Importación exitosa");
 
       setShowImportPadresDialog(false);
       setImportPadresData([]);
       fetchRelaciones();
     } catch (error: any) {
-      toast({
-        title: "Error al importar",
-        description: error.message,
-        variant: "destructive",
-      });
+      showError(error.message, "Error al importar");
     } finally {
       setImportingPadres(false);
     }
@@ -287,11 +265,7 @@ export default function SustitutosRepuestos() {
         console.log("Relaciones únicas encontradas:", mappedData.length);
 
         if (mappedData.length === 0) {
-          toast({
-            title: "Sin datos válidos",
-            description: "No se encontraron relaciones válidas en el archivo.",
-            variant: "destructive",
-          });
+          showError("No se encontraron relaciones válidas en el archivo.", "Sin datos válidos");
           return;
         }
 
@@ -299,11 +273,7 @@ export default function SustitutosRepuestos() {
         setShowImportRelacionesDialog(true);
       } catch (error: any) {
         console.error("Error parsing Excel:", error);
-        toast({
-          title: "Error al leer archivo",
-          description: error.message,
-          variant: "destructive",
-        });
+        showError(error.message, "Error al leer archivo");
       }
     };
     reader.readAsBinaryString(file);
@@ -399,20 +369,13 @@ export default function SustitutosRepuestos() {
           .eq("id", update.id);
       }
 
-      toast({
-        title: "Importación exitosa",
-        description: `Se crearon ${inserts.length} hijos y se actualizaron ${updates.length} relaciones`,
-      });
+      showSuccess(`Se crearon ${inserts.length} hijos y se actualizaron ${updates.length} relaciones`, "Importación exitosa");
 
       setShowImportRelacionesDialog(false);
       setImportRelacionesData([]);
       fetchRelaciones();
     } catch (error: any) {
-      toast({
-        title: "Error al importar",
-        description: error.message,
-        variant: "destructive",
-      });
+      showError(error.message, "Error al importar");
     } finally {
       setImportingRelaciones(false);
     }
@@ -431,11 +394,7 @@ export default function SustitutosRepuestos() {
       const newPadreValue = editPadre === "none" ? null : Number(editPadre);
       
       if (newPadreValue === selectedRelacion.id) {
-        toast({
-          title: "Error",
-          description: "Un código no puede ser su propio padre",
-          variant: "destructive",
-        });
+        showError("Un código no puede ser su propio padre");
         return;
       }
 
@@ -446,39 +405,24 @@ export default function SustitutosRepuestos() {
 
       if (error) throw error;
 
-      toast({
-        title: "Actualizado",
-        description: "Relación padre actualizada correctamente",
-      });
+      showSuccess("Relación padre actualizada correctamente", "Actualizado");
 
       setShowEditDialog(false);
       fetchRelaciones();
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      showError(error.message);
     }
   };
 
   const handleAddCodigo = async () => {
     if (!newCodigo.trim()) {
-      toast({
-        title: "Error",
-        description: "El código es requerido",
-        variant: "destructive",
-      });
+      showError("El código es requerido");
       return;
     }
 
     const exists = relaciones.some(r => r.Código?.toLowerCase() === newCodigo.trim().toLowerCase());
     if (exists) {
-      toast({
-        title: "Error",
-        description: "Ya existe un código con ese valor",
-        variant: "destructive",
-      });
+      showError("Ya existe un código con ese valor");
       return;
     }
 
@@ -496,10 +440,7 @@ export default function SustitutosRepuestos() {
 
       if (error) throw error;
 
-      toast({
-        title: "Código creado",
-        description: `Se creó el código "${newCodigo.trim()}"`,
-      });
+      showSuccess(`Se creó el código "${newCodigo.trim()}"`, "Código creado");
 
       setShowAddDialog(false);
       setNewCodigo("");
@@ -507,22 +448,14 @@ export default function SustitutosRepuestos() {
       setNewPadre("");
       fetchRelaciones();
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      showError(error.message);
     }
   };
 
   const handleDelete = async (relacion: Relacion) => {
     const hasChildren = relaciones.some(r => r.Padre === relacion.id);
     if (hasChildren) {
-      toast({
-        title: "No se puede eliminar",
-        description: "Este código tiene hijos. Elimine primero los hijos.",
-        variant: "destructive",
-      });
+      showError("Este código tiene hijos. Elimine primero los hijos.", "No se puede eliminar");
       return;
     }
 
@@ -536,18 +469,11 @@ export default function SustitutosRepuestos() {
 
       if (error) throw error;
 
-      toast({
-        title: "Eliminado",
-        description: "Código eliminado correctamente",
-      });
+      showSuccess("Código eliminado correctamente", "Eliminado");
 
       fetchRelaciones();
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      showError(error.message);
     }
   };
 
