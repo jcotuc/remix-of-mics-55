@@ -1,2 +1,212 @@
-{
-}
+[
+  {
+    "action": "productos.search",
+    "description": "Searches for products.",
+    "input_schema": "app.contracts.productos.search.ProductoSearchInput",
+    "output_schema": "app.contracts.productos.search.ProductoSearchOutput"
+  },
+  {
+    "action": "productos.list",
+    "description": "Lists all products.",
+    "input_schema": "app.contracts.productos.list.ProductoListInput",
+    "output_schema": "app.contracts.productos.list.ProductoListOutput"
+  },
+  {
+    "action": "productos.get",
+    "description": "Gets a single product by its ID.",
+    "input_schema": "app.contracts.productos.get.ProductoGetInput",
+    "output_schema": "app.contracts.productos.get.ProductoGetOutput"
+  },
+  {
+    "action": "productos.create",
+    "description": "Creates a new product.",
+    "input_schema": "app.contracts.productos.create.ProductoCreateInput",
+    "output_schema": "app.contracts.productos.create.ProductoCreateOutput"
+  },
+  {
+    "action": "productos.update",
+    "description": "Updates an existing product.",
+    "input_schema": "app.contracts.productos.update.ProductoUpdateInput",
+    "output_schema": "app.contracts.productos.update.ProductoUpdateOutput"
+  },
+  {
+    "action": "productos.delete",
+    "description": "Deletes a product.",
+    "input_schema": "app.contracts.productos.delete.ProductoDeleteInput",
+    "output_schema": "app.contracts.productos.delete.ProductoDeleteOutput"
+  },
+  {
+    "action": "clientes.search",
+    "description": "Searches for clients.",
+    "input_schema": "app.contracts.clientes.search.ClienteSearchInput",
+    "output_schema": "app.contracts.clientes.search.ClienteSearchOutput"
+  },
+  {
+    "action": "clientes.list",
+    "description": "Lists all clientes.",
+    "input_schema": "app.contracts.clientes.list.ClienteListInput",
+    "output_schema": "app.contracts.clientes.list.ClienteListOutput"
+  },
+  {
+    "action": "clientes.get",
+    "description": "Gets a single cliente by its ID.",
+    "input_schema": "app.contracts.clientes.get.ClienteGetInput",
+    "output_schema": "app.contracts.clientes.get.ClienteGetOutput"
+  },
+  {
+    "action": "clientes.create",
+    "description": "Creates a new cliente.",
+    "input_schema": "app.contracts.clientes.create.ClienteCreateInput",
+    "output_schema": "app.contracts.clientes.create.ClienteCreateOutput"
+  },
+  {
+    "action": "clientes.update",
+    "description": "Updates an existing cliente.",
+    "input_schema": "app.contracts.clientes.update.ClienteUpdateInput",
+    "output_schema": "app.contracts.clientes.update.ClienteUpdateOutput"
+  },
+  {
+    "action": "clientes.delete",
+    "description": "Deletes a cliente.",
+    "input_schema": "app.contracts.clientes.delete.ClienteDeleteInput",
+    "output_schema": "app.contracts.clientes.delete.ClienteDeleteOutput"
+  },
+  {
+    "action": "incidentes.search",
+    "description": "Searches for incidentes.",
+    "input_schema": "app.contracts.incidentes.search.IncidenteSearchInput",
+    "output_schema": "app.contracts.incidentes.search.IncidenteSearchOutput"
+  },
+  {
+    "action": "incidentes.list",
+    "description": "Lists all incidentes.",
+    "input_schema": "app.contracts.incidentes.list.IncidenteListInput",
+    "output_schema": "app.contracts.incidentes.list.IncidenteListOutput"
+  },
+  {
+    "action": "incidentes.get",
+    "description": "Gets a single incidente by its ID.",
+    "input_schema": "app.contracts.incidentes.get.IncidenteGetInput",
+    "output_schema": "app.contracts.incidentes.get.IncidenteGetOutput"
+  },
+  {
+    "action": "incidentes.create",
+    "description": "Creates a new incidente.",
+    "input_schema": "app.contracts.incidentes.create.IncidenteCreateInput",
+    "output_schema": "app.contracts.incidentes.create.IncidenteCreateOutput"
+  },
+  {
+    "action": "incidentes.update",
+    "description": "Updates an existing incidente.",
+    "input_schema": "app.contracts.incidentes.update.IncidenteUpdateInput",
+    "output_schema": "app.contracts.incidentes.update.IncidenteUpdateOutput"
+  },
+  {
+    "action": "incidentes.delete",
+    "description": "Deletes an incidente.",
+    "input_schema": "app.contracts.incidentes.delete.IncidenteDeleteInput",
+    "output_schema": "app.contracts.incidentes.delete.IncidenteDeleteOutput"
+  },
+  {
+    "action": "diagnosticos.search",
+    "description": "Searches for diagnosticos.",
+    "input_schema": "app.contracts.diagnosticos.search.DiagnosticoSearchInput",
+    "output_schema": "app.contracts.diagnosticos.search.DiagnosticoSearchOutput"
+  },
+  {
+    "action": "diagnosticos.list",
+    "description": "Lists all diagnosticos.",
+    "input_schema": "app.contracts.diagnosticos.list.DiagnosticoListInput",
+    "output_schema": "app.contracts.diagnosticos.list.DiagnosticoListOutput"
+  },
+  {
+    "action": "diagnosticos.get",
+    "description": "Gets a single diagnostico by its ID.",
+    "input_schema": "app.contracts.diagnosticos.get.DiagnosticoGetInput",
+    "output_schema": "app.contracts.diagnosticos.get.DiagnosticoGetOutput"
+  },
+  {
+    "action": "diagnosticos.create",
+    "description": "Creates a new diagnostico.",
+    "input_schema": "app.contracts.diagnosticos.create.DiagnosticoCreateInput",
+    "output_schema": "app.contracts.diagnosticos.create.DiagnosticoCreateOutput"
+  },
+  {
+    "action": "diagnosticos.update",
+    "description": "Updates an existing diagnostico.",
+    "input_schema": "app.contracts.diagnosticos.update.DiagnosticoUpdateInput",
+    "output_schema": "app.contracts.diagnosticos.update.DiagnosticoUpdateOutput"
+  },
+  {
+    "action": "diagnosticos.delete",
+    "description": "Deletes a diagnostico.",
+    "input_schema": "app.contracts.diagnosticos.delete.DiagnosticoDeleteInput",
+    "output_schema": "app.contracts.diagnosticos.delete.DiagnosticoDeleteOutput"
+  },
+  {
+    "action": "repuestos.search",
+    "description": "Searches for repuestos.",
+    "input_schema": "app.contracts.repuestos.search.RepuestoSearchInput",
+    "output_schema": "app.contracts.repuestos.search.RepuestoSearchOutput"
+  },
+  {
+    "action": "repuestos.list",
+    "description": "Lists all repuestos.",
+    "input_schema": "app.contracts.repuestos.list.RepuestoListInput",
+    "output_schema": "app.contracts.repuestos.list.RepuestoListOutput"
+  },
+  {
+    "action": "repuestos.get",
+    "description": "Gets a single repuesto by its ID.",
+    "input_schema": "app.contracts.repuestos.get.RepuestoGetInput",
+    "output_schema": "app.contracts.repuestos.get.RepuestoGetOutput"
+  },
+  {
+    "action": "repuestos.create",
+    "description": "Creates a new repuesto.",
+    "input_schema": "app.contracts.repuestos.create.RepuestoCreateInput",
+    "output_schema": "app.contracts.repuestos.create.RepuestoCreateOutput"
+  },
+  {
+    "action": "repuestos.update",
+    "description": "Updates an existing repuesto.",
+    "input_schema": "app.contracts.repuestos.update.RepuestoUpdateInput",
+    "output_schema": "app.contracts.repuestos.update.RepuestoUpdateOutput"
+  },
+  {
+    "action": "repuestos.delete",
+    "description": "Deletes a repuesto.",
+    "input_schema": "app.contracts.repuestos.delete.RepuestoDeleteInput",
+    "output_schema": "app.contracts.repuestos.delete.RepuestoDeleteOutput"
+  },
+  {
+    "action": "bodegas.list",
+    "description": "Lists all bodegas.",
+    "input_schema": "app.contracts.bodegas.list.BodegaListInput",
+    "output_schema": "app.contracts.bodegas.list.BodegaListOutput"
+  },
+  {
+    "action": "bodegas.get",
+    "description": "Gets a single bodega by its ID.",
+    "input_schema": "app.contracts.bodegas.get.BodegaGetInput",
+    "output_schema": "app.contracts.bodegas.get.BodegaGetOutput"
+  },
+  {
+    "action": "bodegas.create",
+    "description": "Creates a new bodega.",
+    "input_schema": "app.contracts.bodegas.create.BodegaCreateInput",
+    "output_schema": "app.contracts.bodegas.create.BodegaCreateOutput"
+  },
+  {
+    "action": "bodegas.update",
+    "description": "Updates an existing bodega.",
+    "input_schema": "app.contracts.bodegas.update.BodegaUpdateInput",
+    "output_schema": "app.contracts.bodegas.update.BodegaUpdateOutput"
+  },
+  {
+    "action": "bodegas.delete",
+    "description": "Deletes a bodega.",
+    "input_schema": "app.contracts.bodegas.delete.BodegaDeleteInput",
+    "output_schema": "app.contracts.bodegas.delete.BodegaDeleteOutput"
+  }
+]
