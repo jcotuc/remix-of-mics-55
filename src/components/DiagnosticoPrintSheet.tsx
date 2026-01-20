@@ -1,6 +1,5 @@
 import React, { forwardRef } from 'react';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { formatFechaCorta, formatFechaHora } from '@/utils/dateFormatters';
 
 interface RepuestoItem {
   codigo: string;
@@ -59,8 +58,8 @@ interface Props {
 }
 
 const DiagnosticoPrintSheet = forwardRef<HTMLDivElement, Props>(({ data }, ref) => {
-  const fechaIngresoFormateada = format(data.fechaIngreso, "dd/MM/yyyy", { locale: es });
-  const fechaDiagnosticoFormateada = format(data.fechaDiagnostico, "dd/MM/yyyy HH:mm", { locale: es });
+  const fechaIngresoFormateada = formatFechaCorta(data.fechaIngreso);
+  const fechaDiagnosticoFormateada = formatFechaHora(data.fechaDiagnostico);
 
   // Calcular totales
   const subtotalRepuestos = data.repuestos.reduce((sum, r) => sum + (r.cantidad * r.precioUnitario), 0);
@@ -387,7 +386,7 @@ const DiagnosticoPrintSheet = forwardRef<HTMLDivElement, Props>(({ data }, ref) 
           <li>Para recoger el equipo, presente este documento o su número de incidente.</li>
         </ul>
         <p className="mt-2 text-center text-gray-400">
-          Documento generado automáticamente el {format(new Date(), "dd/MM/yyyy HH:mm", { locale: es })}
+          Documento generado automáticamente el {formatFechaHora(new Date())}
         </p>
       </div>
     </div>

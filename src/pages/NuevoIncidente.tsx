@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { ArrowLeft, Search, User, Package, AlertCircle, UserCircle, ChevronRight, Printer, Copy, Edit3 } from "lucide-react";
-import { toast } from "@/hooks/use-toast";
+import { showError, showSuccess, showWarning } from "@/utils/toastHelpers";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 type Producto = Database["public"]["Tables"]["productos"]["Row"];
@@ -434,10 +434,7 @@ export default function NuevoIncidente() {
     
     if (telefono) {
       setTelefonoEnvio(telefono);
-      toast({
-        title: "Teléfono copiado",
-        description: "Se copió el teléfono principal del cliente"
-      });
+      showSuccess("Se copió el teléfono principal del cliente", "Teléfono copiado");
     }
   };
 
@@ -471,62 +468,35 @@ export default function NuevoIncidente() {
       setAccesoriosDisponibles(prev => [...prev, nuevoAcc]);
       setAccesoriosSeleccionados(prev => [...prev, nuevoAcc.nombre]);
 
-      toast({
-        title: "Accesorio agregado",
-        description: `"${nuevoAcc.nombre}" se agregó y seleccionó automáticamente.`
-      });
+      showSuccess(`"${nuevoAcc.nombre}" se agregó y seleccionó automáticamente.`, "Accesorio agregado");
     } catch (error) {
       console.error('Error agregando accesorio:', error);
-      toast({
-        title: "Error",
-        description: "No se pudo agregar el accesorio",
-        variant: "destructive"
-      });
+      showError("No se pudo agregar el accesorio");
     }
   };
 
   const validarPaso1 = () => {
     if (mostrarFormNuevoCliente) {
       if (!nuevoCliente.nombre || !nuevoCliente.nit || !nuevoCliente.direccion || !nuevoCliente.telefono_principal || !nuevoCliente.nombre_facturacion || !nuevoCliente.departamento || !nuevoCliente.municipio) {
-        toast({
-          title: "Error",
-          description: "Complete todos los campos obligatorios del cliente",
-          variant: "destructive"
-        });
+        showError("Complete todos los campos obligatorios del cliente");
         return false;
       }
     } else {
       if (!clienteSeleccionado) {
-        toast({
-          title: "Error",
-          description: "Seleccione un cliente existente",
-          variant: "destructive"
-        });
+        showError("Seleccione un cliente existente");
         return false;
       }
       if (!datosClienteExistente.nombre || !datosClienteExistente.nit || !datosClienteExistente.telefono_principal) {
-        toast({
-          title: "Error",
-          description: "Complete todos los campos obligatorios del cliente",
-          variant: "destructive"
-        });
+        showError("Complete todos los campos obligatorios del cliente");
         return false;
       }
     }
     if (!personaDejaMaquina.trim()) {
-      toast({
-        title: "Error",
-        description: "Ingrese quién deja la máquina",
-        variant: "destructive"
-      });
+      showError("Ingrese quién deja la máquina");
       return false;
     }
     if (!dpiPersonaDeja.trim()) {
-      toast({
-        title: "Error",
-        description: "Ingrese el DPI de quien deja la máquina",
-        variant: "destructive"
-      });
+      showError("Ingrese el DPI de quien deja la máquina");
       return false;
     }
     return true;
@@ -534,76 +504,40 @@ export default function NuevoIncidente() {
   const validarPaso2 = () => {
     // Validar producto: seleccionado o manual
     if (!productoSeleccionado && !modoManualProducto) {
-      toast({
-        title: "Error",
-        description: "Seleccione un producto (SKU de la máquina)",
-        variant: "destructive"
-      });
+      showError("Seleccione un producto (SKU de la máquina)");
       return false;
     }
     if (modoManualProducto && (!productoManual.codigo.trim() || !productoManual.descripcion.trim())) {
-      toast({
-        title: "Error",
-        description: "Complete el código y descripción del producto manual",
-        variant: "destructive"
-      });
+      showError("Complete el código y descripción del producto manual");
       return false;
     }
     // Validar reingreso
     if (esReingreso && !incidenteReingresoId && incidentesAnteriores.length > 0) {
-      toast({
-        title: "Error",
-        description: "Seleccione el incidente anterior para el reingreso",
-        variant: "destructive"
-      });
+      showError("Seleccione el incidente anterior para el reingreso");
       return false;
     }
     if (!descripcionProblema.trim()) {
-      toast({
-        title: "Error",
-        description: "Ingrese la descripción del problema",
-        variant: "destructive"
-      });
+      showError("Ingrese la descripción del problema");
       return false;
     }
     if (!centroServicio) {
-      toast({
-        title: "Error",
-        description: "Seleccione un centro de servicio",
-        variant: "destructive"
-      });
+      showError("Seleccione un centro de servicio");
       return false;
     }
     if (!opcionEnvio) {
-      toast({
-        title: "Error",
-        description: "Seleccione una opción de entrega",
-        variant: "destructive"
-      });
+      showError("Seleccione una opción de entrega");
       return false;
     }
     if (opcionEnvio === 'directo' && tipoDireccionEnvio === 'existente' && !direccionSeleccionada && !mostrarFormNuevoCliente) {
-      toast({
-        title: "Error",
-        description: "Seleccione una dirección de envío",
-        variant: "destructive"
-      });
+      showError("Seleccione una dirección de envío");
       return false;
     }
     if (opcionEnvio === 'directo' && tipoDireccionEnvio === 'nueva' && !nuevaDireccion.trim()) {
-      toast({
-        title: "Error",
-        description: "Seleccione o agregue una dirección de envío",
-        variant: "destructive"
-      });
+      showError("Seleccione o agregue una dirección de envío");
       return false;
     }
     if (!tipologia) {
-      toast({
-        title: "Error",
-        description: "Seleccione la tipología",
-        variant: "destructive"
-      });
+      showError("Seleccione la tipología");
       return false;
     }
     // Fotos son opcionales por ahora
@@ -667,10 +601,7 @@ export default function NuevoIncidente() {
           }
         }
         setClienteSeleccionado(clienteData);
-        toast({
-          title: "Cliente creado",
-          description: `Código HPC: ${nuevoCodigoHPC}`
-        });
+        showSuccess(`Código HPC: ${nuevoCodigoHPC}`, "Cliente creado");
       } else {
         const {
           error: updateError
@@ -804,17 +735,10 @@ export default function NuevoIncidente() {
             comment: mediaPhotos[idx]?.comment,
           }));
           await saveIncidentePhotos(incidenteData.id, uploadedWithComments, 'ingreso');
-          toast({
-            title: "Fotos subidas",
-            description: `${uploadedMedia.length} archivo(s) subido(s) correctamente`
-          });
+          showSuccess(`${uploadedMedia.length} archivo(s) subido(s) correctamente`, "Fotos subidas");
         } catch (uploadError) {
           console.error('Error uploading media:', uploadError);
-          toast({
-            title: "Advertencia",
-            description: "El incidente se creó pero hubo un error al subir algunas fotos",
-            variant: "destructive"
-          });
+          showWarning("El incidente se creó pero hubo un error al subir algunas fotos");
         }
       }
 
@@ -837,11 +761,7 @@ export default function NuevoIncidente() {
       setShowSuccessDialog(true);
     } catch (error) {
       console.error('Error al guardar:', error);
-      toast({
-        title: "Error",
-        description: "No se pudo guardar el incidente. Intente nuevamente.",
-        variant: "destructive"
-      });
+      showError("No se pudo guardar el incidente. Intente nuevamente.");
     } finally {
       setGuardando(false);
     }
@@ -1086,10 +1006,7 @@ export default function NuevoIncidente() {
                             : datosClienteExistente.nombre || clienteSeleccionado?.nombre || "";
                           if (nombrePropietario) {
                             setPersonaDejaMaquina(nombrePropietario);
-                            toast({
-                              title: "Nombre copiado",
-                              description: "Se copió el nombre del propietario"
-                            });
+                            showSuccess("Se copió el nombre del propietario", "Nombre copiado");
                           }
                         }}
                         title="Copiar nombre del propietario"

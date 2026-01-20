@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
-import { format } from "date-fns";
-import { es } from "date-fns/locale";
-import { 
+import { formatFechaHora } from "@/utils/dateFormatters";
+import {
   ArrowUpDown, 
   User, 
   Clock, 
@@ -345,7 +344,7 @@ export function IncidentTimeline({ incidenteId }: IncidentTimelineProps) {
                         </p>
                       </div>
                       <time className="text-xs text-muted-foreground whitespace-nowrap">
-                        {format(new Date(event.timestamp), "dd MMM yyyy HH:mm", { locale: es })}
+                        {formatFechaHora(event.timestamp)}
                       </time>
                     </div>
                     <div className="flex items-center gap-1 mt-1.5">
