@@ -20,8 +20,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { format, formatDistanceToNow } from "date-fns";
-import { es } from "date-fns/locale";
+import { formatFechaRelativa, formatLogEntry, formatFechaCorta } from "@/utils/dateFormatters";
 
 interface IncidenteReparado {
   id: string;
@@ -277,7 +276,7 @@ export default function WaterspiderPendientes() {
   }, [solicitudesDespachadas, filtroTexto]);
 
   const getTiempoEspera = (updatedAt: string) => {
-    return formatDistanceToNow(new Date(updatedAt), { locale: es, addSuffix: false });
+    return formatFechaRelativa(updatedAt).replace(/^hace /, "");
   };
 
   // Toggle selection handlers
@@ -342,7 +341,7 @@ export default function WaterspiderPendientes() {
 
         if (error) throw error;
 
-        const logEntry = `[${format(new Date(), "dd/MM/yyyy HH:mm")}] Waterspider: Entregado a ${destinoLabel}${observaciones ? ` - ${observaciones}` : ''}`;
+        const logEntry = formatLogEntry(`Waterspider: Entregado a ${destinoLabel}${observaciones ? ` - ${observaciones}` : ''}`);
         
         for (const incId of selectedIds) {
           const { data: currentInc } = await supabase
@@ -366,7 +365,7 @@ export default function WaterspiderPendientes() {
         const selectedIds = Array.from(selectedDepuracion);
         
         // Mark as "depurado" - could add a new status or just log it
-        const logEntry = `[${format(new Date(), "dd/MM/yyyy HH:mm")}] Waterspider: Máquina depurada/descartada${observaciones ? ` - ${observaciones}` : ''}`;
+        const logEntry = formatLogEntry(`Waterspider: Máquina depurada/descartada${observaciones ? ` - ${observaciones}` : ''}`);
         
         for (const incId of selectedIds) {
           const { data: currentInc } = await supabase
@@ -752,7 +751,7 @@ export default function WaterspiderPendientes() {
                               <TableCell className="font-medium">{inc.codigo}</TableCell>
                               <TableCell>{clientes[inc.codigo_cliente]?.nombre || inc.codigo_cliente}</TableCell>
                               <TableCell>{inc.codigo_producto}</TableCell>
-                              <TableCell>{format(new Date(inc.updated_at), "dd/MM/yyyy", { locale: es })}</TableCell>
+                              <TableCell>{formatFechaCorta(inc.updated_at)}</TableCell>
                               <TableCell>
                                 <Button size="sm" variant="outline" onClick={() => navigate(`/incidentes/${inc.id}`)}>
                                   Ver detalle

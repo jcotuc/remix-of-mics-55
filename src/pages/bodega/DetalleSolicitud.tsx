@@ -31,8 +31,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { formatDistanceToNow } from "date-fns";
-import { es } from "date-fns/locale";
+import { formatFechaRelativa } from "@/utils/dateFormatters";
 
 type RepuestoSolicitado = {
   codigo: string;
@@ -541,7 +540,7 @@ export default function DetalleSolicitud() {
                 <p className="text-xs text-muted-foreground">Tiempo transcurrido</p>
                 <p className="font-medium text-sm">
                   {solicitud?.created_at 
-                    ? formatDistanceToNow(new Date(solicitud.created_at), { locale: es, addSuffix: false })
+                    ? formatFechaRelativa(solicitud.created_at).replace(/^hace /, "")
                     : "N/A"}
                 </p>
               </div>

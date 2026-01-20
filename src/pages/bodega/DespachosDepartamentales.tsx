@@ -11,8 +11,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { formatDistanceToNow } from "date-fns";
-import { es } from "date-fns/locale";
+import { formatFechaRelativa } from "@/utils/dateFormatters";
 
 interface Repuesto {
   codigo: string;
@@ -98,7 +97,7 @@ function PedidoCard({
         <div className="flex items-center justify-between text-[10px] text-muted-foreground mt-3 pt-2 border-t">
           <span className="flex items-center gap-1">
             <Clock className="h-3 w-3" />
-            {formatDistanceToNow(new Date(pedido.created_at), { addSuffix: true, locale: es })}
+            {formatFechaRelativa(pedido.created_at)}
           </span>
           {variant === 'pending' && (
             <span className="flex items-center gap-0.5 font-medium text-blue-600" onClick={(e) => { e.stopPropagation(); onDespachar(); }}>

@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { formatFechaLarga, formatFechaHora, formatFechaCorta } from "@/utils/dateFormatters";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface Incidente {

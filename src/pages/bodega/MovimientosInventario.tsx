@@ -12,8 +12,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
-import { format } from "date-fns";
-import { es } from "date-fns/locale";
+import { formatFechaHora } from "@/utils/dateFormatters";
 
 type TipoMovimiento = "entrada" | "salida";
 
@@ -440,7 +439,7 @@ export default function MovimientosInventario() {
                       <div className="flex-1 min-w-0">
                         <p className="font-mono text-xs truncate">{mov.codigo_repuesto}</p>
                         <p className="text-xs text-muted-foreground">
-                          {format(new Date(mov.created_at), "dd/MM HH:mm", { locale: es })}
+                          {formatFechaHora(mov.created_at).slice(0, 11)}
                         </p>
                       </div>
                       <Badge variant={mov.tipo_movimiento === "entrada" ? "default" : "secondary"} className="shrink-0">

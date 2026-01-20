@@ -9,9 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Loader2, RefreshCw, Search, User, ArrowRight } from "lucide-react";
-import { format, differenceInDays } from "date-fns";
-import { es } from "date-fns/locale";
+import { differenceInDays } from "date-fns";
 import { toast } from "sonner";
+import { formatLogEntry } from "@/utils/dateFormatters";
 
 interface Incidente {
   id: string;
@@ -144,7 +144,7 @@ export default function Reasignaciones() {
         : selectedIncidente.codigo_tecnico || "N/A";
 
       // Update incidente with new tecnico_asignado_id
-      const logEntry = `[${format(new Date(), "dd/MM/yyyy HH:mm")}] Reasignado de ${tecnicoAnterior} a ${tecnicoCodigo}${motivoReasignacion ? `. Motivo: ${motivoReasignacion}` : ""}`;
+      const logEntry = formatLogEntry(`Reasignado de ${tecnicoAnterior} a ${tecnicoCodigo}${motivoReasignacion ? `. Motivo: ${motivoReasignacion}` : ""}`);
 
       const { error } = await supabase
         .from("incidentes")

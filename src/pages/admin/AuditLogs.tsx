@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Search, Filter, Eye, Calendar, ChevronLeft, ChevronRight } from "lucide-react";
+import { formatFechaHora } from "@/utils/dateFormatters";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 

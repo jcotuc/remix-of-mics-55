@@ -14,8 +14,8 @@ import type { Database } from "@/integrations/supabase/types";
 type StatusIncidente = Database["public"]["Enums"]["status_incidente"];
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
-import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { formatFechaCorta } from "@/utils/dateFormatters";
 
 type IncidenteDB = Database['public']['Tables']['incidentes']['Row'];
 type ClienteDB = Database['public']['Tables']['clientes']['Row'];
@@ -243,7 +243,7 @@ export default function EntregaMaquinas() {
                     className="w-full justify-start text-left font-normal"
                   >
                     <Calendar className="mr-2 h-4 w-4" />
-                    {fechaDesde ? format(fechaDesde, "dd/MM/yyyy", { locale: es }) : "Seleccionar..."}
+                    {fechaDesde ? formatFechaCorta(fechaDesde) : "Seleccionar..."}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0">
@@ -267,7 +267,7 @@ export default function EntregaMaquinas() {
                     className="w-full justify-start text-left font-normal"
                   >
                     <Calendar className="mr-2 h-4 w-4" />
-                    {fechaHasta ? format(fechaHasta, "dd/MM/yyyy", { locale: es }) : "Seleccionar..."}
+                    {fechaHasta ? formatFechaCorta(fechaHasta) : "Seleccionar..."}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0">

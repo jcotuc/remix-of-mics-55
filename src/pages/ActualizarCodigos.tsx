@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { useToast } from "@/hooks/use-toast";
+import { showSuccess, showError } from "@/utils/toastHelpers";
 import { supabase } from "@/integrations/supabase/client";
 import { RefreshCw, CheckCircle2 } from "lucide-react";
 
@@ -30,7 +30,6 @@ const updateClientCodesHPCtoHPS = async () => {
 export default function ActualizarCodigos() {
   const [loading, setLoading] = useState(false);
   const [updated, setUpdated] = useState(0);
-  const { toast } = useToast();
 
   const handleUpdate = async () => {
     setLoading(true);
@@ -39,24 +38,13 @@ export default function ActualizarCodigos() {
       
       if (result.success) {
         setUpdated(result.updated);
-        toast({
-          title: "Códigos actualizados",
-          description: `Se actualizaron ${result.updated} códigos de HPC a HPS exitosamente.`,
-        });
+        showSuccess(`Se actualizaron ${result.updated} códigos de HPC a HPS exitosamente.`, "Códigos actualizados");
       } else {
-        toast({
-          title: "Error",
-          description: "Hubo un problema al actualizar los códigos.",
-          variant: "destructive",
-        });
+        showError("Hubo un problema al actualizar los códigos.");
       }
     } catch (error) {
       console.error(error);
-      toast({
-        title: "Error",
-        description: "Hubo un problema al actualizar los códigos.",
-        variant: "destructive",
-      });
+      showError("Hubo un problema al actualizar los códigos.");
     } finally {
       setLoading(false);
     }
