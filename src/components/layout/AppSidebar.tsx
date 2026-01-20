@@ -1,10 +1,7 @@
 import { Users, Package, Wrench, FileText, Truck, LogOut, Home, ShoppingCart, DollarSign, ClipboardList, BarChart3, ClipboardCheck, FileSpreadsheet, LogIn, LogOut as LogOutIcon, Send, PackageCheck, AlertTriangle, AlertCircle, MapPin, Calendar, Settings, CheckCircle2, Network, RefreshCw, FolderTree, ListChecks, History, FileUp, Shield } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { usePermisos, RUTAS_PERMISOS, MENU_PERMISOS } from "@/hooks/usePermisos";
 import { Button } from "@/components/ui/button";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 
 import {
   Sidebar,
@@ -129,22 +126,6 @@ export function AppSidebar() {
   const currentPath = location.pathname;
   const isCollapsed = state === "collapsed" && !isMobile;
   const { user, userRole, signOut } = useAuth();
-  const { tienePermiso, tieneAlgunPermiso, loading: permisosLoading } = usePermisos();
-
-  // Obtener perfil del usuario
-  const { data: profile } = useQuery({
-    queryKey: ['user-profile', user?.id],
-    queryFn: async () => {
-      if (!user?.id) return null;
-      const { data } = await supabase
-        .from('profiles')
-        .select('nombre, apellido')
-        .eq('user_id', user.id)
-        .maybeSingle();
-      return data;
-    },
-    enabled: !!user?.id,
-  });
 
   const handleNavClick = () => {
     if (isMobile) {
@@ -159,28 +140,7 @@ export function AppSidebar() {
       ? "bg-primary text-primary-foreground font-medium" 
       : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground";
 
-  // Filtrar items del menú según permisos
-  const filterMenuItems = (items: MenuItem[]): MenuItem[] => {
-    if (userRole === 'admin') return items;
-    return items.filter(item => {
-      const permisoRequerido = RUTAS_PERMISOS[item.url];
-      if (!permisoRequerido) return true;
-      return tienePermiso(permisoRequerido);
-    });
-  };
-
-  // Verificar si el usuario tiene acceso a algún item del menú
-  const tieneAccesoMenu = (menuKey: string): boolean => {
-    if (userRole === 'admin') return true;
-    const permisosMenu = MENU_PERMISOS[menuKey];
-    if (!permisosMenu) return true;
-    return tieneAlgunPermiso(permisosMenu);
-  };
-
-  const renderMenuSection = (title: string, items: MenuItem[], menuKey?: string) => {
-    const filteredItems = filterMenuItems(items);
-    if (filteredItems.length === 0) return null;
-    
+  const renderMenuSection = (title: string, items: MenuItem[]) => {
     return (
       <SidebarGroup key={title}>
         <SidebarGroupLabel className={`text-sidebar-foreground font-semibold text-xs ${isCollapsed ? "sr-only" : ""}`}>
@@ -188,7 +148,7 @@ export function AppSidebar() {
         </SidebarGroupLabel>
         <SidebarGroupContent>
           <SidebarMenu>
-            {filteredItems.map((item) => (
+            {items.map((item) => (
               <SidebarMenuItem key={item.title}>
                 <SidebarMenuButton asChild tooltip={isCollapsed ? item.title : undefined}>
                   <NavLink 
@@ -224,34 +184,27 @@ export function AppSidebar() {
                   Centro de Servicio
                 </h2>
               </div>
-              {(profile || userRole) && (
+              {userRole && (
                 <div className="ml-10 sm:ml-11 flex flex-col gap-1">
-                  {profile && (
-                    <p className="text-xs sm:text-sm font-medium text-secondary-foreground leading-tight">
-                      {profile.nombre} {profile.apellido}
-                    </p>
-                  )}
-                  {userRole && (
-                    <span className="text-[10px] sm:text-xs font-medium text-secondary-foreground/80 uppercase tracking-wider px-1.5 sm:px-2 py-0.5 bg-secondary-foreground/10 rounded w-fit">
-                      {userRole === 'mostrador' && 'Mostrador'}
-                      {userRole === 'logistica' && 'Logística'}
-                      {userRole === 'taller' && 'Taller'}
-                      {userRole === 'bodega' && 'Bodega'}
-                      {userRole === 'sac' && 'SAC'}
-                      {userRole === 'control_calidad' && 'Control de Calidad'}
-                      {userRole === 'asesor' && 'Asesor'}
-                      {userRole === 'admin' && 'Administrador'}
-                      {userRole === 'tecnico' && 'Técnico'}
-                      {userRole === 'jefe_taller' && 'Jefe Taller'}
-                      {userRole === 'jefe_bodega' && 'Jefe Bodega'}
-                      {userRole === 'jefe_logistica' && 'Jefe Logística'}
-                      {userRole === 'supervisor_sac' && 'Supervisor SAC'}
-                      {userRole === 'supervisor_bodega' && 'Supervisor Bodega'}
-                      {userRole === 'supervisor_calidad' && 'Supervisor Calidad'}
-                      {userRole === 'gerente_centro' && 'Gerente Centro'}
-                      {userRole === 'supervisor_regional' && 'Supervisor Regional'}
-                    </span>
-                  )}
+                  <span className="text-[10px] sm:text-xs font-medium text-secondary-foreground/80 uppercase tracking-wider px-1.5 sm:px-2 py-0.5 bg-secondary-foreground/10 rounded w-fit">
+                    {userRole === 'mostrador' && 'Mostrador'}
+                    {userRole === 'logistica' && 'Logística'}
+                    {userRole === 'taller' && 'Taller'}
+                    {userRole === 'bodega' && 'Bodega'}
+                    {userRole === 'sac' && 'SAC'}
+                    {userRole === 'control_calidad' && 'Control de Calidad'}
+                    {userRole === 'asesor' && 'Asesor'}
+                    {userRole === 'admin' && 'Administrador'}
+                    {userRole === 'tecnico' && 'Técnico'}
+                    {userRole === 'jefe_taller' && 'Jefe Taller'}
+                    {userRole === 'jefe_bodega' && 'Jefe Bodega'}
+                    {userRole === 'jefe_logistica' && 'Jefe Logística'}
+                    {userRole === 'supervisor_sac' && 'Supervisor SAC'}
+                    {userRole === 'supervisor_bodega' && 'Supervisor Bodega'}
+                    {userRole === 'supervisor_calidad' && 'Supervisor Calidad'}
+                    {userRole === 'gerente_centro' && 'Gerente Centro'}
+                    {userRole === 'supervisor_regional' && 'Supervisor Regional'}
+                  </span>
                 </div>
               )}
             </div>
@@ -266,20 +219,17 @@ export function AppSidebar() {
           {/* Home siempre visible */}
           {renderMenuSection("Home", menuAreas.home)}
           
-          {/* Secciones filtradas por permisos */}
-          {tieneAccesoMenu('mostrador') && renderMenuSection("Mostrador", menuAreas.mostrador, 'mostrador')}
-          {tieneAccesoMenu('logistica') && renderMenuSection("Logística", menuAreas.logistica, 'logistica')}
-          {tieneAccesoMenu('taller') && renderMenuSection("Taller", menuAreas.taller, 'taller')}
-          {(userRole === "jefe_taller" || userRole === "admin" || tieneAccesoMenu('jefeTaller')) && 
-            renderMenuSection("Jefe Taller", menuAreas.jefeTaller, 'jefeTaller')}
-          {tieneAccesoMenu('bodega') && renderMenuSection("Bodega", menuAreas.bodega, 'bodega')}
-          {tieneAccesoMenu('sac') && renderMenuSection("SAC", menuAreas.sac, 'sac')}
-          {tieneAccesoMenu('calidad') && renderMenuSection("Calidad", menuAreas.calidad, 'calidad')}
+          {/* Show all sections for now - permissions removed temporarily */}
+          {renderMenuSection("Mostrador", menuAreas.mostrador)}
+          {renderMenuSection("Logística", menuAreas.logistica)}
+          {renderMenuSection("Taller", menuAreas.taller)}
+          {renderMenuSection("Jefe Taller", menuAreas.jefeTaller)}
+          {renderMenuSection("Bodega", menuAreas.bodega)}
+          {renderMenuSection("SAC", menuAreas.sac)}
+          {renderMenuSection("Calidad", menuAreas.calidad)}
           {userRole === "asesor" && renderMenuSection("Asesor", menuAreas.asesor)}
-          {(userRole === "gerente_centro" || userRole === "supervisor_regional" || userRole === "admin" || tieneAccesoMenu('gerencia')) && 
-            renderMenuSection("Gerencia", menuAreas.gerencia, 'gerencia')}
-          {(["supervisor_sac", "jefe_taller", "jefe_logistica", "jefe_bodega", "supervisor_bodega", "supervisor_calidad"].includes(userRole || "") || userRole === "admin" || tieneAccesoMenu('supervisores')) && 
-            renderMenuSection("Supervisores", menuAreas.supervisores, 'supervisores')}
+          {renderMenuSection("Gerencia", menuAreas.gerencia)}
+          {renderMenuSection("Supervisores", menuAreas.supervisores)}
           {userRole === "admin" && renderMenuSection("Administración", menuAreas.admin)}
         </div>
 

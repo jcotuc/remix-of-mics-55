@@ -15,36 +15,31 @@ export interface CodigoPadreResult {
 }
 
 /**
- * Obtiene el código padre de un repuesto desde la tabla repuestos_relaciones
- * Si el código tiene un Padre, devuelve ese código padre
+ * Obtiene el código padre de un repuesto
+ * Uses the repuestos table with codigo_padre column
  */
 export async function obtenerCodigoPadre(codigoHijo: string): Promise<CodigoPadreResult> {
   try {
-    // First find the record for this code
-    const { data: childRecord, error: childError } = await supabase
-      .from('repuestos_relaciones')
-      .select('*')
-      .eq('Código', codigoHijo)
+    const { data: repuesto, error } = await supabase
+      .from('repuestos')
+      .select('codigo_padre, descripcion')
+      .eq('codigo', codigoHijo)
       .maybeSingle();
 
-    if (childError || !childRecord || !childRecord.Padre) {
+    if (error || !repuesto || !repuesto.codigo_padre) {
       return { codigoPadre: null, descripcionPadre: null };
     }
 
-    // Now get the parent record by its ID
-    const { data: parentRecord, error: parentError } = await supabase
-      .from('repuestos_relaciones')
-      .select('*')
-      .eq('id', childRecord.Padre)
+    // Get parent description
+    const { data: padre } = await supabase
+      .from('repuestos')
+      .select('descripcion')
+      .eq('codigo', repuesto.codigo_padre)
       .maybeSingle();
-
-    if (parentError || !parentRecord) {
-      return { codigoPadre: null, descripcionPadre: null };
-    }
 
     return {
-      codigoPadre: parentRecord["Código"] || null,
-      descripcionPadre: parentRecord["Descripción"] || null
+      codigoPadre: repuesto.codigo_padre,
+      descripcionPadre: padre?.descripcion || null
     };
   } catch (error) {
     console.error('Error:', error);
@@ -58,7 +53,7 @@ export async function obtenerCodigoPadre(codigoHijo: string): Promise<CodigoPadr
  */
 export async function buscarAlternativaDisponible(
   codigoSolicitado: string,
-  centroServicioId: string
+  centroServicioId: number
 ): Promise<AlternativaRepuesto | null> {
   try {
     // First check if the requested code has stock
@@ -114,7 +109,7 @@ export async function buscarAlternativaDisponible(
  */
 export async function obtenerUbicacionRepuesto(
   codigoRepuesto: string,
-  centroServicioId: string
+  centroServicioId: number
 ): Promise<string | null> {
   // Primero obtener info del repuesto
   const { data: repuesto } = await supabase
@@ -144,7 +139,7 @@ export async function obtenerUbicacionRepuesto(
 export async function obtenerHijosRepuesto(codigoPadre: string) {
   const { data, error } = await supabase
     .from('repuestos')
-    .select('codigo, descripcion, prefijo_clasificacion')
+    .select('codigo, descripcion')
     .eq('codigo_padre', codigoPadre)
     .order('codigo');
 
@@ -157,26 +152,23 @@ export async function obtenerHijosRepuesto(codigoPadre: string) {
 }
 
 /**
- * Verifica si un repuesto tiene alternativas (padre, hermanos o equivalentes)
+ * Verifica si un repuesto tiene alternativas (padre o hijos)
  */
 export async function tieneAlternativas(codigoRepuesto: string): Promise<boolean> {
-  // Find the record for this code
-  const { data: record } = await supabase
-    .from('repuestos_relaciones')
-    .select('*')
-    .eq('Código', codigoRepuesto)
+  // Check if has parent
+  const { data: repuesto } = await supabase
+    .from('repuestos')
+    .select('codigo_padre')
+    .eq('codigo', codigoRepuesto)
     .maybeSingle();
 
-  if (!record) return false;
+  if (repuesto?.codigo_padre) return true;
 
-  // If it has a parent, it has alternatives (siblings via parent)
-  if (record.Padre) return true;
-
-  // Check if it's a parent (has children)
+  // Check if is a parent (has children)
   const { data: children } = await supabase
-    .from('repuestos_relaciones')
+    .from('repuestos')
     .select('id')
-    .eq('Padre', record.id)
+    .eq('codigo_padre', codigoRepuesto)
     .limit(1);
 
   return (children?.length || 0) > 0;
@@ -189,16 +181,41 @@ export async function registrarSustitucion(
   codigoSolicitado: string,
   codigoDespachado: string,
   cantidadDespachada: number,
-  centroServicioId: string,
-  userId: string,
+  centroServicioId: number,
+  userId: number,
   tipoSustitucion: string
 ) {
+  // First get the repuesto_id
+  const { data: repuesto } = await supabase
+    .from('repuestos')
+    .select('id')
+    .eq('codigo', codigoDespachado)
+    .maybeSingle();
+
+  if (!repuesto) {
+    console.error('Repuesto not found:', codigoDespachado);
+    return;
+  }
+
+  // Get current stock
+  const { data: stock } = await supabase
+    .from('inventario')
+    .select('cantidad')
+    .eq('codigo_repuesto', codigoDespachado)
+    .eq('centro_servicio_id', centroServicioId)
+    .maybeSingle();
+
+  const stockAnterior = stock?.cantidad || 0;
+  const stockNuevo = stockAnterior - cantidadDespachada;
+
   await supabase.from('movimientos_inventario').insert({
-    codigo_repuesto: codigoDespachado,
-    tipo_movimiento: 'salida',
+    repuesto_id: repuesto.id,
+    tipo_movimiento: 'SALIDA',
     cantidad: cantidadDespachada,
     centro_servicio_id: centroServicioId,
-    created_by: userId,
+    created_by_id: userId,
+    stock_anterior: stockAnterior,
+    stock_nuevo: stockNuevo,
     motivo: `Despacho de ${codigoDespachado} (solicitado: ${codigoSolicitado}, tipo: ${tipoSustitucion})`
   });
 }

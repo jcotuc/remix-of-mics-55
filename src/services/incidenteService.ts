@@ -1,33 +1,18 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
-import { formatLogEntry } from "@/utils/dateFormatters";
 
 type Incidente = Database["public"]["Tables"]["incidentes"]["Row"];
 type IncidenteInsert = Database["public"]["Tables"]["incidentes"]["Insert"];
 type IncidenteUpdate = Database["public"]["Tables"]["incidentes"]["Update"];
-type StatusIncidente = Database["public"]["Enums"]["status_incidente"];
+type EstadoIncidente = Database["public"]["Enums"]["estadoincidente"];
 
 export interface IncidenteFilters {
-  status?: StatusIncidente | StatusIncidente[];
-  centroServicio?: string;
-  codigoCliente?: string;
-  codigoTecnico?: string;
-  fechaDesde?: string;
-  fechaHasta?: string;
-  search?: string;
+  estado?: EstadoIncidente | EstadoIncidente[];
+  centroServicioId?: number;
+  clienteId?: number;
   limit?: number;
   offset?: number;
-}
-
-export interface IncidenteConRelaciones extends Incidente {
-  cliente?: {
-    nombre: string;
-    celular: string;
-    nit: string;
-  } | null;
-  producto?: {
-    descripcion: string;
-  } | null;
+  search?: string;
 }
 
 /**
@@ -37,7 +22,7 @@ export const incidenteService = {
   /**
    * Obtiene un incidente por su ID
    */
-  async getById(id: string): Promise<Incidente | null> {
+  async getById(id: number): Promise<Incidente | null> {
     const { data, error } = await supabase
       .from("incidentes")
       .select("*")
@@ -49,7 +34,7 @@ export const incidenteService = {
   },
 
   /**
-   * Obtiene un incidente por su código (INC-XXXXXX)
+   * Obtiene un incidente por su código
    */
   async getByCodigo(codigo: string): Promise<Incidente | null> {
     const { data, error } = await supabase
@@ -65,19 +50,19 @@ export const incidenteService = {
   /**
    * Obtiene un incidente con sus relaciones (cliente, producto)
    */
-  async getByIdConRelaciones(id: string): Promise<IncidenteConRelaciones | null> {
+  async getByIdConRelaciones(id: number): Promise<any | null> {
     const { data, error } = await supabase
       .from("incidentes")
       .select(`
         *,
-        cliente:clientes!codigo_cliente(nombre, celular, nit),
-        producto:productos!codigo_producto(descripcion)
+        clientes!cliente_id(nombre, celular, nit),
+        productos!producto_id(descripcion)
       `)
       .eq("id", id)
       .single();
     
     if (error) throw error;
-    return data as unknown as IncidenteConRelaciones;
+    return data;
   },
 
   /**
@@ -87,38 +72,26 @@ export const incidenteService = {
     let query = supabase
       .from("incidentes")
       .select("*")
-      .order("fecha_ingreso", { ascending: false });
+      .order("created_at", { ascending: false });
 
-    if (filters?.status) {
-      if (Array.isArray(filters.status)) {
-        query = query.in("status", filters.status);
+    if (filters?.estado) {
+      if (Array.isArray(filters.estado)) {
+        query = query.in("estado", filters.estado);
       } else {
-        query = query.eq("status", filters.status);
+        query = query.eq("estado", filters.estado);
       }
     }
 
-    if (filters?.centroServicio) {
-      query = query.eq("centro_servicio", filters.centroServicio);
+    if (filters?.centroServicioId) {
+      query = query.eq("centro_de_servicio_id", filters.centroServicioId);
     }
 
-    if (filters?.codigoCliente) {
-      query = query.eq("codigo_cliente", filters.codigoCliente);
-    }
-
-    if (filters?.codigoTecnico) {
-      query = query.eq("codigo_tecnico", filters.codigoTecnico);
-    }
-
-    if (filters?.fechaDesde) {
-      query = query.gte("fecha_ingreso", filters.fechaDesde);
-    }
-
-    if (filters?.fechaHasta) {
-      query = query.lte("fecha_ingreso", filters.fechaHasta);
+    if (filters?.clienteId) {
+      query = query.eq("cliente_id", filters.clienteId);
     }
 
     if (filters?.search) {
-      query = query.or(`codigo.ilike.%${filters.search}%,codigo_cliente.ilike.%${filters.search}%,codigo_producto.ilike.%${filters.search}%`);
+      query = query.or(`codigo.ilike.%${filters.search}%`);
     }
 
     if (filters?.limit) {
@@ -137,22 +110,24 @@ export const incidenteService = {
   /**
    * Lista incidentes por cliente
    */
-  async listByCliente(codigoCliente: string): Promise<Incidente[]> {
-    return this.list({ codigoCliente });
+  async listByCliente(clienteId: number): Promise<Incidente[]> {
+    return this.list({ clienteId });
   },
 
   /**
-   * Lista incidentes por técnico asignado
+   * Lista incidentes por técnico asignado (via junction table)
    */
-  async listByTecnico(tecnicoId: string): Promise<Incidente[]> {
+  async listByTecnico(tecnicoId: number): Promise<Incidente[]> {
     const { data, error } = await supabase
-      .from("incidentes")
-      .select("*")
-      .eq("tecnico_asignado_id", tecnicoId)
-      .order("fecha_ingreso", { ascending: false });
+      .from("incidente_tecnico")
+      .select(`
+        incidente_id,
+        incidentes!incidente_id(*)
+      `)
+      .eq("tecnico_id", tecnicoId);
     
     if (error) throw error;
-    return data || [];
+    return data?.map(d => d.incidentes as unknown as Incidente).filter(Boolean) || [];
   },
 
   /**
@@ -172,7 +147,7 @@ export const incidenteService = {
   /**
    * Actualiza un incidente
    */
-  async update(id: string, updates: IncidenteUpdate): Promise<Incidente> {
+  async update(id: number, updates: IncidenteUpdate): Promise<Incidente> {
     const { data, error } = await supabase
       .from("incidentes")
       .update({ ...updates, updated_at: new Date().toISOString() })
@@ -185,73 +160,55 @@ export const incidenteService = {
   },
 
   /**
-   * Actualiza el estado de un incidente con log opcional
+   * Actualiza el estado de un incidente
    */
-  async updateStatus(
-    id: string, 
-    status: StatusIncidente, 
-    logMessage?: string
-  ): Promise<Incidente> {
-    // Obtener incidente actual para el log
-    const current = await this.getById(id);
-    if (!current) throw new Error("Incidente no encontrado");
-
-    const updates: IncidenteUpdate = { status };
-
-    // Agregar entrada al log si se proporciona mensaje
-    if (logMessage) {
-      const newLogEntry = formatLogEntry(logMessage);
-      updates.log_observaciones = current.log_observaciones 
-        ? `${current.log_observaciones}\n${newLogEntry}`
-        : newLogEntry;
-    }
-
-    return this.update(id, updates);
+  async updateStatus(id: number, estado: EstadoIncidente): Promise<Incidente> {
+    return this.update(id, { estado });
   },
 
   /**
-   * Agrega una observación al log del incidente
+   * Agrega una observación al incidente
    */
-  async addLogEntry(id: string, mensaje: string): Promise<Incidente> {
+  async addObservacion(id: number, mensaje: string): Promise<Incidente> {
     const current = await this.getById(id);
     if (!current) throw new Error("Incidente no encontrado");
 
-    const newLogEntry = formatLogEntry(mensaje);
-    const log_observaciones = current.log_observaciones 
-      ? `${current.log_observaciones}\n${newLogEntry}`
-      : newLogEntry;
+    const timestamp = new Date().toISOString();
+    const newEntry = `[${timestamp}] ${mensaje}`;
+    const observaciones = current.observaciones 
+      ? `${current.observaciones}\n${newEntry}`
+      : newEntry;
 
-    return this.update(id, { log_observaciones });
+    return this.update(id, { observaciones });
   },
 
   /**
    * Asigna un técnico a un incidente
    */
-  async asignarTecnico(
-    id: string, 
-    tecnicoId: string, 
-    tecnicoCodigo: string
-  ): Promise<Incidente> {
-    return this.update(id, {
-      tecnico_asignado_id: tecnicoId,
-      codigo_tecnico: tecnicoCodigo,
-      fecha_asignacion_tecnico: new Date().toISOString(),
-      status: "En diagnostico"
-    });
+  async asignarTecnico(incidenteId: number, tecnicoId: number): Promise<void> {
+    const { error } = await supabase
+      .from("incidente_tecnico")
+      .insert({
+        incidente_id: incidenteId,
+        tecnico_id: tecnicoId,
+        es_principal: true
+      });
+    
+    if (error) throw error;
   },
 
   /**
    * Cuenta incidentes por estado
    */
-  async countByStatus(status: StatusIncidente | StatusIncidente[]): Promise<number> {
+  async countByStatus(estado: EstadoIncidente | EstadoIncidente[]): Promise<number> {
     let query = supabase
       .from("incidentes")
       .select("id", { count: "exact", head: true });
 
-    if (Array.isArray(status)) {
-      query = query.in("status", status);
+    if (Array.isArray(estado)) {
+      query = query.in("estado", estado);
     } else {
-      query = query.eq("status", status);
+      query = query.eq("estado", estado);
     }
 
     const { count, error } = await query;
@@ -260,22 +217,22 @@ export const incidenteService = {
   },
 
   /**
-   * Obtiene estadísticas de incidentes para un centro de servicio
+   * Obtiene estadísticas de incidentes
    */
-  async getEstadisticas(centroServicioId?: string) {
+  async getEstadisticas(centroServicioId?: number) {
     let query = supabase
       .from("incidentes")
-      .select("status");
+      .select("estado");
 
     if (centroServicioId) {
-      query = query.eq("centro_servicio", centroServicioId);
+      query = query.eq("centro_de_servicio_id", centroServicioId);
     }
 
     const { data, error } = await query;
     if (error) throw error;
 
     const stats = (data || []).reduce((acc, inc) => {
-      acc[inc.status] = (acc[inc.status] || 0) + 1;
+      acc[inc.estado] = (acc[inc.estado] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
 
