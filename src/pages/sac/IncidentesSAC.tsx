@@ -6,8 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Search, AlertCircle, Clock, FileText, Percent } from "lucide-react";
 import { toast } from "sonner";
-import { StatusBadge } from "@/components/StatusBadge";
-import { TablePagination } from "@/components/TablePagination";
+import { StatusBadge, TablePagination } from "@/components/shared";
 import { OutlinedInput, OutlinedSelect } from "@/components/ui/outlined-input";
 import { differenceInDays } from "date-fns";
 

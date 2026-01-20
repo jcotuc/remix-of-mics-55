@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { TablePagination } from "@/components/TablePagination";
+import { TablePagination } from "@/components/shared";
 import type { Database } from "@/integrations/supabase/types";
 type Cliente = Database['public']['Tables']['clientes']['Row'];
 export default function Clientes() {

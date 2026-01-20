@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Upload, Search, Package, DollarSign, MapPin, Loader2, CheckCircle, XCircle, AlertTriangle, Plus } from "lucide-react";
 import * as XLSX from "xlsx";
-import { TablePagination } from "@/components/TablePagination";
+import { TablePagination } from "@/components/shared";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";

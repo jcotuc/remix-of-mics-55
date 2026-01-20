@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Search, Plus, Camera, Paperclip } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { PhotoGalleryWithDescriptions, type PhotoWithDescription } from "@/components/PhotoGalleryWithDescriptions";
+import { PhotoGalleryWithDescriptions, type PhotoWithDescription } from "@/components/shared";
 import { toast } from "sonner";
 import { OutlinedInput, OutlinedTextarea, OutlinedSelect } from "@/components/ui/outlined-input";
 type GarantiaManuaDB = {

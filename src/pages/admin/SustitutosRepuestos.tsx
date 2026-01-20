@@ -27,7 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import ImportFormatDialog from "@/components/ImportFormatDialog";
+import { ImportFormatDialog } from "@/components/shared";
 import { Upload, Edit, Trash2, Search, Plus, Save, X, Link, Package } from "lucide-react";
 import { showError, showSuccess } from "@/utils/toastHelpers";
 import * as XLSX from "xlsx";

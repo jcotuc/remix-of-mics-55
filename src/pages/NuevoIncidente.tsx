@@ -10,14 +10,14 @@ import { showError, showSuccess, showWarning } from "@/utils/toastHelpers";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 type Producto = Database["public"]["Tables"]["productos"]["Row"];
-import { SidebarMediaCapture, SidebarPhoto } from "@/components/SidebarMediaCapture";
+import { SidebarMediaCapture, SidebarPhoto } from "@/components/features/media";
 import { uploadMediaToStorage, saveIncidentePhotos } from "@/lib/uploadMedia";
 import { MinimalStepper } from "@/components/ui/minimal-stepper";
 import { OutlinedInput, OutlinedTextarea, OutlinedSelect } from "@/components/ui/outlined-input";
-import { AccesorioSearchSelect } from "@/components/AccesorioSearchSelect";
+import { AccesorioSearchSelect } from "@/components/shared";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/contexts/AuthContext";
-import IncidentePrintSheet from "@/components/IncidentePrintSheet";
+import { IncidentePrintSheet } from "@/components/features/incidentes";
 const tipologias = ['Mantenimiento', 'Reparación', 'Daños por transporte', 'Venta de repuestos'];
 const DEPARTAMENTOS = ["Guatemala", "Alta Verapaz", "Baja Verapaz", "Chimaltenango", "Chiquimula", "El Progreso", "Escuintla", "Huehuetenango", "Izabal", "Jalapa", "Jutiapa", "Petén", "Quetzaltenango", "Quiché", "Retalhuleu", "Sacatepéquez", "San Marcos", "Santa Rosa", "Sololá", "Suchitepéquez", "Totonicapán", "Zacapa"];
 const MUNICIPIOS: Record<string, string[]> = {

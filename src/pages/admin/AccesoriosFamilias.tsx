@@ -31,7 +31,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { toast } from "sonner";
-import ImportFormatDialog from "@/components/ImportFormatDialog";
+import { ImportFormatDialog } from "@/components/shared";
 import { Upload, Plus, Pencil, Trash2, Search, Package, CheckCircle, AlertTriangle, XCircle } from "lucide-react";
 import * as XLSX from "xlsx";
 

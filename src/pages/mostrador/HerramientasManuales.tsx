@@ -11,9 +11,9 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Plus, Search, Wrench, CheckCircle, XCircle, Clock, Package } from "lucide-react";
-import { PhotoGalleryWithDescriptions, type PhotoWithDescription } from "@/components/PhotoGalleryWithDescriptions";
+import { PhotoGalleryWithDescriptions, type PhotoWithDescription } from "@/components/shared";
 import { uploadMediaToStorage } from "@/lib/uploadMedia";
-import type { MediaFile } from "@/components/WhatsAppStyleMediaCapture";
+import type { MediaFile } from "@/components/features/media";
 
 type IncidenteHerramienta = {
   id: string;

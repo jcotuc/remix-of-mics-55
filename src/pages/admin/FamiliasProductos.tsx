@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/select";
 import { Upload, Edit, Trash2, FolderTree, Search, Plus, Save, X, Link, Filter } from "lucide-react";
 import { showError, showSuccess, showWarning } from "@/utils/toastHelpers";
-import { TablePagination } from "@/components/TablePagination";
+import { TablePagination } from "@/components/shared";
 import * as XLSX from "xlsx";
 
 interface Familia {

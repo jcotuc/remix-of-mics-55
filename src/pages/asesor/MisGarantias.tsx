@@ -12,9 +12,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Plus, Search, FileText, Image as ImageIcon } from "lucide-react";
-import { PhotoGalleryWithDescriptions } from "@/components/PhotoGalleryWithDescriptions";
+import { PhotoGalleryWithDescriptions } from "@/components/shared";
 import { uploadMediaToStorage } from "@/lib/uploadMedia";
-import { MediaFile } from "@/components/WhatsAppStyleMediaCapture";
+import { MediaFile } from "@/components/features/media";
 
 interface GarantiaManual {
   id: string;

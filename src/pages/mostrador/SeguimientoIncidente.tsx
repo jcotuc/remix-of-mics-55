@@ -26,11 +26,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
-import { StatusBadge } from "@/components/StatusBadge";
-import { HistorialConObservaciones } from "@/components/HistorialConObservaciones";
-import { CompactPhotoGallery } from "@/components/CompactPhotoGallery";
-import { GuiaHPCLabel } from "@/components/GuiaHPCLabel";
-import IncidentePrintSheet from "@/components/IncidentePrintSheet";
+import { StatusBadge, CompactPhotoGallery } from "@/components/shared";
+import { HistorialConObservaciones, IncidentePrintSheet } from "@/components/features/incidentes";
+import { GuiaHPCLabel } from "@/components/features/logistica";
 import {
   Dialog,
   DialogContent,

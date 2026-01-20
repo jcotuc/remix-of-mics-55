@@ -8,10 +8,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { SignatureCanvasComponent, SignatureCanvasRef } from "@/components/SignatureCanvas";
-import { StatusBadge } from "@/components/StatusBadge";
-import { SidebarMediaCapture, SidebarPhoto } from "@/components/SidebarMediaCapture";
-import DiagnosticoPrintSheet, { DiagnosticoPrintData } from "@/components/DiagnosticoPrintSheet";
+import { SignatureCanvasComponent, SignatureCanvasRef, StatusBadge } from "@/components/shared";
+import { SidebarMediaCapture, SidebarPhoto } from "@/components/features/media";
+import { DiagnosticoPrintSheet, DiagnosticoPrintData } from "@/components/features/diagnostico";
 import { createRoot } from 'react-dom/client';
 import type { Database } from "@/integrations/supabase/types";
 

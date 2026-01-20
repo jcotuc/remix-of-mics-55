@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
-import { TablePagination } from "@/components/TablePagination";
+import { TablePagination } from "@/components/shared";
 import type { Database } from "@/integrations/supabase/types";
 
 type Producto = Database["public"]["Tables"]["productos"]["Row"];

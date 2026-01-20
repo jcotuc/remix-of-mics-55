@@ -22,7 +22,7 @@ import { differenceInDays, startOfDay } from "date-fns";
 import { formatFechaCorta, formatHora } from "@/utils/dateFormatters";
 import { InventoryKPICard } from "@/components/bodega/InventoryKPICard";
 import { BarcodeScanner } from "@/components/bodega/BarcodeScanner";
-import { TablePagination } from "@/components/TablePagination";
+import { TablePagination } from "@/components/shared";
 import { cn } from "@/lib/utils";
 
 type InventarioItem = {
