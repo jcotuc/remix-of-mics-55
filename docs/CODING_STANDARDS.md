@@ -13,12 +13,17 @@
 ```
 src/
 ├── components/          # Componentes UI
-│   ├── ui/              # Shadcn/primitivos
-│   ├── shared/          # Componentes compartidos
+│   ├── ui/              # Shadcn/primitivos (no mover)
+│   ├── bodega/          # Componentes de bodega
+│   ├── dashboard/       # Widgets de dashboard
+│   ├── shared/          # Componentes compartidos (StatusBadge, TablePagination)
+│   ├── layout/          # Layout, AppSidebar
 │   └── features/        # Componentes específicos de dominio
+│       ├── incidentes/  # IncidentTimeline, ObservacionesLog
+│       ├── diagnostico/ # DiagnosticoTecnico, DiagnosticoPrintSheet
+│       └── media/       # FloatingCameraWidget, SidebarMediaCapture
 ├── constants/           # Constantes y enums
 ├── contexts/            # React Contexts
-├── data/                # Datos estáticos (evitar)
 ├── hooks/               # Custom hooks
 │   └── queries/         # React Query hooks
 ├── lib/                 # Utilidades genéricas
@@ -35,6 +40,16 @@ src/
 ├── services/            # Servicios de dominio (API calls)
 └── utils/               # Funciones utilitarias
 ```
+
+### Clasificación de Componentes
+
+| Categoría | Ubicación | Ejemplos |
+|-----------|-----------|----------|
+| UI primitivos | `ui/` | Button, Card, Dialog, Input |
+| Compartidos | `shared/` | StatusBadge, TablePagination, SignatureCanvas |
+| Layout | `layout/` | Layout, AppSidebar, NotificationBadge |
+| Features | `features/{dominio}/` | IncidentTimeline, DiagnosticoTecnico |
+| Dominio | `bodega/`, `dashboard/` | InventoryKPICard, BodegaDashboard |
 
 ---
 

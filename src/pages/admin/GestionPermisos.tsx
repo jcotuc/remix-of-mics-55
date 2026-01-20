@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { showError, showSuccess } from "@/utils/toastHelpers";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -86,7 +86,6 @@ const MODULOS = [
 ];
 
 export default function GestionPermisos() {
-  const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [permisos, setPermisos] = useState<Permiso[]>([]);
@@ -163,7 +162,7 @@ export default function GestionPermisos() {
       setProfiles(profilesRes.data || []);
       setUserRoles(userRolesRes.data || []);
     } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      showError(error.message);
     } finally {
       setLoading(false);
     }
@@ -200,10 +199,10 @@ export default function GestionPermisos() {
         if (error) throw error;
       }
 
-      toast({ title: "Éxito", description: "Permisos del rol actualizados" });
+      showSuccess("Permisos del rol actualizados");
       fetchData();
     } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      showError(error.message);
     } finally {
       setSaving(false);
     }
@@ -211,7 +210,7 @@ export default function GestionPermisos() {
 
   const handleAddPermisoUsuario = async () => {
     if (!selectedUserId || !selectedPermisoId) {
-      toast({ title: "Error", description: "Selecciona usuario y permiso", variant: "destructive" });
+      showError("Selecciona usuario y permiso");
       return;
     }
 
@@ -227,7 +226,7 @@ export default function GestionPermisos() {
 
       if (error) throw error;
 
-      toast({ title: "Éxito", description: "Permiso especial asignado" });
+      showSuccess("Permiso especial asignado");
       setDialogOpen(false);
       setSelectedUserId('');
       setSelectedPermisoId('');
@@ -235,7 +234,7 @@ export default function GestionPermisos() {
       setMotivo('');
       fetchData();
     } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      showError(error.message);
     }
   };
 
@@ -247,10 +246,10 @@ export default function GestionPermisos() {
         .eq('id', id);
 
       if (error) throw error;
-      toast({ title: "Éxito", description: "Permiso especial eliminado" });
+      showSuccess("Permiso especial eliminado");
       fetchData();
     } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      showError(error.message);
     }
   };
 
@@ -266,7 +265,7 @@ export default function GestionPermisos() {
 
   const handleAssignPerfilToUser = async () => {
     if (!userToAssign || permisosPerfilCustom.size === 0) {
-      toast({ title: "Error", description: "Selecciona un usuario y al menos un rol", variant: "destructive" });
+      showError("Selecciona un usuario y al menos un rol");
       return;
     }
 
@@ -286,15 +285,12 @@ export default function GestionPermisos() {
 
       if (error) throw error;
 
-      toast({ 
-        title: "Éxito", 
-        description: `${permisosPerfilCustom.size} permisos asignados al usuario` 
-      });
+      showSuccess(`${permisosPerfilCustom.size} permisos asignados al usuario`);
       setAssignDialogOpen(false);
       setUserToAssign('');
       fetchData();
     } catch (error: any) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      showError(error.message);
     } finally {
       setSaving(false);
     }
