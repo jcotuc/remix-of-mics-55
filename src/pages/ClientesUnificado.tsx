@@ -469,7 +469,8 @@ export default function ClientesUnificado({
 
           {totalPages > 1 && (
             <div className="mt-4">
-              <TablePagination
+            <TablePagination
+              totalItems={totalFiltered}
                 currentPage={currentPage}
                 totalPages={totalPages}
                 onPageChange={setCurrentPage}
