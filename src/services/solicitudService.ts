@@ -2,196 +2,192 @@ import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 
 type SolicitudRepuesto = Database["public"]["Tables"]["solicitudes_repuestos"]["Row"];
-type SolicitudInsert = Database["public"]["Tables"]["solicitudes_repuestos"]["Insert"];
-type SolicitudUpdate = Database["public"]["Tables"]["solicitudes_repuestos"]["Update"];
+type SolicitudRepuestoInsert = Database["public"]["Tables"]["solicitudes_repuestos"]["Insert"];
+type SolicitudRepuestoUpdate = Database["public"]["Tables"]["solicitudes_repuestos"]["Update"];
+type EstadoSolicitud = Database["public"]["Enums"]["estado_solicitud"];
 
 export interface SolicitudFilters {
-  incidenteId?: string;
-  estado?: string | string[];
-  centroServicioId?: string;
+  incidenteId?: number;
+  estado?: EstadoSolicitud | EstadoSolicitud[];
+  centroServicioId?: number;
   limit?: number;
   offset?: number;
 }
 
 /**
- * Servicio centralizado para operaciones de solicitudes de repuestos
+ * Servicio para solicitudes de repuestos
  */
 export const solicitudService = {
-  /**
-   * Obtiene una solicitud por su ID
-   */
   async getById(id: string): Promise<SolicitudRepuesto | null> {
     const { data, error } = await supabase
       .from("solicitudes_repuestos")
       .select("*")
       .eq("id", id)
       .single();
-    
-    if (error) {
-      if (error.code === "PGRST116") return null;
-      throw error;
-    }
+
+    if (error) throw error;
     return data;
   },
 
-  /**
-   * Lista solicitudes de un incidente
-   */
   async listByIncidente(incidenteId: string): Promise<SolicitudRepuesto[]> {
     const { data, error } = await supabase
       .from("solicitudes_repuestos")
       .select("*")
-      .eq("incidente_id", incidenteId)
-      .order("created_at", { ascending: true });
-    
+      .eq("incidente_id", incidenteId);
+
     if (error) throw error;
     return data || [];
   },
 
-  /**
-   * Lista solicitudes con filtros
-   */
   async list(filters?: SolicitudFilters): Promise<SolicitudRepuesto[]> {
-    // Build query without chaining to avoid type instantiation issues
-    const baseQuery = supabase
+    let query = supabase
       .from("solicitudes_repuestos")
-      .select("*");
-    
-    // Apply filters using RPC or direct query based on needs
-    let finalQuery = baseQuery.order("created_at", { ascending: false });
+      .select("*")
+      .order("created_at", { ascending: false });
 
     if (filters?.incidenteId) {
-      finalQuery = finalQuery.eq("incidente_id", filters.incidenteId);
+      query = query.eq("incidente_id", filters.incidenteId);
     }
 
     if (filters?.estado) {
       if (Array.isArray(filters.estado)) {
-        finalQuery = finalQuery.in("estado", filters.estado);
+        query = query.in("estado", filters.estado);
       } else {
-        finalQuery = finalQuery.eq("estado", filters.estado);
+        query = query.eq("estado", filters.estado);
       }
     }
 
-    if (filters?.limit) {
-      finalQuery = finalQuery.limit(filters.limit);
+    if (filters?.centroServicioId) {
+      query = query.eq("centro_servicio_id", filters.centroServicioId);
     }
 
-    const { data, error } = await finalQuery;
+    if (filters?.limit) {
+      query = query.limit(filters.limit);
+    }
+
+    if (filters?.offset) {
+      query = query.range(filters.offset, filters.offset + (filters.limit || 10) - 1);
+    }
+
+    const { data, error } = await query;
     if (error) throw error;
     return data || [];
   },
 
-  /**
-   * Lista solicitudes pendientes de despacho
-   */
-  async listPendientes(centroServicioId?: string): Promise<SolicitudRepuesto[]> {
-    return this.list({ 
-      estado: ["pendiente", "parcial"], 
-      centroServicioId 
-    });
+  async listPendientes(centroServicioId?: number): Promise<SolicitudRepuesto[]> {
+    let query = supabase
+      .from("solicitudes_repuestos")
+      .select("*")
+      .eq("estado", "pendiente")
+      .order("created_at", { ascending: false });
+
+    if (centroServicioId) {
+      query = query.eq("centro_servicio_id", centroServicioId);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+    return data || [];
   },
 
-  /**
-   * Crea una nueva solicitud
-   */
-  async create(solicitud: SolicitudInsert): Promise<SolicitudRepuesto> {
+  async create(solicitud: SolicitudRepuestoInsert): Promise<SolicitudRepuesto> {
     const { data, error } = await supabase
       .from("solicitudes_repuestos")
       .insert(solicitud)
       .select()
       .single();
-    
+
     if (error) throw error;
     return data;
   },
 
-  /**
-   * Crea múltiples solicitudes
-   */
-  async createMany(solicitudes: SolicitudInsert[]): Promise<SolicitudRepuesto[]> {
-    // Insert one by one to avoid type instantiation issues
-    const results: SolicitudRepuesto[] = [];
-    for (const solicitud of solicitudes) {
-      const created = await this.create(solicitud);
-      results.push(created);
-    }
-    return results;
+  async createMany(solicitudes: SolicitudRepuestoInsert[]): Promise<SolicitudRepuesto[]> {
+    const { data, error } = await supabase
+      .from("solicitudes_repuestos")
+      .insert(solicitudes)
+      .select();
+
+    if (error) throw error;
+    return data || [];
   },
 
-  /**
-   * Actualiza una solicitud
-   */
-  async update(id: string, updates: SolicitudUpdate): Promise<SolicitudRepuesto> {
+  async update(id: string, updates: SolicitudRepuestoUpdate): Promise<SolicitudRepuesto> {
     const { data, error } = await supabase
       .from("solicitudes_repuestos")
       .update(updates)
       .eq("id", id)
       .select()
       .single();
-    
+
     if (error) throw error;
     return data;
   },
 
-  /**
-   * Despacha una solicitud (registra cantidad entregada)
-   */
-  async despachar(
-    id: string, 
-    cantidadEntregada: number,
-    despachadorId?: string
-  ): Promise<SolicitudRepuesto> {
-    const solicitud = await this.getById(id);
-    if (!solicitud) throw new Error("Solicitud no encontrada");
+  async despachar(id: string, cantidadEntregada: number, despachadorId?: string): Promise<SolicitudRepuesto> {
+    const { data, error } = await supabase
+      .from("solicitudes_repuestos")
+      .update({
+        estado: "despachado",
+        cantidad_entregada: cantidadEntregada,
+        despachador_id: despachadorId,
+        fecha_despacho: new Date().toISOString(),
+      })
+      .eq("id", id)
+      .select()
+      .single();
 
-    const nuevoEstado = cantidadEntregada >= solicitud.cantidad 
-      ? "entregado" 
-      : "parcial";
-
-    return this.update(id, {
-      cantidad_entregada: cantidadEntregada,
-      estado: nuevoEstado,
-      fecha_despacho: new Date().toISOString(),
-      despachado_por: despachadorId
-    });
+    if (error) throw error;
+    return data;
   },
 
-  /**
-   * Cancela una solicitud
-   */
   async cancelar(id: string, motivo?: string): Promise<SolicitudRepuesto> {
-    return this.update(id, {
-      estado: "cancelado",
-      notas: motivo
-    });
+    const { data, error } = await supabase
+      .from("solicitudes_repuestos")
+      .update({
+        estado: "cancelado",
+        motivo_cancelacion: motivo,
+        fecha_cancelacion: new Date().toISOString(),
+      })
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
   },
 
-  /**
-   * Cuenta solicitudes pendientes por centro de servicio
-   */
-  async countPendientes(centroServicioId?: string): Promise<number> {
-    const { count, error } = await supabase
+  async countPendientes(centroServicioId?: number): Promise<number> {
+    let query = supabase
       .from("solicitudes_repuestos")
       .select("id", { count: "exact", head: true })
-      .in("estado", ["pendiente", "parcial"]);
+      .eq("estado", "pendiente");
 
+    if (centroServicioId) {
+      query = query.eq("centro_servicio_id", centroServicioId);
+    }
+
+    const { count, error } = await query;
     if (error) throw error;
     return count || 0;
   },
 
-  /**
-   * Obtiene estadísticas de solicitudes
-   */
-  async getEstadisticas(centroServicioId?: string) {
-    const { data, error } = await supabase
+  async getEstadisticas(centroServicioId?: number): Promise<Record<EstadoSolicitud, number>> {
+    let query = supabase
       .from("solicitudes_repuestos")
       .select("estado");
 
+    if (centroServicioId) {
+      query = query.eq("centro_servicio_id", centroServicioId);
+    }
+
+    const { data, error } = await query;
     if (error) throw error;
 
-    return (data || []).reduce((acc, sol) => {
-      acc[sol.estado] = (acc[sol.estado] || 0) + 1;
+    const stats = (data || []).reduce((acc, solicitud) => {
+      acc[solicitud.estado] = (acc[solicitud.estado] || 0) + 1;
       return acc;
-    }, {} as Record<string, number>);
+    }, {} as Record<EstadoSolicitud, number>);
+
+    return stats;
   }
 };

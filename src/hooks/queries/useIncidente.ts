@@ -1,9 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { incidenteService, IncidenteFilters } from "@/services/incidenteService";
+import { supabase } from "@/integrations/supabase/client";
 import { showError, showSuccess } from "@/utils/toastHelpers";
 import type { Database } from "@/integrations/supabase/types";
 
-type StatusIncidente = Database["public"]["Enums"]["status_incidente"];
+// Use the actual enum from the database
+type EstadoIncidente = Database["public"]["Enums"]["estadoincidente"];
+type IncidenteRow = Database["public"]["Tables"]["incidentes"]["Row"];
 
 /**
  * Hook para obtener un incidente por ID
@@ -11,7 +13,16 @@ type StatusIncidente = Database["public"]["Enums"]["status_incidente"];
 export const useIncidente = (id: string | undefined) => {
   return useQuery({
     queryKey: ["incidente", id],
-    queryFn: () => incidenteService.getById(id!),
+    queryFn: async () => {
+      if (!id) return null;
+      const { data, error } = await supabase
+        .from("incidentes")
+        .select("*")
+        .eq("id", Number(id))
+        .single();
+      if (error) throw error;
+      return data;
+    },
     enabled: !!id,
   });
 };
@@ -22,7 +33,20 @@ export const useIncidente = (id: string | undefined) => {
 export const useIncidenteConRelaciones = (id: string | undefined) => {
   return useQuery({
     queryKey: ["incidente", id, "relaciones"],
-    queryFn: () => incidenteService.getByIdConRelaciones(id!),
+    queryFn: async () => {
+      if (!id) return null;
+      const { data, error } = await supabase
+        .from("incidentes")
+        .select(`
+          *,
+          clientes!cliente_id(nombre, celular, nit),
+          productos!producto_id(descripcion)
+        `)
+        .eq("id", Number(id))
+        .single();
+      if (error) throw error;
+      return data;
+    },
     enabled: !!id,
   });
 };
@@ -33,7 +57,16 @@ export const useIncidenteConRelaciones = (id: string | undefined) => {
 export const useIncidenteByCodigo = (codigo: string | undefined) => {
   return useQuery({
     queryKey: ["incidente", "codigo", codigo],
-    queryFn: () => incidenteService.getByCodigo(codigo!),
+    queryFn: async () => {
+      if (!codigo) return null;
+      const { data, error } = await supabase
+        .from("incidentes")
+        .select("*")
+        .eq("codigo", codigo)
+        .single();
+      if (error) throw error;
+      return data;
+    },
     enabled: !!codigo,
   });
 };
@@ -41,21 +74,51 @@ export const useIncidenteByCodigo = (codigo: string | undefined) => {
 /**
  * Hook para listar incidentes con filtros
  */
-export const useIncidentes = (filters?: IncidenteFilters) => {
+export const useIncidentes = (filters?: { estado?: EstadoIncidente | EstadoIncidente[], limit?: number }) => {
   return useQuery({
     queryKey: ["incidentes", filters],
-    queryFn: () => incidenteService.list(filters),
+    queryFn: async () => {
+      let query = supabase
+        .from("incidentes")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (filters?.estado) {
+        if (Array.isArray(filters.estado)) {
+          query = query.in("estado", filters.estado);
+        } else {
+          query = query.eq("estado", filters.estado);
+        }
+      }
+
+      if (filters?.limit) {
+        query = query.limit(filters.limit);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      return data || [];
+    },
   });
 };
 
 /**
  * Hook para listar incidentes de un cliente
  */
-export const useIncidentesByCliente = (codigoCliente: string | undefined) => {
+export const useIncidentesByCliente = (clienteId: number | undefined) => {
   return useQuery({
-    queryKey: ["incidentes", "cliente", codigoCliente],
-    queryFn: () => incidenteService.listByCliente(codigoCliente!),
-    enabled: !!codigoCliente,
+    queryKey: ["incidentes", "cliente", clienteId],
+    queryFn: async () => {
+      if (!clienteId) return [];
+      const { data, error } = await supabase
+        .from("incidentes")
+        .select("*")
+        .eq("cliente_id", clienteId)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!clienteId,
   });
 };
 
@@ -65,7 +128,19 @@ export const useIncidentesByCliente = (codigoCliente: string | undefined) => {
 export const useIncidentesByTecnico = (tecnicoId: string | undefined) => {
   return useQuery({
     queryKey: ["incidentes", "tecnico", tecnicoId],
-    queryFn: () => incidenteService.listByTecnico(tecnicoId!),
+    queryFn: async () => {
+      if (!tecnicoId) return [];
+      // Note: The incidentes table uses incidente_tecnico junction table
+      const { data, error } = await supabase
+        .from("incidente_tecnico")
+        .select(`
+          incidente_id,
+          incidentes!incidente_id(*)
+        `)
+        .eq("tecnico_id", Number(tecnicoId));
+      if (error) throw error;
+      return data?.map(d => d.incidentes).filter(Boolean) || [];
+    },
     enabled: !!tecnicoId,
   });
 };
@@ -73,20 +148,52 @@ export const useIncidentesByTecnico = (tecnicoId: string | undefined) => {
 /**
  * Hook para contar incidentes por estado
  */
-export const useIncidentesCount = (status: StatusIncidente | StatusIncidente[]) => {
+export const useIncidentesCount = (estado: EstadoIncidente | EstadoIncidente[]) => {
   return useQuery({
-    queryKey: ["incidentes", "count", status],
-    queryFn: () => incidenteService.countByStatus(status),
+    queryKey: ["incidentes", "count", estado],
+    queryFn: async () => {
+      let query = supabase
+        .from("incidentes")
+        .select("id", { count: "exact", head: true });
+
+      if (Array.isArray(estado)) {
+        query = query.in("estado", estado);
+      } else {
+        query = query.eq("estado", estado);
+      }
+
+      const { count, error } = await query;
+      if (error) throw error;
+      return count || 0;
+    },
   });
 };
 
 /**
  * Hook para obtener estadísticas de incidentes
  */
-export const useIncidentesEstadisticas = (centroServicioId?: string) => {
+export const useIncidentesEstadisticas = (centroServicioId?: number) => {
   return useQuery({
     queryKey: ["incidentes", "estadisticas", centroServicioId],
-    queryFn: () => incidenteService.getEstadisticas(centroServicioId),
+    queryFn: async () => {
+      let query = supabase
+        .from("incidentes")
+        .select("estado");
+
+      if (centroServicioId) {
+        query = query.eq("centro_de_servicio_id", centroServicioId);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      const stats = (data || []).reduce((acc, inc) => {
+        acc[inc.estado] = (acc[inc.estado] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+
+      return stats;
+    },
   });
 };
 
@@ -97,18 +204,25 @@ export const useUpdateIncidenteStatus = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ 
+    mutationFn: async ({ 
       id, 
-      status, 
-      logMessage 
+      estado
     }: { 
-      id: string; 
-      status: StatusIncidente; 
-      logMessage?: string;
-    }) => incidenteService.updateStatus(id, status, logMessage),
+      id: number; 
+      estado: EstadoIncidente;
+    }) => {
+      const { data, error } = await supabase
+        .from("incidentes")
+        .update({ estado, updated_at: new Date().toISOString() })
+        .eq("id", id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["incidentes"] });
-      queryClient.invalidateQueries({ queryKey: ["incidente", data.id] });
+      queryClient.invalidateQueries({ queryKey: ["incidente", String(data.id)] });
       showSuccess("Estado actualizado correctamente");
     },
     onError: (error: Error) => {
@@ -124,16 +238,25 @@ export const useUpdateIncidente = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ 
+    mutationFn: async ({ 
       id, 
       updates 
     }: { 
-      id: string; 
-      updates: Parameters<typeof incidenteService.update>[1];
-    }) => incidenteService.update(id, updates),
+      id: number; 
+      updates: Partial<IncidenteRow>;
+    }) => {
+      const { data, error } = await supabase
+        .from("incidentes")
+        .update({ ...updates, updated_at: new Date().toISOString() })
+        .eq("id", id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["incidentes"] });
-      queryClient.invalidateQueries({ queryKey: ["incidente", data.id] });
+      queryClient.invalidateQueries({ queryKey: ["incidente", String(data.id)] });
     },
     onError: (error: Error) => {
       showError(error.message);
@@ -148,18 +271,28 @@ export const useAsignarTecnico = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ 
-      id, 
-      tecnicoId, 
-      tecnicoCodigo 
+    mutationFn: async ({ 
+      incidenteId, 
+      tecnicoId
     }: { 
-      id: string; 
-      tecnicoId: string; 
-      tecnicoCodigo: string;
-    }) => incidenteService.asignarTecnico(id, tecnicoId, tecnicoCodigo),
+      incidenteId: number; 
+      tecnicoId: number;
+    }) => {
+      const { data, error } = await supabase
+        .from("incidente_tecnico")
+        .insert({
+          incidente_id: incidenteId,
+          tecnico_id: tecnicoId,
+          es_principal: true
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["incidentes"] });
-      queryClient.invalidateQueries({ queryKey: ["incidente", data.id] });
+      queryClient.invalidateQueries({ queryKey: ["incidente", String(data.incidente_id)] });
       showSuccess("Técnico asignado correctamente");
     },
     onError: (error: Error) => {
@@ -175,15 +308,40 @@ export const useAddLogEntry = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ 
+    mutationFn: async ({ 
       id, 
       mensaje 
     }: { 
-      id: string; 
+      id: number; 
       mensaje: string;
-    }) => incidenteService.addLogEntry(id, mensaje),
+    }) => {
+      // Get current incidente
+      const { data: current, error: fetchError } = await supabase
+        .from("incidentes")
+        .select("observaciones")
+        .eq("id", id)
+        .single();
+      
+      if (fetchError) throw fetchError;
+
+      const timestamp = new Date().toISOString();
+      const newEntry = `[${timestamp}] ${mensaje}`;
+      const newObservaciones = current.observaciones 
+        ? `${current.observaciones}\n${newEntry}`
+        : newEntry;
+
+      const { data, error } = await supabase
+        .from("incidentes")
+        .update({ observaciones: newObservaciones })
+        .eq("id", id)
+        .select()
+        .single();
+      
+      if (error) throw error;
+      return data;
+    },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["incidente", data.id] });
+      queryClient.invalidateQueries({ queryKey: ["incidente", String(data.id)] });
     },
     onError: (error: Error) => {
       showError(error.message);

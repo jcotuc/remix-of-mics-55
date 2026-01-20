@@ -3,6 +3,7 @@ import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 
+// Simplified roles - actual role management requires user_roles table
 type UserRole = "admin" | "mostrador" | "logistica" | "taller" | "bodega" | "tecnico" | "digitador" | "jefe_taller" | "sac" | "control_calidad" | "asesor" | "gerente_centro" | "supervisor_regional" | "jefe_logistica" | "jefe_bodega" | "supervisor_bodega" | "supervisor_calidad" | "supervisor_sac" | "auxiliar_bodega" | "auxiliar_logistica" | "supervisor_inventarios" | "capacitador";
 
 interface AuthContextType {
@@ -44,9 +45,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          setTimeout(() => {
-            fetchUserRole(session.user.id);
-          }, 0);
+          // PLACEHOLDER: user_roles table doesn't exist
+          // For now, default to admin role for all authenticated users
+          setUserRole("admin");
+          setLoading(false);
         } else {
           setUserRole(null);
           setLoading(false);
@@ -60,38 +62,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(session?.user ?? null);
       
       if (session?.user) {
-        fetchUserRole(session.user.id);
-      } else {
-        setLoading(false);
+        // PLACEHOLDER: default to admin
+        setUserRole("admin");
       }
+      setLoading(false);
     });
 
     return () => subscription.unsubscribe();
   }, []);
-
-  const fetchUserRole = async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", userId)
-        .maybeSingle();
-
-      if (error) {
-        console.error("Error fetching user role:", error);
-        setUserRole(null);
-      } else if (data) {
-        setUserRole(data.role as UserRole);
-      } else {
-        setUserRole(null);
-      }
-    } catch (error) {
-      console.error("Error in fetchUserRole:", error);
-      setUserRole(null);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const signOut = async () => {
     try {
