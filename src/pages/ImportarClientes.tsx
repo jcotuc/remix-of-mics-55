@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { showSuccess, showError } from "@/utils/toastHelpers";
 import * as XLSX from 'xlsx';
 import { Upload, CheckCircle2, Loader2 } from "lucide-react";
 
@@ -11,7 +11,6 @@ export default function ImportarClientes() {
   const [loading, setLoading] = useState(false);
   const [imported, setImported] = useState(0);
   const [autoImporting, setAutoImporting] = useState(false);
-  const { toast } = useToast();
 
 
   useEffect(() => {
@@ -50,17 +49,10 @@ export default function ImportarClientes() {
       }
 
       setImported(totalImported);
-      toast({
-        title: "Importación SAP completada",
-        description: `Se importaron ${totalImported} clientes desde SAP.`,
-      });
+      showSuccess(`Se importaron ${totalImported} clientes desde SAP.`, "Importación SAP completada");
     } catch (error) {
       console.error('Error en importación SAP:', error);
-      toast({
-        title: "Error en importación SAP",
-        description: "No se pudieron cargar los archivos de SAP.",
-        variant: "destructive",
-      });
+      showError("No se pudieron cargar los archivos de SAP.", "Error en importación SAP");
     } finally {
       setLoading(false);
       setAutoImporting(false);
@@ -287,17 +279,10 @@ export default function ImportarClientes() {
       }
 
       setImported(count);
-      toast({
-        title: "Importación completada",
-        description: `Se importaron ${count} clientes correctamente.${errors > 0 ? ` ${errors} errores.` : ''}`,
-      });
+      showSuccess(`Se importaron ${count} clientes correctamente.${errors > 0 ? ` ${errors} errores.` : ''}`, "Importación completada");
     } catch (error) {
       console.error(error);
-      toast({
-        title: "Error",
-        description: "Hubo un problema al importar el archivo.",
-        variant: "destructive",
-      });
+      showError("Hubo un problema al importar el archivo.");
     } finally {
       setLoading(false);
     }

@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
+import { formatFechaCorta } from "@/utils/dateFormatters";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { 
+import {
   ArrowUpDown, 
   User, 
   Clock, 
@@ -433,7 +434,7 @@ export function HistorialConObservaciones({ incidenteId, logObservaciones, heade
                       <div className="flex items-start justify-between gap-1">
                         <p className="text-xs font-medium leading-tight">{event.title}</p>
                         <time className="text-[10px] text-muted-foreground whitespace-nowrap">
-                          {format(new Date(event.timestamp), "dd/MM HH:mm", { locale: es })}
+                          {formatFechaCorta(event.timestamp).slice(0, 5)} {format(new Date(event.timestamp), "HH:mm")}
                         </time>
                       </div>
                       <p className="text-[10px] text-muted-foreground mt-0.5 line-clamp-2">

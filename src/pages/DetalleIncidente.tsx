@@ -40,9 +40,8 @@ import { ObservacionesLog } from "@/components/ObservacionesLog";
 import { CompactPhotoGallery } from "@/components/CompactPhotoGallery";
 import { GuiaHPCLabel } from "@/components/GuiaHPCLabel";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/hooks/use-toast";
-import { format } from "date-fns";
-import { es } from "date-fns/locale";
+import { showError, showSuccess } from "@/utils/toastHelpers";
+import { formatFechaLarga, formatFechaHora } from "@/utils/dateFormatters";
 import type { Database } from "@/integrations/supabase/types";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -136,11 +135,7 @@ export default function DetalleIncidente() {
   const handleSaveProductCode = async () => {
     const codePattern = /^[a-zA-Z0-9-_]+$/;
     if (!editedProductCode.trim() || !codePattern.test(editedProductCode)) {
-      toast({
-        title: "Error de validación",
-        description: "El código solo puede contener letras, números, guiones y guiones bajos",
-        variant: "destructive",
-      });
+      showError("El código solo puede contener letras, números, guiones y guiones bajos", "Error de validación");
       return;
     }
 
@@ -160,17 +155,10 @@ export default function DetalleIncidente() {
       if (nuevoProducto) setProductoInfo(nuevoProducto);
       setIsEditingProductCode(false);
 
-      toast({
-        title: "Código actualizado",
-        description: `Nuevo código: ${editedProductCode}`,
-      });
+      showSuccess(`Nuevo código: ${editedProductCode}`, "Código actualizado");
     } catch (error) {
       console.error("Error:", error);
-      toast({
-        title: "Error",
-        description: "No se pudo actualizar el código",
-        variant: "destructive",
-      });
+      showError("No se pudo actualizar el código");
     }
   };
 
@@ -244,7 +232,7 @@ export default function DetalleIncidente() {
             </div>
             <p className="text-sm text-muted-foreground mt-1">
               Ingresado:{" "}
-              {fechaIngreso ? format(new Date(fechaIngreso), "dd 'de' MMMM 'de' yyyy", { locale: es }) : "N/A"}
+              {fechaIngreso ? formatFechaLarga(fechaIngreso) : "N/A"}
             </p>
           </div>
         </div>
@@ -410,7 +398,7 @@ export default function DetalleIncidente() {
                         <span className="text-muted-foreground">Fecha:</span>
                         <p className="font-medium">
                           {diagnosticoInfo.created_at
-                            ? format(new Date(diagnosticoInfo.created_at), "dd/MM/yyyy HH:mm", { locale: es })
+                            ? formatFechaHora(diagnosticoInfo.created_at)
                             : "N/A"}
                         </p>
                       </div>
