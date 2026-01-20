@@ -14,7 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
-import { format } from "date-fns";
+import { formatFechaCorta } from "@/utils/dateFormatters";
 import { es } from "date-fns/locale";
 
 type Importacion = {
@@ -314,7 +314,7 @@ export default function Importacion() {
                             </div>
                           </TableCell>
                           <TableCell>
-                            {format(new Date(imp.fecha_llegada), "dd MMM yyyy", { locale: es })}
+                            {formatFechaCorta(imp.fecha_llegada)}
                           </TableCell>
                           <TableCell>
                             <span className="font-medium">{imp.total_items}</span> códigos
@@ -385,7 +385,7 @@ export default function Importacion() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          {format(new Date(imp.fecha_llegada), "dd MMM yyyy", { locale: es })}
+                          {formatFechaCorta(imp.fecha_llegada)}
                         </TableCell>
                         <TableCell>
                           <span className="font-medium">{imp.items_recibidos}</span> / {imp.total_items}

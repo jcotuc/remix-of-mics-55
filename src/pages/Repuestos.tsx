@@ -7,7 +7,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/components/ui/use-toast";
 import { TablePagination } from "@/components/TablePagination";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -38,7 +37,6 @@ export default function Repuestos() {
   const [padreHijosMap, setPadreHijosMap] = useState<Map<string, string[]>>(new Map());
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(50);
-  const { toast } = useToast();
 
   useEffect(() => {
     fetchRepuestosAndProductos();

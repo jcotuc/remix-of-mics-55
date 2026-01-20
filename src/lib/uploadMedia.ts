@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import { MediaFile } from "@/components/WhatsAppStyleMediaCapture";
+import { MediaFile } from "@/components/features/media";
 
 export interface UploadedMedia {
   url: string;

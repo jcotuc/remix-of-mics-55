@@ -6,7 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ActiveIncidentsProvider } from "./contexts/ActiveIncidentsContext";
-import { Layout } from "./components/Layout";
+import { Layout } from "./components/layout";
 import { allRoutes, RouteLoadingFallback } from "./routes";
 
 function App() {

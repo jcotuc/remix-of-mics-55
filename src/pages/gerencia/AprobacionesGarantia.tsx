@@ -9,8 +9,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, CheckCircle2, XCircle, Clock, Search, Eye, AlertTriangle, FileImage } from "lucide-react";
-import { format, differenceInDays } from "date-fns";
-import { es } from "date-fns/locale";
+import { differenceInDays } from "date-fns";
+import { formatFechaCorta } from "@/utils/dateFormatters";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -356,7 +356,7 @@ export default function AprobacionesGarantia() {
                         <TableCell>{sol.tecnico_solicitante}</TableCell>
                         <TableCell>{sol.incidente?.centro_servicio || "N/A"}</TableCell>
                         <TableCell>
-                          {format(new Date(sol.created_at), "dd/MM/yyyy", { locale: es })}
+                          {formatFechaCorta(sol.created_at)}
                         </TableCell>
                         <TableCell>
                           {sol.fotos_urls && sol.fotos_urls.length > 0 ? (
@@ -423,7 +423,7 @@ export default function AprobacionesGarantia() {
                         <TableCell>{sol.tecnico_solicitante}</TableCell>
                         <TableCell>{getStatusBadge(sol.estado)}</TableCell>
                         <TableCell>
-                          {format(new Date(sol.created_at), "dd/MM/yyyy", { locale: es })}
+                          {formatFechaCorta(sol.created_at)}
                         </TableCell>
                         <TableCell className="max-w-[200px] truncate">
                           {sol.observaciones_aprobacion || "-"}

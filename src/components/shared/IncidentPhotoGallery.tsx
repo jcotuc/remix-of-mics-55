@@ -3,8 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { ChevronLeft, ChevronRight, X, Image as ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { formatFechaCorta, formatFechaLarga } from "@/utils/dateFormatters";
 import { format } from "date-fns";
-import { es } from "date-fns/locale";
 
 interface IncidentPhoto {
   id: string;
@@ -109,7 +109,7 @@ export function IncidentPhotoGallery({ incidenteId }: IncidentPhotoGalleryProps)
                     />
                   </div>
                   <p className="text-xs text-muted-foreground mt-1 text-center">
-                    {format(new Date(photo.created_at), "dd/MM/yy HH:mm", { locale: es })}
+                    {format(new Date(photo.created_at), "dd/MM/yy HH:mm")}
                   </p>
                 </div>
               ))}
@@ -204,7 +204,7 @@ export function IncidentPhotoGallery({ incidenteId }: IncidentPhotoGalleryProps)
 
               <div className="p-4 bg-background">
                 <p className="text-sm text-muted-foreground">
-                  {format(new Date(selectedPhoto.created_at), "dd 'de' MMMM 'de' yyyy 'a las' HH:mm", { locale: es })}
+                  {formatFechaLarga(selectedPhoto.created_at)} a las {format(new Date(selectedPhoto.created_at), "HH:mm")}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
                   Foto {currentPhotoIndex + 1} de {getPhotosByType(selectedPhoto.tipo).length}

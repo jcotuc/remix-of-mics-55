@@ -1,7 +1,7 @@
 import { SidebarProvider, SidebarTrigger, useSidebar } from "@/components/ui/sidebar";
 import { AppSidebar } from "./AppSidebar";
-import { NotificationBadge } from "./NotificationBadge";
-import { FloatingIncidentsWidget } from "./FloatingIncidentsWidget";
+import { NotificationBadge } from "@/components/shared";
+import { FloatingIncidentsWidget } from "@/components/features/incidentes";
 import { Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
