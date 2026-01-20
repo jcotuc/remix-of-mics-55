@@ -18,6 +18,7 @@ type StatusIncidente = Database["public"]["Enums"]["status_incidente"];
 type IncidenteDB = Database['public']['Tables']['incidentes']['Row'];
 type ClienteDB = Database['public']['Tables']['clientes']['Row'];
 type NotificacionDB = Database['public']['Tables']['notificaciones_cliente']['Row'];
+type ProductoDescontinuado = { codigo: string; descontinuado: boolean };
 
 export default function IncidentesMostrador() {
   const navigate = useNavigate();
@@ -27,6 +28,7 @@ export default function IncidentesMostrador() {
   const [incidentesList, setIncidentesList] = useState<IncidenteDB[]>([]);
   const [clientesList, setClientesList] = useState<ClienteDB[]>([]);
   const [notificacionesList, setNotificacionesList] = useState<NotificacionDB[]>([]);
+  const [productosList, setProductosList] = useState<ProductoDescontinuado[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -37,20 +39,23 @@ export default function IncidentesMostrador() {
     try {
       setLoading(true);
       
-      // Cargar incidentes, clientes y notificaciones en paralelo
-      const [incidentesResult, clientesResult, notificacionesResult] = await Promise.all([
+      // Cargar incidentes, clientes, notificaciones y productos en paralelo
+      const [incidentesResult, clientesResult, notificacionesResult, productosResult] = await Promise.all([
         supabase.from('incidentes').select('*').order('fecha_ingreso', { ascending: false }),
         supabase.from('clientes').select('*'),
-        supabase.from('notificaciones_cliente').select('*')
+        supabase.from('notificaciones_cliente').select('*'),
+        supabase.from('productos').select('codigo, descontinuado')
       ]);
 
       if (incidentesResult.error) throw incidentesResult.error;
       if (clientesResult.error) throw clientesResult.error;
       if (notificacionesResult.error) throw notificacionesResult.error;
+      if (productosResult.error) throw productosResult.error;
       
       setIncidentesList(incidentesResult.data || []);
       setClientesList(clientesResult.data || []);
       setNotificacionesList(notificacionesResult.data || []);
+      setProductosList(productosResult.data || []);
     } catch (error) {
       console.error('Error al cargar datos:', error);
       toast.error('Error al cargar los datos');
@@ -66,6 +71,11 @@ export default function IncidentesMostrador() {
 
   const getProductDisplayName = (codigo: string) => {
     return `Código: ${codigo}`;
+  };
+
+  const isProductDiscontinued = (codigo: string) => {
+    const producto = productosList.find(p => p.codigo === codigo);
+    return producto?.descontinuado ?? false;
   };
 
   const getTecnicoName = (codigo: string) => {
