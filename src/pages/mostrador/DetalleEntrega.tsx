@@ -14,7 +14,8 @@ import { SidebarMediaCapture, SidebarPhoto } from "@/components/SidebarMediaCapt
 import DiagnosticoPrintSheet, { DiagnosticoPrintData } from "@/components/DiagnosticoPrintSheet";
 import { createRoot } from 'react-dom/client';
 import type { Database } from "@/integrations/supabase/types";
-import type { StatusIncidente } from "@/types";
+
+type StatusIncidente = Database["public"]["Enums"]["status_incidente"];
 
 type IncidenteDB = Database['public']['Tables']['incidentes']['Row'];
 type ClienteDB = Database['public']['Tables']['clientes']['Row'];

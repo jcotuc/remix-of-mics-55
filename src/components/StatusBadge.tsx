@@ -1,5 +1,7 @@
 import { Badge } from "@/components/ui/badge";
-import { StatusIncidente } from "@/types";
+import type { Database } from "@/integrations/supabase/types";
+
+type StatusIncidente = Database["public"]["Enums"]["status_incidente"];
 
 interface StatusBadgeProps {
   status: StatusIncidente;

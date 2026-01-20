@@ -8,7 +8,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { ArrowLeft, Search, User, Package, AlertCircle, UserCircle, ChevronRight, Printer, Copy, Edit3 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Producto } from "@/types";
+import type { Database } from "@/integrations/supabase/types";
+type Producto = Database["public"]["Tables"]["productos"]["Row"];
 import { SidebarMediaCapture, SidebarPhoto } from "@/components/SidebarMediaCapture";
 import { uploadMediaToStorage, saveIncidentePhotos } from "@/lib/uploadMedia";
 import { MinimalStepper } from "@/components/ui/minimal-stepper";
@@ -337,13 +338,9 @@ export default function NuevoIncidente() {
             error
           } = await supabase.from('productos').select('*').or(`codigo.ilike.%${skuMaquina}%,clave.ilike.%${skuMaquina}%,descripcion.ilike.%${skuMaquina}%`);
           if (error) throw error;
-          const transformedData: Producto[] = (data || []).map(item => ({
-            codigo: item.codigo.trim(),
-            clave: item.clave.trim(),
-            descripcion: item.descripcion.trim(),
-            descontinuado: item.descontinuado,
-            urlFoto: item.url_foto || "/api/placeholder/200/200",
-            categoria: "Electricas" as const
+          const transformedData = (data || []).map(item => ({
+            ...item,
+            url_foto: item.url_foto || "/api/placeholder/200/200"
           }));
           setProductosEncontrados(transformedData);
           if (transformedData.length === 1) {
@@ -1137,7 +1134,7 @@ export default function NuevoIncidente() {
                 <div className="space-y-3">
                   {/* Producto seleccionado - mostrar tarjeta con botón cambiar */}
                   {productoSeleccionado ? <div className="p-4 rounded-lg bg-primary/5 border-2 border-primary/30 flex gap-4">
-                      {productoSeleccionado.urlFoto && <img src={productoSeleccionado.urlFoto} alt="" className="w-20 h-20 object-cover rounded-lg border shrink-0" />}
+                      {productoSeleccionado.url_foto && <img src={productoSeleccionado.url_foto} alt="" className="w-20 h-20 object-cover rounded-lg border shrink-0" />}
                       <div className="min-w-0 flex-1">
                         <div className="flex items-start justify-between gap-2">
                           <div>

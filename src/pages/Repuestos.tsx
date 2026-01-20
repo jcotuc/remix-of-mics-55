@@ -7,23 +7,23 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
-import { Repuesto, Producto } from "@/types";
-import { insertAllRepuestos } from "@/scripts/insertRepuestos";
-import { importSustitutos } from "@/scripts/importSustitutos";
 import { useToast } from "@/components/ui/use-toast";
 import { TablePagination } from "@/components/TablePagination";
+import type { Database } from "@/integrations/supabase/types";
 
-interface RepuestoExtendido extends Repuesto {
+type Producto = Database["public"]["Tables"]["productos"]["Row"];
+
+interface RepuestoExtendido {
+  numero: string;
+  codigo: string;
+  clave: string;
+  descripcion: string;
+  urlFoto: string;
+  codigoProducto: string;
   productoId?: string | null;
   codigoPadre?: string | null;
   esCodigoPadre?: boolean | null;
   codigosHijos?: string[];
-}
-
-interface RelacionPadreHijo {
-  Padre: string | null;
-  Hijo: string | null;
-  Descripción: string | null;
 }
 
 export default function Repuestos() {
@@ -162,17 +162,8 @@ export default function Repuestos() {
           };
         });
 
-      const transformedProductos: Producto[] = productosData?.map((p: any) => ({
-        codigo: p.codigo,
-        clave: p.clave,
-        descripcion: p.descripcion,
-        descontinuado: p.descontinuado,
-        urlFoto: p.url_foto || "/api/placeholder/400/300",
-        categoria: "Electricas" as const
-      })) || [];
-
       setRepuestosList(transformedRepuestos);
-      setProductosList(transformedProductos);
+      setProductosList(productosData || []);
     } catch (error) {
       console.error('Error:', error);
     } finally {
@@ -212,67 +203,9 @@ export default function Repuestos() {
   const startIndex = (currentPage - 1) * itemsPerPage;
   const paginatedRepuestos = filteredRepuestos.slice(startIndex, startIndex + itemsPerPage);
 
-  const handleImportSustitutos = async () => {
-    setImportingSustitutos(true);
-    try {
-      const result = await importSustitutos();
-      if (result.success) {
-        toast({
-          title: "Importación de sustitutos exitosa",
-          description: result.message,
-        });
-        await fetchRepuestosAndProductos();
-      } else {
-        toast({
-          title: "Error en la importación",
-          description: result.message,
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      console.error('Error importing sustitutos:', error);
-      toast({
-        title: "Error",
-        description: "Error al importar los sustitutos",
-        variant: "destructive",
-      });
-    } finally {
-      setImportingSustitutos(false);
-    }
-  };
-
   const getProductDescription = (codigoProducto: string) => {
     const producto = productosList.find(p => p.codigo === codigoProducto);
     return producto ? producto.descripcion : "Producto no encontrado";
-  };
-
-  const handleImportRepuestos = async () => {
-    setImporting(true);
-    try {
-      const result = await insertAllRepuestos();
-      if (result.success) {
-        toast({
-          title: "Importación exitosa",
-          description: "Los repuestos han sido importados correctamente",
-        });
-        await fetchRepuestosAndProductos();
-      } else {
-        toast({
-          title: "Error en la importación",
-          description: "Hubo un problema al importar los repuestos",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      console.error('Error importing repuestos:', error);
-      toast({
-        title: "Error",
-        description: "Error al importar los repuestos",
-        variant: "destructive",
-      });
-    } finally {
-      setImporting(false);
-    }
   };
 
   if (loading) {
@@ -295,22 +228,6 @@ export default function Repuestos() {
           </p>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <Button 
-            variant="outline"
-            onClick={handleImportRepuestos}
-            disabled={importing || loading}
-          >
-            <Upload className={`h-4 w-4 mr-2 ${importing ? 'animate-pulse' : ''}`} />
-            Importar Repuestos
-          </Button>
-          <Button 
-            variant="outline"
-            onClick={handleImportSustitutos}
-            disabled={importingSustitutos || loading}
-          >
-            <GitBranch className={`h-4 w-4 mr-2 ${importingSustitutos ? 'animate-pulse' : ''}`} />
-            Importar Sustitutos
-          </Button>
           <Button 
             variant="outline"
             onClick={fetchRepuestosAndProductos}

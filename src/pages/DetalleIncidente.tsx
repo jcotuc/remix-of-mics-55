@@ -39,8 +39,6 @@ import { IncidentTimeline } from "@/components/IncidentTimeline";
 import { ObservacionesLog } from "@/components/ObservacionesLog";
 import { CompactPhotoGallery } from "@/components/CompactPhotoGallery";
 import { GuiaHPCLabel } from "@/components/GuiaHPCLabel";
-import { incidentes, clientes, productos, tecnicos } from "@/data/mockData";
-import { Incidente } from "@/types";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -53,7 +51,6 @@ type IncidenteDB = Database["public"]["Tables"]["incidentes"]["Row"];
 export default function DetalleIncidente() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [incidente, setIncidente] = useState<Incidente | null>(null);
   const [incidenteDB, setIncidenteDB] = useState<IncidenteDB | null>(null);
   const [productoInfo, setProductoInfo] = useState<any>(null);
   const [clienteInfo, setClienteInfo] = useState<any>(null);
@@ -122,26 +119,12 @@ export default function DetalleIncidente() {
           .select("*", { count: "exact", head: true })
           .eq("codigo_cliente", dbIncidente.codigo_cliente);
         setClienteHistorial(count || 0);
-      } else {
-        // Fallback a mock data
-        const incidenteEncontrado = incidentes.find((i) => i.id === id);
-        setIncidente(incidenteEncontrado || null);
       }
     } catch (error) {
       console.error("Error:", error);
     } finally {
       setLoading(false);
     }
-  };
-
-  const getClienteName = (codigo: string) => {
-    const cliente = clientes.find((c) => c.codigo === codigo);
-    return cliente ? cliente.nombre : "Cliente no encontrado";
-  };
-
-  const getTecnicoName = (codigo: string) => {
-    const tecnico = tecnicos.find((t) => t.codigo === codigo);
-    return tecnico ? `${tecnico.nombre} ${tecnico.apellido}` : "No asignado";
   };
 
   // Editar código de producto
@@ -214,7 +197,7 @@ export default function DetalleIncidente() {
   }
 
   // Not found state
-  if (!incidente && !incidenteDB) {
+  if (!incidenteDB) {
     return (
       <div className="container mx-auto p-6">
         <div className="flex items-center gap-4 mb-6">
@@ -233,15 +216,15 @@ export default function DetalleIncidente() {
     );
   }
 
-  // Determine status and other data from DB or mock
-  const currentStatus = incidenteDB?.status || incidente?.status || "Pendiente de diagnostico";
-  const currentCodigo = incidenteDB?.codigo || incidente?.id || "";
-  const codigoProducto = incidenteDB?.codigo_producto || incidente?.codigoProducto || "";
-  const codigoCliente = incidenteDB?.codigo_cliente || incidente?.codigoCliente || "";
-  const fechaIngreso = incidenteDB?.fecha_ingreso || incidente?.fechaIngreso || "";
-  const descripcionProblema = incidenteDB?.descripcion_problema || incidente?.descripcionProblema || "";
+  // Determine status and other data from DB
+  const currentStatus = incidenteDB?.status || "Pendiente de diagnostico";
+  const currentCodigo = incidenteDB?.codigo || "";
+  const codigoProducto = incidenteDB?.codigo_producto || "";
+  const codigoCliente = incidenteDB?.codigo_cliente || "";
+  const fechaIngreso = incidenteDB?.fecha_ingreso || "";
+  const descripcionProblema = incidenteDB?.descripcion_problema || "";
   const accesorios = incidenteDB?.accesorios || "";
-  const coberturaGarantia = incidenteDB?.cobertura_garantia ?? incidente?.coberturaGarantia ?? false;
+  const coberturaGarantia = incidenteDB?.cobertura_garantia ?? false;
   const logObservaciones = incidenteDB?.log_observaciones || null;
   const skuMaquina = incidenteDB?.sku_maquina || "";
 
@@ -472,7 +455,7 @@ export default function DetalleIncidente() {
                 <User className="w-4 h-4 text-primary mt-1" />
                 <div className="space-y-3">
                   <div>
-                    <h4 className="font-semibold">{clienteInfo?.nombre || getClienteName(codigoCliente)}</h4>
+                    <h4 className="font-semibold">{clienteInfo?.nombre || "Cliente no encontrado"}</h4>
                     <p className="text-sm text-muted-foreground">Código: {codigoCliente}</p>
                   </div>
 
@@ -535,7 +518,7 @@ export default function DetalleIncidente() {
           {id && <CompactPhotoGallery incidenteId={id} headerVariant="clean" />}
 
           {/* Técnico Asignado */}
-          {(incidenteDB?.codigo_tecnico || incidente?.codigoTecnico) && (
+          {incidenteDB?.codigo_tecnico && (
             <Card>
               <CardContent className="p-4">
                 <div className="grid grid-cols-[auto_1fr] gap-3 items-start">
@@ -546,10 +529,10 @@ export default function DetalleIncidente() {
                     </div>
                     <div>
                       <p className="font-medium text-sm">
-                        {getTecnicoName(incidenteDB?.codigo_tecnico || incidente?.codigoTecnico || "")}
+                        Técnico: {incidenteDB.codigo_tecnico}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        Código: {incidenteDB?.codigo_tecnico || incidente?.codigoTecnico}
+                        Código: {incidenteDB.codigo_tecnico}
                       </p>
                     </div>
                   </div>
