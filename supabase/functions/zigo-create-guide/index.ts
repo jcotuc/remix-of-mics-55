@@ -145,13 +145,14 @@ serve(async (req) => {
       }
     );
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('❌ Error en edge function:', error);
+    const message = error instanceof Error ? error.message : String(error);
     return new Response(
       JSON.stringify({
         success: false,
-        error: error.message,
-        details: error.toString()
+        error: message,
+        details: message
       }),
       {
         status: 500,

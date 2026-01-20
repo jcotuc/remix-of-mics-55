@@ -1,4 +1,4 @@
-import { TrendingUp, TrendingDown, Clock } from "lucide-react";
+import { TrendingUp, TrendingDown, Clock, RefreshCw } from "lucide-react";
 import { formatFechaRelativa } from "@/utils/dateFormatters";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -6,8 +6,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface Movimiento {
-  id: string;
-  tipo_movimiento: "entrada" | "salida";
+  id: number;
+  tipo_movimiento: "ENTRADA" | "SALIDA" | "AJUSTE";
   cantidad: number;
   motivo?: string | null;
   created_at: string;
@@ -54,6 +54,18 @@ export function MovimientoTimeline({
     );
   }
 
+  const getMovConfig = (tipo: string) => {
+    switch (tipo) {
+      case "ENTRADA":
+        return { isPositive: true, icon: TrendingUp, borderClass: "border-green-500", textClass: "text-green-600" };
+      case "SALIDA":
+        return { isPositive: false, icon: TrendingDown, borderClass: "border-red-500", textClass: "text-red-600" };
+      case "AJUSTE":
+      default:
+        return { isPositive: true, icon: RefreshCw, borderClass: "border-blue-500", textClass: "text-blue-600" };
+    }
+  };
+
   return (
     <ScrollArea style={{ maxHeight }} className="pr-4">
       <div className="relative">
@@ -61,24 +73,20 @@ export function MovimientoTimeline({
         <div className="absolute left-5 top-0 bottom-0 w-0.5 bg-border" />
         
         <div className="space-y-4">
-          {movimientos.map((mov, index) => {
-            const isEntrada = mov.tipo_movimiento === "entrada";
+          {movimientos.map((mov) => {
+            const config = getMovConfig(mov.tipo_movimiento);
             const date = new Date(mov.created_at);
+            const IconComponent = config.icon;
             
             return (
               <div key={mov.id} className="flex gap-4 relative">
                 {/* Icon */}
                 <div className={cn(
                   "relative z-10 flex items-center justify-center w-10 h-10 rounded-full border-2 bg-background",
-                  isEntrada 
-                    ? "border-green-500 text-green-600" 
-                    : "border-red-500 text-red-600"
+                  config.borderClass,
+                  config.textClass
                 )}>
-                  {isEntrada ? (
-                    <TrendingUp className="h-4 w-4" />
-                  ) : (
-                    <TrendingDown className="h-4 w-4" />
-                  )}
+                  <IconComponent className="h-4 w-4" />
                 </div>
 
                 {/* Content */}
@@ -86,10 +94,10 @@ export function MovimientoTimeline({
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <p className="font-medium text-sm">
-                        <span className={isEntrada ? "text-green-600" : "text-red-600"}>
-                          {isEntrada ? "+" : "-"}{mov.cantidad}
+                        <span className={config.textClass}>
+                          {config.isPositive ? "+" : "-"}{mov.cantidad}
                         </span>
-                        {" "}unidades
+                        {" "}unidades ({mov.tipo_movimiento})
                       </p>
                       {mov.motivo && (
                         <p className="text-sm text-muted-foreground mt-0.5">
