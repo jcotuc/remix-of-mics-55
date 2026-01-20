@@ -9,10 +9,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ArrowLeft, Send, Phone, Mail, MessageCircle, FileText, Package, MapPin, User, DollarSign, Percent, AlertTriangle, Clock, Printer, Download, CheckCircle, XCircle } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { StatusBadge } from "@/components/StatusBadge";
+import { StatusBadge } from "@/components/shared";
 import { OutlinedSelect, OutlinedTextarea } from "@/components/ui/outlined-input";
 import { differenceInDays } from "date-fns";
-import DiagnosticoPrintSheet, { DiagnosticoPrintData } from "@/components/DiagnosticoPrintSheet";
+import { DiagnosticoPrintSheet, DiagnosticoPrintData } from "@/components/features/diagnostico";
 
 type RepuestoConPrecio = {
   codigo: string;

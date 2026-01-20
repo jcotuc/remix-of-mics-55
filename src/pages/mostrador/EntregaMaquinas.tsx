@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { StatusBadge } from "@/components/StatusBadge";
+import { StatusBadge } from "@/components/shared";
 import type { Database } from "@/integrations/supabase/types";
 
 type StatusIncidente = Database["public"]["Enums"]["status_incidente"];

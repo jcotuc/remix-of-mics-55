@@ -13,7 +13,7 @@ import { Plus, Search, CheckCircle, XCircle, AlertCircle, FileText } from "lucid
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { WhatsAppStyleMediaCapture } from "@/components/WhatsAppStyleMediaCapture";
+import { WhatsAppStyleMediaCapture } from "@/components/features/media";
 
 interface Incidente {
   codigo: string;

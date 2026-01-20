@@ -8,8 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { OutlinedInput } from "@/components/ui/outlined-input";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
-import { StatusBadge } from "@/components/StatusBadge";
-import { GuiaHPCLabel } from "@/components/GuiaHPCLabel";
+import { StatusBadge } from "@/components/shared";
+import { GuiaHPCLabel } from "@/components/features/logistica";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
 

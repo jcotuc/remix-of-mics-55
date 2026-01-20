@@ -41,7 +41,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { SidebarMediaCapture, SidebarPhoto } from "@/components/SidebarMediaCapture";
+import { SidebarMediaCapture, SidebarPhoto } from "@/components/features/media";
 export default function DiagnosticoInicial() {
   const { id } = useParams();
   const navigate = useNavigate();

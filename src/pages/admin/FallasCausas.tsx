@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import ImportFormatDialog from "@/components/ImportFormatDialog";
+import { ImportFormatDialog } from "@/components/shared";
 import { 
   Upload, 
   Plus, 

@@ -33,12 +33,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { StatusBadge } from "@/components/StatusBadge";
-import { DiagnosticoTecnico } from "@/components/DiagnosticoTecnico";
-import { IncidentTimeline } from "@/components/IncidentTimeline";
-import { ObservacionesLog } from "@/components/ObservacionesLog";
-import { CompactPhotoGallery } from "@/components/CompactPhotoGallery";
-import { GuiaHPCLabel } from "@/components/GuiaHPCLabel";
+import { StatusBadge, ObservacionesLog, CompactPhotoGallery } from "@/components/shared";
+import { DiagnosticoTecnico } from "@/components/features/diagnostico";
+import { IncidentTimeline } from "@/components/features/incidentes";
+import { GuiaHPCLabel } from "@/components/features/logistica";
 import { supabase } from "@/integrations/supabase/client";
 import { showError, showSuccess } from "@/utils/toastHelpers";
 import { formatFechaLarga, formatFechaHora } from "@/utils/dateFormatters";

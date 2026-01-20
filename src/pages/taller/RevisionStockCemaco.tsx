@@ -7,7 +7,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { AlertCircle, ArrowLeft, CheckCircle2, XCircle } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { WhatsAppStyleMediaCapture, MediaFile } from "@/components/WhatsAppStyleMediaCapture";
+import { WhatsAppStyleMediaCapture, MediaFile } from "@/components/features/media";
 import { uploadMediaToStorage } from "@/lib/uploadMedia";
 
 interface IncidenteStockCemaco {
