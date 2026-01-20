@@ -45,23 +45,29 @@ const Index = () => {
     }
   };
 
-  // Filtros para el buscador
+  // Filtros para el buscador - using actual columns from schema
   const filteredIncidentes = incidentes.filter(incidente => {
     if (!searchTerm) return false;
     
+    const codigo = incidente.codigo?.toLowerCase() || "";
+    const productoId = String(incidente.producto_id || "");
+    const fechaIngreso = incidente.fecha_ingreso 
+      ? new Date(incidente.fecha_ingreso).toLocaleDateString() 
+      : "";
+    
     const matchesSearch = searchFilter === "all" ? 
-      incidente.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      incidente.codigo_producto.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      new Date(incidente.fecha_ingreso).toLocaleDateString().includes(searchTerm)
-      : searchFilter === "codigo" ? incidente.codigo.toLowerCase().includes(searchTerm.toLowerCase())
-      : searchFilter === "maquina" ? incidente.codigo_producto.toLowerCase().includes(searchTerm.toLowerCase())
-      : searchFilter === "fecha" ? new Date(incidente.fecha_ingreso).toLocaleDateString().includes(searchTerm)
+      codigo.includes(searchTerm.toLowerCase()) ||
+      productoId.includes(searchTerm.toLowerCase()) ||
+      fechaIngreso.includes(searchTerm)
+      : searchFilter === "codigo" ? codigo.includes(searchTerm.toLowerCase())
+      : searchFilter === "maquina" ? productoId.includes(searchTerm.toLowerCase())
+      : searchFilter === "fecha" ? fechaIngreso.includes(searchTerm)
       : false;
     
     return matchesSearch;
   });
   
-  const handleIncidenteClick = (id: string) => {
+  const handleIncidenteClick = (id: number) => {
     navigate(`/incidentes/${id}`);
   };
 
@@ -85,7 +91,7 @@ const Index = () => {
         <CardHeader className="p-4 sm:p-6">
           <CardTitle className="text-base sm:text-lg">Buscador de Incidentes</CardTitle>
           <CardDescription className="text-xs sm:text-sm">
-            Busca incidentes por código, máquina o fecha de ingreso
+            Busca incidentes por código, ID producto o fecha de ingreso
           </CardDescription>
         </CardHeader>
         <CardContent className="p-4 sm:p-6">
@@ -113,7 +119,7 @@ const Index = () => {
                 <SelectItem value="maquina">
                   <div className="flex items-center">
                     <Wrench className="h-4 w-4 mr-2" />
-                    Código Máquina
+                    ID Producto
                   </div>
                 </SelectItem>
                 <SelectItem value="fecha">
@@ -140,10 +146,10 @@ const Index = () => {
                   <div className="flex-1">
                     <p className="font-medium text-xs sm:text-sm">{incidente.codigo}</p>
                     <p className="text-[10px] sm:text-xs text-muted-foreground">
-                      Máquina: {incidente.codigo_producto} | Fecha: {new Date(incidente.fecha_ingreso).toLocaleDateString('es-GT')}
+                      Producto ID: {incidente.producto_id} | Fecha: {incidente.fecha_ingreso ? new Date(incidente.fecha_ingreso).toLocaleDateString('es-GT') : 'N/A'}
                     </p>
                   </div>
-                  <StatusBadge status={incidente.status as any} />
+                  <StatusBadge status={incidente.estado} />
                 </div>
               ))}
             </div>
