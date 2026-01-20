@@ -304,7 +304,8 @@ export default function Asignaciones() {
       } = await supabase.from('incidentes').update({
         status: 'En diagnostico',
         tecnico_asignado_id: user.id,
-        codigo_tecnico: codigoTecnico
+        codigo_tecnico: codigoTecnico,
+        fecha_asignacion_tecnico: new Date().toISOString()
       }).eq('id', incidenteId);
       if (error) throw error;
 

@@ -794,6 +794,7 @@ export type Database = {
           digitador_codigo: string | null
           estado: string | null
           fallas: string[]
+          fecha_fin_diagnostico: string | null
           fecha_inicio_digitacion: string | null
           fotos_urls: string[] | null
           id: string
@@ -814,6 +815,7 @@ export type Database = {
           digitador_codigo?: string | null
           estado?: string | null
           fallas: string[]
+          fecha_fin_diagnostico?: string | null
           fecha_inicio_digitacion?: string | null
           fotos_urls?: string[] | null
           id?: string
@@ -834,6 +836,7 @@ export type Database = {
           digitador_codigo?: string | null
           estado?: string | null
           fallas?: string[]
+          fecha_fin_diagnostico?: string | null
           fecha_inicio_digitacion?: string | null
           fotos_urls?: string[] | null
           id?: string
@@ -1296,7 +1299,12 @@ export type Database = {
           es_stock_cemaco: boolean | null
           estado_fisico_recepcion: string | null
           familia_padre_id: number | null
+          fecha_asignacion_tecnico: string | null
+          fecha_entrega: string | null
           fecha_ingreso: string
+          fecha_inicio_diagnostico: string | null
+          fecha_inicio_reparacion: string | null
+          fecha_reparacion: string | null
           garantia_manual_id: string | null
           id: string
           incidente_reingreso_de: string | null
@@ -1333,7 +1341,12 @@ export type Database = {
           es_stock_cemaco?: boolean | null
           estado_fisico_recepcion?: string | null
           familia_padre_id?: number | null
+          fecha_asignacion_tecnico?: string | null
+          fecha_entrega?: string | null
           fecha_ingreso?: string
+          fecha_inicio_diagnostico?: string | null
+          fecha_inicio_reparacion?: string | null
+          fecha_reparacion?: string | null
           garantia_manual_id?: string | null
           id?: string
           incidente_reingreso_de?: string | null
@@ -1370,7 +1383,12 @@ export type Database = {
           es_stock_cemaco?: boolean | null
           estado_fisico_recepcion?: string | null
           familia_padre_id?: number | null
+          fecha_asignacion_tecnico?: string | null
+          fecha_entrega?: string | null
           fecha_ingreso?: string
+          fecha_inicio_diagnostico?: string | null
+          fecha_inicio_reparacion?: string | null
+          fecha_reparacion?: string | null
           garantia_manual_id?: string | null
           id?: string
           incidente_reingreso_de?: string | null
@@ -2822,6 +2840,7 @@ export type Database = {
           entregado_por: string | null
           estado: string | null
           fecha_asignacion: string | null
+          fecha_despacho: string | null
           fecha_entrega: string | null
           id: string
           incidente_id: string
@@ -2839,6 +2858,7 @@ export type Database = {
           entregado_por?: string | null
           estado?: string | null
           fecha_asignacion?: string | null
+          fecha_despacho?: string | null
           fecha_entrega?: string | null
           id?: string
           incidente_id: string
@@ -2856,6 +2876,7 @@ export type Database = {
           entregado_por?: string | null
           estado?: string | null
           fecha_asignacion?: string | null
+          fecha_despacho?: string | null
           fecha_entrega?: string | null
           id?: string
           incidente_id?: string

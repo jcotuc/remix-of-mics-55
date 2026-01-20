@@ -564,6 +564,15 @@ export default function DiagnosticoInicial() {
       if (error) throw error;
       setIncidente(data);
 
+      // Registrar timestamp de inicio de diagnóstico si no existe
+      if (data && !data.fecha_inicio_diagnostico && data.status === 'En diagnostico') {
+        await supabase
+          .from("incidentes")
+          .update({ fecha_inicio_diagnostico: new Date().toISOString() })
+          .eq("id", id);
+        console.log("✅ Timestamp de inicio de diagnóstico registrado");
+      }
+
       // Obtener información del producto
       if (data?.codigo_producto) {
         const { data: producto } = await supabase
@@ -1086,6 +1095,7 @@ export default function DiagnosticoInicial() {
           porcentajeDescuento,
         }),
         estado: "finalizado",
+        fecha_fin_diagnostico: new Date().toISOString()
       };
 
       // Actualizar o crear diagnóstico final
@@ -1132,10 +1142,18 @@ export default function DiagnosticoInicial() {
       } else if (tipoResolucion === "Canje") {
         nuevoStatus = "Porcentaje";
       }
+      const fechaActual = new Date().toISOString();
       const updateData: any = {
         status: nuevoStatus,
         cobertura_garantia: aplicaGarantia,
       };
+
+      // Agregar timestamps según el tipo de resolución
+      if (nuevoStatus === "Reparado") {
+        updateData.fecha_reparacion = fechaActual;
+      } else if (["Presupuesto", "Porcentaje", "Pendiente por repuestos"].includes(nuevoStatus)) {
+        updateData.fecha_inicio_reparacion = fechaActual;
+      }
 
       // Si es canje, guardar el producto alternativo
       if (tipoResolucion === "Canje" && productoSeleccionado) {

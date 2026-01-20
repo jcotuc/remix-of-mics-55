@@ -376,7 +376,7 @@ export function DiagnosticoTecnico({ incidente, onDiagnosticoCompleto }: Diagnos
         .eq('incidente_id', incidente.id)
         .maybeSingle();
 
-      // Guardar diagnóstico
+      // Guardar diagnóstico con timestamp de finalización
       const diagnosticoData = {
         incidente_id: incidente.id,
         tecnico_codigo: incidente.codigo_tecnico || user.email || 'técnico',
@@ -392,7 +392,8 @@ export function DiagnosticoTecnico({ incidente, onDiagnosticoCompleto }: Diagnos
         costo_estimado: costoEstimado ? parseFloat(costoEstimado) : null,
         estado: 'completado',
         digitador_asignado: null,
-        fecha_inicio_digitacion: null
+        fecha_inicio_digitacion: null,
+        fecha_fin_diagnostico: new Date().toISOString()
       };
 
       let diagError;
@@ -445,9 +446,22 @@ export function DiagnosticoTecnico({ incidente, onDiagnosticoCompleto }: Diagnos
           break;
       }
 
+      // Preparar datos de actualización del incidente con timestamps
+      const incidenteUpdateData: Record<string, any> = { status: nuevoEstatus };
+      
+      // Si el diagnóstico indica que está reparado, registrar timestamp de reparación
+      if (estatusFinal === 'reparado') {
+        incidenteUpdateData.fecha_reparacion = new Date().toISOString();
+      }
+      
+      // Si requiere repuestos o va a presupuesto, marcar inicio de reparación
+      if (['pendiente_repuestos', 'presupuesto', 'porcentaje'].includes(estatusFinal)) {
+        incidenteUpdateData.fecha_inicio_reparacion = new Date().toISOString();
+      }
+
       const { error: incError } = await supabase
         .from('incidentes')
-        .update({ status: nuevoEstatus })
+        .update(incidenteUpdateData)
         .eq('id', incidente.id);
 
       if (incError) throw incError;

@@ -205,12 +205,14 @@ export default function DetalleEntrega() {
     setDelivering(true);
     try {
       const firmaBase64 = signatureRef.current?.toDataURL();
+      const fechaEntregaActual = new Date().toISOString();
       const {
         error: updateError
       } = await supabase.from('incidentes').update({
         status: 'Entregado' as any,
+        fecha_entrega: fechaEntregaActual,
         confirmacion_cliente: {
-          fecha_entrega: new Date().toISOString(),
+          fecha_entrega: fechaEntregaActual,
           nombre_recibe: nombreRecibe,
           dpi_recibe: dpiRecibe,
           firma_base64: firmaBase64,
