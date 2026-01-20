@@ -9,8 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Loader2, Truck, Plus, Search, CheckCircle2, XCircle, Clock } from "lucide-react";
-import { format } from "date-fns";
-import { es } from "date-fns/locale";
+import { formatFechaCorta } from "@/utils/dateFormatters";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -352,7 +351,7 @@ export default function Transferencias() {
                     <TableCell className="max-w-[200px] truncate">{t.motivo}</TableCell>
                     <TableCell>{getStatusBadge(t.estado)}</TableCell>
                     <TableCell>
-                      {format(new Date(t.created_at), "dd/MM/yyyy", { locale: es })}
+                      {formatFechaCorta(t.created_at)}
                     </TableCell>
                   </TableRow>
                 ))}

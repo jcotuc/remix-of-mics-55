@@ -1,7 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MessageSquare, Clock } from "lucide-react";
-import { format } from "date-fns";
-import { es } from "date-fns/locale";
 
 interface ObservacionesLogProps {
   logObservaciones: string | null;

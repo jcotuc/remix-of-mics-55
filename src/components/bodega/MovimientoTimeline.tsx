@@ -1,5 +1,5 @@
 import { TrendingUp, TrendingDown, Clock } from "lucide-react";
-import { formatFechaRelativa, formatFechaCorta } from "@/utils/dateFormatters";
+import { formatFechaRelativa } from "@/utils/dateFormatters";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Camera, X, Image, ChevronUp, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { WhatsAppStyleMediaCapture, MediaFile } from "@/components/WhatsAppStyleMediaCapture";
+import { WhatsAppStyleMediaCapture, MediaFile } from "./WhatsAppStyleMediaCapture";
 import {
   Drawer,
   DrawerContent,

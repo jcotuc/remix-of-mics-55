@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { formatFechaLarga, formatFechaHora } from "@/utils/dateFormatters";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { useAuth } from "@/contexts/AuthContext";
@@ -230,7 +231,7 @@ export default function WaterspiderEntrega() {
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Clock className="h-4 w-4" />
               <span>
-                Reparado el {format(new Date(incidente.updated_at), "dd 'de' MMMM 'a las' HH:mm", { locale: es })}
+                Reparado el {formatFechaLarga(incidente.updated_at)} a las {format(new Date(incidente.updated_at), "HH:mm")}
               </span>
             </div>
           </CardContent>

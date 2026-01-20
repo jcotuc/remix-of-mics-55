@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
 import { RefreshCw, CheckCircle, XCircle, AlertCircle, Calendar } from "lucide-react";
+import { formatFechaCorta } from "@/utils/dateFormatters";
 import { format } from "date-fns";
 
 interface IncidenteReingreso {
@@ -285,7 +286,7 @@ export default function VerificacionReincidencias() {
                     <div className="flex items-center gap-4 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1">
                         <Calendar className="h-3 w-3" />
-                        Ingresado: {format(new Date(incidente.fecha_ingreso), "dd/MM/yyyy")}
+                        Ingresado: {formatFechaCorta(incidente.fecha_ingreso)}
                       </span>
                       <Badge variant="destructive" className="text-xs">Marcado como reingreso</Badge>
                     </div>
@@ -317,7 +318,7 @@ export default function VerificacionReincidencias() {
                     <div><strong>Producto:</strong> {selectedIncidente.producto?.descripcion || selectedIncidente.codigo_producto}</div>
                     {selectedIncidente.sku_maquina && <div><strong>SKU:</strong> {selectedIncidente.sku_maquina}</div>}
                     <div><strong>Problema:</strong> "{selectedIncidente.descripcion_problema}"</div>
-                    <div><strong>Fecha Ingreso:</strong> {format(new Date(selectedIncidente.fecha_ingreso), "dd/MM/yyyy")}</div>
+                    <div><strong>Fecha Ingreso:</strong> {formatFechaCorta(selectedIncidente.fecha_ingreso)}</div>
                     <div><strong>Marcado como Reingreso:</strong> ✓ Sí</div>
                   </CardContent>
                 </Card>
@@ -337,7 +338,7 @@ export default function VerificacionReincidencias() {
                         <div key={inc.id} className="flex items-center space-x-2">
                           <RadioGroupItem value={inc.id} id={inc.id} />
                           <Label htmlFor={inc.id} className="flex-1 cursor-pointer">
-                            {inc.codigo} | {format(new Date(inc.fecha_ingreso), "dd/MM/yyyy")} | "{inc.descripcion_problema}" | {inc.status}
+                            {inc.codigo} | {formatFechaCorta(inc.fecha_ingreso)} | "{inc.descripcion_problema}" | {inc.status}
                           </Label>
                         </div>
                       ))}

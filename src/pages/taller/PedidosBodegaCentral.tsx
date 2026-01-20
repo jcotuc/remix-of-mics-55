@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, Package, Search, CheckCircle, XCircle, Clock, Truck, AlertTriangle, Eye } from "lucide-react";
-import { format, differenceInDays } from "date-fns";
-import { es } from "date-fns/locale";
+import { differenceInDays } from "date-fns";
+import { formatFechaHora } from "@/utils/dateFormatters";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
@@ -444,7 +444,7 @@ export default function PedidosBodegaCentral() {
               <div className="flex justify-between items-center">
                 {getEstadoBadge(selectedPedido.estado)}
                 <span className="text-sm text-muted-foreground">
-                  {format(new Date(selectedPedido.created_at), "dd/MM/yyyy HH:mm", { locale: es })}
+                  {formatFechaHora(selectedPedido.created_at)}
                 </span>
               </div>
 
@@ -500,7 +500,7 @@ export default function PedidosBodegaCentral() {
 
               {selectedPedido.fecha_aprobacion_jt && (
                 <div className="text-sm text-muted-foreground">
-                  Aprobado por Jefe de Taller: {format(new Date(selectedPedido.fecha_aprobacion_jt), "dd/MM/yyyy HH:mm", { locale: es })}
+                  Aprobado por Jefe de Taller: {formatFechaHora(selectedPedido.fecha_aprobacion_jt)}
                 </div>
               )}
             </div>

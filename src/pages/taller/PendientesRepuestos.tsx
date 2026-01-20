@@ -7,8 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2, Package, Search, Clock, User, Eye, Truck, AlertTriangle, ArrowRight, DollarSign } from "lucide-react";
-import { format, differenceInDays } from "date-fns";
-import { es } from "date-fns/locale";
+import { differenceInDays } from "date-fns";
+import { formatFechaCorta, formatFechaHora } from "@/utils/dateFormatters";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
@@ -571,7 +571,7 @@ export default function PendientesRepuestos() {
                     </div>
                     <div>
                       <p className="text-muted-foreground">Desde</p>
-                      <p className="font-medium">{format(new Date(inc.updated_at), "dd/MM/yyyy", { locale: es })}</p>
+                      <p className="font-medium">{formatFechaCorta(inc.updated_at)}</p>
                     </div>
                   </div>
                   <div className="border-t pt-4">
@@ -585,7 +585,7 @@ export default function PendientesRepuestos() {
                                 {sol.estado}
                               </Badge>
                               <span className="text-xs text-muted-foreground">
-                                {format(new Date(sol.created_at), "dd/MM/yyyy HH:mm", { locale: es })}
+                                {formatFechaHora(sol.created_at)}
                               </span>
                             </div>
                             <div className="text-sm space-y-1">
