@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { showError, showSuccess, showWarning } from "@/utils/toastHelpers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { OutlinedInput, OutlinedSelect } from "@/components/ui/outlined-input";
@@ -137,7 +137,6 @@ export default function FallasCausas() {
   const [createMissingFamilias, setCreateMissingFamilias] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { toast } = useToast();
 
   useEffect(() => {
     fetchAll();
@@ -252,17 +251,10 @@ export default function FallasCausas() {
         const matched = unique.filter(i => i.familiaId).length;
         const unmatched = unique.filter(i => !i.familiaId && i.familiaName !== "Sin familia").length;
         
-        toast({
-          title: "Archivo procesado",
-          description: `${unique.length} registros: ${matched} con familia, ${unmatched} sin coincidencia.`
-        });
+        showSuccess(`${unique.length} registros: ${matched} con familia, ${unmatched} sin coincidencia.`, "Archivo procesado");
       } catch (error) {
         console.error("Error parsing file:", error);
-        toast({
-          title: "Error al procesar archivo",
-          description: "El archivo no tiene el formato esperado.",
-          variant: "destructive"
-        });
+        showError("El archivo no tiene el formato esperado.", "Error al procesar archivo");
       }
     };
     reader.readAsArrayBuffer(file);
@@ -312,10 +304,7 @@ export default function FallasCausas() {
             );
           }
           
-          toast({
-            title: "Familias creadas",
-            description: `Se crearon ${familiasNuevas.length} familias nuevas.`
-          });
+          showSuccess(`Se crearon ${familiasNuevas.length} familias nuevas.`, "Familias creadas");
           
           // Refrescar lista de familias
           await fetchFamilias();
@@ -338,21 +327,14 @@ export default function FallasCausas() {
         if (error) throw error;
       }
 
-      toast({
-        title: "Importación exitosa",
-        description: `Se importaron ${records.length} registros.`
-      });
+      showSuccess(`Se importaron ${records.length} registros.`, "Importación exitosa");
 
       setShowImportDialog(false);
       setImportData([]);
       fetchAll();
     } catch (error) {
       console.error("Error importing:", error);
-      toast({
-        title: "Error al importar",
-        description: "Ocurrió un error durante la importación.",
-        variant: "destructive"
-      });
+      showError("Ocurrió un error durante la importación.", "Error al importar");
     } finally {
       setImporting(false);
     }
@@ -360,11 +342,7 @@ export default function FallasCausas() {
 
   const handleAdd = async () => {
     if (!newNombre.trim()) {
-      toast({
-        title: "Error",
-        description: "El nombre es requerido.",
-        variant: "destructive"
-      });
+      showError("El nombre es requerido.");
       return;
     }
 
@@ -379,18 +357,11 @@ export default function FallasCausas() {
 
     if (error) {
       console.error("Error adding:", error);
-      toast({
-        title: "Error",
-        description: "No se pudo agregar el registro.",
-        variant: "destructive"
-      });
+      showError("No se pudo agregar el registro.");
       return;
     }
 
-    toast({
-      title: "Éxito",
-      description: `${activeTab === "fallas" ? "Falla" : "Causa"} agregada correctamente.`
-    });
+    showSuccess(`${activeTab === "fallas" ? "Falla" : "Causa"} agregada correctamente.`);
 
     setShowAddDialog(false);
     setNewNombre("");
@@ -413,18 +384,11 @@ export default function FallasCausas() {
 
     if (error) {
       console.error("Error updating:", error);
-      toast({
-        title: "Error",
-        description: "No se pudo actualizar el registro.",
-        variant: "destructive"
-      });
+      showError("No se pudo actualizar el registro.");
       return;
     }
 
-    toast({
-      title: "Éxito",
-      description: "Registro actualizado correctamente."
-    });
+    showSuccess("Registro actualizado correctamente.");
 
     setShowEditDialog(false);
     setEditingItem(null);
@@ -445,18 +409,11 @@ export default function FallasCausas() {
 
     if (error) {
       console.error("Error deleting:", error);
-      toast({
-        title: "Error",
-        description: "No se pudo eliminar el registro.",
-        variant: "destructive"
-      });
+      showError("No se pudo eliminar el registro.");
       return;
     }
 
-    toast({
-      title: "Éxito",
-      description: "Registro eliminado correctamente."
-    });
+    showSuccess("Registro eliminado correctamente.");
 
     setShowDeleteDialog(false);
     setDeletingItem(null);

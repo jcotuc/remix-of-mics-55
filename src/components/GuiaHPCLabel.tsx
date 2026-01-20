@@ -1,6 +1,5 @@
-import { format } from "date-fns";
-import { es } from "date-fns/locale";
 import { Wrench } from "lucide-react";
+import { formatFechaCorta, formatHora } from "@/utils/dateFormatters";
 
 interface GuiaHPCLabelProps {
   guia: {
@@ -54,9 +53,8 @@ const CSSBarcode = ({ value }: { value: string }) => {
 
 export function GuiaHPCLabel({ guia }: GuiaHPCLabelProps) {
   const departmentCode = extractDepartmentCode(guia.ciudad_destino);
-  const fechaGuia = new Date(guia.fecha_guia);
-  const fechaFormateada = format(fechaGuia, "dd/MM/yyyy", { locale: es });
-  const horaFormateada = format(fechaGuia, "HH:mm", { locale: es });
+  const fechaFormateada = formatFechaCorta(guia.fecha_guia);
+  const horaFormateada = formatHora(guia.fecha_guia);
 
   return (
     <div className="print-sheet guia-label bg-white border-2 border-black p-4 font-mono text-sm max-w-md mx-auto print:border-black print:max-w-none">

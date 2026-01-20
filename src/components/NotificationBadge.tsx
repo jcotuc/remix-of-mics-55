@@ -12,6 +12,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { formatFechaHora } from "@/utils/dateFormatters";
 
 interface Notificacion {
   id: string;

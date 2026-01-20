@@ -28,7 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Upload, Edit, Trash2, FolderTree, Search, Plus, Save, X, Link, Filter } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { showError, showSuccess, showWarning } from "@/utils/toastHelpers";
 import { TablePagination } from "@/components/TablePagination";
 import * as XLSX from "xlsx";
 
@@ -79,7 +79,6 @@ export default function FamiliasProductos() {
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const relacionesInputRef = useRef<HTMLInputElement>(null);
-  const { toast } = useToast();
 
   useEffect(() => {
     fetchFamilias();
@@ -96,11 +95,7 @@ export default function FamiliasProductos() {
       if (error) throw error;
       setFamilias(data || []);
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      showError(error.message);
     } finally {
       setLoading(false);
     }
@@ -192,11 +187,7 @@ export default function FamiliasProductos() {
         console.log("Unique data:", uniqueData);
 
         if (uniqueData.length === 0) {
-          toast({
-            title: "Sin datos válidos",
-            description: "No se encontraron categorías válidas. Asegúrese de tener una columna llamada 'Categoria', 'Nombre' o 'Familia'.",
-            variant: "destructive",
-          });
+          showWarning("No se encontraron categorías válidas. Asegúrese de tener una columna llamada 'Categoria', 'Nombre' o 'Familia'.", "Sin datos válidos");
           return;
         }
 
@@ -204,11 +195,7 @@ export default function FamiliasProductos() {
         setShowImportDialog(true);
       } catch (error: any) {
         console.error("Error parsing Excel:", error);
-        toast({
-          title: "Error al leer archivo",
-          description: error.message,
-          variant: "destructive",
-        });
+        showError(error.message, "Error al leer archivo");
       }
     };
     reader.readAsBinaryString(file);
@@ -236,20 +223,13 @@ export default function FamiliasProductos() {
         if (error) throw error;
       }
 
-      toast({
-        title: "Importación exitosa",
-        description: `Se importaron ${importData.length} categorías`,
-      });
+      showSuccess(`Se importaron ${importData.length} categorías`, "Importación exitosa");
 
       setShowImportDialog(false);
       setImportData([]);
       fetchFamilias();
     } catch (error: any) {
-      toast({
-        title: "Error al importar",
-        description: error.message,
-        variant: "destructive",
-      });
+      showError(error.message, "Error al importar");
     } finally {
       setImporting(false);
     }
@@ -266,11 +246,7 @@ export default function FamiliasProductos() {
     if (!selectedFamilia) return;
 
     if (!editCategoria.trim()) {
-      toast({
-        title: "Error",
-        description: "El nombre de la categoría es requerido",
-        variant: "destructive",
-      });
+      showError("El nombre de la categoría es requerido");
       return;
     }
 
@@ -280,11 +256,7 @@ export default function FamiliasProductos() {
       f.Categoria?.toLowerCase() === editCategoria.trim().toLowerCase()
     );
     if (exists) {
-      toast({
-        title: "Error",
-        description: "Ya existe otra categoría con ese nombre",
-        variant: "destructive",
-      });
+      showError("Ya existe otra categoría con ese nombre");
       return;
     }
 
@@ -293,11 +265,7 @@ export default function FamiliasProductos() {
       
       // Prevent circular reference
       if (newPadreValue === selectedFamilia.id) {
-        toast({
-          title: "Error",
-          description: "Una categoría no puede ser su propio padre",
-          variant: "destructive",
-        });
+        showError("Una categoría no puede ser su propio padre");
         return;
       }
 
@@ -311,29 +279,18 @@ export default function FamiliasProductos() {
 
       if (error) throw error;
 
-      toast({
-        title: "Actualizado",
-        description: "Categoría actualizada correctamente",
-      });
+      showSuccess("Categoría actualizada correctamente", "Actualizado");
 
       setShowEditDialog(false);
       fetchFamilias();
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      showError(error.message);
     }
   };
 
   const handleAddCategoria = async () => {
     if (!newCategoria.trim()) {
-      toast({
-        title: "Error",
-        description: "El nombre de la categoría es requerido",
-        variant: "destructive",
-      });
+      showError("El nombre de la categoría es requerido");
       return;
     }
 
@@ -344,11 +301,7 @@ export default function FamiliasProductos() {
     // Verificar duplicados
     const exists = familias.some(f => f.Categoria?.toLowerCase() === categoriaFormatted.toLowerCase());
     if (exists) {
-      toast({
-        title: "Error",
-        description: "Ya existe una categoría con ese nombre",
-        variant: "destructive",
-      });
+      showError("Ya existe una categoría con ese nombre");
       return;
     }
 
@@ -366,21 +319,14 @@ export default function FamiliasProductos() {
 
       if (error) throw error;
 
-      toast({
-        title: "Categoría creada",
-        description: `Se creó la categoría "${categoriaFormatted}"`,
-      });
+      showSuccess(`Se creó la categoría "${categoriaFormatted}"`, "Categoría creada");
 
       setShowAddDialog(false);
       setNewCategoria("");
       setNewPadre("");
       fetchFamilias();
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      showError(error.message);
     }
   };
 
@@ -388,11 +334,7 @@ export default function FamiliasProductos() {
     // Check if this familia has children
     const hasChildren = familias.some(f => f.Padre === familia.id);
     if (hasChildren) {
-      toast({
-        title: "No se puede eliminar",
-        description: "Esta categoría tiene subcategorías. Elimine primero las subcategorías.",
-        variant: "destructive",
-      });
+      showWarning("Esta categoría tiene subcategorías. Elimine primero las subcategorías.", "No se puede eliminar");
       return;
     }
 
@@ -406,18 +348,11 @@ export default function FamiliasProductos() {
 
       if (error) throw error;
 
-      toast({
-        title: "Eliminado",
-        description: "Categoría eliminada correctamente",
-      });
+      showSuccess("Categoría eliminada correctamente", "Eliminado");
 
       fetchFamilias();
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
+      showError(error.message);
     }
   };
 
@@ -472,11 +407,7 @@ export default function FamiliasProductos() {
         console.log("Relaciones mapped:", uniqueData);
 
         if (uniqueData.length === 0) {
-          toast({
-            title: "Sin datos válidos",
-            description: "No se encontraron relaciones válidas. Asegúrese de tener columnas 'Categoria' y 'Familia'.",
-            variant: "destructive",
-          });
+          showWarning("No se encontraron relaciones válidas. Asegúrese de tener columnas 'Categoria' y 'Familia'.", "Sin datos válidos");
           return;
         }
 
@@ -484,11 +415,7 @@ export default function FamiliasProductos() {
         setShowRelacionesDialog(true);
       } catch (error: any) {
         console.error("Error parsing Excel:", error);
-        toast({
-          title: "Error al leer archivo",
-          description: error.message,
-          variant: "destructive",
-        });
+        showError(error.message, "Error al leer archivo");
       }
     };
     reader.readAsBinaryString(file);
@@ -596,20 +523,13 @@ export default function FamiliasProductos() {
           .eq("id", update.id);
       }
 
-      toast({
-        title: "Importación exitosa",
-        description: `Se crearon ${newFamilias.length} familias, ${newCategorias.length} subcategorías y se actualizaron ${updates.length} relaciones`,
-      });
+      showSuccess(`Se crearon ${newFamilias.length} familias, ${newCategorias.length} subcategorías y se actualizaron ${updates.length} relaciones`, "Importación exitosa");
 
       setShowRelacionesDialog(false);
       setRelacionesData([]);
       fetchFamilias();
     } catch (error: any) {
-      toast({
-        title: "Error al importar",
-        description: error.message,
-        variant: "destructive",
-      });
+      showError(error.message, "Error al importar");
     } finally {
       setImportingRelaciones(false);
     }

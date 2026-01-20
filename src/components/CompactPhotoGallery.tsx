@@ -4,8 +4,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { ChevronLeft, ChevronRight, X, Image as ImageIcon, Camera } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { format } from "date-fns";
-import { es } from "date-fns/locale";
+import { formatFechaLarga } from "@/utils/dateFormatters";
 
 interface IncidentPhoto {
   id: string;
@@ -233,7 +232,7 @@ export function CompactPhotoGallery({ incidenteId, headerVariant = "default" }: 
                       {tipoLabels[selectedPhoto.tipo]?.label || selectedPhoto.tipo}
                     </Badge>
                     <p className="text-sm text-muted-foreground mt-1">
-                      {format(new Date(selectedPhoto.created_at), "dd 'de' MMMM 'de' yyyy 'a las' HH:mm", { locale: es })}
+                      {formatFechaLarga(selectedPhoto.created_at)}
                     </p>
                   </div>
                   <p className="text-xs text-muted-foreground">
