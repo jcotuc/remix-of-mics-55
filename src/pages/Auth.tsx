@@ -32,24 +32,25 @@ export default function Auth() {
     setLoading(true);
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: loginEmail,
-        password: loginPassword,
-      });
+      console.log("LOGIN!!");
+      // const { data, error } = await supabase.auth.signInWithPassword({
+      //   email: loginEmail,
+      //   password: loginPassword,
+      // });
 
-      if (error) {
-        if (error.message.includes("Invalid login credentials")) {
-          toast.error("Credenciales inválidas");
-        } else {
-          toast.error(error.message);
-        }
-        return;
-      }
+      // if (error) {
+      //   if (error.message.includes("Invalid login credentials")) {
+      //     toast.error("Credenciales inválidas");
+      //   } else {
+      //     toast.error(error.message);
+      //   }
+      //   return;
+      // }
 
-      if (data.session) {
-        toast.success("¡Sesión iniciada!");
-        navigate("/");
-      }
+      // if (data.session) {
+      //   toast.success("¡Sesión iniciada!");
+      //   navigate("/");
+      // }
     } catch (error) {
       toast.error("Error al iniciar sesión");
     } finally {
@@ -62,46 +63,47 @@ export default function Auth() {
     setLoading(true);
 
     try {
-      const redirectUrl = `${window.location.origin}/`;
+      console.log("SIGNUP!!!");
+      // const redirectUrl = `${window.location.origin}/`;
 
-      const { data, error } = await supabase.auth.signUp({
-        email: signupEmail,
-        password: signupPassword,
-        options: {
-          emailRedirectTo: redirectUrl,
-          data: { nombre, apellido },
-        },
-      });
+      // const { data, error } = await supabase.auth.signUp({
+      //   email: signupEmail,
+      //   password: signupPassword,
+      //   options: {
+      //     emailRedirectTo: redirectUrl,
+      //     data: { nombre, apellido },
+      //   },
+      // });
 
-      if (error) {
-        if (error.message.includes("already registered")) {
-          toast.error("Este correo ya está registrado");
-        } else {
-          toast.error(error.message);
-        }
-        return;
-      }
+      // if (error) {
+      //   if (error.message.includes("already registered")) {
+      //     toast.error("Este correo ya está registrado");
+      //   } else {
+      //     toast.error(error.message);
+      //   }
+      //   return;
+      // }
 
-      if (data.user) {
-        const { error: profileError } = await supabase
-          .from("profiles")
-          .insert({
-            user_id: data.user.id,
-            nombre,
-            apellido,
-            email: signupEmail,
-          });
+      // if (data.user) {
+      //   const { error: profileError } = await supabase
+      //     .from("profiles")
+      //     .insert({
+      //       user_id: data.user.id,
+      //       nombre,
+      //       apellido,
+      //       email: signupEmail,
+      //     });
 
-        if (profileError) {
-          console.error("Error creando perfil:", profileError);
-        }
+      //   if (profileError) {
+      //     console.error("Error creando perfil:", profileError);
+      //   }
 
-        toast.success("Cuenta creada. Verifica tu correo.");
-        setSignupEmail("");
-        setSignupPassword("");
-        setNombre("");
-        setApellido("");
-      }
+      //   toast.success("Cuenta creada. Verifica tu correo.");
+      //   setSignupEmail("");
+      //   setSignupPassword("");
+      //   setNombre("");
+      //   setApellido("");
+      // }
     } catch (error) {
       toast.error("Error al crear cuenta");
     } finally {
@@ -124,8 +126,12 @@ export default function Auth() {
         <CardContent className="p-4 sm:p-6">
           <Tabs defaultValue="login" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="login" className="text-xs sm:text-sm">Iniciar Sesión</TabsTrigger>
-              <TabsTrigger value="signup" className="text-xs sm:text-sm">Registrarse</TabsTrigger>
+              <TabsTrigger value="login" className="text-xs sm:text-sm">
+                Iniciar Sesión
+              </TabsTrigger>
+              <TabsTrigger value="signup" className="text-xs sm:text-sm">
+                Registrarse
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="login">
@@ -163,21 +169,11 @@ export default function Auth() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="nombre">Nombre</Label>
-                    <Input
-                      id="nombre"
-                      value={nombre}
-                      onChange={(e) => setNombre(e.target.value)}
-                      required
-                    />
+                    <Input id="nombre" value={nombre} onChange={(e) => setNombre(e.target.value)} required />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="apellido">Apellido</Label>
-                    <Input
-                      id="apellido"
-                      value={apellido}
-                      onChange={(e) => setApellido(e.target.value)}
-                      required
-                    />
+                    <Input id="apellido" value={apellido} onChange={(e) => setApellido(e.target.value)} required />
                   </div>
                 </div>
                 <div className="space-y-2">
