@@ -1,6 +1,6 @@
 import { TrendingUp, TrendingDown, Clock } from "lucide-react";
-import { formatDistanceToNow, format } from "date-fns";
-import { es } from "date-fns/locale";
+import { formatFechaRelativa, formatFechaCorta } from "@/utils/dateFormatters";
+import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -104,7 +104,7 @@ export function MovimientoTimeline({
                     </div>
                     <div className="text-right shrink-0">
                       <p className="text-xs text-muted-foreground">
-                        {formatDistanceToNow(date, { addSuffix: true, locale: es })}
+                        {formatFechaRelativa(mov.created_at)}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {format(date, "dd/MM HH:mm")}

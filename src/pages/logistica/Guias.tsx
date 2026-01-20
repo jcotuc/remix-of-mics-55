@@ -9,7 +9,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Search, Plus, FileText, Printer, PackagePlus } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { showError, showSuccess } from "@/utils/toastHelpers";
+import { formatFechaInput, formatFechaCorta } from "@/utils/dateFormatters";
 import { format } from "date-fns";
 import {
   Command,
@@ -61,7 +62,6 @@ type Cliente = {
 };
 
 export default function Guias() {
-  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("crear");
   const [searchTerm, setSearchTerm] = useState("");
   const [guias, setGuias] = useState<Guia[]>([]);
@@ -127,11 +127,7 @@ export default function Guias() {
       setGuias(data || []);
     } catch (error) {
       console.error('Error fetching guias:', error);
-      toast({
-        title: "Error",
-        description: "No se pudieron cargar las guías",
-        variant: "destructive"
-      });
+      showError("No se pudieron cargar las guías");
     } finally {
       setLoading(false);
     }
@@ -249,19 +245,12 @@ export default function Guias() {
     }));
     setOpenClienteCombobox(false);
     
-    toast({
-      title: "Cliente seleccionado",
-      description: `${cliente.nombre} - Entrega estimada: ${format(new Date(fechaPromesa), 'dd/MM/yyyy')}`
-    });
+    showSuccess(`${cliente.nombre} - Entrega estimada: ${formatFechaCorta(fechaPromesa)}`, "Cliente seleccionado");
   };
 
   const handleCreate = async () => {
     if (!formData.destinatario || !formData.direccion_destinatario || !formData.ciudad_destino) {
-      toast({
-        title: "Error",
-        description: "Por favor complete los campos obligatorios",
-        variant: "destructive"
-      });
+      showError("Por favor complete los campos obligatorios");
       return;
     }
 
@@ -315,10 +304,7 @@ export default function Guias() {
 
       if (error) throw error;
 
-      toast({
-        title: "Éxito",
-        description: `Guía ${numeroGuia} creada en Zigo y guardada localmente`
-      });
+      showSuccess(`Guía ${numeroGuia} creada en Zigo y guardada localmente`);
 
       // Reset form
       setFormData({
@@ -342,21 +328,13 @@ export default function Guias() {
       setActiveTab("consultar");
     } catch (error) {
       console.error('Error creating guia:', error);
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "No se pudo crear la guía",
-        variant: "destructive"
-      });
+      showError(error instanceof Error ? error.message : "No se pudo crear la guía");
     }
   };
   
   const handleSearch = async () => {
     if (!consultaData.numero_guia) {
-      toast({
-        title: "Error",
-        description: "Ingrese un número de guía para buscar",
-        variant: "destructive"
-      });
+      showError("Ingrese un número de guía para buscar");
       return;
     }
     
@@ -412,27 +390,17 @@ export default function Guias() {
         operador_pod: guiaData.podOperator || ""
       });
       
-      toast({
-        title: "Éxito",
-        description: "Guía encontrada en Zigo"
-      });
+      showSuccess("Guía encontrada en Zigo");
       
     } catch (error) {
       console.error('❌ Error buscando guía:', error);
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "No se pudo encontrar la guía",
-        variant: "destructive"
-      });
+      showError(error instanceof Error ? error.message : "No se pudo encontrar la guía");
     }
   };
 
   const handlePrint = (guia: Guia) => {
     // Implementar lógica de impresión
-    toast({
-      title: "Impresión",
-      description: `Preparando guía ${guia.numero_guia} para imprimir`
-    });
+    showSuccess(`Preparando guía ${guia.numero_guia} para imprimir`, "Impresión");
   };
 
   const filteredGuias = guias.filter(guia => 
