@@ -61,8 +61,8 @@ export default function ConsultaCardex() {
 
       setProductoInfo(repuesto);
 
-      // Obtener movimientos en el rango de fechas
-      let query = supabase
+      // Obtener movimientos en el rango de fechas - usar casting para columnas no tipadas
+      let query = (supabase as any)
         .from('movimientos_inventario')
         .select('*')
         .eq('codigo_repuesto', codigoRepuesto)
@@ -72,9 +72,7 @@ export default function ConsultaCardex() {
 
       // Aplicar filtros opcionales
       if (tipoMovimientoFiltro !== 'todos') {
-        const tiposFiltro: Array<'entrada' | 'salida' | 'ajuste' | 'transferencia' | 'devolucion'> = 
-          [tipoMovimientoFiltro as 'entrada' | 'salida' | 'ajuste' | 'transferencia' | 'devolucion'];
-        query = query.in('tipo_movimiento', tiposFiltro);
+        query = query.eq('tipo_movimiento', tipoMovimientoFiltro);
       }
 
       if (ubicacionFiltro.trim()) {

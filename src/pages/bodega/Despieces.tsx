@@ -164,10 +164,10 @@ export default function Despieces() {
     if (!producto) return;
 
     // Obtener repuestos del producto usando la tabla de relación
-    const { data: relacionesRepuestos, error: repuestosError } = await supabase
+    const { data: relacionesRepuestos, error: repuestosError } = await (supabase as any)
       .from('repuestos_productos')
-      .select('codigo_repuesto, repuestos:repuestos!fk_repuesto(codigo, descripcion)')
-      .eq('codigo_producto', producto.codigo);
+      .select('repuesto_id, repuestos(codigo, descripcion)')
+      .eq('producto_id', producto.id);
 
     if (repuestosError) {
       toast.error('Error al cargar repuestos');
@@ -176,13 +176,13 @@ export default function Despieces() {
     
     // Mapear los repuestos desde la relación
     const repuestos = (relacionesRepuestos || [])
-      .filter(r => r.repuestos)
-      .map(r => ({
-        codigo: (r.repuestos as any).codigo,
-        descripcion: (r.repuestos as any).descripcion
+      .filter((r: any) => r.repuestos)
+      .map((r: any) => ({
+        codigo: r.repuestos.codigo,
+        descripcion: r.repuestos.descripcion
       }));
 
-    const repuestosDisponibles = (repuestos || []).map(r => ({
+    const repuestosDisponibles = (repuestos || []).map((r: any) => ({
       codigo: r.codigo,
       descripcion: r.descripcion,
       cantidadOriginal: 1,
@@ -193,6 +193,13 @@ export default function Despieces() {
     const timestamp = Date.now();
     const skuDespiece = `DSP-${producto.codigo}-${timestamp}`;
     
+    // Obtener el ID del usuario de la tabla usuarios
+    const { data: usuarioData } = await supabase
+      .from('usuarios')
+      .select('id')
+      .eq('auth_uid', user.id)
+      .single();
+    
     // Insertar en base de datos
     const { error } = await supabase
       .from('despieces')
@@ -202,7 +209,7 @@ export default function Despieces() {
         descripcion: producto.descripcion,
         estado: 'disponible',
         repuestos_disponibles: repuestosDisponibles,
-        created_by: user.id
+        created_by: usuarioData?.id || null
       });
 
     if (error) {
@@ -304,14 +311,14 @@ export default function Despieces() {
     const todosAgotados = updatedRepuestos.every(r => r.cantidadDisponible === 0);
     const nuevoEstado = todosAgotados ? 'agotado' : 'en_uso';
 
-    // Actualizar despiece
+    // Actualizar despiece - el ID es number
     const { error: despieceError } = await supabase
       .from('despieces')
       .update({
         repuestos_disponibles: updatedRepuestos as any,
         estado: nuevoEstado
       })
-      .eq('id', selectedDespiece.id);
+      .eq('id', Number(selectedDespiece.id));
 
     if (despieceError) {
       console.error('Error al actualizar despiece:', despieceError);
@@ -319,18 +326,34 @@ export default function Despieces() {
       return;
     }
 
+    // Obtener repuesto_id y usuario_id para el movimiento
+    const { data: repuestoData } = await supabase
+      .from('repuestos')
+      .select('id')
+      .eq('codigo', selectedRepuesto.codigo)
+      .single();
+    
+    const { data: usuarioData } = await supabase
+      .from('usuarios')
+      .select('id')
+      .eq('auth_uid', user.id)
+      .single();
+
     // Registrar movimiento de inventario desde ubicación de despiece
     const ubicacionDespiece = `DESPIECE-${selectedDespiece.sku}`;
     const { error: movimientoError } = await supabase
       .from('movimientos_inventario')
       .insert({
-        codigo_repuesto: selectedRepuesto.codigo,
-        tipo_movimiento: 'salida',
+        repuesto_id: repuestoData?.id || 0,
+        centro_servicio_id: 1, // Default centro
+        tipo_movimiento: 'SALIDA',
         cantidad: 1,
+        stock_anterior: 1,
+        stock_nuevo: 0,
         ubicacion: ubicacionDespiece,
         referencia: selectedIncidente,
         motivo: `Repuesto usado de despiece ${selectedDespiece.sku} para incidente ${selectedIncidente}`,
-        created_by: user.id
+        created_by_id: usuarioData?.id || 0
       });
 
     if (movimientoError) {
