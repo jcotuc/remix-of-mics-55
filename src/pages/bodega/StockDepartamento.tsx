@@ -14,8 +14,13 @@ const COLORS = {
   C: "#10b981"
 };
 
+interface CentroServicio {
+  id: number;
+  nombre: string;
+}
+
 export default function StockDepartamento() {
-  const [centrosServicio, setCentrosServicio] = useState<any[]>([]);
+  const [centrosServicio, setCentrosServicio] = useState<CentroServicio[]>([]);
   const [centroSeleccionado, setCentroSeleccionado] = useState("");
   const [inventario, setInventario] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,17 +37,17 @@ export default function StockDepartamento() {
 
   const fetchCentros = async () => {
     try {
-      const { data, error } = await supabase
-        .from("centros_servicio")
-        .select("*")
+      const { data, error } = await (supabase as any)
+        .from("centros_de_servicio")
+        .select("id, nombre")
         .eq("activo", true)
         .order("nombre");
 
       if (error) throw error;
-      setCentrosServicio(data || []);
+      setCentrosServicio((data || []) as CentroServicio[]);
 
       if (data && data.length > 0) {
-        setCentroSeleccionado(data[0].id);
+        setCentroSeleccionado(String(data[0].id));
       }
     } catch (error) {
       console.error("Error:", error);
@@ -57,7 +62,7 @@ export default function StockDepartamento() {
       const { data, error } = await supabase
         .from("inventario")
         .select("*")
-        .eq("centro_servicio_id", centroId)
+        .eq("centro_servicio_id", Number(centroId))
         .order("cantidad", { ascending: false });
 
       if (error) throw error;
@@ -120,7 +125,7 @@ export default function StockDepartamento() {
             </SelectTrigger>
             <SelectContent>
               {centrosServicio.map((c) => (
-                <SelectItem key={c.id} value={c.id}>{c.nombre}</SelectItem>
+                <SelectItem key={c.id} value={String(c.id)}>{c.nombre}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -230,7 +235,7 @@ export default function StockDepartamento() {
                 <TableRow key={item.id}>
                   <TableCell className="font-mono">{item.codigo_repuesto}</TableCell>
                   <TableCell className="max-w-xs truncate">{item.descripcion || "-"}</TableCell>
-                  <TableCell>{item.ubicacion || "-"}</TableCell>
+                  <TableCell>{item.ubicacion_legacy || "-"}</TableCell>
                   <TableCell className="text-right">{item.cantidad}</TableCell>
                   <TableCell>
                     {item.cantidad === 0 ? (

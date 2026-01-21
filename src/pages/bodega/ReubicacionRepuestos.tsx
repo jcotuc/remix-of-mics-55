@@ -34,9 +34,7 @@ type InventarioItem = {
   ubicacion_id: number | null;
   descripcion: string | null;
   created_at: string;
-  centros_servicio: {
-    nombre: string;
-  } | null;
+  centro_nombre?: string;
 };
 
 type CentroServicio = {
@@ -51,24 +49,25 @@ type Ubicacion = {
   rack: string | null;
   nivel: string | null;
   caja: string | null;
-  bodega_id: string | null;
+  bodega_id: number | null;
 };
 
 type MovimientoReubicacion = {
-  id: string;
+  id: number;
   tipo_movimiento: string;
   cantidad: number;
   motivo: string | null;
   created_at: string;
-  codigo_repuesto: string;
+  codigo_repuesto?: string;
   ubicacion: string | null;
   referencia: string | null;
   stock_anterior?: number | null;
   stock_nuevo?: number | null;
+  repuesto_id?: number;
 };
 
 type CentroConPendientes = {
-  id: string;
+  id: number;
   nombre: string;
   pendientes: number;
 };
@@ -103,7 +102,7 @@ export default function ReubicacionRepuestos() {
   const [centroSeleccionado, setCentroSeleccionado] = useState<string>("todos");
   const [busqueda, setBusqueda] = useState("");
   const [soloAntiguos, setSoloAntiguos] = useState(false);
-  const [soloSinUbicar, setSoloSinUbicar] = useState(true); // NEW: Toggle for showing all or only pending
+  const [soloSinUbicar, setSoloSinUbicar] = useState(true);
   const [showScanner, setShowScanner] = useState(false);
   
   // Pagination
@@ -111,7 +110,7 @@ export default function ReubicacionRepuestos() {
   const [itemsPerPage, setItemsPerPage] = useState(10);
   
   // Selection
-  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+  const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
   
   // Dialogs
   const [showReubicacionDialog, setShowReubicacionDialog] = useState(false);
@@ -173,8 +172,8 @@ export default function ReubicacionRepuestos() {
 
   const fetchUbicaciones = async () => {
     try {
-      const { data, error } = await supabase
-        .from("Ubicación_CDS")
+      const { data, error } = await (supabase as any)
+        .from("ubicaciones")
         .select("id, codigo, pasillo, rack, nivel, caja, bodega_id")
         .order("pasillo")
         .order("rack")
@@ -183,7 +182,7 @@ export default function ReubicacionRepuestos() {
       if (error) throw error;
       
       // Sort with Excel-style for caja
-      const sorted = (data || []).sort((a, b) => {
+      const sorted = ((data || []) as Ubicacion[]).sort((a, b) => {
         const pasilloCompare = sortExcelStyle(a.pasillo, b.pasillo);
         if (pasilloCompare !== 0) return pasilloCompare;
         
@@ -205,35 +204,37 @@ export default function ReubicacionRepuestos() {
   const fetchInventario = async () => {
     try {
       setLoading(true);
+      
+      // Fetch inventory items
       let query = supabase
         .from("inventario")
-        .select(`
-          id,
-          codigo_repuesto,
-          centro_servicio_id,
-          cantidad,
-          ubicacion_legacy,
-          ubicacion_id,
-          descripcion,
-          created_at,
-          centros_servicio (
-            nombre
-          )
-        `);
+        .select("id, codigo_repuesto, centro_servicio_id, cantidad, ubicacion_legacy, ubicacion_id, descripcion, created_at");
 
-      // NEW: Only filter by ubicacion_id if soloSinUbicar is true
       if (soloSinUbicar) {
         query = query.is("ubicacion_id", null);
       }
 
       if (centroSeleccionado && centroSeleccionado !== "todos") {
-        query = query.eq("centro_servicio_id", centroSeleccionado);
+        query = query.eq("centro_servicio_id", Number(centroSeleccionado));
       }
 
-      const { data, error } = await query.order("created_at", { ascending: true });
+      const { data: inventarioData, error } = await query.order("created_at", { ascending: true });
 
       if (error) throw error;
-      setInventarioItems(data || []);
+
+      // Fetch centros to map names
+      const { data: centrosData } = await (supabase as any)
+        .from("centros_de_servicio")
+        .select("id, nombre");
+
+      const centrosMap = new Map((centrosData || []).map((c: any) => [c.id, c.nombre]));
+
+      const items: InventarioItem[] = (inventarioData || []).map((item: any) => ({
+        ...item,
+        centro_nombre: centrosMap.get(item.centro_servicio_id) || "Sin centro"
+      }));
+
+      setInventarioItems(items);
       setSelectedItems(new Set());
     } catch (error) {
       console.error("Error fetching inventario:", error);
@@ -252,7 +253,7 @@ export default function ReubicacionRepuestos() {
         .is("ubicacion_id", null);
 
       if (centroSeleccionado && centroSeleccionado !== "todos") {
-        pendientesQuery = pendientesQuery.eq("centro_servicio_id", centroSeleccionado);
+        pendientesQuery = pendientesQuery.eq("centro_servicio_id", Number(centroSeleccionado));
       }
 
       const { data: pendientesData, count: pendientesTotal } = await pendientesQuery;
@@ -267,16 +268,17 @@ export default function ReubicacionRepuestos() {
         p => new Date(p.created_at) < hace7Dias
       ).length || 0;
 
-      // Reubicados hoy
+      // Reubicados hoy - use AJUSTE as the type for reubicación
       const today = startOfDay(new Date()).toISOString();
       let reubicadosQuery = supabase
         .from("movimientos_inventario")
         .select("id", { count: "exact", head: true })
-        .eq("tipo_movimiento", "reubicacion")
+        .eq("tipo_movimiento", "AJUSTE")
+        .ilike("motivo", "%ubicac%")
         .gte("created_at", today);
 
       if (centroSeleccionado && centroSeleccionado !== "todos") {
-        reubicadosQuery = reubicadosQuery.eq("centro_servicio_id", centroSeleccionado);
+        reubicadosQuery = reubicadosQuery.eq("centro_servicio_id", Number(centroSeleccionado));
       }
 
       const { count: reubicadosHoy } = await reubicadosQuery;
@@ -297,19 +299,27 @@ export default function ReubicacionRepuestos() {
       setLoadingHistorial(true);
       let query = supabase
         .from("movimientos_inventario")
-        .select("*")
-        .eq("tipo_movimiento", "reubicacion")
+        .select("id, tipo_movimiento, cantidad, motivo, created_at, ubicacion, referencia, stock_anterior, stock_nuevo, repuesto_id")
+        .eq("tipo_movimiento", "AJUSTE")
+        .ilike("motivo", "%ubicac%")
         .order("created_at", { ascending: false })
         .limit(50);
 
       if (centroSeleccionado && centroSeleccionado !== "todos") {
-        query = query.eq("centro_servicio_id", centroSeleccionado);
+        query = query.eq("centro_servicio_id", Number(centroSeleccionado));
       }
 
       const { data, error } = await query;
 
       if (error) throw error;
-      setHistorialMovimientos(data || []);
+      
+      // Map data to include codigo_repuesto from repuesto_id
+      const movimientos: MovimientoReubicacion[] = (data || []).map((mov: any) => ({
+        ...mov,
+        codigo_repuesto: String(mov.repuesto_id ? `REP-${mov.repuesto_id}` : 'N/A')
+      }));
+      
+      setHistorialMovimientos(movimientos);
     } catch (error) {
       console.error("Error fetching historial:", error);
     } finally {
@@ -321,19 +331,26 @@ export default function ReubicacionRepuestos() {
     try {
       const { data, error } = await supabase
         .from("inventario")
-        .select("centro_servicio_id, centros_servicio(nombre)")
+        .select("centro_servicio_id")
         .is("ubicacion_id", null);
 
       if (error) throw error;
 
+      // Fetch centros to map names
+      const { data: centrosData } = await (supabase as any)
+        .from("centros_de_servicio")
+        .select("id, nombre");
+
+      const centrosMap = new Map((centrosData || []).map((c: any) => [c.id, c.nombre]));
+
       // Group by centro
-      const grouped: Record<string, CentroConPendientes> = {};
+      const grouped: Record<number, CentroConPendientes> = {};
       data?.forEach(item => {
         const id = item.centro_servicio_id;
         if (!grouped[id]) {
           grouped[id] = {
             id,
-            nombre: (item.centros_servicio as any)?.nombre || "Sin nombre",
+            nombre: centrosMap.get(id) || "Sin nombre",
             pendientes: 0
           };
         }
@@ -384,7 +401,7 @@ export default function ReubicacionRepuestos() {
     }
   };
 
-  const handleSelectItem = (itemId: string, checked: boolean) => {
+  const handleSelectItem = (itemId: number, checked: boolean) => {
     const newSelected = new Set(selectedItems);
     if (checked) {
       newSelected.add(itemId);
@@ -473,17 +490,26 @@ export default function ReubicacionRepuestos() {
 
       if (updateError) throw updateError;
 
-      await supabase.from("movimientos_inventario").insert({
+      // Get user profile id
+      const { data: profileData } = await (supabase as any)
+        .from("usuarios")
+        .select("id")
+        .eq("auth_uid", user.data.user?.id)
+        .single();
+
+      await (supabase as any).from("movimientos_inventario").insert({
         centro_servicio_id: itemAUbicar.centro_servicio_id,
-        codigo_repuesto: itemAUbicar.codigo_repuesto,
-        tipo_movimiento: "reubicacion",
+        repuesto_id: itemAUbicar.id,
+        tipo_movimiento: "AJUSTE",
         cantidad: itemAUbicar.cantidad,
+        stock_anterior: itemAUbicar.cantidad,
+        stock_nuevo: itemAUbicar.cantidad,
         ubicacion: ubicacionFinal,
         motivo: ubicacionAnterior 
-          ? `Cambio de ${ubicacionAnterior} a ${ubicacionFinal}` 
+          ? `Reubicación de ${ubicacionAnterior} a ${ubicacionFinal}` 
           : `Ubicado en ${ubicacionFinal}`,
         referencia: ubicacionAnterior ? "cambio_ubicacion" : "asignacion_inicial",
-        created_by: user.data.user?.id,
+        created_by_id: profileData?.id || 1,
       });
 
       toast.success(
@@ -511,6 +537,13 @@ export default function ReubicacionRepuestos() {
       const user = await supabase.auth.getUser();
       const itemsToUpdate = inventarioItems.filter(item => selectedItems.has(item.id));
 
+      // Get user profile id
+      const { data: profileData } = await (supabase as any)
+        .from("usuarios")
+        .select("id")
+        .eq("auth_uid", user.data.user?.id)
+        .single();
+
       for (const item of itemsToUpdate) {
         const ubicacionAnterior = item.ubicacion_legacy;
         
@@ -519,17 +552,19 @@ export default function ReubicacionRepuestos() {
           .update({ ubicacion_legacy: ubicacionFinal })
           .eq("id", item.id);
 
-        await supabase.from("movimientos_inventario").insert({
+        await (supabase as any).from("movimientos_inventario").insert({
           centro_servicio_id: item.centro_servicio_id,
-          codigo_repuesto: item.codigo_repuesto,
-          tipo_movimiento: "reubicacion",
+          repuesto_id: item.id,
+          tipo_movimiento: "AJUSTE",
           cantidad: item.cantidad,
+          stock_anterior: item.cantidad,
+          stock_nuevo: item.cantidad,
           ubicacion: ubicacionFinal,
           motivo: ubicacionAnterior 
-            ? `Cambio masivo de ${ubicacionAnterior} a ${ubicacionFinal}` 
+            ? `Reubicación masiva de ${ubicacionAnterior} a ${ubicacionFinal}` 
             : `Ubicado en ${ubicacionFinal} (masivo)`,
           referencia: "reubicacion_masiva",
-          created_by: user.data.user?.id,
+          created_by_id: profileData?.id || 1,
         });
       }
 
@@ -652,7 +687,7 @@ export default function ReubicacionRepuestos() {
                       <SelectContent>
                         <SelectItem value="todos">Todos los centros</SelectItem>
                         {centrosServicio.map((centro) => (
-                          <SelectItem key={centro.id} value={centro.id}>
+                          <SelectItem key={centro.id} value={String(centro.id)}>
                             {centro.nombre}
                           </SelectItem>
                         ))}
@@ -688,7 +723,7 @@ export default function ReubicacionRepuestos() {
                     </Button>
                   </div>
 
-                  {/* NEW: Toggle to show all or only pending */}
+                  {/* Toggle to show all or only pending */}
                   <div className="flex items-end">
                     <div className="flex items-center space-x-2 p-2 rounded-lg border bg-muted/30">
                       <Switch
@@ -794,7 +829,7 @@ export default function ReubicacionRepuestos() {
                             </TableCell>
                             <TableCell>
                               <Badge variant="outline" className="font-normal">
-                                {item.centros_servicio?.nombre}
+                                {item.centro_nombre}
                               </Badge>
                             </TableCell>
                             <TableCell className="text-right font-medium">{item.cantidad}</TableCell>
@@ -907,7 +942,7 @@ export default function ReubicacionRepuestos() {
                   key={centro.id}
                   className="cursor-pointer hover:shadow-md transition-shadow"
                   onClick={() => {
-                    setCentroSeleccionado(centro.id);
+                    setCentroSeleccionado(String(centro.id));
                     setSoloSinUbicar(true);
                     setActiveTab("pendientes");
                   }}
@@ -958,7 +993,7 @@ export default function ReubicacionRepuestos() {
                 <p className="font-mono font-bold">{itemAUbicar.codigo_repuesto}</p>
                 <p className="text-sm text-muted-foreground">{itemAUbicar.descripcion}</p>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <Badge variant="outline">{itemAUbicar.centros_servicio?.nombre}</Badge>
+                  <Badge variant="outline">{itemAUbicar.centro_nombre}</Badge>
                   <Badge>{itemAUbicar.cantidad} uds</Badge>
                   {itemAUbicar.ubicacion_legacy && (
                     <Badge variant="secondary" className="font-mono">

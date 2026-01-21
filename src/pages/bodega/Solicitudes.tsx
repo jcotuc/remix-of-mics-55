@@ -16,8 +16,8 @@ type Repuesto = {
 };
 
 type Solicitud = {
-  id: string;
-  incidente_id: string;
+  id: number;
+  incidente_id: number;
   incidente_codigo?: string;
   tecnico_solicitante: string;
   repuestos: Repuesto[];
@@ -36,7 +36,7 @@ export default function Solicitudes() {
   const [solicitudes, setSolicitudes] = useState<Solicitud[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [asignando, setAsignando] = useState<string | null>(null);
+  const [asignando, setAsignando] = useState<number | null>(null);
   
   const [filtroTexto, setFiltroTexto] = useState("");
 
@@ -104,14 +104,14 @@ export default function Solicitudes() {
     if (solicitud.estado === "pendiente" && !solicitud.asignado_a) {
       setAsignando(solicitud.id);
       try {
-        const { error } = await supabase
+        const { error } = await (supabase as any)
           .from('solicitudes_repuestos')
           .update({ 
             asignado_a: currentUserId,
             fecha_asignacion: new Date().toISOString(),
             estado: 'en_proceso'
           })
-          .eq('id', solicitud.id);
+          .eq('id', Number(solicitud.id));
 
         if (error) throw error;
         toast.success('Solicitud asignada');
