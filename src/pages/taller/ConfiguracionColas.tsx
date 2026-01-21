@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { apiBackendAction } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -203,24 +204,20 @@ export default function ConfiguracionColas() {
 
   const fetchInitialData = async () => {
     try {
-      // Fetch familias abuelas (parent_id = null)
-      const { data: familiasData } = await supabase
-        .from("familias_producto")
-        .select("id, nombre")
-        .is("parent_id", null)
-        .order("nombre");
+      // Use apiBackendAction for familias_producto and centros_de_servicio
+      const [familiasResponse, centrosResponse] = await Promise.all([
+        apiBackendAction("familias_producto.list", {}),
+        apiBackendAction("centros_de_servicio.list", {}),
+      ]);
 
-      // Fetch centros de servicio
-      const { data: centrosData } = await supabase
-        .from("centros_de_servicio")
-        .select("id, nombre")
-        .eq("activo", true)
-        .order("nombre");
+      setFamilias(
+        familiasResponse.results.map((f) => ({ id: f.id, nombre: f.nombre }))
+      );
+      
+      const centrosData = centrosResponse.items || [];
+      setCentros(centrosData.map((c: any) => ({ id: c.id, nombre: c.nombre })));
 
-      setFamilias((familiasData || []).map(f => ({ id: f.id, nombre: f.nombre })));
-      setCentros((centrosData || []).map(c => ({ id: c.id, nombre: c.nombre })));
-
-      if (centrosData && centrosData.length > 0) {
+      if (centrosData.length > 0) {
         setSelectedCentro(String(centrosData[0].id));
       }
     } catch (error) {
@@ -239,28 +236,38 @@ export default function ConfiguracionColas() {
 
   const fetchConfiguracion = async () => {
     try {
-      const { data: gruposData } = await supabase
-        .from("grupos_cola_fifo")
-        .select("*")
-        .eq("centro_servicio_id", Number(selectedCentro))
-        .order("orden");
+      // Use apiBackendAction for grupos_cola_fifo
+      const gruposResponse = await apiBackendAction("grupos_cola_fifo.list", {});
+      const allGrupos = gruposResponse.results;
+      
+      // Filter by selected centro
+      const gruposDelCentro = allGrupos.filter(
+        (g) => g.centro_servicio_id === Number(selectedCentro)
+      );
 
-      if (gruposData && gruposData.length > 0) {
-        const { data: familiasGrupos } = await supabase
-          .from("grupos_cola_fifo_familias")
-          .select("grupo_id, familia_abuelo_id")
-          .in("grupo_id", gruposData.map((g) => g.id));
+      if (gruposDelCentro.length > 0) {
+        // Use apiBackendAction for grupos_cola_fifo_familias
+        const familiasGruposResponse = await apiBackendAction("grupos_cola_fifo_familias.list", {});
+        const allFamiliasGrupos = familiasGruposResponse.results;
+        
+        // Filter by grupo ids
+        const grupoIds = gruposDelCentro.map((g) => g.id);
+        const familiasGrupos = allFamiliasGrupos.filter(
+          (fg) => grupoIds.includes(fg.grupo_id)
+        );
 
-        const gruposConFamilias: GrupoColaFifo[] = gruposData.map((grupo) => ({
-          id: grupo.id,
-          nombre: grupo.nombre,
-          orden: grupo.orden,
-          activo: grupo.activo ?? true,
-          color: grupo.color || undefined,
-          familias: (familiasGrupos || [])
-            .filter((fg) => fg.grupo_id === grupo.id)
-            .map((fg) => fg.familia_abuelo_id),
-        }));
+        const gruposConFamilias: GrupoColaFifo[] = gruposDelCentro
+          .sort((a, b) => a.orden - b.orden)
+          .map((grupo) => ({
+            id: grupo.id,
+            nombre: grupo.nombre,
+            orden: grupo.orden,
+            activo: grupo.activo ?? true,
+            color: grupo.color || undefined,
+            familias: familiasGrupos
+              .filter((fg) => fg.grupo_id === grupo.id)
+              .map((fg) => fg.familia_abuelo_id),
+          }));
 
         setGrupos(gruposConFamilias);
       } else {
@@ -296,7 +303,7 @@ export default function ConfiguracionColas() {
   };
 
   const getColorClass = (color?: string): string => {
-    const colorObj = COLORES_DISPONIBLES.find(c => c.value === color);
+    const colorObj = COLORES_DISPONIBLES.find((c) => c.value === color);
     return colorObj?.class || "bg-gray-500";
   };
 
@@ -332,8 +339,13 @@ export default function ConfiguracionColas() {
   // Get next available color
   const getNextColor = (): string => {
     const usedColors = grupos.map((g) => g.color);
-    const available = COLORES_DISPONIBLES.find((c) => !usedColors.includes(c.value));
-    return available?.value || COLORES_DISPONIBLES[grupos.length % COLORES_DISPONIBLES.length].value;
+    const available = COLORES_DISPONIBLES.find(
+      (c) => !usedColors.includes(c.value)
+    );
+    return (
+      available?.value ||
+      COLORES_DISPONIBLES[grupos.length % COLORES_DISPONIBLES.length].value
+    );
   };
 
   // Quick create a group with a single family
@@ -376,7 +388,7 @@ export default function ConfiguracionColas() {
 
   const handleEditGroup = () => {
     if (!editingGroup) return;
-    
+
     if (selectedFamilias.length === 0) {
       toast.error("Selecciona al menos una familia");
       return;
@@ -384,7 +396,12 @@ export default function ConfiguracionColas() {
 
     const newGrupos = grupos.map((g) =>
       g === editingGroup
-        ? { ...g, nombre: newGroupName.trim(), color: newGroupColor, familias: selectedFamilias }
+        ? {
+            ...g,
+            nombre: newGroupName.trim(),
+            color: newGroupColor,
+            familias: selectedFamilias,
+          }
         : g
     );
 
@@ -420,31 +437,38 @@ export default function ConfiguracionColas() {
     if (!copyFromCentro) return;
 
     try {
-      const { data: gruposData } = await supabase
-        .from("grupos_cola_fifo")
-        .select("*")
-        .eq("centro_servicio_id", Number(copyFromCentro))
-        .order("orden");
+      // Use apiBackendAction for fetching grupos from source centro
+      const gruposResponse = await apiBackendAction("grupos_cola_fifo.list", {});
+      const gruposDelCentro = gruposResponse.results.filter(
+        (g) => g.centro_servicio_id === Number(copyFromCentro)
+      );
 
-      if (!gruposData || gruposData.length === 0) {
+      if (gruposDelCentro.length === 0) {
         toast.error("El centro seleccionado no tiene configuración");
         return;
       }
 
-      const { data: familiasGrupos } = await supabase
-        .from("grupos_cola_fifo_familias")
-        .select("grupo_id, familia_abuelo_id")
-        .in("grupo_id", gruposData.map((g) => g.id));
+      // Use apiBackendAction for fetching familias asociadas
+      const familiasGruposResponse = await apiBackendAction(
+        "grupos_cola_fifo_familias.list",
+        {}
+      );
+      const grupoIds = gruposDelCentro.map((g) => g.id);
+      const familiasGrupos = familiasGruposResponse.results.filter((fg) =>
+        grupoIds.includes(fg.grupo_id)
+      );
 
-      const gruposCopiados: GrupoColaFifo[] = gruposData.map((grupo) => ({
-        nombre: grupo.nombre,
-        orden: grupo.orden,
-        activo: grupo.activo ?? true,
-        color: grupo.color || undefined,
-        familias: (familiasGrupos || [])
-          .filter((fg) => fg.grupo_id === grupo.id)
-          .map((fg) => fg.familia_abuelo_id),
-      }));
+      const gruposCopiados: GrupoColaFifo[] = gruposDelCentro
+        .sort((a, b) => a.orden - b.orden)
+        .map((grupo) => ({
+          nombre: grupo.nombre,
+          orden: grupo.orden,
+          activo: grupo.activo ?? true,
+          color: grupo.color || undefined,
+          familias: familiasGrupos
+            .filter((fg) => fg.grupo_id === grupo.id)
+            .map((fg) => fg.familia_abuelo_id),
+        }));
 
       setGrupos(gruposCopiados);
       setShowCopyDialog(false);
@@ -457,19 +481,22 @@ export default function ConfiguracionColas() {
     }
   };
 
+  // Save uses direct Supabase for write operations (tech debt - pending CRUD contracts)
   const handleSave = async () => {
     if (!selectedCentro || !user) return;
 
     setSaving(true);
     try {
+      // Delete existing configuration
       await supabase
         .from("grupos_cola_fifo")
         .delete()
         .eq("centro_servicio_id", Number(selectedCentro));
 
+      // Insert new groups and their families
       for (const grupo of grupos) {
         const nombreGuardar = grupo.nombre.trim() || getNombreMostrado(grupo);
-        
+
         const { data: grupoInserted, error: grupoError } = await supabase
           .from("grupos_cola_fifo")
           .insert({
@@ -478,7 +505,7 @@ export default function ConfiguracionColas() {
             orden: grupo.orden,
             activo: grupo.activo,
             color: grupo.color || null,
-            updated_by: null, // user.id is a string, column expects number or null
+            updated_by: null,
           })
           .select()
           .single();
@@ -523,9 +550,12 @@ export default function ConfiguracionColas() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Configuración de Colas FIFO</h1>
+          <h1 className="text-2xl font-bold text-foreground">
+            Configuración de Colas FIFO
+          </h1>
           <p className="text-muted-foreground">
-            Configura el orden y agrupación de familias para cada centro de servicio
+            Configura el orden y agrupación de familias para cada centro de
+            servicio
           </p>
         </div>
         <Select value={selectedCentro} onValueChange={setSelectedCentro}>
@@ -533,7 +563,7 @@ export default function ConfiguracionColas() {
             <SelectValue placeholder="Seleccionar centro" />
           </SelectTrigger>
           <SelectContent>
-            {centros.map(centro => (
+            {centros.map((centro) => (
               <SelectItem key={centro.id} value={String(centro.id)}>
                 {centro.nombre}
               </SelectItem>
@@ -544,17 +574,11 @@ export default function ConfiguracionColas() {
 
       {/* Action buttons */}
       <div className="flex flex-wrap gap-2">
-        <Button
-          variant="outline"
-          onClick={() => setShowNewGroupDialog(true)}
-        >
+        <Button variant="outline" onClick={() => setShowNewGroupDialog(true)}>
           <Plus className="h-4 w-4 mr-2" />
           Nuevo Grupo
         </Button>
-        <Button
-          variant="outline"
-          onClick={() => setShowCopyDialog(true)}
-        >
+        <Button variant="outline" onClick={() => setShowCopyDialog(true)}>
           <Copy className="h-4 w-4 mr-2" />
           Copiar de Otro Centro
         </Button>
@@ -566,10 +590,7 @@ export default function ConfiguracionColas() {
           <RotateCcw className="h-4 w-4 mr-2" />
           Descartar Cambios
         </Button>
-        <Button
-          onClick={handleSave}
-          disabled={!hasChanges || saving}
-        >
+        <Button onClick={handleSave} disabled={!hasChanges || saving}>
           {saving ? (
             <Loader2 className="h-4 w-4 mr-2 animate-spin" />
           ) : (
@@ -597,7 +618,9 @@ export default function ConfiguracionColas() {
               {grupos.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <p>No hay grupos configurados</p>
-                  <p className="text-sm">Agrega familias desde el panel derecho o crea un nuevo grupo</p>
+                  <p className="text-sm">
+                    Agrega familias desde el panel derecho o crea un nuevo grupo
+                  </p>
                 </div>
               ) : (
                 <DndContext
@@ -713,11 +736,16 @@ export default function ConfiguracionColas() {
                         if (checked) {
                           setSelectedFamilias([...selectedFamilias, familia.id]);
                         } else {
-                          setSelectedFamilias(selectedFamilias.filter(id => id !== familia.id));
+                          setSelectedFamilias(
+                            selectedFamilias.filter((id) => id !== familia.id)
+                          );
                         }
                       }}
                     />
-                    <label htmlFor={`familia-${familia.id}`} className="text-sm">
+                    <label
+                      htmlFor={`familia-${familia.id}`}
+                      className="text-sm"
+                    >
                       {familia.nombre}
                     </label>
                   </div>
@@ -726,7 +754,10 @@ export default function ConfiguracionColas() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowNewGroupDialog(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setShowNewGroupDialog(false)}
+            >
               Cancelar
             </Button>
             <Button onClick={handleCreateGroup}>
@@ -782,11 +813,16 @@ export default function ConfiguracionColas() {
                         if (checked) {
                           setSelectedFamilias([...selectedFamilias, familia.id]);
                         } else {
-                          setSelectedFamilias(selectedFamilias.filter(id => id !== familia.id));
+                          setSelectedFamilias(
+                            selectedFamilias.filter((id) => id !== familia.id)
+                          );
                         }
                       }}
                     />
-                    <label htmlFor={`edit-familia-${familia.id}`} className="text-sm">
+                    <label
+                      htmlFor={`edit-familia-${familia.id}`}
+                      className="text-sm"
+                    >
                       {familia.nombre}
                     </label>
                   </div>
@@ -795,7 +831,10 @@ export default function ConfiguracionColas() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowEditGroupDialog(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setShowEditGroupDialog(false)}
+            >
               Cancelar
             </Button>
             <Button onClick={handleEditGroup}>
@@ -820,8 +859,8 @@ export default function ConfiguracionColas() {
               </SelectTrigger>
               <SelectContent>
                 {centros
-                  .filter(c => String(c.id) !== selectedCentro)
-                  .map(centro => (
+                  .filter((c) => String(c.id) !== selectedCentro)
+                  .map((centro) => (
                     <SelectItem key={centro.id} value={String(centro.id)}>
                       {centro.nombre}
                     </SelectItem>

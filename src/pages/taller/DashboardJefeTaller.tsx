@@ -8,7 +8,6 @@ interface TecnicoStats {
   nombre: string;
   asignados: number;
   completados: number;
-  tiempoPromedio: number;
 }
 
 interface DashboardStats {
@@ -16,9 +15,6 @@ interface DashboardStats {
   enDiagnostico: number;
   pendienteRepuestos: number;
   aprobacionesPendientes: number;
-  solicitudesCambio: number;
-  aprobacionesStockCemaco: number;
-  tasaReincidencia: number;
   tecnicos: TecnicoStats[];
 }
 
@@ -34,83 +30,66 @@ export default function DashboardJefeTaller() {
     try {
       setLoading(true);
 
-      // Incidentes por estado
-      const { data: asignados } = await supabase
-        .from('incidentes')
-        .select('*')
-        .not('codigo_tecnico', 'is', null);
-
+      // Incidentes por estado - usando los estados correctos del enum
       const { data: enDiagnostico } = await supabase
-        .from('incidentes')
-        .select('*')
-        .eq('status', 'En diagnostico');
+        .from("incidentes")
+        .select("id")
+        .eq("estado", "EN_DIAGNOSTICO");
 
       const { data: pendienteRepuestos } = await supabase
-        .from('incidentes')
-        .select('*')
-        .eq('status', 'Pendiente por repuestos');
+        .from("incidentes")
+        .select("id")
+        .eq("estado", "ESPERA_REPUESTOS");
 
-      // Aprobaciones pendientes
-      const { data: solicitudesCambio } = await supabase
-        .from('solicitudes_cambio')
-        .select('*')
-        .eq('estado', 'pendiente');
+      const { data: esperaAprobacion } = await supabase
+        .from("incidentes")
+        .select("id")
+        .eq("estado", "ESPERA_APROBACION");
 
-      const { data: stockCemaco } = await supabase
-        .from('revisiones_stock_cemaco')
-        .select('*')
-        .is('aprobado_por', null);
+      // Incidentes activos (asignados a técnicos) - usando propietario_id
+      const { data: asignados } = await supabase
+        .from("incidentes")
+        .select("id, propietario_id")
+        .not("propietario_id", "is", null)
+        .in("estado", ["EN_DIAGNOSTICO", "ESPERA_REPUESTOS", "EN_REPARACION"]);
 
-      const { data: incidentesStockCemaco } = await supabase
-        .from('incidentes')
-        .select('*')
-        .eq('status', 'Pendiente de aprobación NC');
-
-      // Reincidencias
-      const { data: verificaciones } = await supabase
-        .from('verificaciones_reincidencia')
-        .select('*')
-        .eq('es_reincidencia_valida', true);
-
-      const totalIncidentes = asignados?.length || 0;
-      const tasaReincidencia = totalIncidentes > 0
-        ? ((verificaciones?.length || 0) / totalIncidentes) * 100
-        : 0;
-
-      // Estadísticas por técnico
-      const { data: tecnicos } = await supabase
-        .from('tecnicos')
-        .select('*');
+      // Estadísticas por técnico - usando usuarios con rol tecnico
+      const { data: tecnicos } = await (supabase as any)
+        .from("usuarios")
+        .select("id, nombre, apellido")
+        .eq("rol", "tecnico")
+        .eq("activo", true);
 
       const { data: diagnosticos } = await supabase
-        .from('diagnosticos')
-        .select('*');
+        .from("diagnosticos")
+        .select("id, tecnico_id, estado");
 
-      const tecnicoStats: TecnicoStats[] = tecnicos?.map(tec => {
-        const incidentesTec = asignados?.filter(i => i.codigo_tecnico === tec.codigo) || [];
-        const diagnosticosTec = diagnosticos?.filter(d => d.tecnico_codigo === tec.codigo) || [];
-        
+      const tecnicoStats: TecnicoStats[] = (tecnicos || []).map((tec: any) => {
+        const incidentesTec = (asignados || []).filter(
+          (i) => i.propietario_id === tec.id
+        );
+        const diagnosticosTec = (diagnosticos || []).filter(
+          (d) => d.tecnico_id === tec.id && d.estado === "COMPLETADO"
+        );
+
         return {
-          nombre: `${tec.nombre} ${tec.apellido}`,
+          nombre: `${tec.nombre || ""} ${tec.apellido || ""}`.trim() || "Sin nombre",
           asignados: incidentesTec.length,
           completados: diagnosticosTec.length,
-          tiempoPromedio: 0 // Cálculo simplificado
         };
-      }).sort((a, b) => b.completados - a.completados).slice(0, 5) || [];
+      })
+        .sort((a: TecnicoStats, b: TecnicoStats) => b.completados - a.completados)
+        .slice(0, 5);
 
       setStats({
         incidentesAsignados: asignados?.length || 0,
         enDiagnostico: enDiagnostico?.length || 0,
         pendienteRepuestos: pendienteRepuestos?.length || 0,
-        aprobacionesPendientes: (solicitudesCambio?.length || 0) + (stockCemaco?.length || 0),
-        solicitudesCambio: solicitudesCambio?.length || 0,
-        aprobacionesStockCemaco: incidentesStockCemaco?.length || 0,
-        tasaReincidencia: Math.round(tasaReincidencia),
-        tecnicos: tecnicoStats
+        aprobacionesPendientes: esperaAprobacion?.length || 0,
+        tecnicos: tecnicoStats,
       });
-
     } catch (error) {
-      console.error('Error:', error);
+      console.error("Error:", error);
     } finally {
       setLoading(false);
     }
@@ -173,63 +152,34 @@ export default function DashboardJefeTaller() {
         </Card>
       </div>
 
-      {/* Aprobaciones Requeridas */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Solicitudes de Cambio de Tipología</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{stats.solicitudesCambio}</div>
-            <p className="text-sm text-muted-foreground mt-2">Pendientes de aprobación</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Aprobaciones Stock Cemaco</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{stats.aprobacionesStockCemaco}</div>
-            <p className="text-sm text-muted-foreground mt-2">Pendientes de decisión final</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Calidad de Reparaciones */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Tasa de Reincidencia</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-2xl font-bold">{stats.tasaReincidencia}%</span>
-            <TrendingUp className="h-5 w-5 text-muted-foreground" />
-          </div>
-          <Progress value={stats.tasaReincidencia} className="h-2" />
-          <p className="text-xs text-muted-foreground">Incidentes que regresan por mismo problema</p>
-        </CardContent>
-      </Card>
-
       {/* Rendimiento por Técnico */}
       <Card>
         <CardHeader>
           <CardTitle>Top 5 - Rendimiento de Técnicos</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-3">
-            {stats.tecnicos.map((tec, idx) => (
-              <div key={idx} className="flex items-center justify-between p-3 rounded-lg border">
-                <div>
-                  <p className="font-medium">{tec.nombre}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {tec.asignados} asignados • {tec.completados} completados
-                  </p>
+          {stats.tecnicos.length === 0 ? (
+            <p className="text-muted-foreground text-center py-4">
+              No hay técnicos con asignaciones
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {stats.tecnicos.map((tec, idx) => (
+                <div
+                  key={idx}
+                  className="flex items-center justify-between p-3 rounded-lg border"
+                >
+                  <div>
+                    <p className="font-medium">{tec.nombre}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {tec.asignados} asignados • {tec.completados} completados
+                    </p>
+                  </div>
+                  <CheckCircle className="h-5 w-5 text-green-500" />
                 </div>
-                <CheckCircle className="h-5 w-5 text-green-500" />
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
