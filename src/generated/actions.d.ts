@@ -924,6 +924,68 @@ export interface FamiliaProductoListOutput {
   total: number;
 }
 
+// From app.contracts.grupos_cola_fifo.create
+export interface GrupoColaFifoCreateInput {
+  centro_servicio_id: number;
+  nombre: string;
+  orden: number;
+  activo?: boolean;
+  color?: string | null;
+  updated_by?: number | null;
+}
+
+export interface GrupoColaFifoCreateOutput {
+  centro_servicio_id: number;
+  nombre: string;
+  orden: number;
+  activo?: boolean;
+  color?: string | null;
+  updated_by?: number | null;
+  id: number;
+  created_at: string;
+  updated_at?: string | null;
+}
+
+export interface GrupoColaFifoCreateSchema {
+  centro_servicio_id: number;
+  nombre: string;
+  orden: number;
+  activo?: boolean;
+  color?: string | null;
+  updated_by?: number | null;
+}
+
+export interface GrupoColaFifoSchema {
+  centro_servicio_id: number;
+  nombre: string;
+  orden: number;
+  activo?: boolean;
+  color?: string | null;
+  updated_by?: number | null;
+  id: number;
+  created_at: string;
+  updated_at?: string | null;
+}
+
+// From app.contracts.grupos_cola_fifo.delete
+export interface GrupoColaFifoDeleteInput {
+  id: number;
+}
+
+export interface GrupoColaFifoDeleteOutput {
+  status: string;
+  id: number;
+}
+
+// From app.contracts.grupos_cola_fifo.get
+export interface GrupoColaFifoGetInput {
+  id: number;
+}
+
+export interface GrupoColaFifoGetOutput {
+  result: GrupoColaFifoSchema | null;
+}
+
 // From app.contracts.grupos_cola_fifo.list
 export interface GrupoColaFifoListInput {
   page?: number;
@@ -937,7 +999,22 @@ export interface GrupoColaFifoListOutput {
   total: number;
 }
 
-export interface GrupoColaFifoSchema {
+// From app.contracts.grupos_cola_fifo.update
+export interface GrupoColaFifoUpdateInput {
+  id: number;
+  data: GrupoColaFifoUpdateSchema;
+}
+
+export interface GrupoColaFifoUpdateSchema {
+  centro_servicio_id?: number | null;
+  nombre?: string | null;
+  orden?: number | null;
+  activo?: boolean | null;
+  color?: string | null;
+  updated_by?: number | null;
+}
+
+export interface GrupoColaFifoUpdateOutput {
   centro_servicio_id: number;
   nombre: string;
   orden: number;
@@ -947,6 +1024,50 @@ export interface GrupoColaFifoSchema {
   id: number;
   created_at: string;
   updated_at?: string | null;
+}
+
+// From app.contracts.grupos_cola_fifo_familias.create
+export interface GrupoColaFifoFamiliaCreateInput {
+  grupo_id: number;
+  familia_abuelo_id: number;
+}
+
+export interface GrupoColaFifoFamiliaCreateOutput {
+  grupo_id: number;
+  familia_abuelo_id: number;
+  id: number;
+  created_at: string;
+}
+
+export interface GrupoColaFifoFamiliaCreateSchema {
+  grupo_id: number;
+  familia_abuelo_id: number;
+}
+
+export interface GrupoColaFifoFamiliaSchema {
+  grupo_id: number;
+  familia_abuelo_id: number;
+  id: number;
+  created_at: string;
+}
+
+// From app.contracts.grupos_cola_fifo_familias.delete
+export interface GrupoColaFifoFamiliaDeleteInput {
+  id: number;
+}
+
+export interface GrupoColaFifoFamiliaDeleteOutput {
+  status: string;
+  id: number;
+}
+
+// From app.contracts.grupos_cola_fifo_familias.get
+export interface GrupoColaFifoFamiliaGetInput {
+  id: number;
+}
+
+export interface GrupoColaFifoFamiliaGetOutput {
+  result: GrupoColaFifoFamiliaSchema | null;
 }
 
 // From app.contracts.grupos_cola_fifo_familias.list
@@ -962,7 +1083,18 @@ export interface GrupoColaFifoFamiliaListOutput {
   total: number;
 }
 
-export interface GrupoColaFifoFamiliaSchema {
+// From app.contracts.grupos_cola_fifo_familias.update
+export interface GrupoColaFifoFamiliaBaseSchema {
+  grupo_id: number;
+  familia_abuelo_id: number;
+}
+
+export interface GrupoColaFifoFamiliaUpdateInput {
+  id: number;
+  data: GrupoColaFifoFamiliaBaseSchema;
+}
+
+export interface GrupoColaFifoFamiliaUpdateOutput {
   grupo_id: number;
   familia_abuelo_id: number;
   id: number;
