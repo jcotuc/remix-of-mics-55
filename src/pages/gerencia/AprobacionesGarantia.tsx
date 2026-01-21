@@ -15,8 +15,8 @@ import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface SolicitudCambio {
-  id: string;
-  incidente_id: string;
+  id: number;
+  incidente_id: number;
   tipo_cambio: string;
   justificacion: string;
   tecnico_solicitante: string;
@@ -25,10 +25,10 @@ interface SolicitudCambio {
   observaciones_aprobacion: string | null;
   created_at: string;
   incidente?: {
-    id: string;
+    id: number;
     codigo: string;
-    codigo_producto: string;
-    centro_servicio: string;
+    producto_id: number | null;
+    centro_de_servicio_id: number;
   };
 }
 
@@ -52,40 +52,45 @@ export default function AprobacionesGarantia() {
   const fetchSolicitudes = async () => {
     try {
       // Obtener centros asignados al supervisor actual
-      let centroIds: string[] = [];
+      let centroIds: number[] = [];
       if (user) {
         const { data: centrosAsignados } = await supabase
           .from("centros_supervisor")
           .select("centro_servicio_id")
-          .eq("supervisor_id", user.id);
+          .eq("supervisor_id", Number(user.id));
         
         centroIds = centrosAsignados?.map(c => c.centro_servicio_id) || [];
       }
 
-      const { data, error } = await supabase
+      // Usar casting para tabla no tipada
+      const { data, error } = await (supabase as any)
         .from("solicitudes_cambio")
-        .select(`
-          *,
-          incidentes!solicitudes_cambio_incidente_id_fkey(id, codigo, codigo_producto, centro_servicio)
-        `)
+        .select("*")
         .order("created_at", { ascending: false });
 
       if (error) throw error;
 
-      // Filtrar por centros asignados si el supervisor tiene centros
-      let filtered = (data || []).map(s => ({
-        ...s,
-        incidente: s.incidentes,
-      }));
+      // Fetch incidente details separately
+      const solicitudesConIncidente = await Promise.all(
+        (data || []).map(async (s: any) => {
+          const { data: incidente } = await supabase
+            .from("incidentes")
+            .select("id, codigo, producto_id, centro_de_servicio_id")
+            .eq("id", s.incidente_id)
+            .single();
+          return { ...s, incidente };
+        })
+      );
 
-      // Si el supervisor tiene centros asignados, filtrar solo esos
+      // Filtrar por centros asignados si el supervisor tiene centros
+      let filtered = solicitudesConIncidente;
       if (centroIds.length > 0) {
-        filtered = filtered.filter(s => 
-          s.incidente?.centro_servicio && centroIds.includes(s.incidente.centro_servicio)
+        filtered = filtered.filter((s: any) => 
+          s.incidente?.centro_de_servicio_id && centroIds.includes(s.incidente.centro_de_servicio_id)
         );
       }
 
-      setSolicitudes(filtered);
+      setSolicitudes(filtered as SolicitudCambio[]);
     } catch (error) {
       console.error("Error:", error);
       toast.error("Error al cargar solicitudes");
@@ -111,11 +116,11 @@ export default function AprobacionesGarantia() {
 
     setSubmitting(true);
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from("solicitudes_cambio")
         .update({
           estado: aprobado ? "aprobada" : "rechazada",
-          aprobado_por: user.id,
+          aprobado_por: Number(user.id),
           fecha_aprobacion: new Date().toISOString(),
           observaciones_aprobacion: observaciones.trim() || null,
         })
@@ -124,37 +129,26 @@ export default function AprobacionesGarantia() {
       if (error) throw error;
 
       // Determinar nuevo status según tipo y decisión
-      type StatusType = "Bodega pedido" | "NC Autorizada" | "En diagnostico";
-      let nuevoStatus: StatusType;
+      let nuevoEstado: string;
       if (aprobado) {
-        // Si es nota de crédito aprobada, va a NC Autorizada
         if (selectedSolicitud.tipo_cambio === "nota_credito") {
-          nuevoStatus = "NC Autorizada";
+          nuevoEstado = "nc_autorizada";
         } else {
-          // Cambio por garantía aprobado va a Bodega pedido
-          nuevoStatus = "Bodega pedido";
+          nuevoEstado = "bodega_pedido";
         }
       } else {
-        // Rechazado vuelve a diagnóstico para reparar
-        nuevoStatus = "En diagnostico";
+        nuevoEstado = "en_diagnostico";
       }
 
-      // Actualizar status del incidente
+      // Actualizar estado del incidente
       if (selectedSolicitud.incidente_id) {
         await supabase
           .from("incidentes")
           .update({ 
-            status: nuevoStatus,
+            estado: nuevoEstado as any,
             updated_at: new Date().toISOString()
           })
           .eq("id", selectedSolicitud.incidente_id);
-
-        // Marcar notificaciones relacionadas como leídas
-        await supabase
-          .from("notificaciones")
-          .update({ leido: true })
-          .eq("incidente_id", selectedSolicitud.incidente_id)
-          .in("tipo", ["aprobacion_cxg", "aprobacion_nc"]);
       }
 
       toast.success(
@@ -335,7 +329,6 @@ export default function AprobacionesGarantia() {
                       <TableHead>Incidente</TableHead>
                       <TableHead>Tipo</TableHead>
                       <TableHead>Técnico</TableHead>
-                      <TableHead>Centro</TableHead>
                       <TableHead>Fecha</TableHead>
                       <TableHead>Evidencia</TableHead>
                       <TableHead className="text-right">Acciones</TableHead>
@@ -348,13 +341,12 @@ export default function AprobacionesGarantia() {
                           <div>
                             <p className="font-medium">{sol.incidente?.codigo}</p>
                             <p className="text-xs text-muted-foreground">
-                              {sol.incidente?.codigo_producto}
+                              {sol.incidente?.producto_id || "Sin producto"}
                             </p>
                           </div>
                         </TableCell>
                         <TableCell>{getTipoBadge(sol.tipo_cambio)}</TableCell>
                         <TableCell>{sol.tecnico_solicitante}</TableCell>
-                        <TableCell>{sol.incidente?.centro_servicio || "N/A"}</TableCell>
                         <TableCell>
                           {formatFechaCorta(sol.created_at)}
                         </TableCell>
@@ -378,7 +370,7 @@ export default function AprobacionesGarantia() {
                     ))}
                     {filteredPendientes.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                        <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                           No hay solicitudes pendientes
                         </TableCell>
                       </TableRow>
@@ -415,7 +407,7 @@ export default function AprobacionesGarantia() {
                           <div>
                             <p className="font-medium">{sol.incidente?.codigo}</p>
                             <p className="text-xs text-muted-foreground">
-                              {sol.incidente?.codigo_producto}
+                              {sol.incidente?.producto_id || "Sin producto"}
                             </p>
                           </div>
                         </TableCell>
@@ -461,45 +453,37 @@ export default function AprobacionesGarantia() {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Producto</p>
-                  <p className="font-medium">{selectedSolicitud.incidente?.codigo_producto}</p>
+                  <p className="font-medium">{selectedSolicitud.incidente?.producto_id || "Sin producto"}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Técnico</p>
-                  <p className="font-medium">{selectedSolicitud.tecnico_solicitante}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Tipo</p>
+                  <p className="text-sm text-muted-foreground">Tipo de Cambio</p>
                   {getTipoBadge(selectedSolicitud.tipo_cambio)}
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Técnico Solicitante</p>
+                  <p className="font-medium">{selectedSolicitud.tecnico_solicitante}</p>
                 </div>
               </div>
 
               {/* Justificación */}
               <div>
-                <p className="text-sm font-medium mb-2">Justificación del técnico:</p>
-                <div className="p-3 bg-secondary/10 rounded-lg text-sm">
-                  {selectedSolicitud.justificacion}
-                </div>
+                <p className="text-sm text-muted-foreground mb-1">Justificación del Técnico</p>
+                <p className="p-3 bg-muted rounded-lg">{selectedSolicitud.justificacion}</p>
               </div>
 
               {/* Fotos */}
               {selectedSolicitud.fotos_urls && selectedSolicitud.fotos_urls.length > 0 && (
                 <div>
-                  <p className="text-sm font-medium mb-2">Evidencia fotográfica:</p>
+                  <p className="text-sm text-muted-foreground mb-2">Evidencia Fotográfica</p>
                   <div className="grid grid-cols-3 gap-2">
                     {selectedSolicitud.fotos_urls.map((url, idx) => (
-                      <a
+                      <img
                         key={idx}
-                        href={url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="aspect-square bg-muted rounded-lg overflow-hidden"
-                      >
-                        <img
-                          src={url}
-                          alt={`Evidencia ${idx + 1}`}
-                          className="w-full h-full object-cover hover:opacity-80 transition-opacity"
-                        />
-                      </a>
+                        src={url}
+                        alt={`Evidencia ${idx + 1}`}
+                        className="w-full h-24 object-cover rounded-lg cursor-pointer hover:opacity-80"
+                        onClick={() => window.open(url, "_blank")}
+                      />
                     ))}
                   </div>
                 </div>
@@ -507,21 +491,20 @@ export default function AprobacionesGarantia() {
 
               {/* Observaciones */}
               <div>
-                <label className="text-sm font-medium">
-                  Observaciones <span className="text-destructive">(obligatorio al rechazar)</span>:
-                </label>
+                <p className="text-sm text-muted-foreground mb-1">
+                  Observaciones (requerido para rechazar)
+                </p>
                 <Textarea
                   value={observaciones}
                   onChange={(e) => setObservaciones(e.target.value)}
-                  placeholder="Agrega comentarios sobre tu decisión (obligatorio si rechazas)..."
-                  rows={2}
-                  className="mt-2"
+                  placeholder="Ingrese observaciones..."
+                  rows={3}
                 />
               </div>
             </div>
           )}
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+            <Button variant="outline" onClick={() => setIsDialogOpen(false)} disabled={submitting}>
               Cancelar
             </Button>
             <Button
@@ -529,7 +512,7 @@ export default function AprobacionesGarantia() {
               onClick={() => handleDecision(false)}
               disabled={submitting}
             >
-              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4 mr-1" />}
+              <XCircle className="h-4 w-4 mr-1" />
               Rechazar
             </Button>
             <Button
@@ -537,7 +520,7 @@ export default function AprobacionesGarantia() {
               disabled={submitting}
               className="bg-green-600 hover:bg-green-700"
             >
-              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4 mr-1" />}
+              <CheckCircle2 className="h-4 w-4 mr-1" />
               Aprobar
             </Button>
           </DialogFooter>

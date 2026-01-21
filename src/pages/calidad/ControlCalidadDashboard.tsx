@@ -29,22 +29,14 @@ export default function ControlCalidadDashboard() {
       const reingresos = auditorias?.filter((a) => a.resultado === "reingreso").length || 0;
       const defectosCriticos = defectos?.filter((d) => d.gravedad === "critica").length || 0;
 
-      // Contar reincidencias pendientes
+      // Contar reincidencias pendientes - simplificado sin tabla verificaciones_reincidencia
       const { data: incidentesPendientes } = await supabase
         .from("incidentes")
         .select("id")
-        .eq("es_reingreso", true)
-        .in("status", ["Ingresado", "Pendiente de diagnostico"]);
+        .in("estado", ["INGRESADO", "EN_DIAGNOSTICO"]);
 
-      let reincidenciasPendientes = 0;
-      for (const inc of incidentesPendientes || []) {
-        const { data: verif } = await supabase
-          .from("verificaciones_reincidencia")
-          .select("id")
-          .eq("incidente_actual_id", inc.id)
-          .single();
-        if (!verif) reincidenciasPendientes++;
-      }
+      // Por ahora contamos incidentes pendientes como aproximación
+      const reincidenciasPendientes = incidentesPendientes?.length || 0;
 
       setStats({
         totalAuditorias: auditorias?.length || 0,
@@ -126,7 +118,7 @@ export default function ControlCalidadDashboard() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-yellow-800">
               <AlertCircle className="h-5 w-5" />
-              Reincidencias Pendientes de Verificación
+              Incidentes Pendientes de Revisión
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -134,7 +126,7 @@ export default function ControlCalidadDashboard() {
               <div>
                 <div className="text-3xl font-bold text-yellow-600">{stats.reincidenciasPendientes}</div>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Incidentes marcados como reingreso que requieren verificación
+                  Incidentes que requieren verificación
                 </p>
               </div>
               <a href="/calidad/reincidencias">

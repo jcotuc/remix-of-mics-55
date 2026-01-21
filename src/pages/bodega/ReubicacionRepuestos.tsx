@@ -350,7 +350,7 @@ export default function ReubicacionRepuestos() {
         if (!grouped[id]) {
           grouped[id] = {
             id,
-            nombre: centrosMap.get(id) || "Sin nombre",
+            nombre: (centrosMap.get(id) as string) || "Sin nombre",
             pendientes: 0
           };
         }
