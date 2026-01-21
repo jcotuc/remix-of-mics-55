@@ -4,12 +4,12 @@ import { Truck, Package, MapPin, TrendingUp } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
+import type { IncidenteSchema } from "@/generated/actions.d";
 
-type IncidenteDB = Database["public"]["Tables"]["incidentes"]["Row"];
 type EmbarqueDB = Database["public"]["Tables"]["embarques"]["Row"];
 
 interface LogisticaDashboardProps {
-  incidentes: IncidenteDB[];
+  incidentes: IncidenteSchema[];
 }
 
 export function LogisticaDashboard({ incidentes }: LogisticaDashboardProps) {
@@ -24,12 +24,14 @@ export function LogisticaDashboard({ incidentes }: LogisticaDashboardProps) {
     if (data) setEmbarques(data);
   };
 
-  // Métricas para logística
+  // Métricas para logística - usando campo 'estado' con valores uppercase
   const conEnvio = incidentes.filter((i) => i.quiere_envio).length;
-  const enRuta = incidentes.filter((i) => i.status === "En ruta").length;
+  const enRuta = incidentes.filter((i) => i.estado === "EN_ENTREGA").length;
   const embarquesActivos = embarques.length;
-  const incidentesAsignados = incidentes.filter((i) => i.embarque_id).length;
-  const pendientesAsignar = incidentes.filter((i) => i.quiere_envio && !i.embarque_id).length;
+  // Pendientes de asignar: quieren envío pero aún no están EN_ENTREGA ni ENTREGADO
+  const pendientesAsignar = incidentes.filter(
+    (i) => i.quiere_envio && !["EN_ENTREGA", "ENTREGADO"].includes(i.estado || "")
+  ).length;
 
   // Embarques por mes
   const embarquesPorMes = embarques.reduce(
@@ -93,17 +95,6 @@ export function LogisticaDashboard({ incidentes }: LogisticaDashboardProps) {
           <CardContent>
             <div className="text-3xl font-bold text-success">{embarquesActivos}</div>
             <p className="text-xs text-muted-foreground mt-1">Total registrados</p>
-          </CardContent>
-        </Card>
-
-        <Card className="hover:shadow-lg transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Incidentes Asignados</CardTitle>
-            <Package className="h-5 w-5 text-info" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-info">{incidentesAsignados}</div>
-            <p className="text-xs text-muted-foreground mt-1">En embarques</p>
           </CardContent>
         </Card>
 

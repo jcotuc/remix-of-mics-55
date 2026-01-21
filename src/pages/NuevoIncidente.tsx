@@ -589,8 +589,8 @@ export default function NuevoIncidente() {
 
         if (!productoData?.familia_padre_id) {
           // Si no tiene familia, cargar todos los accesorios
-          const { data, error } = await supabase
-            .from("CDS_Accesorios")
+          const { data, error } = await (supabase as any)
+            .from("accesorios")
             .select("id, nombre, familia_id")
             .order("nombre");
           if (error) throw error;
@@ -601,21 +601,21 @@ export default function NuevoIncidente() {
         const familiaProductoId = productoData.familia_padre_id;
 
         // Obtener la jerarquía de familias (padre y abuelo) para buscar accesorios
-        const { data: familiaData } = await supabase
-          .from("CDS_Familias")
-          .select("id, Padre")
+        const { data: familiaData } = await (supabase as any)
+          .from("familias_producto")
+          .select("id, parent_id")
           .eq("id", familiaProductoId)
           .single();
 
         // Construir lista de IDs de familia a buscar (la familia del producto y su padre/abuelo)
         const familiaIds: number[] = [familiaProductoId];
-        if (familiaData?.Padre) {
-          familiaIds.push(familiaData.Padre);
+        if (familiaData?.parent_id) {
+          familiaIds.push(familiaData.parent_id);
         }
 
         // Buscar accesorios que pertenezcan a cualquiera de estas familias
-        const { data: accesoriosData, error } = await supabase
-          .from("CDS_Accesorios")
+        const { data: accesoriosData, error } = await (supabase as any)
+          .from("accesorios")
           .select("id, nombre, familia_id")
           .in("familia_id", familiaIds)
           .order("nombre");
@@ -635,7 +635,7 @@ export default function NuevoIncidente() {
     const fetchCentrosYUsuario = async () => {
       try {
         // Cargar todos los centros de servicio
-        const { data: centros } = await supabase
+        const { data: centros } = await (supabase as any)
           .from("centros_servicio")
           .select("id, nombre")
           .eq("activo", true)
@@ -647,7 +647,7 @@ export default function NuevoIncidente() {
         // Establecer centro del usuario actual
         if (user) {
           // 1) Buscar por user_id (ideal)
-          const { data: profileById } = await supabase
+          const { data: profileById } = await (supabase as any)
             .from("profiles")
             .select("centro_servicio_id")
             .eq("user_id", user.id)
@@ -656,7 +656,7 @@ export default function NuevoIncidente() {
           // 2) Fallback por email (para filas antiguas donde user_id no coincide con auth.uid())
           let profile = profileById;
           if (!profile && user.email) {
-            const { data: profileByEmail } = await supabase
+            const { data: profileByEmail } = await (supabase as any)
               .from("profiles")
               .select("centro_servicio_id")
               .eq("email", user.email)
@@ -681,7 +681,7 @@ export default function NuevoIncidente() {
     const fetchDirecciones = async () => {
       if (!clienteSeleccionado) return;
       try {
-        const { data: direccionesData, error: direccionesError } = await supabase
+        const { data: direccionesData, error: direccionesError } = await (supabase as any)
           .from("direcciones_envio")
           .select("*")
           .eq("codigo_cliente", clienteSeleccionado.codigo)
@@ -691,9 +691,9 @@ export default function NuevoIncidente() {
         if (direccionesError) throw direccionesError;
         if (direccionesData && direccionesData.length > 0) {
           setDireccionesEnvio(direccionesData);
-          const principal = direccionesData.find((d) => d.es_principal);
+          const principal = direccionesData.find((d: any) => d.es_principal);
           if (principal) {
-            setDireccionSeleccionada(principal.id);
+            setDireccionSeleccionada(String(principal.id));
           }
         } else {
           if (clienteSeleccionado.direccion) {
@@ -785,9 +785,9 @@ export default function NuevoIncidente() {
       }
 
       try {
-        const { data, error } = await supabase
+        const { data, error } = await (supabase as any)
           .from("incidentes")
-          .select("id, codigo, descripcion_problema, created_at, status, codigo_producto")
+          .select("id, codigo, descripcion_problema, created_at, estado, producto_codigo")
           .eq("codigo_cliente", codigoCliente)
           .order("created_at", { ascending: false })
           .limit(20);
@@ -867,8 +867,8 @@ export default function NuevoIncidente() {
       const familiaId = productoData?.familia_padre_id || null;
 
       // Insertar el nuevo accesorio
-      const { data: nuevoAcc, error } = await supabase
-        .from("CDS_Accesorios")
+      const { data: nuevoAcc, error } = await (supabase as any)
+        .from("accesorios")
         .insert({
           nombre: nombre.trim(),
           familia_id: familiaId,
@@ -879,7 +879,7 @@ export default function NuevoIncidente() {
       if (error) throw error;
 
       // Agregarlo a la lista de disponibles y seleccionarlo automáticamente
-      setAccesoriosDisponibles((prev) => [...prev, nuevoAcc]);
+      setAccesoriosDisponibles((prev: any[]) => [...prev, nuevoAcc]);
       setAccesoriosSeleccionados((prev) => [...prev, nuevoAcc.nombre]);
 
       showSuccess(`"${nuevoAcc.nombre}" se agregó y seleccionó automáticamente.`, "Accesorio agregado");
@@ -982,10 +982,10 @@ export default function NuevoIncidente() {
         direccionEnvioId = direccionSeleccionada;
       }
       if (mostrarFormNuevoCliente) {
-        const { data: codigoData, error: codigoError } = await supabase.rpc("generar_codigo_hpc");
+        const { data: codigoData, error: codigoError } = await (supabase as any).rpc("generar_codigo_hpc");
         if (codigoError) throw codigoError;
         const nuevoCodigoHPC = codigoData;
-        const { data: clienteData, error: clienteError } = await supabase
+        const { data: clienteData, error: clienteError } = await (supabase as any)
           .from("clientes")
           .insert({
             codigo: nuevoCodigoHPC,
@@ -1006,7 +1006,7 @@ export default function NuevoIncidente() {
         if (clienteError) throw clienteError;
         codigoCliente = clienteData.codigo;
         if (nuevoCliente.direccion && nuevoCliente.direccion.trim()) {
-          const { data: dirData, error: dirError } = await supabase
+          const { data: dirData, error: dirError } = await (supabase as any)
             .from("direcciones_envio")
             .insert({
               codigo_cliente: nuevoCodigoHPC,
@@ -1021,15 +1021,15 @@ export default function NuevoIncidente() {
           } else {
             setDireccionesEnvio([dirData]);
             if (opcionEnvio !== "recoger") {
-              setDireccionSeleccionada(dirData.id);
-              direccionEnvioId = dirData.id;
+              setDireccionSeleccionada(String(dirData.id));
+              direccionEnvioId = String(dirData.id);
             }
           }
         }
         setClienteSeleccionado(clienteData);
         showSuccess(`Código HPC: ${nuevoCodigoHPC}`, "Cliente creado");
       } else {
-        const { error: updateError } = await supabase
+        const { error: updateError } = await (supabase as any)
           .from("clientes")
           .update({
             nombre: datosClienteExistente.nombre,
@@ -1044,7 +1044,7 @@ export default function NuevoIncidente() {
       }
       // Si hay una nueva dirección escrita, crearla
       if (nuevaDireccion.trim() && opcionEnvio !== "recoger") {
-        const { data: dirData, error: dirError } = await supabase
+        const { data: dirData, error: dirError } = await (supabase as any)
           .from("direcciones_envio")
           .insert({
             codigo_cliente: codigoCliente,
@@ -1056,13 +1056,13 @@ export default function NuevoIncidente() {
           .select()
           .single();
         if (dirError) throw dirError;
-        direccionEnvioId = dirData.id;
+        direccionEnvioId = String(dirData.id);
       }
       // Si se seleccionó una dirección temporal (del cliente pero no guardada en direcciones_envio), crearla
       else if (direccionSeleccionada && direccionSeleccionada.startsWith("temp-") && opcionEnvio !== "recoger") {
-        const direccionTemp = direccionesEnvio.find((d) => d.id === direccionSeleccionada);
+        const direccionTemp = direccionesEnvio.find((d: any) => d.id === direccionSeleccionada);
         if (direccionTemp) {
-          const { data: dirData, error: dirError } = await supabase
+          const { data: dirData, error: dirError } = await (supabase as any)
             .from("direcciones_envio")
             .insert({
               codigo_cliente: codigoCliente,
@@ -1074,7 +1074,7 @@ export default function NuevoIncidente() {
             .select()
             .single();
           if (dirError) throw dirError;
-          direccionEnvioId = dirData.id;
+          direccionEnvioId = String(dirData.id);
         }
       }
       // Si se seleccionó una dirección existente y hay teléfono, actualizar
@@ -1084,17 +1084,17 @@ export default function NuevoIncidente() {
         telefonoEnvio &&
         opcionEnvio !== "recoger"
       ) {
-        await supabase
+        await (supabase as any)
           .from("direcciones_envio")
           .update({
             telefono_contacto: telefonoEnvio,
           })
-          .eq("id", direccionSeleccionada);
+          .eq("id", parseInt(direccionSeleccionada, 10));
       }
       const {
         data: { user },
       } = await supabase.auth.getUser();
-      const { data: codigoIncidente, error: codigoError } = await supabase.rpc("generar_codigo_incidente");
+      const { data: codigoIncidente, error: codigoError } = await (supabase as any).rpc("generar_codigo_incidente");
       if (codigoError) throw codigoError;
 
       // Determinar código de producto y familia según si es manual o seleccionado
@@ -1124,30 +1124,29 @@ export default function NuevoIncidente() {
         productoDescontinuado = productoSeleccionado.descontinuado;
       }
 
-      const { data: incidenteData, error: incidenteError } = await supabase
+      const { data: incidenteData, error: incidenteError } = await (supabase as any)
         .from("incidentes")
         .insert({
           codigo: codigoIncidente,
           codigo_cliente: codigoCliente,
-          codigo_producto: codigoProductoFinal,
+          producto_codigo: codigoProductoFinal,
           familia_padre_id: familiaPadreId,
           sku_maquina: skuMaquinaFinal,
           descripcion_problema: descripcionProblema,
           persona_deja_maquina: personaDejaMaquina,
           accesorios: accesoriosSeleccionados.join(", ") || null,
-          centro_servicio: centrosServicioList.find((c) => c.id === centroServicio)?.nombre ?? centroServicio,
+          centro_de_servicio_id: centroServicio,
           quiere_envio: opcionEnvio !== "recoger",
-          direccion_envio_id: direccionEnvioId || null,
+          direccion_entrega_id: direccionEnvioId ? parseInt(direccionEnvioId, 10) : null,
           ingresado_en_mostrador: ingresadoMostrador,
           es_reingreso: esReingreso,
           incidente_reingreso_de: esReingreso ? incidenteReingresoId : null,
           es_stock_cemaco: esStockCemaco,
-          log_observaciones: logObservaciones || null,
+          observaciones: logObservaciones || null,
           tipologia: tipologia,
-          status: ingresadoMostrador ? "Ingresado" : "En ruta",
-          cobertura_garantia: false,
+          estado: ingresadoMostrador ? "REGISTRADO" : "EN_ENTREGA",
+          aplica_garantia: false,
           producto_descontinuado: productoDescontinuado,
-          codigo_tecnico: "TEC-001",
           created_by: user?.id || null,
         })
         .select()
@@ -1162,13 +1161,13 @@ export default function NuevoIncidente() {
             preview: p.preview,
             tipo: "foto" as const,
           }));
-          const uploadedMedia = await uploadMediaToStorage(mediaFilesForUpload, incidenteData.id);
+          const uploadedMedia = await uploadMediaToStorage(mediaFilesForUpload, String(incidenteData.id));
           // Add comments to uploaded media
           const uploadedWithComments = uploadedMedia.map((media, idx) => ({
             ...media,
             comment: mediaPhotos[idx]?.comment,
           }));
-          await saveIncidentePhotos(incidenteData.id, uploadedWithComments, "ingreso");
+          await saveIncidentePhotos(String(incidenteData.id), uploadedWithComments, "ingreso");
           showSuccess(`${uploadedMedia.length} archivo(s) subido(s) correctamente`, "Fotos subidas");
         } catch (uploadError) {
           console.error("Error uploading media:", uploadError);

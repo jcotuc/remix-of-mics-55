@@ -1,25 +1,23 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Wrench, Package, AlertTriangle, TrendingUp } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from "recharts";
-import type { Database } from "@/integrations/supabase/types";
-
-type IncidenteDB = Database["public"]["Tables"]["incidentes"]["Row"];
+import type { IncidenteSchema } from "@/generated/actions.d";
 
 interface TallerDashboardProps {
-  incidentes: IncidenteDB[];
+  incidentes: IncidenteSchema[];
 }
 
 export function TallerDashboard({ incidentes }: TallerDashboardProps) {
-  // Métricas para taller
-  const pendienteDiagnostico = incidentes.filter((i) => i.status === "Pendiente de diagnostico").length;
-  const enDiagnostico = incidentes.filter((i) => i.status === "En diagnostico").length;
-  const enReparacion = incidentes.filter((i) => i.status === "Reparado").length;
-  const pendienteRepuestos = incidentes.filter((i) => i.status === "Pendiente por repuestos").length;
+  // Métricas para taller - usando campo 'estado' con valores del enum
+  const pendienteDiagnostico = incidentes.filter((i) => i.estado === "REGISTRADO").length;
+  const enDiagnostico = incidentes.filter((i) => i.estado === "EN_DIAGNOSTICO").length;
+  const enReparacion = incidentes.filter((i) => i.estado === "EN_REPARACION").length;
+  const pendienteRepuestos = incidentes.filter((i) => i.estado === "ESPERA_REPUESTOS").length;
 
-  // Distribución por código de producto
+  // Distribución por código de producto - usando producto.codigo del schema
   const productoDistribution = incidentes.reduce(
     (acc, inc) => {
-      const producto = inc.codigo_producto || "Sin clasificar";
+      const producto = inc.producto?.codigo || "Sin clasificar";
       acc[producto] = (acc[producto] || 0) + 1;
       return acc;
     },
@@ -39,7 +37,9 @@ export function TallerDashboard({ incidentes }: TallerDashboardProps) {
   });
 
   const reparacionesPorDia = last30Days.map((date) => {
-    const count = incidentes.filter((i) => i.status === "Reparado" && i.updated_at.split("T")[0] === date).length;
+    const count = incidentes.filter(
+      (i) => i.estado === "REPARADO" && i.updated_at?.split("T")[0] === date
+    ).length;
     return {
       fecha: new Date(date).toLocaleDateString("es-GT", { day: "2-digit", month: "2-digit" }),
       cantidad: count,
