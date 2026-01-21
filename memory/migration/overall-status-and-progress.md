@@ -1,9 +1,9 @@
 # Memory: migration/overall-status-and-progress
 Updated: Now
 
-## Current Status: ~85% Complete
+## Current Status: ~90% Complete
 
-The project migration to align frontend with actual database schema and centralized apiBackendAction layer is progressing well.
+The project migration to align frontend with actual database schema and centralized apiBackendAction layer is nearly complete.
 
 ## Completed Modules
 
@@ -11,12 +11,15 @@ The project migration to align frontend with actual database schema and centrali
 - All pages using correct schema fields
 - `(supabase as any)` casting applied for `usuarios` table queries
 - Dashboard, assignments, diagnostics all functional
+- PendientesRepuestos, DashboardJefeTaller verified
 
 ### ✅ Logística (100%)
 - `Embarques.tsx` - Fixed cliente_id/estado/aplica_garantia fields
 - `GarantiasManuales.tsx` - Migrated from profiles to usuarios
 - `MaquinasPendientesEnvio.tsx` - Added updated_at fallbacks
 - `SalidaMaquinas.tsx` - Added updated_at fallbacks
+- `IngresoMaquinas.tsx` - Verified with casting pattern
+- `Guias.tsx` - Verified with casting pattern
 - All dashboard pages verified
 
 ### ✅ Bodega (100%)
@@ -41,24 +44,22 @@ The project migration to align frontend with actual database schema and centrali
 - DashboardGerente.tsx verified
 - DashboardSupervisorRegional.tsx verified
 
-### ✅ Admin (Placeholder pages)
-- Usuarios.tsx - Placeholder (requires missing tables)
-- CentrosServicio.tsx - Placeholder (requires missing tables)
+### ✅ Admin (Placeholders Updated)
+- Usuarios.tsx - Placeholder (requires profile integration)
+- CentrosServicio.tsx - Placeholder (requires profile integration)
+- FallasCausas.tsx - Updated placeholder (tables exist, needs CRUD)
+- FamiliasProductos.tsx - Updated placeholder (table exists, needs CRUD)
 
 ## Key Technical Patterns Applied
 
-1. **`(supabase as any)` Casting**: Used consistently for queries to tables with incomplete type definitions (especially `usuarios` via `auth_uid`)
+1. **`(supabase as any)` Casting**: Used consistently for queries to tables with incomplete type definitions
 
-2. **Schema Field Alignment**: All components use correct DB fields:
-   - `aplica_garantia` instead of `cobertura_garantia`
-   - `estado` enums matching `estadoincidente` type
-   - `cliente_id` as numeric instead of string
+2. **Schema Field Alignment**: All components use correct DB fields
 
 3. **Nullability Handling**: Added fallbacks for optional timestamp fields
 
-## Remaining Tasks (~15%)
+## Remaining Tasks (~10%)
 
-- [ ] Final verification of edge cases
+- [ ] DiagnosticoInicial.tsx - Needs full refactor (currently placeholder)
 - [ ] Runtime testing of all routes
 - [ ] Type regeneration when Supabase types are updated
-- [ ] Remove placeholder pages when missing tables are created

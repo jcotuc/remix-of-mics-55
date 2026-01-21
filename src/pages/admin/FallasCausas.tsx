@@ -7,8 +7,13 @@ export default function FallasCausas() {
       <Alert variant="destructive">
         <AlertCircle className="h-4 w-4" />
         <AlertDescription>
-          <strong>Página no disponible</strong>
-          <p className="mt-2">Requiere tablas: CDS_Familias, CDS_Fallas, CDS_Causas</p>
+          <strong>Página en desarrollo</strong>
+          <p className="mt-2">
+            Esta página administra las tablas: <code>fallas</code>, <code>causas</code>, <code>familias_producto</code>
+          </p>
+          <p className="mt-1 text-sm">
+            Las tablas existen en la base de datos. Esta página requiere implementación del CRUD.
+          </p>
         </AlertDescription>
       </Alert>
     </div>
