@@ -174,7 +174,7 @@ export const clienteService = {
    * Obtiene las direcciones de envío de un cliente
    */
   async getDirecciones(codigoCliente: string) {
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from("direcciones_envio")
       .select("*")
       .eq("codigo_cliente", codigoCliente)

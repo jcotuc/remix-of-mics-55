@@ -92,7 +92,7 @@ export default function RevisionStockCemaco() {
       if (!user) throw new Error("Usuario no autenticado");
 
       // Get usuario_id
-      const { data: usuario } = await supabase
+      const { data: usuario } = await (supabase as any)
         .from("usuarios")
         .select("id")
         .eq("auth_uid", user.id)

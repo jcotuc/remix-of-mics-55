@@ -123,7 +123,7 @@ export default function Transferencias() {
     setSubmitting(true);
     try {
       // Get user's info
-      const { data: usuario } = await supabase
+      const { data: usuario } = await (supabase as any)
         .from("usuarios")
         .select("id, centro_de_servicio_id")
         .eq("auth_uid", user.id)

@@ -178,7 +178,7 @@ export default function PendientesRepuestos() {
     setIsCreatingPedido(true);
     try {
       // Get user's info to get centro_servicio_id
-      const { data: usuario } = await supabase
+      const { data: usuario } = await (supabase as any)
         .from("usuarios")
         .select("id, centro_de_servicio_id")
         .eq("auth_uid", user.id)

@@ -45,7 +45,7 @@ export const diagnosticoService = {
    * Lista diagnósticos por técnico
    */
   async listByTecnico(tecnicoCodigo: string): Promise<Diagnostico[]> {
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from("diagnosticos")
       .select("*")
       .eq("tecnico_codigo", tecnicoCodigo)

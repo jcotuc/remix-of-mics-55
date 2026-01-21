@@ -44,7 +44,7 @@ export const solicitudService = {
   },
 
   async list(filters?: SolicitudFilters): Promise<SolicitudRepuesto[]> {
-    let query = supabase
+    let query = (supabase as any)
       .from("solicitudes_repuestos")
       .select("*")
       .order("created_at", { ascending: false });
@@ -75,11 +75,11 @@ export const solicitudService = {
 
     const { data, error } = await query;
     if (error) throw error;
-    return data || [];
+    return (data || []) as SolicitudRepuesto[];
   },
 
   async listPendientes(centroServicioId?: number): Promise<SolicitudRepuesto[]> {
-    let query = supabase
+    let query = (supabase as any)
       .from("solicitudes_repuestos")
       .select("*")
       .eq("estado", "PENDIENTE")
@@ -91,7 +91,7 @@ export const solicitudService = {
 
     const { data, error } = await query;
     if (error) throw error;
-    return data || [];
+    return (data || []) as SolicitudRepuesto[];
   },
 
   async create(solicitud: SolicitudRepuestoInsert): Promise<SolicitudRepuesto> {
@@ -161,7 +161,7 @@ export const solicitudService = {
   },
 
   async countPendientes(centroServicioId?: number): Promise<number> {
-    let query = supabase
+    let query = (supabase as any)
       .from("solicitudes_repuestos")
       .select("id", { count: "exact", head: true })
       .eq("estado", "PENDIENTE");
@@ -176,7 +176,7 @@ export const solicitudService = {
   },
 
   async getEstadisticas(centroServicioId?: number): Promise<Record<string, number>> {
-    let query = supabase
+    let query = (supabase as any)
       .from("solicitudes_repuestos")
       .select("estado");
 
@@ -187,7 +187,7 @@ export const solicitudService = {
     const { data, error } = await query;
     if (error) throw error;
 
-    const stats = (data || []).reduce((acc, solicitud) => {
+    const stats = (data || []).reduce((acc: Record<string, number>, solicitud: any) => {
       const estado = solicitud.estado || "UNKNOWN";
       acc[estado] = (acc[estado] || 0) + 1;
       return acc;
