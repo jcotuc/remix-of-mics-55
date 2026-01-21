@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { supabase } from "@/integrations/supabase/client";
 import { Loader2, Package, TrendingDown, AlertTriangle, Clock, FileText, Box } from "lucide-react";
+import { apiBackendAction } from "@/lib/api";
 
 interface DashboardStats {
   solicitudesPendientes: number;
@@ -26,81 +26,61 @@ export default function DashboardJefeBodega() {
     try {
       setLoading(true);
 
-      // Solicitudes pendientes
-      const { data: solicitudes } = await supabase
-        .from('solicitudes_repuestos')
-        .select('*')
-        .in('estado', ['pendiente', 'asignado']);
+      // Solicitudes pendientes via registry
+      const solicitudesRes = await apiBackendAction("solicitudes_repuestos.list", {});
+      const solicitudes = ((solicitudesRes as any).results || []).filter(
+        (s: any) => s.estado === "pendiente" || s.estado === "asignado"
+      );
 
-      // Despachos de hoy - usar casting para tipo_movimiento lowercase
+      // Inventario via registry
+      const inventarioRes = await apiBackendAction("inventarios.list", {});
+      const inventarioData = (inventarioRes as any).results || [];
+      
+      // Stock crítico - items con menos de 5 unidades
+      const stockCritico = inventarioData.filter((s: any) => s.cantidad < 5).length;
+
+      // Repuestos via registry
+      const repuestosRes = await apiBackendAction("repuestos.list", {});
+      const todosRepuestos = (repuestosRes as any).results || [];
+
+      // Movimientos via registry
+      const movimientosRes = await apiBackendAction("movimientos_inventario.list", {});
+      const allMovimientos = (movimientosRes as any).results || [];
+      
+      // Despachos de hoy
       const hoy = new Date().toISOString().split('T')[0];
-      const { data: despachosHoy } = await (supabase as any)
-        .from('movimientos_inventario')
-        .select('*')
-        .eq('tipo_movimiento', 'SALIDA')
-        .gte('created_at', hoy);
-
-      // Ingresos pendientes de ubicar
-      const { data: importaciones } = await (supabase as any)
-        .from('importaciones')
-        .select('*')
-        .eq('estado', 'pendiente');
-
-      const { data: detalleImportaciones } = await (supabase as any)
-        .from('importaciones_detalle')
-        .select('*')
-        .eq('procesado', false);
-
-      // Stock crítico - usando la nueva tabla inventario
-      const { data: inventarioData } = await supabase
-        .from('inventario')
-        .select('*');
-
-      // Consideramos stock crítico los items con menos de 5 unidades
-      const stockCritico = inventarioData?.filter(s =>
-        s.cantidad < 5
-      ).length || 0;
+      const despachosHoy = allMovimientos.filter(
+        (m: any) => m.tipo_movimiento === "SALIDA" && m.created_at?.startsWith(hoy)
+      );
 
       // Sin movimiento mayor a 90 días
       const fecha90Dias = new Date();
       fecha90Dias.setDate(fecha90Dias.getDate() - 90);
-      
-      const { data: movimientos } = await (supabase as any)
-        .from('movimientos_inventario')
-        .select('repuesto_id')
-        .gte('created_at', fecha90Dias.toISOString());
-
-      const repuestosConMovimiento = new Set(movimientos?.map((m: any) => m.repuesto_id));
-      const { data: todosRepuestos } = await supabase
-        .from('repuestos')
-        .select('id');
-
-      const sinMovimiento = todosRepuestos?.filter(r =>
-        !repuestosConMovimiento.has(r.id)
-      ).length || 0;
+      const movimientosRecientes = allMovimientos.filter(
+        (m: any) => new Date(m.created_at) >= fecha90Dias
+      );
+      const repuestosConMovimiento = new Set(movimientosRecientes.map((m: any) => m.repuesto_id));
+      const sinMovimiento = todosRepuestos.filter(
+        (r: any) => !repuestosConMovimiento.has(r.id)
+      ).length;
 
       // Tasa de cumplimiento
-      const { data: solicitudesEntregadas } = await supabase
-        .from('solicitudes_repuestos')
-        .select('*')
-        .eq('estado', 'entregado');
-
-      const { data: todasSolicitudes } = await supabase
-        .from('solicitudes_repuestos')
-        .select('*');
-
-      const tasaCumplimiento = todasSolicitudes && todasSolicitudes.length > 0
-        ? ((solicitudesEntregadas?.length || 0) / todasSolicitudes.length) * 100
+      const solicitudesEntregadas = ((solicitudesRes as any).results || []).filter(
+        (s: any) => s.estado === "entregado"
+      );
+      const todasSolicitudes = (solicitudesRes as any).results || [];
+      const tasaCumplimiento = todasSolicitudes.length > 0
+        ? (solicitudesEntregadas.length / todasSolicitudes.length) * 100
         : 0;
 
       setStats({
-        solicitudesPendientes: solicitudes?.length || 0,
-        despachosHoy: despachosHoy?.length || 0,
-        ingresosPendientes: detalleImportaciones?.length || 0,
-        importacionesPendientes: importaciones?.length || 0,
+        solicitudesPendientes: solicitudes.length,
+        despachosHoy: despachosHoy.length,
+        ingresosPendientes: 0, // Requires importaciones tables
+        importacionesPendientes: 0, // Requires importaciones tables
         stockCritico,
         sinMovimiento90: sinMovimiento,
-        tiempoPromedioDespacho: 0, // Cálculo simplificado
+        tiempoPromedioDespacho: 0,
         tasaCumplimiento: Math.round(tasaCumplimiento)
       });
 

@@ -8,10 +8,11 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search, Plus, Camera, Paperclip } from "lucide-react";
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/client"; // Still needed for storage uploads and complex writes
 import { PhotoGalleryWithDescriptions, type PhotoWithDescription } from "@/components/shared";
 import { toast } from "sonner";
 import { OutlinedInput, OutlinedTextarea, OutlinedSelect } from "@/components/ui/outlined-input";
+import { apiBackendAction } from "@/lib/api";
 type GarantiaManuaDB = {
   id: number;
   codigo_cliente: string;

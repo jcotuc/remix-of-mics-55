@@ -9,9 +9,10 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { formatFechaRelativa } from "@/utils/dateFormatters";
+import { apiBackendAction } from "@/lib/api";
+import { supabase } from "@/integrations/supabase/client"; // Hybrid: needed for complex joins and writes
 
 interface Repuesto {
   codigo: string;
