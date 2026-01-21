@@ -33,7 +33,7 @@ export default function ControlCalidadDashboard() {
       const { data: incidentesPendientes } = await supabase
         .from("incidentes")
         .select("id")
-        .in("estado", ["INGRESADO", "EN_DIAGNOSTICO"]);
+        .in("estado", ["EN_DIAGNOSTICO", "EN_REPARACION"]);
 
       // Por ahora contamos incidentes pendientes como aproximación
       const reincidenciasPendientes = incidentesPendientes?.length || 0;

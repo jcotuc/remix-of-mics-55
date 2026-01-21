@@ -64,7 +64,7 @@ export default function VerificacionReincidencias() {
     const { data, error } = await supabase
       .from("incidentes")
       .select("id, codigo, cliente_id, producto_id, descripcion_problema, fecha_ingreso")
-      .in("estado", ["INGRESADO", "EN_DIAGNOSTICO"])
+      .in("estado", ["EN_DIAGNOSTICO", "EN_REPARACION"])
       .order("fecha_ingreso", { ascending: false })
       .limit(20);
 
@@ -93,7 +93,7 @@ export default function VerificacionReincidencias() {
     const { data: pendientes } = await supabase
       .from("incidentes")
       .select("id")
-      .in("estado", ["INGRESADO", "EN_DIAGNOSTICO"]);
+      .in("estado", ["EN_DIAGNOSTICO", "EN_REPARACION"]);
 
     setStats({
       pendientes: pendientes?.length || 0,

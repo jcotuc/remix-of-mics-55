@@ -56,12 +56,11 @@ export default function IngresoMaquinas() {
     try {
       setLoading(true);
       
-      // Fetch incidents with status "En ruta"
+      // Fetch incidents with estado "EN_ENTREGA"
       const { data: incidentesData, error: incidentesError } = await supabase
         .from('incidentes')
         .select('*, clientes!inner(*)')
-        .not('embarque_id', 'is', null)
-        .eq('status', 'En ruta')
+        .eq('estado', 'EN_ENTREGA')
         .order('fecha_ingreso', { ascending: false });
 
       if (incidentesError) throw incidentesError;
@@ -142,21 +141,35 @@ export default function IngresoMaquinas() {
       }
 
       // Generar código de incidente
-      const { data: codigoData, error: codigoError } = await supabase
+      const { data: codigoData, error: codigoError } = await (supabase as any)
         .rpc('generar_codigo_incidente');
 
       if (codigoError) throw codigoError;
 
+      // Buscar cliente por código
+      const { data: clienteData } = await supabase
+        .from('clientes')
+        .select('id')
+        .eq('codigo', manualIncidente.codigo_cliente)
+        .single();
+
+      if (!clienteData) {
+        toast.error('No se encontró el cliente con ese código');
+        setCreatingIncidente(false);
+        return;
+      }
+
       const nuevoIncidente = {
         codigo: codigoData,
-        codigo_cliente: manualIncidente.codigo_cliente,
-        codigo_producto: productoData.codigo,
-        sku_maquina: manualIncidente.sku_maquina,
+        cliente_id: clienteData.id,
+        centro_de_servicio_id: 1,
+        producto_id: null,
         descripcion_problema: manualIncidente.descripcion_problema,
-        status: 'Ingresado' as const,
-        cobertura_garantia: false,
-        ingresado_en_mostrador: false,
-        fecha_ingreso: new Date().toISOString()
+        estado: 'EN_DIAGNOSTICO' as const,
+        tipologia: 'GARANTIA' as const,
+        aplica_garantia: false,
+        fecha_ingreso: new Date().toISOString(),
+        tracking_token: crypto.randomUUID()
       };
 
       const { error } = await supabase
@@ -223,11 +236,13 @@ export default function IngresoMaquinas() {
 
       // 4. Actualizar incidente: status + SKU si fue corregido
       const updateData: any = {
-        status: 'Pendiente de diagnostico'
+        estado: 'EN_DIAGNOSTICO'
       };
 
-      if (skuVerificado !== selectedIncidenteForIngreso.sku_maquina) {
-        updateData.sku_maquina = skuVerificado;
+      // Store SKU in observaciones if different
+
+      if (skuVerificado && skuVerificado !== (selectedIncidenteForIngreso as any).sku_maquina) {
+        updateData.observaciones = `SKU Verificado: ${skuVerificado}. ${observacionesIngreso || ''}`;
       }
 
       const { error: updateError } = await supabase
@@ -237,11 +252,7 @@ export default function IngresoMaquinas() {
 
       if (updateError) throw updateError;
 
-      toast.success(
-        skuVerificado !== selectedIncidenteForIngreso.sku_maquina
-          ? "Ingreso formalizado y SKU actualizado correctamente"
-          : "Ingreso formalizado correctamente"
-      );
+      toast.success("Ingreso formalizado correctamente");
 
       // 5. Cerrar modal y refrescar datos
       setShowFormalizarDialog(false);
@@ -263,11 +274,10 @@ export default function IngresoMaquinas() {
   const filteredIncidentes = incidentes.filter(inc => {
     const matchesSearch = 
       inc.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      inc.codigo_producto.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      String(inc.producto_id || '').includes(searchTerm.toLowerCase()) ||
       inc.cliente.nombre.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesEmbarque = selectedEmbarque === "all" || 
-      (inc.embarque_id && inc.embarque_id === selectedEmbarque);
+    const matchesEmbarque = selectedEmbarque === "all";
 
     return matchesSearch && matchesEmbarque;
   });
@@ -344,9 +354,9 @@ export default function IngresoMaquinas() {
                 {filteredIncidentes.map((incidente) => (
                   <TableRow key={incidente.id}>
                     <TableCell className="font-medium">{incidente.codigo}</TableCell>
-                    <TableCell>{incidente.codigo_producto}</TableCell>
+                    <TableCell>{incidente.producto_id || '-'}</TableCell>
                     <TableCell>{incidente.cliente.nombre}</TableCell>
-                    <TableCell>{incidente.sku_maquina || '-'}</TableCell>
+                    <TableCell>{(incidente as any).sku_maquina || '-'}</TableCell>
                     <TableCell>
                       {new Date(incidente.fecha_ingreso).toLocaleDateString('es-GT')}
                     </TableCell>
@@ -359,7 +369,7 @@ export default function IngresoMaquinas() {
                         size="sm"
                         onClick={() => {
                           setSelectedIncidenteForIngreso(incidente);
-                          setSkuVerificado(incidente.sku_maquina || "");
+                          setSkuVerificado((incidente as any).sku_maquina || "");
                           setFotosIngreso([]);
                           setObservacionesIngreso("");
                           setShowFormalizarDialog(true);
@@ -393,7 +403,7 @@ export default function IngresoMaquinas() {
             <div className="space-y-2">
               <Label>SKU Registrado en Sistema</Label>
               <Input 
-                value={selectedIncidenteForIngreso?.sku_maquina || "N/A"} 
+                value={(selectedIncidenteForIngreso as any)?.sku_maquina || "N/A"} 
                 disabled 
                 className="bg-muted"
               />
@@ -405,10 +415,10 @@ export default function IngresoMaquinas() {
                 value={skuVerificado}
                 onChange={(e) => setSkuVerificado(e.target.value)}
                 placeholder="Ingrese el SKU que ve en la máquina física"
-                className={skuVerificado !== selectedIncidenteForIngreso?.sku_maquina ? 
+                className={skuVerificado !== (selectedIncidenteForIngreso as any)?.sku_maquina ? 
                   "border-yellow-500" : ""}
               />
-              {skuVerificado && skuVerificado !== selectedIncidenteForIngreso?.sku_maquina && (
+              {skuVerificado && skuVerificado !== (selectedIncidenteForIngreso as any)?.sku_maquina && (
                 <p className="text-sm text-yellow-600 flex items-center gap-1">
                   <AlertCircle className="h-4 w-4" />
                   El SKU físico difiere del registrado. Se actualizará automáticamente.

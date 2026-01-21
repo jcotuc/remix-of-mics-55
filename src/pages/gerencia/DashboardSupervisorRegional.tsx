@@ -25,16 +25,16 @@ interface DashboardStats {
 }
 
 interface SupervisorRegional {
-  id: string;
-  user_id: string;
+  id: number;
+  user_id: number;
   nombre: string;
   apellido: string;
   email: string;
-  centrosAsignados: { id: string; nombre: string }[];
+  centrosAsignados: { id: number; nombre: string }[];
 }
 
 interface CentroServicio {
-  id: string;
+  id: number;
   nombre: string;
 }
 
@@ -46,7 +46,7 @@ export default function DashboardSupervisorRegional() {
   const [loadingSupervisores, setLoadingSupervisores] = useState(false);
   const [selectedSupervisor, setSelectedSupervisor] = useState<SupervisorRegional | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [selectedCentros, setSelectedCentros] = useState<string[]>([]);
+  const [selectedCentros, setSelectedCentros] = useState<number[]>([]);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -57,22 +57,22 @@ export default function DashboardSupervisorRegional() {
     try {
       setLoading(true);
 
-      const { data: centrosData } = await supabase
-        .from('centros_servicio')
+      const { data: centrosData } = await (supabase as any)
+        .from('centros_de_servicio')
         .select('*')
         .eq('activo', true);
 
       const { data: incidentes } = await supabase
         .from('incidentes')
-        .select('centro_servicio');
+        .select('centro_de_servicio_id');
 
       // Usar inventario en lugar de stock_departamental
       const { data: inventarioData } = await supabase
         .from('inventario')
         .select('centro_servicio_id, cantidad');
 
-      const centroStats: CentroStats[] = centrosData?.map(centro => {
-        const incidentesCentro = incidentes?.filter(i => i.centro_servicio === centro.nombre).length || 0;
+      const centroStats: CentroStats[] = (centrosData || []).map((centro: any) => {
+        const incidentesCentro = incidentes?.filter(i => i.centro_de_servicio_id === centro.id).length || 0;
         const stockCentro = inventarioData?.filter(s => s.centro_servicio_id === centro.id)
           .reduce((sum, s) => sum + (s.cantidad || 0), 0) || 0;
 
@@ -82,7 +82,7 @@ export default function DashboardSupervisorRegional() {
           eficiencia: 0,
           stock: stockCentro
         };
-      }).sort((a, b) => b.incidentes - a.incidentes) || [];
+      }).sort((a: CentroStats, b: CentroStats) => b.incidentes - a.incidentes) || [];
 
       const { data: transitos } = await supabase
         .from('transitos_bodega')
@@ -108,15 +108,15 @@ export default function DashboardSupervisorRegional() {
     try {
       setLoadingSupervisores(true);
 
-      const { data: centrosData } = await supabase
-        .from('centros_servicio')
+      const { data: centrosData } = await (supabase as any)
+        .from('centros_de_servicio')
         .select('id, nombre')
         .eq('activo', true)
         .order('nombre');
 
-      setCentros(centrosData || []);
+      setCentros((centrosData || []) as CentroServicio[]);
 
-      const { data: rolesData } = await supabase
+      const { data: rolesData } = await (supabase as any)
         .from('user_roles')
         .select('user_id')
         .eq('role', 'supervisor_regional');
@@ -126,33 +126,36 @@ export default function DashboardSupervisorRegional() {
         return;
       }
 
-      const userIds = rolesData.map(r => r.user_id);
+      const userIds = (rolesData as any[]).map(r => r.user_id);
 
-      const { data: profilesData } = await supabase
+      const { data: profilesData } = await (supabase as any)
         .from('profiles')
         .select('id, user_id, nombre, apellido, email')
         .in('user_id', userIds);
 
       const { data: asignacionesData } = await supabase
         .from('centros_supervisor')
-        .select('supervisor_id, centro_servicio_id, centros_servicio(id, nombre)')
+        .select('supervisor_id, centro_servicio_id')
         .in('supervisor_id', userIds);
 
-      const supervisoresConCentros: SupervisorRegional[] = (profilesData || []).map(profile => {
-        const centrosDelSupervisor = (asignacionesData || [])
+      const supervisoresConCentros: SupervisorRegional[] = ((profilesData || []) as any[]).map(profile => {
+        const centrosDelSupervisor = ((asignacionesData || []) as any[])
           .filter(a => a.supervisor_id === profile.user_id)
-          .map(a => ({
-            id: (a.centros_servicio as any)?.id || '',
-            nombre: (a.centros_servicio as any)?.nombre || ''
-          }))
+          .map(a => {
+            const centro = (centrosData || []).find((c: any) => c.id === a.centro_servicio_id);
+            return {
+              id: centro?.id || 0,
+              nombre: centro?.nombre || ''
+            };
+          })
           .filter(c => c.id);
 
         return {
           id: profile.id,
           user_id: profile.user_id,
-          nombre: profile.nombre,
-          apellido: profile.apellido,
-          email: profile.email,
+          nombre: profile.nombre || '',
+          apellido: profile.apellido || '',
+          email: profile.email || '',
           centrosAsignados: centrosDelSupervisor
         };
       });
@@ -173,9 +176,9 @@ export default function DashboardSupervisorRegional() {
     setDialogOpen(true);
   };
 
-  const handleCentroToggle = (centroId: string) => {
+  const handleCentroToggle = (centroId: number) => {
     setSelectedCentros(prev => 
-      prev.includes(centroId) 
+      prev.includes(centroId)
         ? prev.filter(id => id !== centroId)
         : [...prev, centroId]
     );
@@ -194,8 +197,8 @@ export default function DashboardSupervisorRegional() {
 
       if (selectedCentros.length > 0) {
         const nuevasAsignaciones = selectedCentros.map(centroId => ({
-          supervisor_id: selectedSupervisor.user_id,
-          centro_servicio_id: centroId
+          supervisor_id: Number(selectedSupervisor.user_id),
+          centro_servicio_id: Number(centroId)
         }));
 
         const { error } = await supabase
@@ -389,12 +392,12 @@ export default function DashboardSupervisorRegional() {
             {centros.map(centro => (
               <div key={centro.id} className="flex items-center space-x-3">
                 <Checkbox
-                  id={centro.id}
+                  id={String(centro.id)}
                   checked={selectedCentros.includes(centro.id)}
                   onCheckedChange={() => handleCentroToggle(centro.id)}
                 />
                 <label
-                  htmlFor={centro.id}
+                  htmlFor={String(centro.id)}
                   className="text-sm font-medium leading-none cursor-pointer"
                 >
                   {centro.nombre}

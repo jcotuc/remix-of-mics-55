@@ -15,7 +15,7 @@ type Incidente = Database['public']['Tables']['incidentes']['Row'];
 type Cliente = Database['public']['Tables']['clientes']['Row'];
 
 type RepuestoConStock = {
-  id: string;
+  id: number;
   codigo: string;
   descripcion: string;
   stock: number;
@@ -41,8 +41,7 @@ export default function FaltanteAccesorios() {
       const { data, error } = await supabase
         .from('incidentes')
         .select('*, clientes!inner(*)')
-        .eq('status', 'Reparado')
-        .not('accesorios', 'is', null)
+        .eq('estado', 'REPARADO')
         .order('updated_at', { ascending: false });
 
       if (error) throw error;
@@ -112,7 +111,7 @@ export default function FaltanteAccesorios() {
 
   const filteredIncidentes = incidentes.filter(inc =>
     inc.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    inc.codigo_producto.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    String(inc.producto_id || '').includes(searchTerm.toLowerCase()) ||
     inc.cliente.nombre.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -181,11 +180,11 @@ export default function FaltanteAccesorios() {
                 {filteredIncidentes.map((incidente) => (
                   <TableRow key={incidente.id}>
                     <TableCell className="font-medium">{incidente.codigo}</TableCell>
-                    <TableCell>{incidente.codigo_producto}</TableCell>
+                    <TableCell>{incidente.producto_id || '-'}</TableCell>
                     <TableCell>{incidente.cliente.nombre}</TableCell>
-                    <TableCell>{incidente.accesorios || '-'}</TableCell>
+                    <TableCell>{incidente.observaciones || '-'}</TableCell>
                     <TableCell>
-                      {new Date(incidente.updated_at).toLocaleDateString('es-GT')}
+                      {new Date(incidente.updated_at || '').toLocaleDateString('es-GT')}
                     </TableCell>
                     <TableCell>
                       <Badge variant="destructive">Pendiente</Badge>

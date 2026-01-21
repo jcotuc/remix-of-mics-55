@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/popover";
 
 type Guia = {
-  id: string;
+  id: number;
   numero_guia: string;
   fecha_guia: string;
   fecha_ingreso: string;
@@ -50,7 +50,7 @@ type Guia = {
 };
 
 type Cliente = {
-  id: string;
+  id: number;
   codigo: string;
   nombre: string;
   direccion: string | null;
@@ -118,13 +118,13 @@ export default function Guias() {
 
   const fetchGuias = async () => {
     try {
-      const { data, error } = await supabase
-        .from('guias_envio')
+      const { data, error } = await (supabase as any)
+        .from('guias')
         .select('*')
         .order('fecha_guia', { ascending: false });
 
       if (error) throw error;
-      setGuias(data || []);
+      setGuias((data || []) as Guia[]);
     } catch (error) {
       console.error('Error fetching guias:', error);
       showError("No se pudieron cargar las guías");
@@ -135,11 +135,11 @@ export default function Guias() {
 
   const fetchIncidentesDisponibles = async () => {
     try {
-      // Obtener incidentes que están listos para envío (status: "Logistica envio")
+      // Obtener incidentes que están listos para envío (estado: "EN_ENTREGA")
       const { data, error } = await supabase
         .from('incidentes')
-        .select('id, codigo, descripcion_problema, codigo_cliente, quiere_envio')
-        .eq('status', 'Logistica envio')
+        .select('id, codigo, descripcion_problema, cliente_id, quiere_envio')
+        .eq('estado', 'EN_ENTREGA')
         .eq('quiere_envio', true)
         .order('fecha_ingreso', { ascending: false });
 
@@ -158,7 +158,7 @@ export default function Guias() {
         .order('nombre', { ascending: true });
 
       if (error) throw error;
-      setClientes(data || []);
+      setClientes((data || []) as Cliente[]);
     } catch (error) {
       console.error('Error fetching clientes:', error);
     }
@@ -171,8 +171,8 @@ export default function Guias() {
 
       // Obtener el centro de servicio asociado al usuario
       // Por ahora usamos el centro GUA por defecto
-      const { data: centro, error } = await supabase
-        .from('centros_servicio')
+      const { data: centro, error } = await (supabase as any)
+        .from('centros_de_servicio')
         .select('*')
         .eq('nombre', 'GUA')
         .single();
@@ -256,7 +256,7 @@ export default function Guias() {
 
     try {
       // Generar número de guía local
-      const { data: numeroGuia, error: numeroError } = await supabase
+      const { data: numeroGuia, error: numeroError } = await (supabase as any)
         .rpc('generar_numero_guia');
 
       if (numeroError) throw numeroError;
@@ -284,8 +284,8 @@ export default function Guias() {
       console.log('Respuesta de Zigo:', zigoResponse);
 
       // Guardar la guía en la base de datos local
-      const { error } = await supabase
-        .from('guias_envio')
+      const { error } = await (supabase as any)
+        .from('guias')
         .insert({
           numero_guia: numeroGuia,
           destinatario: formData.destinatario,
@@ -299,7 +299,11 @@ export default function Guias() {
           fecha_promesa_entrega: formData.fecha_promesa_entrega || null,
           incidentes_codigos: formData.incidentes_codigos.length > 0 ? formData.incidentes_codigos : null,
           remitente: formData.remitente,
-          direccion_remitente: formData.direccion_remitente
+          direccion_remitente: formData.direccion_remitente,
+          estado: 'PENDIENTE',
+          tipo: 'SALIDA',
+          centro_de_servicio_origen_id: 1,
+          zigo_request_payload: {}
         });
 
       if (error) throw error;

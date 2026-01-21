@@ -71,18 +71,18 @@ export default function DanosTransporte() {
     setSelectedDano(dano);
     setCotizadorOpen(true);
     
-    // Fetch available parts for quotation using the relationship table
-    const { data: relaciones } = await supabase
-      .from('repuestos_productos')
-      .select('repuestos:repuestos!fk_repuesto(*)')
-      .eq('codigo_producto', dano.incidente.codigo_producto)
-      .limit(10);
-    
-    const repuestosData = (relaciones || [])
-      .filter(r => r.repuestos)
-      .map(r => r.repuestos as Repuesto);
-    
-    setRepuestos(repuestosData);
+    // Fetch available parts for quotation
+    const productoId = dano.incidente.producto_id;
+    if (productoId) {
+      const { data: repuestosData } = await supabase
+        .from('repuestos')
+        .select('*')
+        .limit(10);
+      
+      setRepuestos((repuestosData || []) as Repuesto[]);
+    } else {
+      setRepuestos([]);
+    }
   };
 
   const calcularTotal = () => {
@@ -91,7 +91,7 @@ export default function DanosTransporte() {
 
   const filteredDanos = danos.filter(d =>
     d.incidente.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    d.incidente.codigo_producto.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    String(d.incidente.producto_id || '').includes(searchTerm.toLowerCase()) ||
     d.incidente.cliente.nombre.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -127,7 +127,7 @@ export default function DanosTransporte() {
           {data.map((dano) => (
             <TableRow key={dano.incidente.id}>
               <TableCell className="font-medium">{dano.incidente.codigo}</TableCell>
-              <TableCell>{dano.incidente.codigo_producto}</TableCell>
+              <TableCell>{dano.incidente.producto_id || '-'}</TableCell>
               <TableCell>{dano.incidente.cliente.nombre}</TableCell>
               <TableCell className="max-w-xs truncate">
                 {dano.incidente.descripcion_problema}
@@ -269,7 +269,7 @@ export default function DanosTransporte() {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Producto</p>
-                  <p className="font-medium">{selectedDano.incidente.codigo_producto}</p>
+                  <p className="font-medium">{selectedDano.incidente.producto_id || '-'}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Cliente</p>

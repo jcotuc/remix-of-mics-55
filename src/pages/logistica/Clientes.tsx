@@ -8,7 +8,7 @@ import { Search } from "lucide-react";
 import { TablePagination } from "@/components/shared";
 
 interface Cliente {
-  id: string;
+  id: number;
   codigo: string;
   nombre: string;
   nit: string;

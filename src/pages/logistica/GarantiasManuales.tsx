@@ -13,7 +13,7 @@ import { PhotoGalleryWithDescriptions, type PhotoWithDescription } from "@/compo
 import { toast } from "sonner";
 import { OutlinedInput, OutlinedTextarea, OutlinedSelect } from "@/components/ui/outlined-input";
 type GarantiaManuaDB = {
-  id: string;
+  id: number;
   codigo_cliente: string;
   sku_reportado: string;
   descripcion_sku: string;
@@ -24,7 +24,7 @@ type GarantiaManuaDB = {
   numero_incidente: string | null;
   fotos_urls: string[] | null;
   created_at: string;
-  created_by: string | null;
+  created_by: number | null;
   profiles?: {
     nombre: string;
     apellido: string;
@@ -93,7 +93,7 @@ export default function GarantiasManuales() {
       const garantiasWithProfiles = await Promise.all(
         (garantiasData || []).map(async (garantia) => {
           if (garantia.created_by) {
-            const { data: profileData } = await supabase
+            const { data: profileData } = await (supabase as any)
               .from("profiles")
               .select("nombre, apellido")
               .eq("user_id", garantia.created_by)
@@ -102,9 +102,9 @@ export default function GarantiasManuales() {
             return {
               ...garantia,
               profiles: profileData
-            };
+            } as GarantiaManuaDB;
           }
-          return garantia;
+          return garantia as GarantiaManuaDB;
         })
       );
       
@@ -147,7 +147,7 @@ export default function GarantiasManuales() {
       } = await supabase.from("garantias_manuales").insert([{
         ...formData,
         fotos_urls: fotosUrls.length > 0 ? fotosUrls : null,
-        created_by: (await supabase.auth.getUser()).data.user?.id
+        estatus: 'pendiente_resolucion'
       }]);
       if (error) throw error;
       toast.success("Garantía creada exitosamente");
@@ -181,26 +181,38 @@ export default function GarantiasManuales() {
     
     try {
       // Crear incidente automáticamente al resolver garantía
-      let incidenteId: string | null = null;
+      let incidenteId: number | null = null;
       let codigoIncidente: string | null = null;
 
       // Generar código de incidente
-      const { data: codigoData, error: codigoError } = await supabase
+      const { data: codigoData, error: codigoError } = await (supabase as any)
         .rpc("generar_codigo_incidente");
       
       if (codigoError) throw codigoError;
       codigoIncidente = codigoData;
 
       // Determinar el status del incidente basado en la decisión
-      let statusIncidente: "Ingresado" | "Cambio por garantia" | "Porcentaje" = "Ingresado";
+      let estadoIncidente: "EN_DIAGNOSTICO" | "CAMBIO_POR_GARANTIA" | "ESPERA_APROBACION" = "EN_DIAGNOSTICO";
       let coberturaGarantia = false;
 
       if (updateData.estatus === "aplica_nc" || updateData.estatus === "cambio_garantia") {
-        statusIncidente = "Cambio por garantia";
+        estadoIncidente = "CAMBIO_POR_GARANTIA";
         coberturaGarantia = true;
       } else if (updateData.estatus === "no_aplica_nc") {
-        statusIncidente = "Porcentaje"; // Ofrecimiento de canje
+        estadoIncidente = "ESPERA_APROBACION"; // Ofrecimiento de canje
         coberturaGarantia = false;
+      }
+
+      // Buscar cliente por código
+      const { data: clienteData } = await supabase
+        .from("clientes")
+        .select("id")
+        .eq("codigo", selectedGarantia.codigo_cliente)
+        .single();
+
+      if (!clienteData) {
+        toast.error("No se encontró el cliente");
+        return;
       }
 
       // Crear el incidente
@@ -208,15 +220,14 @@ export default function GarantiasManuales() {
         .from("incidentes")
         .insert([{
           codigo: codigoIncidente,
-          codigo_cliente: selectedGarantia.codigo_cliente,
-          codigo_producto: selectedGarantia.sku_reportado,
+          cliente_id: clienteData.id,
+          centro_de_servicio_id: 1, // Default center
           descripcion_problema: selectedGarantia.descripcion_problema,
-          status: statusIncidente,
-          es_herramienta_manual: true,
-          ingresado_en_mostrador: false,
-          cobertura_garantia: coberturaGarantia,
-          log_observaciones: updateData.comentarios_logistica,
-          garantia_manual_id: selectedGarantia.id
+          estado: estadoIncidente,
+          tipologia: "GARANTIA" as const,
+          aplica_garantia: coberturaGarantia,
+          observaciones: updateData.comentarios_logistica,
+          tracking_token: crypto.randomUUID()
         }])
         .select()
         .single();
@@ -232,8 +243,7 @@ export default function GarantiasManuales() {
           comentarios_logistica: updateData.comentarios_logistica,
           numero_incidente: codigoIncidente,
           incidente_id: incidenteId,
-          origen: 'asesor',
-          modified_by: (await supabase.auth.getUser()).data.user?.id
+          origen: 'asesor'
         })
         .eq("id", selectedGarantia.id);
       

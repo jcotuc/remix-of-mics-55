@@ -47,7 +47,7 @@ export default function DashboardGerente() {
       const { data: sinAsignar } = await supabase
         .from('incidentes')
         .select('*')
-        .eq('estado', 'INGRESADO');
+        .eq('estado', 'EN_DIAGNOSTICO');
 
       // Stock bajo desde inventario
       const { data: inventarioData } = await supabase
