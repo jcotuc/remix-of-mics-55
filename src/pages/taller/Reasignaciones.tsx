@@ -12,11 +12,15 @@ import { Loader2, RefreshCw, Search, User, ArrowRight } from "lucide-react";
 import { differenceInDays } from "date-fns";
 import { toast } from "sonner";
 import { formatLogEntry } from "@/utils/dateFormatters";
-import type { Database } from "@/integrations/supabase/types";
+import { apiBackendAction } from "@/lib/api-backend";
 
-type IncidenteDB = Database['public']['Tables']['incidentes']['Row'];
-
-interface Incidente extends IncidenteDB {
+interface Incidente {
+  id: number;
+  codigo: string;
+  estado: string;
+  updated_at: string | null;
+  producto_id: number | null;
+  observaciones: string | null;
   cliente?: { nombre: string } | null;
   producto?: { descripcion: string } | null;
   tecnico_profile?: { nombre: string; apellido: string | null } | null;
@@ -50,22 +54,18 @@ export default function Reasignaciones() {
 
   const fetchData = async () => {
     try {
-      // Fetch incidentes en diagnóstico
-      const { data: incidentesData, error } = await supabase
-        .from("incidentes")
-        .select(`
-          *,
-          clientes:cliente_id(nombre),
-          productos:producto_id(descripcion)
-        `)
-        .in("estado", ["EN_DIAGNOSTICO", "ESPERA_REPUESTOS"])
-        .order("updated_at", { ascending: true });
+      // Fetch incidentes via Registry
+      const incidentesRes = await apiBackendAction("incidentes.list", { limit: 2000 });
+      const allIncidentes = (incidentesRes as any).results || [];
+      
+      // Filter by estado
+      const filteredByEstado = allIncidentes.filter((inc: any) => 
+        ["EN_DIAGNOSTICO", "ESPERA_REPUESTOS"].includes(inc.estado)
+      );
+      
+      const incidenteIds = filteredByEstado.map((i: any) => i.id);
 
-      if (error) throw error;
-
-      const incidenteIds = (incidentesData || []).map(i => i.id);
-
-      // Fetch tecnico assignments from incidente_tecnico junction
+      // Fetch tecnico assignments from incidente_tecnico junction (not in registry yet)
       const { data: asignaciones } = await supabase
         .from("incidente_tecnico")
         .select("incidente_id, tecnico_id")
@@ -74,18 +74,16 @@ export default function Reasignaciones() {
 
       const tecnicoIds = [...new Set((asignaciones || []).map(a => a.tecnico_id).filter(Boolean))] as number[];
       
-      let tecnicoProfiles: Record<number, { nombre: string; apellido: string | null }> = {};
-      if (tecnicoIds.length > 0) {
-        const { data: usuariosData } = await supabase
-          .from("usuarios")
-          .select("id, nombre, apellido")
-          .in("id", tecnicoIds);
-        
-        tecnicoProfiles = (usuariosData || []).reduce((acc, u) => {
-          acc[u.id] = { nombre: u.nombre, apellido: u.apellido };
-          return acc;
-        }, {} as Record<number, { nombre: string; apellido: string | null }>);
-      }
+      // Fetch usuarios via Registry
+      const usuariosRes = await apiBackendAction("usuarios.list", {});
+      const allUsuarios = (usuariosRes as any).results || [];
+      
+      const tecnicoProfiles: Record<number, { nombre: string; apellido: string | null }> = {};
+      allUsuarios.forEach((u: any) => {
+        if (tecnicoIds.includes(u.id)) {
+          tecnicoProfiles[u.id] = { nombre: u.nombre, apellido: u.apellido };
+        }
+      });
 
       // Map asignaciones to incidentes
       const asignacionesMap = new Map(
@@ -93,14 +91,14 @@ export default function Reasignaciones() {
       );
 
       // Filter only incidentes that have technician assigned
-      const formattedData: Incidente[] = (incidentesData || [])
-        .filter(item => asignacionesMap.has(item.id))
-        .map(item => {
+      const formattedData: Incidente[] = filteredByEstado
+        .filter((item: any) => asignacionesMap.has(item.id))
+        .map((item: any) => {
           const tecnicoId = asignacionesMap.get(item.id);
           return {
             ...item,
-            cliente: (item as any).clientes as { nombre: string } | null,
-            producto: (item as any).productos as { descripcion: string } | null,
+            cliente: item.cliente || null,
+            producto: item.producto || null,
             tecnico_profile: tecnicoId ? tecnicoProfiles[tecnicoId] || null : null,
             tecnico_asignado_id_from_junction: tecnicoId || null,
           };
@@ -108,15 +106,9 @@ export default function Reasignaciones() {
 
       setIncidentes(formattedData);
 
-      // Fetch técnicos - get users with taller role
-      const { data: usuariosData } = await supabase
-        .from("usuarios")
-        .select("id, nombre, apellido, email")
-        .eq("activo", true)
-        .order("nombre");
-
-      // For now, use all active users as potential technicians
-      setTecnicos(usuariosData || []);
+      // Use all active users as potential technicians
+      const activeTecnicos = allUsuarios.filter((u: any) => u.activo);
+      setTecnicos(activeTecnicos);
     } catch (error) {
       console.error("Error:", error);
       toast.error("Error al cargar datos");
@@ -141,26 +133,22 @@ export default function Reasignaciones() {
     setSubmitting(true);
     try {
       const nuevoTecnicoId = parseInt(nuevoTecnico);
-      // Find tecnico name for display
       const tecnico = tecnicos.find(t => t.id === nuevoTecnicoId);
       const tecnicoCodigo = tecnico ? `${tecnico.nombre} ${tecnico.apellido || ''}`.trim() : nuevoTecnico;
       const tecnicoAnterior = selectedIncidente.tecnico_profile 
         ? `${selectedIncidente.tecnico_profile.nombre} ${selectedIncidente.tecnico_profile.apellido || ''}`.trim()
         : "N/A";
 
-      // Update incidente_tecnico junction table
       const logEntry = formatLogEntry(`Reasignado de ${tecnicoAnterior} a ${tecnicoCodigo}${motivoReasignacion ? `. Motivo: ${motivoReasignacion}` : ""}`);
 
-      // First, update the existing assignment or create new one
+      // Update junction table (still direct Supabase - not in registry)
       if (selectedIncidente.tecnico_asignado_id_from_junction) {
-        // Update existing assignment
         await supabase
           .from("incidente_tecnico")
           .update({ tecnico_id: nuevoTecnicoId })
           .eq("incidente_id", selectedIncidente.id)
           .eq("es_principal", true);
       } else {
-        // Insert new assignment
         await supabase
           .from("incidente_tecnico")
           .insert({
@@ -193,7 +181,6 @@ export default function Reasignaciones() {
     }
   };
 
-  // Obtener técnicos únicos con sus nombres
   const uniqueTecnicosMap = incidentes.reduce((acc, inc) => {
     if (inc.tecnico_asignado_id_from_junction && inc.tecnico_profile) {
       const fullName = `${inc.tecnico_profile.nombre} ${inc.tecnico_profile.apellido || ''}`.trim();
@@ -218,7 +205,6 @@ export default function Reasignaciones() {
     return differenceInDays(new Date(), new Date(date));
   };
 
-  // Group by tecnico
   const incidentesByTecnico = filteredIncidentes.reduce((acc, inc) => {
     const tecnicoName = inc.tecnico_profile 
       ? `${inc.tecnico_profile.nombre} ${inc.tecnico_profile.apellido || ''}`.trim()
@@ -453,7 +439,7 @@ export default function Reasignaciones() {
               {submitting ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Reasignando...
+                  Guardando...
                 </>
               ) : (
                 "Confirmar Reasignación"

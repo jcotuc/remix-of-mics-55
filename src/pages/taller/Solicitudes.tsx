@@ -7,10 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { CheckCircle, XCircle, Clock, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import type { Database } from "@/integrations/supabase/types";
-
-// Use diagnosticos table for change requests since solicitudes_cambio doesn't exist
-type DiagnosticoDB = Database['public']['Tables']['diagnosticos']['Row'];
+import { apiBackendAction } from "@/lib/api-backend";
 
 interface SolicitudDisplay {
   id: number;
@@ -38,33 +35,42 @@ export default function Solicitudes() {
     try {
       setLoading(true);
       
-      // Query diagnosticos that need approval (tipo_resolucion changes)
-      const { data, error } = await supabase
-        .from('diagnosticos')
-        .select(`
-          *,
-          incidentes:incidente_id(codigo),
-          usuarios:tecnico_id(nombre, apellido)
-        `)
-        .in('estado', ['PENDIENTE', 'COMPLETADO'])
-        .order('created_at', { ascending: false });
+      // Fetch diagnosticos via Registry
+      const diagnosticosRes = await apiBackendAction("diagnosticos.list", { limit: 1000 });
+      const allDiagnosticos = (diagnosticosRes as any).results || [];
+      
+      // Filter by estado
+      const filteredDiagnosticos = allDiagnosticos.filter((d: any) => 
+        ['PENDIENTE', 'COMPLETADO'].includes(d.estado)
+      );
 
-      if (error) throw error;
+      // Fetch usuarios for technician names
+      const usuariosRes = await apiBackendAction("usuarios.list", {});
+      const allUsuarios = (usuariosRes as any).results || [];
+      const usuariosMap = new Map(allUsuarios.map((u: any) => [u.id, u]));
 
       // Transform to solicitud format
-      const formattedData: SolicitudDisplay[] = (data || []).map(d => ({
-        id: d.id,
-        incidente_id: d.incidente_id,
-        tipo_cambio: d.tipo_resolucion || 'reparacion',
-        estado: d.estado === 'COMPLETADO' ? 'aprobado' : 'pendiente',
-        tecnico_solicitante: (d as any).usuarios 
-          ? `${(d as any).usuarios.nombre} ${(d as any).usuarios.apellido || ''}`.trim()
-          : `Técnico #${d.tecnico_id}`,
-        justificacion: d.recomendaciones,
-        created_at: d.created_at || new Date().toISOString(),
-        fecha_aprobacion: d.updated_at,
-        observaciones_aprobacion: null,
-      }));
+      const formattedData: SolicitudDisplay[] = filteredDiagnosticos.map((d: any) => {
+        const usuario = usuariosMap.get(d.tecnico_id) as { nombre?: string; apellido?: string | null } | undefined;
+        return {
+          id: d.id,
+          incidente_id: d.incidente_id,
+          tipo_cambio: d.tipo_resolucion || 'reparacion',
+          estado: d.estado === 'COMPLETADO' ? 'aprobado' : 'pendiente',
+          tecnico_solicitante: usuario 
+            ? `${usuario.nombre || ''} ${usuario.apellido || ''}`.trim()
+            : `Técnico #${d.tecnico_id}`,
+          justificacion: d.recomendaciones,
+          created_at: d.created_at || new Date().toISOString(),
+          fecha_aprobacion: d.updated_at,
+          observaciones_aprobacion: null,
+        };
+      });
+
+      // Sort by created_at descending
+      formattedData.sort((a, b) => 
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
 
       setSolicitudes(formattedData);
     } catch (error) {
@@ -79,6 +85,7 @@ export default function Solicitudes() {
     if (!selectedSolicitud) return;
 
     try {
+      // Still using Supabase for updates (registry doesn't have diagnosticos.update yet)
       const { error } = await supabase
         .from('diagnosticos')
         .update({
