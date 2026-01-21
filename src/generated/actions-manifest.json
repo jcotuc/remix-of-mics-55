@@ -276,10 +276,58 @@
     "output_schema": "app.contracts.grupos_cola_fifo.list.GrupoColaFifoListOutput"
   },
   {
+    "action": "grupos_cola_fifo.get",
+    "description": "Gets a single grupo_cola_fifo by its ID.",
+    "input_schema": "app.contracts.grupos_cola_fifo.get.GrupoColaFifoGetInput",
+    "output_schema": "app.contracts.grupos_cola_fifo.get.GrupoColaFifoGetOutput"
+  },
+  {
+    "action": "grupos_cola_fifo.create",
+    "description": "Creates a new grupo_cola_fifo.",
+    "input_schema": "app.contracts.grupos_cola_fifo.create.GrupoColaFifoCreateInput",
+    "output_schema": "app.contracts.grupos_cola_fifo.create.GrupoColaFifoCreateOutput"
+  },
+  {
+    "action": "grupos_cola_fifo.update",
+    "description": "Updates an existing grupo_cola_fifo.",
+    "input_schema": "app.contracts.grupos_cola_fifo.update.GrupoColaFifoUpdateInput",
+    "output_schema": "app.contracts.grupos_cola_fifo.update.GrupoColaFifoUpdateOutput"
+  },
+  {
+    "action": "grupos_cola_fifo.delete",
+    "description": "Deletes a grupo_cola_fifo.",
+    "input_schema": "app.contracts.grupos_cola_fifo.delete.GrupoColaFifoDeleteInput",
+    "output_schema": "app.contracts.grupos_cola_fifo.delete.GrupoColaFifoDeleteOutput"
+  },
+  {
     "action": "grupos_cola_fifo_familias.list",
     "description": "Lists all grupos_cola_fifo_familias.",
     "input_schema": "app.contracts.grupos_cola_fifo_familias.list.GrupoColaFifoFamiliaListInput",
     "output_schema": "app.contracts.grupos_cola_fifo_familias.list.GrupoColaFifoFamiliaListOutput"
+  },
+  {
+    "action": "grupos_cola_fifo_familias.get",
+    "description": "Gets a single grupo_cola_fifo_familia by its ID.",
+    "input_schema": "app.contracts.grupos_cola_fifo_familias.get.GrupoColaFifoFamiliaGetInput",
+    "output_schema": "app.contracts.grupos_cola_fifo_familias.get.GrupoColaFifoFamiliaGetOutput"
+  },
+  {
+    "action": "grupos_cola_fifo_familias.create",
+    "description": "Creates a new grupo_cola_fifo_familia.",
+    "input_schema": "app.contracts.grupos_cola_fifo_familias.create.GrupoColaFifoFamiliaCreateInput",
+    "output_schema": "app.contracts.grupos_cola_fifo_familias.create.GrupoColaFifoFamiliaCreateOutput"
+  },
+  {
+    "action": "grupos_cola_fifo_familias.update",
+    "description": "Updates an existing grupo_cola_fifo_familia.",
+    "input_schema": "app.contracts.grupos_cola_fifo_familias.update.GrupoColaFifoFamiliaUpdateInput",
+    "output_schema": "app.contracts.grupos_cola_fifo_familias.update.GrupoColaFifoFamiliaUpdateOutput"
+  },
+  {
+    "action": "grupos_cola_fifo_familias.delete",
+    "description": "Deletes a grupo_cola_fifo_familia.",
+    "input_schema": "app.contracts.grupos_cola_fifo_familias.delete.GrupoColaFifoFamiliaDeleteInput",
+    "output_schema": "app.contracts.grupos_cola_fifo_familias.delete.GrupoColaFifoFamiliaDeleteOutput"
   },
   {
     "action": "incidente_participacion.list",
