@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Users, Wrench, AlertTriangle, CheckCircle, Clock, TrendingUp } from "lucide-react";
-import { Progress } from "@/components/ui/progress";
+import { Loader2, Users, Wrench, AlertTriangle, CheckCircle, Clock } from "lucide-react";
+import { apiBackendAction } from "@/lib/api-backend";
 
 interface TecnicoStats {
   nombre: string;
@@ -30,46 +29,35 @@ export default function DashboardJefeTaller() {
     try {
       setLoading(true);
 
-      // Incidentes por estado - usando los estados correctos del enum
-      const { data: enDiagnostico } = await supabase
-        .from("incidentes")
-        .select("id")
-        .eq("estado", "EN_DIAGNOSTICO");
+      // Fetch data in parallel using apiBackendAction
+      const [incidentesResponse, usuariosResponse, diagnosticosResponse] = await Promise.all([
+        apiBackendAction("incidentes.list", { limit: 5000 }),
+        apiBackendAction("usuarios.list", {}),
+        apiBackendAction("diagnosticos.list", { limit: 5000 })
+      ]);
 
-      const { data: pendienteRepuestos } = await supabase
-        .from("incidentes")
-        .select("id")
-        .eq("estado", "ESPERA_REPUESTOS");
+      const incidentes = incidentesResponse.results || [];
+      const usuarios = usuariosResponse.results || [];
+      const diagnosticos = diagnosticosResponse.results || [];
 
-      const { data: esperaAprobacion } = await supabase
-        .from("incidentes")
-        .select("id")
-        .eq("estado", "ESPERA_APROBACION");
+      // Calculate stats from fetched data
+      const enDiagnostico = incidentes.filter((i: any) => i.estado === "EN_DIAGNOSTICO").length;
+      const pendienteRepuestos = incidentes.filter((i: any) => i.estado === "ESPERA_REPUESTOS").length;
+      const esperaAprobacion = incidentes.filter((i: any) => i.estado === "ESPERA_APROBACION").length;
+      
+      // Incidentes activos con propietario
+      const asignados = incidentes.filter((i: any) => 
+        i.propietario_id && 
+        ["EN_DIAGNOSTICO", "ESPERA_REPUESTOS", "EN_REPARACION"].includes(i.estado)
+      );
 
-      // Incidentes activos (asignados a técnicos) - usando propietario_id
-      const { data: asignados } = await supabase
-        .from("incidentes")
-        .select("id, propietario_id")
-        .not("propietario_id", "is", null)
-        .in("estado", ["EN_DIAGNOSTICO", "ESPERA_REPUESTOS", "EN_REPARACION"]);
+      // Técnicos activos
+      const tecnicos = usuarios.filter((u: any) => u.rol === "tecnico" && u.activo);
 
-      // Estadísticas por técnico - usando usuarios con rol tecnico
-      const { data: tecnicos } = await (supabase as any)
-        .from("usuarios")
-        .select("id, nombre, apellido")
-        .eq("rol", "tecnico")
-        .eq("activo", true);
-
-      const { data: diagnosticos } = await supabase
-        .from("diagnosticos")
-        .select("id, tecnico_id, estado");
-
-      const tecnicoStats: TecnicoStats[] = (tecnicos || []).map((tec: any) => {
-        const incidentesTec = (asignados || []).filter(
-          (i) => i.propietario_id === tec.id
-        );
-        const diagnosticosTec = (diagnosticos || []).filter(
-          (d) => d.tecnico_id === tec.id && d.estado === "COMPLETADO"
+      const tecnicoStats: TecnicoStats[] = tecnicos.map((tec: any) => {
+        const incidentesTec = asignados.filter((i: any) => i.propietario_id === tec.id);
+        const diagnosticosTec = diagnosticos.filter(
+          (d: any) => d.tecnico_id === tec.id && d.estado === "COMPLETADO"
         );
 
         return {
@@ -78,14 +66,14 @@ export default function DashboardJefeTaller() {
           completados: diagnosticosTec.length,
         };
       })
-        .sort((a: TecnicoStats, b: TecnicoStats) => b.completados - a.completados)
+        .sort((a, b) => b.completados - a.completados)
         .slice(0, 5);
 
       setStats({
-        incidentesAsignados: asignados?.length || 0,
-        enDiagnostico: enDiagnostico?.length || 0,
-        pendienteRepuestos: pendienteRepuestos?.length || 0,
-        aprobacionesPendientes: esperaAprobacion?.length || 0,
+        incidentesAsignados: asignados.length,
+        enDiagnostico,
+        pendienteRepuestos,
+        aprobacionesPendientes: esperaAprobacion,
         tecnicos: tecnicoStats,
       });
     } catch (error) {

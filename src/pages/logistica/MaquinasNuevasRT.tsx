@@ -6,14 +6,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Search, PackageCheck } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import type { Database } from "@/integrations/supabase/types";
+import { apiBackendAction } from "@/lib/api-backend";
+import type { IncidenteSchema, ClienteSchema } from "@/generated/actions.d";
 
-type Incidente = Database['public']['Tables']['incidentes']['Row'];
-type Cliente = Database['public']['Tables']['clientes']['Row'];
-
-type IncidenteConCliente = Incidente & { cliente: Cliente };
+type IncidenteConCliente = IncidenteSchema & { clienteNombre: string };
 
 export default function MaquinasNuevasRT() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -29,26 +26,45 @@ export default function MaquinasNuevasRT() {
     try {
       setLoading(true);
 
-      // Cambios por garantía desde bodega
-      const { data: cambiosData, error: cambiosError } = await supabase
-        .from('incidentes')
-        .select('*, clientes!inner(*)')
-        .eq('estado', 'CAMBIO_POR_GARANTIA')
-        .order('updated_at', { ascending: false });
+      // Fetch data in parallel using apiBackendAction
+      const [incidentesResponse, clientesResponse] = await Promise.all([
+        apiBackendAction("incidentes.list", { limit: 2000 }),
+        apiBackendAction("clientes.list", { limit: 5000 })
+      ]);
 
-      if (cambiosError) throw cambiosError;
+      const incidentes = incidentesResponse.results || [];
+      const clientes = clientesResponse.results || [];
 
-      // Autoconsumos - usando tipología de mantenimiento como proxy
-      const { data: autoconsumosData, error: autoconsumosError } = await supabase
-        .from('incidentes')
-        .select('*, clientes!inner(*)')
-        .eq('tipologia', 'MANTENIMIENTO')
-        .order('updated_at', { ascending: false });
+      // Create client map for quick lookup
+      const clienteMap = new Map<number, ClienteSchema>();
+      clientes.forEach((c: ClienteSchema) => clienteMap.set(c.id, c));
 
-      if (autoconsumosError) throw autoconsumosError;
+      // Helper to enrich incidente with client name
+      const enrichIncidente = (inc: IncidenteSchema): IncidenteConCliente => {
+        const cliente = inc.cliente || clienteMap.get(inc.cliente?.id || 0);
+        return {
+          ...inc,
+          clienteNombre: cliente?.nombre || 'Sin cliente'
+        };
+      };
 
-      setCambios((cambiosData || []).map((i: any) => ({ ...i, cliente: i.clientes })));
-      setAutoconsumos((autoconsumosData || []).map((i: any) => ({ ...i, cliente: i.clientes })));
+      // Filter cambios por garantía
+      const cambiosData = incidentes
+        .filter((i: IncidenteSchema) => i.estado === 'CAMBIO_POR_GARANTIA')
+        .map(enrichIncidente)
+        .sort((a, b) => new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime());
+
+      // Filter autoconsumos - usando descripcion_problema como proxy
+      const autoconsumosData = incidentes
+        .filter((i: IncidenteSchema) => 
+          i.descripcion_problema?.toLowerCase().includes('mantenimiento') ||
+          i.descripcion_problema?.toLowerCase().includes('autoconsumo')
+        )
+        .map(enrichIncidente)
+        .sort((a, b) => new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime());
+
+      setCambios(cambiosData);
+      setAutoconsumos(autoconsumosData);
 
     } catch (error) {
       console.error('Error:', error);
@@ -61,8 +77,8 @@ export default function MaquinasNuevasRT() {
   const renderTable = (data: IncidenteConCliente[], tipo: string) => {
     const filtered = data.filter(item =>
       item.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      String(item.producto_id || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.cliente.nombre.toLowerCase().includes(searchTerm.toLowerCase())
+      String(item.producto?.codigo || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.clienteNombre.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     if (filtered.length === 0) {
@@ -79,7 +95,7 @@ export default function MaquinasNuevasRT() {
         <TableHeader>
           <TableRow>
             <TableHead>Código</TableHead>
-            <TableHead>Producto ID</TableHead>
+            <TableHead>Producto</TableHead>
             <TableHead>Cliente</TableHead>
             <TableHead>Fecha Ingreso</TableHead>
             <TableHead>Tipo</TableHead>
@@ -91,10 +107,10 @@ export default function MaquinasNuevasRT() {
           {filtered.map((item) => (
             <TableRow key={item.id}>
               <TableCell className="font-medium">{item.codigo}</TableCell>
-              <TableCell>{item.producto_id || '-'}</TableCell>
-              <TableCell>{item.cliente.nombre}</TableCell>
+              <TableCell>{item.producto?.codigo || '-'}</TableCell>
+              <TableCell>{item.clienteNombre}</TableCell>
               <TableCell>
-                {new Date(item.fecha_ingreso).toLocaleDateString('es-GT')}
+                {new Date(item.created_at || '').toLocaleDateString('es-GT')}
               </TableCell>
               <TableCell>
                 <Badge variant="outline">{tipo}</Badge>

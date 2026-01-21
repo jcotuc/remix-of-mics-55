@@ -6,17 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { formatFechaRelativa } from "@/utils/dateFormatters";
-import type { Database } from "@/integrations/supabase/types";
+import { apiBackendAction } from "@/lib/api-backend";
+import type { IncidenteSchema, ClienteSchema } from "@/generated/actions.d";
 
-type Incidente = Database['public']['Tables']['incidentes']['Row'];
-type Cliente = Database['public']['Tables']['clientes']['Row'];
-
-interface IncidenteEnvio extends Incidente {
-  cliente: Cliente;
-}
+type IncidenteEnvio = IncidenteSchema & { clienteNombre: string; clienteCelular: string; clienteDireccion: string };
 
 export default function MaquinasPendientesEnvio() {
   const navigate = useNavigate();
@@ -27,20 +22,34 @@ export default function MaquinasPendientesEnvio() {
   const fetchIncidentes = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("incidentes")
-        .select("*, clientes!inner(*)")
-        .eq("estado", "EN_ENTREGA")
-        .order("updated_at", { ascending: true });
+      // Fetch data in parallel using apiBackendAction
+      const [incidentesResponse, clientesResponse] = await Promise.all([
+        apiBackendAction("incidentes.list", { limit: 2000 }),
+        apiBackendAction("clientes.list", { limit: 5000 })
+      ]);
 
-      if (error) throw error;
+      const allIncidentes = incidentesResponse.results || [];
+      const clientes = clientesResponse.results || [];
 
-      const incidentesWithClients = (data || []).map((inc: any) => ({
-        ...inc,
-        cliente: inc.clientes
-      }));
+      // Create client map for quick lookup
+      const clienteMap = new Map<number, ClienteSchema>();
+      clientes.forEach((c: ClienteSchema) => clienteMap.set(c.id, c));
 
-      setIncidentes(incidentesWithClients);
+      // Filter EN_ENTREGA and enrich with client data
+      const filteredIncidentes = allIncidentes
+        .filter((inc: IncidenteSchema) => inc.estado === "EN_ENTREGA")
+        .map((inc: IncidenteSchema): IncidenteEnvio => {
+          const cliente = inc.cliente || clienteMap.get(inc.cliente?.id || 0);
+          return {
+            ...inc,
+            clienteNombre: cliente?.nombre || 'Sin cliente',
+            clienteCelular: cliente?.celular || '',
+            clienteDireccion: cliente?.direccion || 'Sin dirección'
+          };
+        })
+        .sort((a, b) => new Date(a.updated_at || 0).getTime() - new Date(b.updated_at || 0).getTime()); // FIFO
+
+      setIncidentes(filteredIncidentes);
     } catch (error) {
       console.error("Error fetching incidentes:", error);
       toast.error("Error al cargar incidentes pendientes de envío");
@@ -59,14 +68,15 @@ export default function MaquinasPendientesEnvio() {
       const texto = filtroTexto.toLowerCase();
       return (
         inc.codigo.toLowerCase().includes(texto) ||
-        String(inc.cliente_id).includes(texto) ||
-        String(inc.producto_id || '').includes(texto) ||
-        inc.cliente?.nombre?.toLowerCase().includes(texto)
+        String(inc.cliente?.id || '').includes(texto) ||
+        String(inc.producto?.codigo || '').includes(texto) ||
+        inc.clienteNombre.toLowerCase().includes(texto)
       );
     });
   }, [incidentes, filtroTexto]);
 
-  const getTiempoEspera = (updatedAt: string) => {
+  const getTiempoEspera = (updatedAt: string | null) => {
+    if (!updatedAt) return "N/A";
     return formatFechaRelativa(updatedAt).replace(/^hace /, "");
   };
 
@@ -166,20 +176,20 @@ export default function MaquinasPendientesEnvio() {
                       <TableCell className="font-medium">{inc.codigo}</TableCell>
                       <TableCell>
                         <div>
-                          <p className="font-medium">{inc.cliente?.nombre || `Cliente ${inc.cliente_id}`}</p>
-                          <p className="text-xs text-muted-foreground">{inc.cliente?.celular}</p>
+                          <p className="font-medium">{inc.clienteNombre}</p>
+                          <p className="text-xs text-muted-foreground">{inc.clienteCelular}</p>
                         </div>
                       </TableCell>
-                      <TableCell>{inc.producto_id || '-'}</TableCell>
+                      <TableCell>{inc.producto?.codigo || '-'}</TableCell>
                       <TableCell>
                         <p className="text-sm max-w-[200px] truncate">
-                          {inc.cliente?.direccion || "Sin dirección"}
+                          {inc.clienteDireccion}
                         </p>
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1 text-sm text-amber-600 dark:text-amber-400">
                           <Clock className="h-3 w-3" />
-                          {getTiempoEspera(inc.updated_at || inc.created_at || '')}
+                          {getTiempoEspera(inc.updated_at)}
                         </div>
                       </TableCell>
                       <TableCell>
