@@ -88,9 +88,25 @@ import type {
   // Grupos Cola FIFO
   GrupoColaFifoListInput,
   GrupoColaFifoListOutput,
+  GrupoColaFifoGetInput,
+  GrupoColaFifoGetOutput,
+  GrupoColaFifoCreateInput,
+  GrupoColaFifoCreateOutput,
+  GrupoColaFifoUpdateInput,
+  GrupoColaFifoUpdateOutput,
+  GrupoColaFifoDeleteInput,
+  GrupoColaFifoDeleteOutput,
   // Grupos Cola FIFO Familias
   GrupoColaFifoFamiliaListInput,
   GrupoColaFifoFamiliaListOutput,
+  GrupoColaFifoFamiliaGetInput,
+  GrupoColaFifoFamiliaGetOutput,
+  GrupoColaFifoFamiliaCreateInput,
+  GrupoColaFifoFamiliaCreateOutput,
+  GrupoColaFifoFamiliaUpdateInput,
+  GrupoColaFifoFamiliaUpdateOutput,
+  GrupoColaFifoFamiliaDeleteInput,
+  GrupoColaFifoFamiliaDeleteOutput,
 } from "@/generated/actions.d";
 
 export interface ActionRegistry {
@@ -141,8 +157,16 @@ export interface ActionRegistry {
   "centros_de_servicio.list": { input: CentroDeServicioListInput; output: CentroDeServicioListOutput };
   // Grupos Cola FIFO
   "grupos_cola_fifo.list": { input: GrupoColaFifoListInput; output: GrupoColaFifoListOutput };
+  "grupos_cola_fifo.get": { input: GrupoColaFifoGetInput; output: GrupoColaFifoGetOutput };
+  "grupos_cola_fifo.create": { input: GrupoColaFifoCreateInput; output: GrupoColaFifoCreateOutput };
+  "grupos_cola_fifo.update": { input: GrupoColaFifoUpdateInput; output: GrupoColaFifoUpdateOutput };
+  "grupos_cola_fifo.delete": { input: GrupoColaFifoDeleteInput; output: GrupoColaFifoDeleteOutput };
   // Grupos Cola FIFO Familias
   "grupos_cola_fifo_familias.list": { input: GrupoColaFifoFamiliaListInput; output: GrupoColaFifoFamiliaListOutput };
+  "grupos_cola_fifo_familias.get": { input: GrupoColaFifoFamiliaGetInput; output: GrupoColaFifoFamiliaGetOutput };
+  "grupos_cola_fifo_familias.create": { input: GrupoColaFifoFamiliaCreateInput; output: GrupoColaFifoFamiliaCreateOutput };
+  "grupos_cola_fifo_familias.update": { input: GrupoColaFifoFamiliaUpdateInput; output: GrupoColaFifoFamiliaUpdateOutput };
+  "grupos_cola_fifo_familias.delete": { input: GrupoColaFifoFamiliaDeleteInput; output: GrupoColaFifoFamiliaDeleteOutput };
 }
 
 export type ActionName = keyof ActionRegistry;

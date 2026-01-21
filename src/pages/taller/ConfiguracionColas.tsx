@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { apiBackendAction } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -481,48 +480,41 @@ export default function ConfiguracionColas() {
     }
   };
 
-  // Save uses direct Supabase for write operations (tech debt - pending CRUD contracts)
+  // Save configuration using apiBackendAction
   const handleSave = async () => {
     if (!selectedCentro || !user) return;
 
     setSaving(true);
     try {
-      // Delete existing configuration
-      await supabase
-        .from("grupos_cola_fifo")
-        .delete()
-        .eq("centro_servicio_id", Number(selectedCentro));
+      // First, fetch existing grupos for this centro and delete them
+      const existingGruposResponse = await apiBackendAction("grupos_cola_fifo.list", {});
+      const gruposToDelete = existingGruposResponse.results.filter(
+        (g) => g.centro_servicio_id === Number(selectedCentro)
+      );
+
+      // Delete existing grupos (cascade will handle familias)
+      for (const grupo of gruposToDelete) {
+        await apiBackendAction("grupos_cola_fifo.delete", { id: grupo.id });
+      }
 
       // Insert new groups and their families
       for (const grupo of grupos) {
         const nombreGuardar = grupo.nombre.trim() || getNombreMostrado(grupo);
 
-        const { data: grupoInserted, error: grupoError } = await supabase
-          .from("grupos_cola_fifo")
-          .insert({
-            centro_servicio_id: Number(selectedCentro),
-            nombre: nombreGuardar,
-            orden: grupo.orden,
-            activo: grupo.activo,
-            color: grupo.color || null,
-            updated_by: null,
-          })
-          .select()
-          .single();
+        const grupoInserted = await apiBackendAction("grupos_cola_fifo.create", {
+          centro_servicio_id: Number(selectedCentro),
+          nombre: nombreGuardar,
+          orden: grupo.orden,
+          activo: grupo.activo,
+          color: grupo.color || null,
+        });
 
-        if (grupoError) throw grupoError;
-
-        if (grupo.familias.length > 0) {
-          const { error: familiasError } = await supabase
-            .from("grupos_cola_fifo_familias")
-            .insert(
-              grupo.familias.map((familiaId) => ({
-                grupo_id: grupoInserted.id,
-                familia_abuelo_id: familiaId,
-              }))
-            );
-
-          if (familiasError) throw familiasError;
+        // Insert familia associations
+        for (const familiaId of grupo.familias) {
+          await apiBackendAction("grupos_cola_fifo_familias.create", {
+            grupo_id: grupoInserted.id,
+            familia_abuelo_id: familiaId,
+          });
         }
       }
 
