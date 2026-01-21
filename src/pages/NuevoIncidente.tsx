@@ -518,11 +518,11 @@ export default function NuevoIncidente() {
   const [accesoriosDisponibles, setAccesoriosDisponibles] = useState<{ id: number; nombre: string }[]>([]);
   const [centrosServicioList, setCentrosServicioList] = useState<
     {
-      id: string;
+      id: number;
       nombre: string;
     }[]
   >([]);
-  const [centroServicio, setCentroServicio] = useState("");
+  const [centroServicio, setCentroServicio] = useState<number | null>(null);
   const [opcionEnvio, setOpcionEnvio] = useState<string>("");
   const [direccionesEnvio, setDireccionesEnvio] = useState<any[]>([]);
   const [direccionSeleccionada, setDireccionSeleccionada] = useState<string>("");
@@ -636,8 +636,8 @@ export default function NuevoIncidente() {
     const fetchCentrosYUsuario = async () => {
       try {
         // Cargar todos los centros de servicio
-        const { data: centros } = await (supabase as any)
-          .from("centros_servicio")
+        const { data: centros } = await supabase
+          .from("centros_de_servicio")
           .select("id, nombre")
           .eq("activo", true)
           .order("nombre");
@@ -823,7 +823,7 @@ export default function NuevoIncidente() {
     setPersonaDejaMaquina("");
     setDpiPersonaDeja("");
     setAccesoriosSeleccionados([]);
-    setCentroServicio("");
+    setCentroServicio(null);
     setOpcionEnvio("");
     setDireccionSeleccionada("");
     setNuevaDireccion("");
@@ -1187,7 +1187,7 @@ export default function NuevoIncidente() {
         descripcionProblema: descripcionProblema,
         accesorios: accesoriosSeleccionados.join(", ") || "Ninguno",
         fechaIngreso: new Date(),
-        centroServicio: centrosServicioList.find((c) => c.id === centroServicio)?.nombre ?? centroServicio,
+        centroServicio: centrosServicioList.find((c) => c.id === centroServicio)?.nombre ?? String(centroServicio ?? ""),
         personaDejaMaquina: personaDejaMaquina,
         tipologia: tipologia,
         esReingreso: esReingreso,
@@ -1823,10 +1823,10 @@ export default function NuevoIncidente() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-end">
                   <OutlinedSelect
                     label="Centro de Servicio"
-                    value={centroServicio}
-                    onValueChange={setCentroServicio}
+                    value={centroServicio !== null ? String(centroServicio) : ""}
+                    onValueChange={(val) => setCentroServicio(val ? Number(val) : null)}
                     options={centrosServicioList.map((c) => ({
-                      value: c.id,
+                      value: String(c.id),
                       label: c.nombre,
                     }))}
                     required
