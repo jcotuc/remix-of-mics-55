@@ -39,6 +39,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
+import { apiBackendAction } from "@/lib/api-backend";
 
 interface Usuario {
   id: number;
@@ -89,28 +90,33 @@ export default function Usuarios() {
   const [formActivo, setFormActivo] = useState(true);
   const [formRoles, setFormRoles] = useState<number[]>([]);
 
-  // Queries
+  // Queries using apiBackendAction
   const { data: usuarios = [], isLoading: loadingUsuarios } = useQuery({
     queryKey: ["usuarios"],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("usuarios")
-        .select("*, centro:centros_de_servicio(nombre, codigo)")
-        .order("nombre");
-      if (error) throw error;
-      return data as Usuario[];
+      const result = await apiBackendAction("usuarios.list", {});
+      // Enrich with centro data
+      const { data: centrosData } = await (supabase as any)
+        .from("centros_de_servicio")
+        .select("id, nombre, codigo")
+        .eq("activo", true);
+      const centrosMap = (centrosData || []).reduce((acc: Record<number, any>, c: any) => {
+        acc[c.id] = { nombre: c.nombre, codigo: c.codigo };
+        return acc;
+      }, {});
+      
+      return (result.results || []).map((u: any) => ({
+        ...u,
+        centro: u.centro_de_servicio_id ? centrosMap[u.centro_de_servicio_id] : null
+      })) as Usuario[];
     },
   });
 
   const { data: roles = [] } = useQuery({
     queryKey: ["roles"],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("roles")
-        .select("*")
-        .order("nombre");
-      if (error) throw error;
-      return data as Rol[];
+      const result = await apiBackendAction("roles.list", {});
+      return (result.items || []) as Rol[];
     },
   });
 
@@ -498,27 +504,28 @@ export default function Usuarios() {
               {/* User info (read-only) */}
               <div className="space-y-2 p-4 bg-muted/50 rounded-lg">
                 <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                    <User className="h-5 w-5 text-primary" />
+                  <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+                    <User className="h-6 w-6 text-primary" />
                   </div>
                   <div>
-                    <div className="font-medium">
-                      {editingUser.nombre} {editingUser.apellido || ""}
-                    </div>
-                    <div className="text-sm text-muted-foreground">{editingUser.email}</div>
+                    <p className="font-semibold">{editingUser.nombre} {editingUser.apellido}</p>
+                    <p className="text-sm text-muted-foreground">{editingUser.email}</p>
                   </div>
                 </div>
               </div>
 
-              {/* Centro de servicio */}
+              {/* Centro de Servicio */}
               <div className="space-y-2">
-                <Label>Centro de Servicio</Label>
+                <Label className="flex items-center gap-2">
+                  <Building2 className="h-4 w-4" />
+                  Centro de Servicio
+                </Label>
                 <Select value={formCentroId} onValueChange={setFormCentroId}>
                   <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar centro" />
+                    <SelectValue placeholder="Seleccionar centro..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Sin centro asignado</SelectItem>
+                    <SelectItem value="">Sin asignar</SelectItem>
                     {centros.map((c) => (
                       <SelectItem key={c.id} value={c.id.toString()}>
                         {c.codigo} - {c.nombre}
@@ -542,14 +549,11 @@ export default function Usuarios() {
               <div className="space-y-3">
                 <Label className="flex items-center gap-2">
                   <Shield className="h-4 w-4" />
-                  Roles asignados
+                  Roles
                 </Label>
-                <div className="grid grid-cols-2 gap-2 max-h-[200px] overflow-y-auto p-1">
+                <div className="grid grid-cols-2 gap-2">
                   {roles.map((rol) => (
-                    <div
-                      key={rol.id}
-                      className="flex items-center space-x-2 p-2 rounded border hover:bg-muted/50"
-                    >
+                    <div key={rol.id} className="flex items-center space-x-2">
                       <Checkbox
                         id={`rol-${rol.id}`}
                         checked={formRoles.includes(rol.id)}
@@ -557,7 +561,7 @@ export default function Usuarios() {
                       />
                       <label
                         htmlFor={`rol-${rol.id}`}
-                        className="text-sm font-medium leading-none cursor-pointer flex-1"
+                        className="text-sm cursor-pointer"
                       >
                         {rol.nombre}
                       </label>
@@ -571,8 +575,8 @@ export default function Usuarios() {
             <Button variant="outline" onClick={closeDialog}>
               Cancelar
             </Button>
-            <Button onClick={handleSubmit}>
-              Guardar cambios
+            <Button onClick={handleSubmit} disabled={updateUsuario.isPending}>
+              {updateUsuario.isPending ? "Guardando..." : "Guardar cambios"}
             </Button>
           </DialogFooter>
         </DialogContent>
