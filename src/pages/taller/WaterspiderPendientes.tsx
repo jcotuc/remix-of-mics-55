@@ -23,41 +23,40 @@ import { toast } from "sonner";
 import { formatFechaRelativa, formatLogEntry, formatFechaCorta } from "@/utils/dateFormatters";
 
 interface IncidenteReparado {
-  id: string;
+  id: number;
   codigo: string;
-  codigo_cliente: string;
-  codigo_producto: string;
-  ingresado_en_mostrador: boolean | null;
-  updated_at: string;
-  descripcion_problema: string;
+  cliente_id: number;
+  producto_id: number | null;
+  quiere_envio: boolean;
+  updated_at: string | null;
+  descripcion_problema: string | null;
 }
 
 interface IncidenteDepuracion {
-  id: string;
+  id: number;
   codigo: string;
-  codigo_cliente: string;
-  codigo_producto: string;
-  status: string;
-  updated_at: string;
-  descripcion_problema: string;
+  cliente_id: number;
+  producto_id: number | null;
+  estado: string;
+  updated_at: string | null;
+  descripcion_problema: string | null;
 }
 
 interface SolicitudDespachada {
-  id: string;
-  incidente_id: string;
-  tecnico_solicitante: string;
+  id: number;
+  incidente_id: number;
+  tecnico_solicitante: string | null;
   repuestos: any;
   estado: string;
   updated_at: string;
   incidente: {
     codigo: string;
-    codigo_producto: string;
-    codigo_tecnico: string | null;
+    producto_id: number | null;
   } | null;
 }
 
 interface ClienteMap {
-  [codigo: string]: { nombre: string; celular: string };
+  [id: number]: { nombre: string; celular: string | null };
 }
 
 export default function WaterspiderPendientes() {
@@ -72,10 +71,10 @@ export default function WaterspiderPendientes() {
   const [filtroTexto, setFiltroTexto] = useState("");
   
   // Selection states
-  const [selectedMostrador, setSelectedMostrador] = useState<Set<string>>(new Set());
-  const [selectedLogistica, setSelectedLogistica] = useState<Set<string>>(new Set());
-  const [selectedDepuracion, setSelectedDepuracion] = useState<Set<string>>(new Set());
-  const [selectedRepuestos, setSelectedRepuestos] = useState<Set<string>>(new Set());
+  const [selectedMostrador, setSelectedMostrador] = useState<Set<number>>(new Set());
+  const [selectedLogistica, setSelectedLogistica] = useState<Set<number>>(new Set());
+  const [selectedDepuracion, setSelectedDepuracion] = useState<Set<number>>(new Set());
+  const [selectedRepuestos, setSelectedRepuestos] = useState<Set<number>>(new Set());
   
   // Dialog states
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
@@ -88,8 +87,8 @@ export default function WaterspiderPendientes() {
     try {
       const { data, error } = await supabase
         .from("incidentes")
-        .select("id, codigo, codigo_cliente, codigo_producto, ingresado_en_mostrador, updated_at, descripcion_problema")
-        .eq("status", "Reparado")
+        .select("id, codigo, cliente_id, producto_id, quiere_envio, updated_at, descripcion_problema")
+        .eq("estado", "REPARADO")
         .order("updated_at", { ascending: true });
 
       if (error) throw error;
@@ -97,16 +96,16 @@ export default function WaterspiderPendientes() {
       setSelectedMostrador(new Set());
       setSelectedLogistica(new Set());
 
-      const codigosClientes = [...new Set((data || []).map(i => i.codigo_cliente))];
-      if (codigosClientes.length > 0) {
+      const clienteIds = [...new Set((data || []).map(i => i.cliente_id))];
+      if (clienteIds.length > 0) {
         const { data: clientesData } = await supabase
           .from("clientes")
-          .select("codigo, nombre, celular")
-          .in("codigo", codigosClientes);
+          .select("id, nombre, celular")
+          .in("id", clienteIds);
 
         const clientesMap: ClienteMap = {};
         (clientesData || []).forEach(c => {
-          clientesMap[c.codigo] = { nombre: c.nombre, celular: c.celular };
+          clientesMap[c.id] = { nombre: c.nombre, celular: c.celular };
         });
         setClientes(prev => ({ ...prev, ...clientesMap }));
       }
@@ -121,8 +120,8 @@ export default function WaterspiderPendientes() {
     try {
       const { data, error } = await supabase
         .from("incidentes")
-        .select("id, codigo, codigo_cliente, codigo_producto, status, updated_at, descripcion_problema")
-        .in("status", ["Nota de credito", "Cambio por garantia"])
+        .select("id, codigo, cliente_id, producto_id, estado, updated_at, descripcion_problema")
+        .in("estado", ["NOTA_DE_CREDITO", "CAMBIO_POR_GARANTIA"])
         .order("updated_at", { ascending: false });
 
       if (error) throw error;
@@ -130,16 +129,16 @@ export default function WaterspiderPendientes() {
       setSelectedDepuracion(new Set());
 
       // Fetch clients
-      const codigosClientes = [...new Set((data || []).map(i => i.codigo_cliente))];
-      if (codigosClientes.length > 0) {
+      const clienteIds = [...new Set((data || []).map(i => i.cliente_id))];
+      if (clienteIds.length > 0) {
         const { data: clientesData } = await supabase
           .from("clientes")
-          .select("codigo, nombre, celular")
-          .in("codigo", codigosClientes);
+          .select("id, nombre, celular")
+          .in("id", clienteIds);
 
         const clientesMap: ClienteMap = {};
         (clientesData || []).forEach(c => {
-          clientesMap[c.codigo] = { nombre: c.nombre, celular: c.celular };
+          clientesMap[c.id] = { nombre: c.nombre, celular: c.celular };
         });
         setClientes(prev => ({ ...prev, ...clientesMap }));
       }
@@ -153,24 +152,24 @@ export default function WaterspiderPendientes() {
     try {
       const { data, error } = await supabase
         .from("incidentes")
-        .select("id, codigo, codigo_cliente, codigo_producto, status, updated_at, descripcion_problema")
-        .eq("status", "Rechazado")
+        .select("id, codigo, cliente_id, producto_id, estado, updated_at, descripcion_problema")
+        .eq("estado", "RECHAZADO")
         .order("updated_at", { ascending: false });
 
       if (error) throw error;
       setIncidentesRechazados(data || []);
 
       // Fetch clients
-      const codigosClientes = [...new Set((data || []).map(i => i.codigo_cliente))];
-      if (codigosClientes.length > 0) {
+      const clienteIds = [...new Set((data || []).map(i => i.cliente_id))];
+      if (clienteIds.length > 0) {
         const { data: clientesData } = await supabase
           .from("clientes")
-          .select("codigo, nombre, celular")
-          .in("codigo", codigosClientes);
+          .select("id, nombre, celular")
+          .in("id", clienteIds);
 
         const clientesMap: ClienteMap = {};
         (clientesData || []).forEach(c => {
-          clientesMap[c.codigo] = { nombre: c.nombre, celular: c.celular };
+          clientesMap[c.id] = { nombre: c.nombre, celular: c.celular };
         });
         setClientes(prev => ({ ...prev, ...clientesMap }));
       }
@@ -186,16 +185,16 @@ export default function WaterspiderPendientes() {
         .from("solicitudes_repuestos")
         .select(`
           id, incidente_id, tecnico_solicitante, repuestos, estado, updated_at,
-          incidentes!inner(codigo, codigo_producto, codigo_tecnico)
+          incidentes:incidente_id(codigo, producto_id)
         `)
-        .eq("estado", "entregado")
+        .eq("estado", "DESPACHADO")
         .order("updated_at", { ascending: true });
 
       if (error) throw error;
       
-      const formatted = (data || []).map(s => ({
+      const formatted: SolicitudDespachada[] = (data || []).map(s => ({
         ...s,
-        incidente: s.incidentes as any
+        incidente: (s as any).incidentes as SolicitudDespachada['incidente']
       }));
       setSolicitudesDespachadas(formatted);
       setSelectedRepuestos(new Set());
@@ -227,12 +226,11 @@ export default function WaterspiderPendientes() {
     incidentes.forEach(inc => {
       const matchesFilter = !filtroTexto || 
         inc.codigo.toLowerCase().includes(filtroTexto.toLowerCase()) ||
-        inc.codigo_cliente.toLowerCase().includes(filtroTexto.toLowerCase()) ||
-        inc.codigo_producto.toLowerCase().includes(filtroTexto.toLowerCase()) ||
-        clientes[inc.codigo_cliente]?.nombre?.toLowerCase().includes(filtroTexto.toLowerCase());
+        inc.producto_id?.toString().includes(filtroTexto.toLowerCase()) ||
+        clientes[inc.cliente_id]?.nombre?.toLowerCase().includes(filtroTexto.toLowerCase());
       
       if (matchesFilter) {
-        if (inc.ingresado_en_mostrador === true) {
+        if (!inc.quiere_envio) {
           mostrador.push(inc);
         } else {
           logistica.push(inc);
@@ -248,9 +246,8 @@ export default function WaterspiderPendientes() {
     return incidentesDepuracion.filter(inc => {
       return !filtroTexto || 
         inc.codigo.toLowerCase().includes(filtroTexto.toLowerCase()) ||
-        inc.codigo_cliente.toLowerCase().includes(filtroTexto.toLowerCase()) ||
-        inc.codigo_producto.toLowerCase().includes(filtroTexto.toLowerCase()) ||
-        clientes[inc.codigo_cliente]?.nombre?.toLowerCase().includes(filtroTexto.toLowerCase());
+        inc.producto_id?.toString().includes(filtroTexto.toLowerCase()) ||
+        clientes[inc.cliente_id]?.nombre?.toLowerCase().includes(filtroTexto.toLowerCase());
     });
   }, [incidentesDepuracion, filtroTexto, clientes]);
 
@@ -259,9 +256,8 @@ export default function WaterspiderPendientes() {
     return incidentesRechazados.filter(inc => {
       return !filtroTexto || 
         inc.codigo.toLowerCase().includes(filtroTexto.toLowerCase()) ||
-        inc.codigo_cliente.toLowerCase().includes(filtroTexto.toLowerCase()) ||
-        inc.codigo_producto.toLowerCase().includes(filtroTexto.toLowerCase()) ||
-        clientes[inc.codigo_cliente]?.nombre?.toLowerCase().includes(filtroTexto.toLowerCase());
+        inc.producto_id?.toString().includes(filtroTexto.toLowerCase()) ||
+        clientes[inc.cliente_id]?.nombre?.toLowerCase().includes(filtroTexto.toLowerCase());
     });
   }, [incidentesRechazados, filtroTexto, clientes]);
 
@@ -271,34 +267,35 @@ export default function WaterspiderPendientes() {
       return !filtroTexto || 
         sol.incidente?.codigo?.toLowerCase().includes(filtroTexto.toLowerCase()) ||
         sol.tecnico_solicitante?.toLowerCase().includes(filtroTexto.toLowerCase()) ||
-        sol.incidente?.codigo_producto?.toLowerCase().includes(filtroTexto.toLowerCase());
+        sol.incidente?.producto_id?.toString().includes(filtroTexto.toLowerCase());
     });
   }, [solicitudesDespachadas, filtroTexto]);
 
-  const getTiempoEspera = (updatedAt: string) => {
+  const getTiempoEspera = (updatedAt: string | null) => {
+    if (!updatedAt) return "N/A";
     return formatFechaRelativa(updatedAt).replace(/^hace /, "");
   };
 
   // Toggle selection handlers
-  const toggleSelectMostrador = (id: string) => {
+  const toggleSelectMostrador = (id: number) => {
     const newSet = new Set(selectedMostrador);
     newSet.has(id) ? newSet.delete(id) : newSet.add(id);
     setSelectedMostrador(newSet);
   };
 
-  const toggleSelectLogistica = (id: string) => {
+  const toggleSelectLogistica = (id: number) => {
     const newSet = new Set(selectedLogistica);
     newSet.has(id) ? newSet.delete(id) : newSet.add(id);
     setSelectedLogistica(newSet);
   };
 
-  const toggleSelectDepuracion = (id: string) => {
+  const toggleSelectDepuracion = (id: number) => {
     const newSet = new Set(selectedDepuracion);
     newSet.has(id) ? newSet.delete(id) : newSet.add(id);
     setSelectedDepuracion(newSet);
   };
 
-  const toggleSelectRepuestos = (id: string) => {
+  const toggleSelectRepuestos = (id: number) => {
     const newSet = new Set(selectedRepuestos);
     newSet.has(id) ? newSet.delete(id) : newSet.add(id);
     setSelectedRepuestos(newSet);
@@ -331,32 +328,29 @@ export default function WaterspiderPendientes() {
           ? Array.from(selectedMostrador) 
           : Array.from(selectedLogistica);
         
-        const nuevoStatus = confirmingType === "mostrador" ? "Pendiente entrega" : "Logistica envio";
+        const nuevoEstado = confirmingType === "mostrador" ? "LISTO_PARA_ENTREGA" : "EN_ENTREGA";
         const destinoLabel = confirmingType === "mostrador" ? "Mostrador" : "Logística";
         
-        const { error } = await supabase
-          .from("incidentes")
-          .update({ status: nuevoStatus, updated_at: new Date().toISOString() })
-          .in("id", selectedIds);
-
-        if (error) throw error;
-
         const logEntry = formatLogEntry(`Waterspider: Entregado a ${destinoLabel}${observaciones ? ` - ${observaciones}` : ''}`);
         
         for (const incId of selectedIds) {
           const { data: currentInc } = await supabase
             .from("incidentes")
-            .select("log_observaciones")
+            .select("observaciones")
             .eq("id", incId)
             .single();
 
-          const newLog = currentInc?.log_observaciones 
-            ? `${currentInc.log_observaciones}\n${logEntry}` 
+          const newObs = currentInc?.observaciones 
+            ? `${currentInc.observaciones}\n${logEntry}` 
             : logEntry;
           
           await supabase
             .from("incidentes")
-            .update({ log_observaciones: newLog })
+            .update({ 
+              estado: nuevoEstado, 
+              observaciones: newObs,
+              updated_at: new Date().toISOString() 
+            })
             .eq("id", incId);
         }
 
@@ -370,17 +364,17 @@ export default function WaterspiderPendientes() {
         for (const incId of selectedIds) {
           const { data: currentInc } = await supabase
             .from("incidentes")
-            .select("log_observaciones")
+            .select("observaciones")
             .eq("id", incId)
             .single();
 
-          const newLog = currentInc?.log_observaciones 
-            ? `${currentInc.log_observaciones}\n${logEntry}` 
+          const newObs = currentInc?.observaciones 
+            ? `${currentInc.observaciones}\n${logEntry}` 
             : logEntry;
           
           await supabase
             .from("incidentes")
-            .update({ log_observaciones: newLog })
+            .update({ observaciones: newObs })
             .eq("id", incId);
         }
 
@@ -392,7 +386,7 @@ export default function WaterspiderPendientes() {
         const { error } = await supabase
           .from("solicitudes_repuestos")
           .update({ 
-            estado: "en_proceso",
+            estado: "EN_PROCESO",
             updated_at: new Date().toISOString()
           })
           .in("id", selectedIds);

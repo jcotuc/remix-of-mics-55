@@ -54,9 +54,8 @@ export default function PendientesRepuestos() {
         .from("incidentes")
         .select(`
           *,
-          clientes!cliente_id(nombre),
-          productos!producto_id(descripcion),
-          solicitudes_repuestos(id, estado, repuestos, created_at)
+          clientes:cliente_id(nombre),
+          productos:producto_id(descripcion)
         `)
         .eq("estado", "ESPERA_REPUESTOS")
         .order("updated_at", { ascending: true });
@@ -65,6 +64,7 @@ export default function PendientesRepuestos() {
 
       // Fetch existing pedidos for these incidentes
       const incidenteIds = (data || []).map(i => i.id);
+      
       const { data: pedidosData } = await supabase
         .from("pedidos_bodega_central")
         .select("id, incidente_id, estado, created_at")
@@ -73,6 +73,19 @@ export default function PendientesRepuestos() {
       const pedidosMap = new Map(
         (pedidosData || []).map(p => [p.incidente_id, { id: p.id, estado: p.estado, created_at: p.created_at }])
       );
+
+      // Fetch solicitudes_repuestos separately
+      const { data: solicitudesData } = await supabase
+        .from("solicitudes_repuestos")
+        .select("*")
+        .in("incidente_id", incidenteIds);
+
+      const solicitudesMap = new Map<number, SolicitudRepuestoDB[]>();
+      (solicitudesData || []).forEach(sol => {
+        const existing = solicitudesMap.get(sol.incidente_id) || [];
+        existing.push(sol);
+        solicitudesMap.set(sol.incidente_id, existing);
+      });
 
       // Fetch technician names from incidente_tecnico junction
       const { data: asignaciones } = await supabase
@@ -104,9 +117,10 @@ export default function PendientesRepuestos() {
         const tecnicoId = asignacionesMap.get(item.id);
         return {
           ...item,
-          cliente: item.clientes as any,
-          producto: item.productos as any,
+          cliente: (item as any).clientes as { nombre: string } | null,
+          producto: (item as any).productos as { descripcion: string } | null,
           tecnico: tecnicoId ? tecnicosMap.get(tecnicoId) || null : null,
+          solicitudes_repuestos: solicitudesMap.get(item.id) || [],
           pedido_bodega: pedidosMap.get(item.id) || null,
         };
       });

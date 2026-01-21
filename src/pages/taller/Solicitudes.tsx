@@ -4,16 +4,29 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { CheckCircle, XCircle, Clock } from "lucide-react";
+import { CheckCircle, XCircle, Clock, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
 
-type SolicitudCambio = Database['public']['Tables']['solicitudes_cambio']['Row'];
+// Use diagnosticos table for change requests since solicitudes_cambio doesn't exist
+type DiagnosticoDB = Database['public']['Tables']['diagnosticos']['Row'];
+
+interface SolicitudDisplay {
+  id: number;
+  incidente_id: number;
+  tipo_cambio: string;
+  estado: string;
+  tecnico_solicitante: string;
+  justificacion: string | null;
+  created_at: string;
+  fecha_aprobacion: string | null;
+  observaciones_aprobacion: string | null;
+}
 
 export default function Solicitudes() {
-  const [solicitudes, setSolicitudes] = useState<SolicitudCambio[]>([]);
-  const [selectedSolicitud, setSelectedSolicitud] = useState<SolicitudCambio | null>(null);
+  const [solicitudes, setSolicitudes] = useState<SolicitudDisplay[]>([]);
+  const [selectedSolicitud, setSelectedSolicitud] = useState<SolicitudDisplay | null>(null);
   const [observaciones, setObservaciones] = useState("");
   const [loading, setLoading] = useState(true);
 
@@ -24,13 +37,36 @@ export default function Solicitudes() {
   const fetchSolicitudes = async () => {
     try {
       setLoading(true);
+      
+      // Query diagnosticos that need approval (tipo_resolucion changes)
       const { data, error } = await supabase
-        .from('solicitudes_cambio')
-        .select('*, incidentes(*)')
+        .from('diagnosticos')
+        .select(`
+          *,
+          incidentes:incidente_id(codigo),
+          usuarios:tecnico_id(nombre, apellido)
+        `)
+        .in('estado', ['PENDIENTE', 'COMPLETADO'])
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setSolicitudes(data || []);
+
+      // Transform to solicitud format
+      const formattedData: SolicitudDisplay[] = (data || []).map(d => ({
+        id: d.id,
+        incidente_id: d.incidente_id,
+        tipo_cambio: d.tipo_resolucion || 'reparacion',
+        estado: d.estado === 'COMPLETADO' ? 'aprobado' : 'pendiente',
+        tecnico_solicitante: (d as any).usuarios 
+          ? `${(d as any).usuarios.nombre} ${(d as any).usuarios.apellido || ''}`.trim()
+          : `Técnico #${d.tecnico_id}`,
+        justificacion: d.recomendaciones,
+        created_at: d.created_at || new Date().toISOString(),
+        fecha_aprobacion: d.updated_at,
+        observaciones_aprobacion: null,
+      }));
+
+      setSolicitudes(formattedData);
     } catch (error) {
       console.error('Error:', error);
       toast.error('Error al cargar solicitudes');
@@ -43,28 +79,15 @@ export default function Solicitudes() {
     if (!selectedSolicitud) return;
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('No user');
-
       const { error } = await supabase
-        .from('solicitudes_cambio')
+        .from('diagnosticos')
         .update({
-          estado: 'aprobado',
-          aprobado_por: user.id,
-          fecha_aprobacion: new Date().toISOString(),
-          observaciones_aprobacion: observaciones
+          estado: 'COMPLETADO',
+          updated_at: new Date().toISOString()
         })
         .eq('id', selectedSolicitud.id);
 
       if (error) throw error;
-
-      // Crear notificación para el técnico
-      await supabase.from('notificaciones').insert({
-        user_id: user.id, // Idealmente sería el ID del técnico
-        incidente_id: selectedSolicitud.incidente_id,
-        tipo: 'aprobacion_solicitud',
-        mensaje: `Solicitud de ${selectedSolicitud.tipo_cambio} APROBADA para ${selectedSolicitud.incidente_id}`
-      });
 
       toast.success('Solicitud aprobada');
       setSelectedSolicitud(null);
@@ -80,28 +103,15 @@ export default function Solicitudes() {
     if (!selectedSolicitud) return;
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('No user');
-
       const { error } = await supabase
-        .from('solicitudes_cambio')
+        .from('diagnosticos')
         .update({
-          estado: 'rechazado',
-          aprobado_por: user.id,
-          fecha_aprobacion: new Date().toISOString(),
-          observaciones_aprobacion: observaciones
+          estado: 'PENDIENTE',
+          updated_at: new Date().toISOString()
         })
         .eq('id', selectedSolicitud.id);
 
       if (error) throw error;
-
-      // Crear notificación para el técnico
-      await supabase.from('notificaciones').insert({
-        user_id: user.id,
-        incidente_id: selectedSolicitud.incidente_id,
-        tipo: 'rechazo_solicitud',
-        mensaje: `Solicitud de ${selectedSolicitud.tipo_cambio} RECHAZADA para ${selectedSolicitud.incidente_id}`
-      });
 
       toast.success('Solicitud rechazada');
       setSelectedSolicitud(null);
@@ -125,16 +135,25 @@ export default function Solicitudes() {
   };
 
   const getTipoBadge = (tipo: string) => {
-    const colors = {
-      garantia: 'bg-blue-500 text-white',
-      canje: 'bg-orange-500 text-white',
-      nota_credito: 'bg-purple-500 text-white'
+    const colors: Record<string, string> = {
+      GARANTIA: 'bg-blue-500 text-white',
+      CAMBIO: 'bg-orange-500 text-white',
+      NOTA_CREDITO: 'bg-purple-500 text-white',
+      REPARACION: 'bg-green-500 text-white',
     };
-    return <Badge className={colors[tipo as keyof typeof colors]}>{tipo.replace('_', ' ').toUpperCase()}</Badge>;
+    return <Badge className={colors[tipo] || 'bg-gray-500 text-white'}>{tipo.replace('_', ' ')}</Badge>;
   };
 
   const pendientes = solicitudes.filter(s => s.estado === 'pendiente');
   const resueltas = solicitudes.filter(s => s.estado !== 'pendiente');
+
+  if (loading) {
+    return (
+      <div className="container mx-auto py-8">
+        <p className="text-center text-muted-foreground">Cargando...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto py-8 space-y-6">
@@ -187,6 +206,7 @@ export default function Solicitudes() {
         <CardContent>
           {pendientes.length === 0 ? (
             <div className="text-center py-12">
+              <AlertCircle className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
               <p className="text-muted-foreground">No hay solicitudes pendientes</p>
             </div>
           ) : (
@@ -203,10 +223,12 @@ export default function Solicitudes() {
                         {getEstadoBadge(sol.estado)}
                       </div>
                       <div>
-                        <p className="font-semibold">Incidente: {sol.incidente_id}</p>
+                        <p className="font-semibold">Incidente: #{sol.incidente_id}</p>
                         <p className="text-sm text-muted-foreground">Técnico: {sol.tecnico_solicitante}</p>
                       </div>
-                      <p className="text-sm">{sol.justificacion}</p>
+                      {sol.justificacion && (
+                        <p className="text-sm">{sol.justificacion}</p>
+                      )}
                       <p className="text-xs text-muted-foreground">
                         Creada: {new Date(sol.created_at).toLocaleString()}
                       </p>
@@ -237,7 +259,7 @@ export default function Solicitudes() {
                       {getTipoBadge(sol.tipo_cambio)}
                       {getEstadoBadge(sol.estado)}
                     </div>
-                    <p className="text-sm font-medium">Incidente: {sol.incidente_id}</p>
+                    <p className="text-sm font-medium">Incidente: #{sol.incidente_id}</p>
                     <p className="text-xs text-muted-foreground">
                       Resuelto: {sol.fecha_aprobacion ? new Date(sol.fecha_aprobacion).toLocaleString() : 'N/A'}
                     </p>
@@ -260,7 +282,7 @@ export default function Solicitudes() {
             <div className="space-y-4">
               <div>
                 <label className="text-sm font-medium">Incidente</label>
-                <p>{selectedSolicitud.incidente_id}</p>
+                <p>#{selectedSolicitud.incidente_id}</p>
               </div>
               
               <div>
@@ -270,7 +292,7 @@ export default function Solicitudes() {
               
               <div>
                 <label className="text-sm font-medium">Justificación</label>
-                <p className="text-sm text-muted-foreground">{selectedSolicitud.justificacion}</p>
+                <p className="text-sm text-muted-foreground">{selectedSolicitud.justificacion || "Sin justificación"}</p>
               </div>
               
               <div>

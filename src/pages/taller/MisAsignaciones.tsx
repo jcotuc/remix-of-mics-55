@@ -80,10 +80,23 @@ export default function MisAsignaciones() {
       setLoading(true);
       // Filtrar incidentes asignados al técnico actual
       // Buscar en incidente_tecnico junction table
+      // Buscar usuario_id numérico
+      const { data: usuario } = await supabase
+        .from('usuarios')
+        .select('id')
+        .eq('auth_uid', userId)
+        .maybeSingle();
+
+      if (!usuario) {
+        setIncidentes([]);
+        setLoading(false);
+        return;
+      }
+
       const { data: asignaciones } = await supabase
         .from('incidente_tecnico')
         .select('incidente_id')
-        .eq('tecnico_id', userId);
+        .eq('tecnico_id', usuario.id);
 
       if (!asignaciones || asignaciones.length === 0) {
         setIncidentes([]);

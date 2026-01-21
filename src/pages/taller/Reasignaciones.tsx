@@ -12,26 +12,22 @@ import { Loader2, RefreshCw, Search, User, ArrowRight } from "lucide-react";
 import { differenceInDays } from "date-fns";
 import { toast } from "sonner";
 import { formatLogEntry } from "@/utils/dateFormatters";
+import type { Database } from "@/integrations/supabase/types";
 
-interface Incidente {
-  id: string;
-  codigo: string;
-  codigo_producto: string;
-  codigo_tecnico: string | null;
-  tecnico_asignado_id: string | null;
-  status: string;
-  log_observaciones: string | null;
-  updated_at: string;
-  cliente: { nombre: string } | null;
-  producto: { descripcion: string } | null;
-  tecnico_profile?: { nombre: string; apellido: string } | null;
+type IncidenteDB = Database['public']['Tables']['incidentes']['Row'];
+
+interface Incidente extends IncidenteDB {
+  cliente?: { nombre: string } | null;
+  producto?: { descripcion: string } | null;
+  tecnico_profile?: { nombre: string; apellido: string | null } | null;
+  tecnico_asignado_id_from_junction?: number | null;
 }
 
 interface Tecnico {
-  user_id: string;
+  id: number;
   nombre: string;
-  apellido: string;
-  email: string;
+  apellido: string | null;
+  email: string | null;
 }
 
 export default function Reasignaciones() {
@@ -54,65 +50,73 @@ export default function Reasignaciones() {
 
   const fetchData = async () => {
     try {
-      // Fetch incidentes en diagnóstico - ahora usando tecnico_asignado_id
-      const { data: incidentesData } = await supabase
+      // Fetch incidentes en diagnóstico
+      const { data: incidentesData, error } = await supabase
         .from("incidentes")
         .select(`
-          id,
-          codigo,
-          codigo_producto,
-          codigo_tecnico,
-          tecnico_asignado_id,
-          status,
-          updated_at,
-          log_observaciones,
-          clientes!incidentes_codigo_cliente_fkey(nombre),
-          productos!incidentes_codigo_producto_fkey(descripcion)
+          *,
+          clientes:cliente_id(nombre),
+          productos:producto_id(descripcion)
         `)
-        .in("status", ["En diagnostico", "Pendiente por repuestos"])
-        .not("tecnico_asignado_id", "is", null)
+        .in("estado", ["EN_DIAGNOSTICO", "ESPERA_REPUESTOS"])
         .order("updated_at", { ascending: true });
 
-      // Obtener perfiles de técnicos para mostrar nombres
-      const tecnicoIds = [...new Set((incidentesData || []).map(i => i.tecnico_asignado_id).filter(Boolean))];
-      let tecnicoProfiles: Record<string, { nombre: string; apellido: string }> = {};
+      if (error) throw error;
+
+      const incidenteIds = (incidentesData || []).map(i => i.id);
+
+      // Fetch tecnico assignments from incidente_tecnico junction
+      const { data: asignaciones } = await supabase
+        .from("incidente_tecnico")
+        .select("incidente_id, tecnico_id")
+        .in("incidente_id", incidenteIds)
+        .eq("es_principal", true);
+
+      const tecnicoIds = [...new Set((asignaciones || []).map(a => a.tecnico_id).filter(Boolean))] as number[];
       
+      let tecnicoProfiles: Record<number, { nombre: string; apellido: string | null }> = {};
       if (tecnicoIds.length > 0) {
-        const { data: profiles } = await supabase
-          .from("profiles")
-          .select("user_id, nombre, apellido")
-          .in("user_id", tecnicoIds);
+        const { data: usuariosData } = await supabase
+          .from("usuarios")
+          .select("id, nombre, apellido")
+          .in("id", tecnicoIds);
         
-        tecnicoProfiles = (profiles || []).reduce((acc, p) => {
-          acc[p.user_id] = { nombre: p.nombre, apellido: p.apellido };
+        tecnicoProfiles = (usuariosData || []).reduce((acc, u) => {
+          acc[u.id] = { nombre: u.nombre, apellido: u.apellido };
           return acc;
-        }, {} as Record<string, { nombre: string; apellido: string }>);
+        }, {} as Record<number, { nombre: string; apellido: string | null }>);
       }
 
-      const formattedData = (incidentesData || []).map(item => ({
-        ...item,
-        cliente: item.clientes,
-        producto: item.productos,
-        tecnico_profile: item.tecnico_asignado_id ? tecnicoProfiles[item.tecnico_asignado_id] : null,
-      }));
+      // Map asignaciones to incidentes
+      const asignacionesMap = new Map(
+        (asignaciones || []).map(a => [a.incidente_id, a.tecnico_id])
+      );
+
+      // Filter only incidentes that have technician assigned
+      const formattedData: Incidente[] = (incidentesData || [])
+        .filter(item => asignacionesMap.has(item.id))
+        .map(item => {
+          const tecnicoId = asignacionesMap.get(item.id);
+          return {
+            ...item,
+            cliente: (item as any).clientes as { nombre: string } | null,
+            producto: (item as any).productos as { descripcion: string } | null,
+            tecnico_profile: tecnicoId ? tecnicoProfiles[tecnicoId] || null : null,
+            tecnico_asignado_id_from_junction: tecnicoId || null,
+          };
+        });
 
       setIncidentes(formattedData);
 
-      // Fetch técnicos
-      const { data: rolesData } = await supabase
-        .from("user_roles")
-        .select("user_id")
-        .eq("role", "taller");
+      // Fetch técnicos - get users with taller role
+      const { data: usuariosData } = await supabase
+        .from("usuarios")
+        .select("id, nombre, apellido, email")
+        .eq("activo", true)
+        .order("nombre");
 
-      if (rolesData && rolesData.length > 0) {
-        const userIds = rolesData.map(r => r.user_id);
-        const { data: profilesData } = await supabase
-          .from("profiles")
-          .select("user_id, nombre, apellido, email")
-          .in("user_id", userIds);
-
-        setTecnicos(profilesData || []);
-      }
+      // For now, use all active users as potential technicians
+      setTecnicos(usuariosData || []);
     } catch (error) {
       console.error("Error:", error);
       toast.error("Error al cargar datos");
@@ -136,24 +140,43 @@ export default function Reasignaciones() {
 
     setSubmitting(true);
     try {
+      const nuevoTecnicoId = parseInt(nuevoTecnico);
       // Find tecnico name for display
-      const tecnico = tecnicos.find(t => t.user_id === nuevoTecnico);
-      const tecnicoCodigo = tecnico ? `${tecnico.nombre} ${tecnico.apellido}` : nuevoTecnico;
+      const tecnico = tecnicos.find(t => t.id === nuevoTecnicoId);
+      const tecnicoCodigo = tecnico ? `${tecnico.nombre} ${tecnico.apellido || ''}`.trim() : nuevoTecnico;
       const tecnicoAnterior = selectedIncidente.tecnico_profile 
-        ? `${selectedIncidente.tecnico_profile.nombre} ${selectedIncidente.tecnico_profile.apellido}`
-        : selectedIncidente.codigo_tecnico || "N/A";
+        ? `${selectedIncidente.tecnico_profile.nombre} ${selectedIncidente.tecnico_profile.apellido || ''}`.trim()
+        : "N/A";
 
-      // Update incidente with new tecnico_asignado_id
+      // Update incidente_tecnico junction table
       const logEntry = formatLogEntry(`Reasignado de ${tecnicoAnterior} a ${tecnicoCodigo}${motivoReasignacion ? `. Motivo: ${motivoReasignacion}` : ""}`);
 
+      // First, update the existing assignment or create new one
+      if (selectedIncidente.tecnico_asignado_id_from_junction) {
+        // Update existing assignment
+        await supabase
+          .from("incidente_tecnico")
+          .update({ tecnico_id: nuevoTecnicoId })
+          .eq("incidente_id", selectedIncidente.id)
+          .eq("es_principal", true);
+      } else {
+        // Insert new assignment
+        await supabase
+          .from("incidente_tecnico")
+          .insert({
+            incidente_id: selectedIncidente.id,
+            tecnico_id: nuevoTecnicoId,
+            es_principal: true,
+          });
+      }
+
+      // Update observaciones in incidente
+      const currentObs = selectedIncidente.observaciones || "";
       const { error } = await supabase
         .from("incidentes")
         .update({
-          tecnico_asignado_id: nuevoTecnico,
-          codigo_tecnico: tecnicoCodigo,
-          log_observaciones: selectedIncidente.log_observaciones 
-            ? `${selectedIncidente.log_observaciones}\n${logEntry}`
-            : logEntry,
+          observaciones: currentObs ? `${currentObs}\n${logEntry}` : logEntry,
+          updated_at: new Date().toISOString(),
         })
         .eq("id", selectedIncidente.id);
 
@@ -170,11 +193,11 @@ export default function Reasignaciones() {
     }
   };
 
-  // Obtener técnicos únicos por tecnico_asignado_id con sus nombres
+  // Obtener técnicos únicos con sus nombres
   const uniqueTecnicosMap = incidentes.reduce((acc, inc) => {
-    if (inc.tecnico_asignado_id && inc.tecnico_profile) {
-      const fullName = `${inc.tecnico_profile.nombre} ${inc.tecnico_profile.apellido}`;
-      acc[inc.tecnico_asignado_id] = fullName;
+    if (inc.tecnico_asignado_id_from_junction && inc.tecnico_profile) {
+      const fullName = `${inc.tecnico_profile.nombre} ${inc.tecnico_profile.apellido || ''}`.trim();
+      acc[inc.tecnico_asignado_id_from_junction.toString()] = fullName;
     }
     return acc;
   }, {} as Record<string, string>);
@@ -182,23 +205,24 @@ export default function Reasignaciones() {
   const filteredIncidentes = incidentes.filter(inc => {
     const matchesSearch = 
       inc.codigo.toLowerCase().includes(search.toLowerCase()) ||
-      inc.codigo_producto.toLowerCase().includes(search.toLowerCase()) ||
       inc.cliente?.nombre?.toLowerCase().includes(search.toLowerCase());
     
-    const matchesTecnico = filterTecnico === "all" || inc.tecnico_asignado_id === filterTecnico;
+    const matchesTecnico = filterTecnico === "all" || 
+      inc.tecnico_asignado_id_from_junction?.toString() === filterTecnico;
     
     return matchesSearch && matchesTecnico;
   });
 
-  const getDaysInStatus = (date: string) => {
+  const getDaysInStatus = (date: string | null) => {
+    if (!date) return 0;
     return differenceInDays(new Date(), new Date(date));
   };
 
-  // Group by tecnico using tecnico_asignado_id
+  // Group by tecnico
   const incidentesByTecnico = filteredIncidentes.reduce((acc, inc) => {
     const tecnicoName = inc.tecnico_profile 
-      ? `${inc.tecnico_profile.nombre} ${inc.tecnico_profile.apellido}`
-      : inc.codigo_tecnico || "Sin asignar";
+      ? `${inc.tecnico_profile.nombre} ${inc.tecnico_profile.apellido || ''}`.trim()
+      : "Sin asignar";
     if (!acc[tecnicoName]) acc[tecnicoName] = [];
     acc[tecnicoName].push(inc);
     return acc;
@@ -281,7 +305,7 @@ export default function Reasignaciones() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Buscar por código, producto o cliente..."
+                placeholder="Buscar por código o cliente..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-10"
@@ -333,7 +357,7 @@ export default function Reasignaciones() {
                       <TableCell className="font-medium">{inc.codigo}</TableCell>
                       <TableCell>
                         <div>
-                          <p className="font-medium">{inc.codigo_producto}</p>
+                          <p className="font-medium">#{inc.producto_id}</p>
                           <p className="text-xs text-muted-foreground truncate max-w-[200px]">
                             {inc.producto?.descripcion}
                           </p>
@@ -341,7 +365,7 @@ export default function Reasignaciones() {
                       </TableCell>
                       <TableCell>{inc.cliente?.nombre || "N/A"}</TableCell>
                       <TableCell>
-                        <Badge variant="outline">{inc.status}</Badge>
+                        <Badge variant="outline">{inc.estado}</Badge>
                       </TableCell>
                       <TableCell>{getDaysInStatus(inc.updated_at)} días</TableCell>
                       <TableCell className="text-right">
@@ -382,14 +406,14 @@ export default function Reasignaciones() {
               <div className="p-3 bg-muted rounded-lg">
                 <p className="font-medium">{selectedIncidente.codigo}</p>
                 <p className="text-sm text-muted-foreground">
-                  {selectedIncidente.codigo_producto} - {selectedIncidente.producto?.descripcion}
+                  Producto #{selectedIncidente.producto_id} - {selectedIncidente.producto?.descripcion}
                 </p>
                 <p className="text-sm mt-2">
                   <span className="text-muted-foreground">Técnico actual:</span>{" "}
                   <span className="font-medium">
                     {selectedIncidente.tecnico_profile 
-                      ? `${selectedIncidente.tecnico_profile.nombre} ${selectedIncidente.tecnico_profile.apellido}`
-                      : selectedIncidente.codigo_tecnico || "Sin asignar"}
+                      ? `${selectedIncidente.tecnico_profile.nombre} ${selectedIncidente.tecnico_profile.apellido || ''}`.trim()
+                      : "Sin asignar"}
                   </span>
                 </p>
               </div>
@@ -402,8 +426,8 @@ export default function Reasignaciones() {
                   </SelectTrigger>
                   <SelectContent>
                     {tecnicos.map((tec) => (
-                      <SelectItem key={tec.user_id} value={tec.user_id}>
-                        {tec.nombre} {tec.apellido}
+                      <SelectItem key={tec.id} value={tec.id.toString()}>
+                        {tec.nombre} {tec.apellido || ''}
                       </SelectItem>
                     ))}
                   </SelectContent>
