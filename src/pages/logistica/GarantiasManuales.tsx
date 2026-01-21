@@ -89,19 +89,19 @@ export default function GarantiasManuales() {
       
       if (error) throw error;
       
-      // Fetch profile data for each garantia
+      // Fetch user data for each garantia from usuarios table
       const garantiasWithProfiles = await Promise.all(
         (garantiasData || []).map(async (garantia) => {
           if (garantia.created_by) {
-            const { data: profileData } = await (supabase as any)
-              .from("profiles")
+            const { data: usuarioData } = await (supabase as any)
+              .from("usuarios")
               .select("nombre, apellido")
-              .eq("user_id", garantia.created_by)
+              .eq("id", garantia.created_by)
               .single();
             
             return {
               ...garantia,
-              profiles: profileData
+              profiles: usuarioData
             } as GarantiaManuaDB;
           }
           return garantia as GarantiaManuaDB;

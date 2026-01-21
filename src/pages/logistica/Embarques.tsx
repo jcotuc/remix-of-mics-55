@@ -110,28 +110,46 @@ export default function Embarques() {
         }
       }
 
-      // 3. Crear 6 incidentes ficticios
-      const incidentes = [];
+      // 3. Buscar IDs de clientes existentes
+      const { data: clientesData } = await supabase
+        .from('clientes')
+        .select('id, codigo')
+        .in('codigo', clientes)
+        .limit(6);
+
+      const clienteIds = clientesData?.map(c => c.id) || [];
+      if (clienteIds.length === 0) {
+        // Si no hay clientes, usar el primer cliente disponible
+        const { data: anyCliente } = await supabase
+          .from('clientes')
+          .select('id')
+          .limit(1)
+          .single();
+        if (anyCliente) clienteIds.push(anyCliente.id);
+      }
+
+      // 4. Crear 6 incidentes ficticios con campos correctos del schema
+      const incidentesData = [];
       for (let i = 0; i < 6; i++) {
         const codigo = `INC-${String(nextNumber + i).padStart(6, '0')}`;
         const incidente = {
           codigo,
-          codigo_producto: productos[i],
-          codigo_cliente: clientes[i],
+          cliente_id: clienteIds[i % clienteIds.length],
+          centro_de_servicio_id: 1,
           descripcion_problema: `Máquina requiere revisión general - Ingreso vía logística`,
-          status: 'En ruta' as const,
-          cobertura_garantia: Math.random() > 0.5,
-          ingresado_en_mostrador: false,
-          embarque_id: embarque.id,
-          sku_maquina: `SKU-${productos[i]}-${Math.floor(Math.random() * 1000)}`,
-          fecha_ingreso: new Date().toISOString()
+          estado: 'EN_ENTREGA' as const,
+          tipologia: 'REPARACION' as const,
+          aplica_garantia: Math.random() > 0.5,
+          observaciones: `SKU: SKU-${productos[i]}-${Math.floor(Math.random() * 1000)}`,
+          fecha_ingreso: new Date().toISOString(),
+          tracking_token: crypto.randomUUID()
         };
-        incidentes.push(incidente);
+        incidentesData.push(incidente);
       }
 
       const { data: incidentesCreados, error: incidentesError } = await supabase
         .from('incidentes')
-        .insert(incidentes)
+        .insert(incidentesData)
         .select();
 
       if (incidentesError) throw incidentesError;
