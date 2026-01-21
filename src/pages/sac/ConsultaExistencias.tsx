@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Search, Package, DollarSign } from "lucide-react";
 import { toast } from "sonner";
+import { apiBackendAction } from "@/lib/api";
 
 type RepuestoConStock = {
   id: number;
@@ -33,33 +33,26 @@ export default function ConsultaExistencias() {
       setLoading(true);
       setSearched(true);
 
-      // Buscar repuestos
-      const { data: repuestosData, error: repError } = await supabase
-        .from("repuestos")
-        .select("id, codigo, clave, descripcion, disponible_mostrador")
-        .or(`codigo.ilike.%${searchTerm}%,clave.ilike.%${searchTerm}%,descripcion.ilike.%${searchTerm}%`)
-        .order("descripcion", { ascending: true });
+      // Search repuestos via API
+      const [repuestosRes, inventarioRes] = await Promise.all([
+        apiBackendAction("repuestos.search", { search: searchTerm, limit: 50 }),
+        apiBackendAction("inventarios.list", { limit: 5000 })
+      ]);
 
-      if (repError) throw repError;
+      const repuestosData = repuestosRes.results || [];
+      const inventarioData = inventarioRes.data || [];
 
-      // Buscar stock en inventario
-      const codigos = repuestosData?.map(r => r.codigo) || [];
-      const { data: inventarioData } = await supabase
-        .from('inventario')
-        .select('codigo_repuesto, cantidad, ubicacion_legacy')
-        .in('codigo_repuesto', codigos);
-
-      // Combinar datos
-      const repuestosConStock: RepuestoConStock[] = (repuestosData || []).map(rep => {
-        const inv = inventarioData?.find(i => i.codigo_repuesto === rep.codigo);
+      // Combine data
+      const repuestosConStock: RepuestoConStock[] = repuestosData.map(rep => {
+        const inv = inventarioData.find(i => i.codigo_repuesto === rep.codigo);
         return {
           id: rep.id,
           codigo: rep.codigo,
-          clave: rep.clave,
-          descripcion: rep.descripcion,
-          disponible_mostrador: rep.disponible_mostrador ?? false,
+          clave: '',
+          descripcion: rep.descripcion || '',
+          disponible_mostrador: false,
           stock: inv?.cantidad || 0,
-          ubicacion: inv?.ubicacion_legacy || null
+          ubicacion: inv?.bodega || null
         };
       });
 
