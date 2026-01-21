@@ -13,12 +13,18 @@ import { toast } from "sonner";
 import { Plus, Search, Wrench, CheckCircle, XCircle, Clock, Package } from "lucide-react";
 import { PhotoGalleryWithDescriptions, type PhotoWithDescription } from "@/components/shared";
 import { uploadMediaToStorage } from "@/lib/uploadMedia";
+import { apiBackendAction } from "@/lib/api-backend";
 import type { MediaFile } from "@/components/features/media";
-import type { Database } from "@/integrations/supabase/types";
 
-type IncidenteDB = Database["public"]["Tables"]["incidentes"]["Row"];
-
-type IncidenteHerramienta = IncidenteDB & {
+type IncidenteHerramienta = {
+  id: number;
+  codigo: string;
+  estado: string;
+  tipologia: string | null;
+  descripcion_problema: string | null;
+  observaciones: string | null;
+  aplica_garantia: boolean | null;
+  created_at: string | null;
   cliente?: { nombre: string };
 };
 
@@ -59,17 +65,25 @@ export default function HerramientasManuales() {
   const fetchIncidentes = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from("incidentes")
-        .select(`
-          *,
-          cliente:clientes(nombre)
-        `)
-        .eq("tipologia", "REPARACION")
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      setIncidentes((data as IncidenteHerramienta[]) || []);
+      // Fetch incidentes using apiBackendAction
+      const { results } = await apiBackendAction("incidentes.list", { limit: 500 });
+      
+      // Filter for REPARACION tipologia and map to our type
+      const filtered = (results || [])
+        .filter((inc: any) => inc.tipologia === "REPARACION")
+        .map((inc: any) => ({
+          id: inc.id,
+          codigo: inc.codigo,
+          estado: inc.estado,
+          tipologia: inc.tipologia,
+          descripcion_problema: inc.descripcion_problema,
+          observaciones: inc.observaciones,
+          aplica_garantia: inc.aplica_garantia,
+          created_at: inc.created_at,
+          cliente: inc.cliente ? { nombre: inc.cliente.nombre } : undefined,
+        }));
+      
+      setIncidentes(filtered);
     } catch (error) {
       console.error("Error fetching incidentes:", error);
       toast.error("Error al cargar herramientas manuales");
@@ -90,26 +104,18 @@ export default function HerramientasManuales() {
     }
 
     try {
-      // Obtener cliente_id numérico
-      const { data: clienteData, error: clienteError } = await supabase
-        .from("clientes")
-        .select("id")
-        .eq("codigo", formData.cliente_id)
-        .single();
+      // Obtener cliente_id numérico using apiBackendAction
+      const { result: clienteData } = await apiBackendAction("clientes.getByCodigo", { codigo: formData.cliente_id });
 
-      if (clienteError || !clienteData) {
+      if (!clienteData) {
         toast.error("Cliente no encontrado");
         return;
       }
 
-      // Obtener producto_id numérico
-      const { data: productoData, error: productoError } = await supabase
-        .from("productos")
-        .select("id")
-        .eq("codigo", formData.producto_id)
-        .single();
+      // Obtener producto_id numérico using apiBackendAction
+      const { result: productoData } = await apiBackendAction("productos.getByCodigo", { codigo: formData.producto_id });
 
-      if (productoError || !productoData) {
+      if (!productoData) {
         toast.error("Producto no encontrado");
         return;
       }
@@ -117,7 +123,7 @@ export default function HerramientasManuales() {
       // Obtener centro_de_servicio_id del usuario (default 1)
       const centroServicioId = 1;
 
-      // Generar código de incidente
+      // Generar código de incidente - KEEPING RPC as exception
       const { data: codigoData, error: codigoError } = await (supabase as any)
         .rpc("generar_codigo_incidente");
       
@@ -133,43 +139,33 @@ export default function HerramientasManuales() {
         descripcion: p.description
       }));
 
-      // Crear incidente
-      const { data: incidenteData, error: incidenteError } = await supabase
-        .from("incidentes")
-        .insert([{
-          codigo: nuevoCodigoIncidente,
-          cliente_id: clienteData.id,
-          producto_id: productoData.id,
-          centro_de_servicio_id: centroServicioId,
-          descripcion_problema: formData.descripcion_problema,
-          estado: "EN_DIAGNOSTICO" as const,
-          tipologia: "REPARACION" as const,
-          observaciones: formData.observaciones,
-          aplica_garantia: false,
-          tracking_token: crypto.randomUUID(),
-          quiere_envio: false
-        }])
-        .select()
-        .single();
-
-      if (incidenteError) throw incidenteError;
+      // Crear incidente using apiBackendAction
+      const incidenteData = await apiBackendAction("incidentes.create", {
+        codigo: nuevoCodigoIncidente,
+        cliente_id: (clienteData as any).id,
+        producto_id: (productoData as any).id,
+        centro_de_servicio_id: centroServicioId,
+        descripcion_problema: formData.descripcion_problema,
+        estado: "EN_DIAGNOSTICO",
+        tipologia: "REPARACION",
+        observaciones: formData.observaciones,
+        aplica_garantia: false,
+        tracking_token: crypto.randomUUID(),
+        quiere_envio: false
+      } as any);
 
       // Subir fotos asociadas al incidente
-      const uploadedMedia = await uploadMediaToStorage(mediaFiles, String(incidenteData.id));
+      const uploadedMedia = await uploadMediaToStorage(mediaFiles, String((incidenteData as any).id));
       
-      // Guardar referencias de fotos
+      // Guardar referencias de fotos using apiBackendAction
       const fotosInserts = uploadedMedia.map(media => ({
-        incidente_id: incidenteData.id,
+        incidente_id: (incidenteData as any).id,
         tipo: "ingreso",
         url: media.url,
         storage_path: media.storage_path
       }));
 
-      const { error: fotosError } = await supabase
-        .from("incidente_fotos")
-        .insert(fotosInserts);
-
-      if (fotosError) throw fotosError;
+      await apiBackendAction("incidente_fotos.create", fotosInserts as any);
 
       toast.success("Herramienta recibida correctamente");
       setShowNewDialog(false);
@@ -195,16 +191,14 @@ export default function HerramientasManuales() {
     try {
       const nuevoEstado = aplicaGarantia ? "CAMBIO_POR_GARANTIA" : "ESPERA_APROBACION";
       
-      const { error } = await supabase
-        .from("incidentes")
-        .update({
-          estado: nuevoEstado as any,
+      await apiBackendAction("incidentes.update", {
+        id: selectedIncidente.id,
+        data: {
+          estado: nuevoEstado,
           aplica_garantia: aplicaGarantia,
           observaciones: justificacion
-        })
-        .eq("id", selectedIncidente.id);
-
-      if (error) throw error;
+        }
+      } as any);
 
       toast.success(
         aplicaGarantia 
@@ -486,63 +480,58 @@ export default function HerramientasManuales() {
             </DialogDescription>
           </DialogHeader>
 
-          {selectedIncidente && (
-            <div className="space-y-4">
-              <div className="p-4 bg-muted rounded-lg">
-                <p className="font-semibold">{selectedIncidente.codigo}</p>
-                <p className="text-sm text-muted-foreground">
-                  {selectedIncidente.cliente?.nombre}
-                </p>
-              </div>
+          <div className="space-y-4">
+            <div className="p-4 bg-muted rounded-lg">
+              <p className="font-semibold">{selectedIncidente?.codigo}</p>
+              <p className="text-sm text-muted-foreground">
+                {selectedIncidente?.cliente?.nombre}
+              </p>
+            </div>
 
-              <div className="space-y-2">
-                <Label>¿Aplica garantía?</Label>
-                <div className="flex gap-4">
-                  <Button
-                    variant={aplicaGarantia === true ? "default" : "outline"}
-                    className="flex-1 gap-2"
-                    onClick={() => setAplicaGarantia(true)}
-                  >
-                    <CheckCircle className="h-4 w-4" />
-                    Sí, Garantía
-                  </Button>
-                  <Button
-                    variant={aplicaGarantia === false ? "default" : "outline"}
-                    className="flex-1 gap-2"
-                    onClick={() => setAplicaGarantia(false)}
-                  >
-                    <XCircle className="h-4 w-4" />
-                    No, 40% Canje
-                  </Button>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Justificación * (mínimo 20 caracteres)</Label>
-                <Textarea
-                  placeholder="Explique por qué aplica o no aplica garantía..."
-                  value={justificacion}
-                  onChange={(e) => setJustificacion(e.target.value)}
-                  rows={4}
-                />
-                <p className="text-xs text-muted-foreground">
-                  {justificacion.length}/20 caracteres mínimo
-                </p>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-4">
-                <Button variant="outline" onClick={() => {
-                  setShowEvaluacionDialog(false);
-                  resetEvaluacion();
-                }}>
-                  Cancelar
+            <div className="space-y-2">
+              <Label>¿Aplica Garantía?</Label>
+              <div className="grid grid-cols-2 gap-4">
+                <Button
+                  variant={aplicaGarantia === true ? "default" : "outline"}
+                  className="gap-2"
+                  onClick={() => setAplicaGarantia(true)}
+                >
+                  <CheckCircle className="h-4 w-4" />
+                  Sí, Garantía
                 </Button>
-                <Button onClick={handleEvaluacion}>
-                  Confirmar Evaluación
+                <Button
+                  variant={aplicaGarantia === false ? "default" : "outline"}
+                  className="gap-2"
+                  onClick={() => setAplicaGarantia(false)}
+                >
+                  <XCircle className="h-4 w-4" />
+                  No, Canje 40%
                 </Button>
               </div>
             </div>
-          )}
+
+            <div className="space-y-2">
+              <Label>Justificación *</Label>
+              <Textarea
+                placeholder="Explique el motivo de la decisión (mínimo 20 caracteres)..."
+                value={justificacion}
+                onChange={(e) => setJustificacion(e.target.value)}
+                rows={4}
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-4">
+              <Button variant="outline" onClick={() => {
+                setShowEvaluacionDialog(false);
+                resetEvaluacion();
+              }}>
+                Cancelar
+              </Button>
+              <Button onClick={handleEvaluacion}>
+                Confirmar Evaluación
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

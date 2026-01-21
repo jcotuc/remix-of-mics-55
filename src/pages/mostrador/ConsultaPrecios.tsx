@@ -9,7 +9,6 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { apiBackendAction } from "@/lib/api-backend";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { ProductoSchema, ClienteSchema } from "@/generated/actions.d";
 
@@ -89,17 +88,13 @@ export default function ConsultaPrecios() {
     }
 
     try {
-      const { error } = await supabase
-        .from('cotizaciones')
-        .insert({
-          codigo_cliente: selectedCliente,
-          codigo_producto: selectedProducto.codigo,
-          cantidad: parseInt(cantidad),
-          precio_unitario: parseFloat(precioUnitario),
-          notas: notas || null
-        });
-
-      if (error) throw error;
+      await apiBackendAction("cotizaciones.create", {
+        codigo_cliente: selectedCliente,
+        codigo_producto: selectedProducto.codigo,
+        cantidad: parseInt(cantidad),
+        precio_unitario: parseFloat(precioUnitario),
+        notas: notas || null
+      } as any);
 
       toast.success('Cotización creada exitosamente');
       setIsDialogOpen(false);
