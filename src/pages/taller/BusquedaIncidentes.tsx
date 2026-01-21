@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
+import { apiBackendAction } from "@/lib/api-backend";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -29,13 +30,21 @@ interface DetalleData {
   mediaFiles: MediaDB[];
 }
 
+// Extended type to include nested objects from API
+interface IncidenteConRelaciones extends Omit<IncidenteDB, 'cliente_id' | 'producto_id'> {
+  cliente_id: number;
+  producto_id: number | null;
+  cliente?: ClienteDB | null;
+  producto?: ProductoDB | null;
+}
+
 export default function BusquedaIncidentes() {
-  const [incidentes, setIncidentes] = useState<IncidenteDB[]>([]);
-  const [filteredIncidentes, setFilteredIncidentes] = useState<IncidenteDB[]>([]);
+  const [incidentes, setIncidentes] = useState<IncidenteConRelaciones[]>([]);
+  const [filteredIncidentes, setFilteredIncidentes] = useState<IncidenteConRelaciones[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [estadoFiltro, setEstadoFiltro] = useState<string>("todos");
-  const [selectedIncidente, setSelectedIncidente] = useState<IncidenteDB | null>(null);
+  const [selectedIncidente, setSelectedIncidente] = useState<IncidenteConRelaciones | null>(null);
   const [detalleData, setDetalleData] = useState<DetalleData>({
     cliente: null,
     producto: null,
@@ -55,14 +64,22 @@ export default function BusquedaIncidentes() {
   const fetchIncidentes = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from("incidentes")
-        .select("*")
-        .in("estado", ["EN_DIAGNOSTICO", "REPARADO"])
-        .order("fecha_ingreso", { ascending: false });
-
-      if (error) throw error;
-      setIncidentes(data || []);
+      
+      // Use apiBackendAction for incidentes
+      const result = await apiBackendAction("incidentes.list", { limit: 1000 });
+      
+      // Filter by estados and sort by created_at, map to local type
+      const filtered = result.results
+        .filter(inc => ["EN_DIAGNOSTICO", "REPARADO"].includes(inc.estado))
+        .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())
+        .map(inc => ({
+          ...inc,
+          cliente_id: inc.cliente?.id || 0,
+          producto_id: inc.producto?.id || null,
+          fecha_ingreso: inc.created_at,
+        } as unknown as IncidenteConRelaciones));
+      
+      setIncidentes(filtered);
     } catch (error) {
       console.error("Error al cargar incidentes:", error);
       toast.error("Error al cargar los incidentes");
@@ -92,50 +109,47 @@ export default function BusquedaIncidentes() {
     setFilteredIncidentes(filtered);
   };
 
-  const handleVerDetalle = async (incidente: IncidenteDB) => {
+  const handleVerDetalle = async (incidente: IncidenteConRelaciones) => {
     setSelectedIncidente(incidente);
     setLoadingDetalle(true);
 
     try {
-      // Obtener cliente
-      const { data: clienteData } = await supabase
-        .from("clientes")
-        .select("*")
-        .eq("id", incidente.cliente_id)
-        .maybeSingle();
+      // Use nested objects from incidente if available, otherwise fetch
+      let clienteData = incidente.cliente || null;
+      let productoData = incidente.producto || null;
 
-      // Obtener producto
-      let productoData = null;
-      if (incidente.producto_id) {
-        const { data } = await supabase
-          .from("productos")
-          .select("*")
-          .eq("id", incidente.producto_id)
-          .maybeSingle();
-        productoData = data;
+      // If not in incidente, fetch from registry
+      if (!clienteData && incidente.cliente_id) {
+        const clientesResult = await apiBackendAction("clientes.list", { limit: 5000 });
+        clienteData = clientesResult.results.find(c => c.id === incidente.cliente_id) as unknown as ClienteDB || null;
+      }
+      
+      if (!productoData && incidente.producto_id) {
+        const productosResult = await apiBackendAction("productos.list", { limit: 2000 });
+        productoData = productosResult.results.find(p => p.id === incidente.producto_id) as unknown as ProductoDB || null;
       }
 
-      // Obtener diagnóstico
-      const { data: diagnosticoData } = await supabase
-        .from("diagnosticos")
-        .select("*")
-        .eq("incidente_id", incidente.id)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      // Obtener archivos multimedia
-      const { data: mediaData } = await supabase
-        .from("media")
-        .select("*")
-        .eq("incidente_id", incidente.id)
-        .order("created_at", { ascending: false });
+      // Diagnóstico and media still via direct Supabase (not in registry)
+      const [diagnosticoRes, mediaRes] = await Promise.all([
+        supabase
+          .from("diagnosticos")
+          .select("*")
+          .eq("incidente_id", incidente.id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+        supabase
+          .from("media")
+          .select("*")
+          .eq("incidente_id", incidente.id)
+          .order("created_at", { ascending: false })
+      ]);
 
       setDetalleData({
-        cliente: clienteData,
-        producto: productoData,
-        diagnostico: diagnosticoData,
-        mediaFiles: mediaData || [],
+        cliente: clienteData as ClienteDB | null,
+        producto: productoData as ProductoDB | null,
+        diagnostico: diagnosticoRes.data,
+        mediaFiles: mediaRes.data || [],
       });
     } catch (error) {
       console.error("Error al cargar detalles:", error);
