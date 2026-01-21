@@ -421,6 +421,49 @@ export interface ActionRegistry {
   "presupuestos.create": { input: PresupuestoCreateInput; output: PresupuestoCreateOutput };
   "presupuestos.update": { input: PresupuestoUpdateInput; output: PresupuestoUpdateOutput };
   "presupuestos.delete": { input: PresupuestoDeleteInput; output: PresupuestoDeleteOutput };
+
+  // =============================================================================
+  // MOSTRADOR MODULE - NEW ACTIONS
+  // =============================================================================
+  // Cotizaciones
+  "cotizaciones.create": { input: Record<string, unknown>; output: unknown };
+  "cotizaciones.list": { input: { skip?: number; limit?: number }; output: { results: unknown[] } };
+
+  // Notificaciones Cliente
+  "notificaciones_cliente.list": { input: { incidente_id?: number }; output: { results: unknown[] } };
+  "notificaciones_cliente.create": { input: Record<string, unknown> | Record<string, unknown>[]; output: { results: unknown[] } };
+
+  // Incidente Fotos
+  "incidente_fotos.list": { input: { incidente_id?: number }; output: { results: unknown[] } };
+  "incidente_fotos.create": { input: Record<string, unknown> | Record<string, unknown>[]; output: { results: unknown[] } };
+
+  // Incidente Tecnico
+  "incidente_tecnico.list": { input: { incidente_id?: number; es_principal?: boolean }; output: { results: unknown[] } };
+
+  // Usuarios - get single
+  "usuarios.get": { input: { id: number }; output: { result: unknown | null } };
+
+  // Centros de Servicio - get single
+  "centros_de_servicio.get": { input: { id: number }; output: { result: unknown | null } };
+
+  // Direcciones Envio
+  "direcciones_envio.list": { input: { cliente_id?: number }; output: { results: unknown[] } };
+  "direcciones_envio.get": { input: { id: number }; output: { result: unknown | null } };
+
+  // Guias - search with filters
+  "guias.search": { input: { incidente_codigo?: string; estado?: string; limit?: number }; output: { results: unknown[] } };
+
+  // Clientes - get by codigo
+  "clientes.getByCodigo": { input: { codigo: string }; output: { result: unknown | null } };
+
+  // Productos - get by codigo
+  "productos.getByCodigo": { input: { codigo: string }; output: { result: unknown | null } };
+
+  // Solicitudes Repuestos - search
+  "solicitudes_repuestos.search": { input: { incidente_id?: number; estado?: string; limit?: number }; output: { results: unknown[] } };
+
+  // Inventarios - search by codigos
+  "inventarios.search": { input: { codigos_repuesto?: string[]; centro_servicio_id?: number }; output: { results: unknown[] } };
 }
 
 export type ActionName = keyof ActionRegistry;

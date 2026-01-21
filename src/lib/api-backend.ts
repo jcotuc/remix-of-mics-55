@@ -115,9 +115,22 @@ const incidentesHandlers: Record<string, ActionHandler<any>> = {
     if (!data) return { result: null };
     return { result: { id: data.id, codigo: data.codigo, estado: data.estado, tipologia: data.tipologia, descripcion_problema: data.descripcion_problema, centro_de_servicio_id: data.centro_de_servicio_id, centro_de_servicio: data.centros_de_servicio, cliente: data.clientes, propietario: null, producto: data.productos, tracking_token: data.tracking_token, incidente_origen_id: data.incidente_origen_id, quiere_envio: data.quiere_envio, aplica_garantia: data.aplica_garantia, tipo_resolucion: data.tipo_resolucion, observaciones: data.observaciones, created_at: data.created_at, updated_at: data.updated_at } };
   },
-  "incidentes.create": notImplemented("incidentes.create"),
-  "incidentes.update": notImplemented("incidentes.update"),
-  "incidentes.delete": notImplemented("incidentes.delete"),
+  "incidentes.create": async (input) => {
+    const { data, error } = await supabase.from("incidentes").insert(input as any).select().single();
+    if (error) throw error;
+    return data;
+  },
+  "incidentes.update": async (input) => {
+    const { id, data: updateData } = input as any;
+    const { data, error } = await supabase.from("incidentes").update(updateData).eq("id", id).select().single();
+    if (error) throw error;
+    return data;
+  },
+  "incidentes.delete": async (input) => {
+    const { error } = await supabase.from("incidentes").delete().eq("id", input.id);
+    if (error) throw error;
+    return { status: "deleted", id: input.id };
+  },
   "incidentes.search": async (input) => {
     const { search = "", limit = 20 } = input;
     let query = supabase.from("incidentes").select("id, codigo, estado, tipologia, created_at").limit(limit);
@@ -232,6 +245,134 @@ const simpleHandlers: Record<string, ActionHandler<any>> = {
 };
 
 // =============================================================================
+// MOSTRADOR MODULE HANDLERS
+// =============================================================================
+const mostradorHandlers: Record<string, ActionHandler<any>> = {
+  // Cotizaciones
+  "cotizaciones.create": async (input) => {
+    const { data, error } = await supabase.from("cotizaciones").insert(input as any).select().single();
+    if (error) throw error;
+    return data;
+  },
+  "cotizaciones.list": async (input) => {
+    const { skip = 0, limit = 50 } = input || {};
+    const { data, error } = await supabase.from("cotizaciones").select("*").range(skip, skip + limit - 1).order("created_at", { ascending: false });
+    if (error) throw error;
+    return { results: data || [] };
+  },
+  // Notificaciones Cliente
+  "notificaciones_cliente.list": async (input) => {
+    const { incidente_id } = input || {} as any;
+    let query = (supabase as any).from("notificaciones_cliente").select("*");
+    if (incidente_id) query = query.eq("incidente_id", incidente_id);
+    const { data, error } = await query.order("created_at", { ascending: false });
+    if (error) throw error;
+    return { results: data || [] };
+  },
+  "notificaciones_cliente.create": async (input) => {
+    const insertData = Array.isArray(input) ? input : [input];
+    const { data, error } = await (supabase as any).from("notificaciones_cliente").insert(insertData).select();
+    if (error) throw error;
+    return { results: data || [] };
+  },
+  // Incidente Fotos
+  "incidente_fotos.list": async (input) => {
+    const { incidente_id } = input as any;
+    let query = supabase.from("incidente_fotos").select("*");
+    if (incidente_id) query = query.eq("incidente_id", incidente_id);
+    const { data, error } = await query.order("created_at", { ascending: false });
+    if (error) throw error;
+    return { results: data || [] };
+  },
+  "incidente_fotos.create": async (input) => {
+    const insertData = Array.isArray(input) ? input : [input];
+    const { data, error } = await supabase.from("incidente_fotos").insert(insertData as any).select();
+    if (error) throw error;
+    return { results: data || [] };
+  },
+  // Incidente Tecnico
+  "incidente_tecnico.list": async (input) => {
+    const { incidente_id, es_principal } = input as any;
+    let query = supabase.from("incidente_tecnico").select("*");
+    if (incidente_id) query = query.eq("incidente_id", incidente_id);
+    if (es_principal !== undefined) query = query.eq("es_principal", es_principal);
+    const { data, error } = await query;
+    if (error) throw error;
+    return { results: data || [] };
+  },
+  // Usuarios - get single
+  "usuarios.get": async (input) => {
+    const { data, error } = await supabase.from("usuarios").select("*").eq("id", input.id).maybeSingle();
+    if (error) throw error;
+    return { result: data };
+  },
+  // Centros de Servicio - get single
+  "centros_de_servicio.get": async (input) => {
+    const { data, error } = await supabase.from("centros_de_servicio").select("*").eq("id", input.id).maybeSingle();
+    if (error) throw error;
+    return { result: data };
+  },
+  // Direcciones Envio
+  "direcciones_envio.list": async (input) => {
+    const { cliente_id } = input as any;
+    let query = (supabase as any).from("direcciones_envio").select("*");
+    if (cliente_id) query = query.eq("cliente_id", cliente_id);
+    const { data, error } = await query.order("created_at", { ascending: false });
+    if (error) throw error;
+    return { results: data || [] };
+  },
+  "direcciones_envio.get": async (input) => {
+    const { data, error } = await (supabase as any).from("direcciones_envio").select("*").eq("id", input.id).maybeSingle();
+    if (error) throw error;
+    return { result: data };
+  },
+  // Guias - with filters
+  "guias.search": async (input) => {
+    const { incidente_codigo, estado, limit = 50 } = input as any;
+    let query = supabase.from("guias").select("*");
+    if (incidente_codigo) query = query.contains("incidentes_codigos", [incidente_codigo]);
+    if (estado) query = query.eq("estado", estado);
+    const { data, error } = await query.order("fecha_guia", { ascending: false }).limit(limit);
+    if (error) throw error;
+    return { results: data || [] };
+  },
+  // Clientes - get by codigo
+  "clientes.getByCodigo": async (input) => {
+    const { codigo } = input as any;
+    const { data, error } = await supabase.from("clientes").select("*").eq("codigo", codigo).maybeSingle();
+    if (error) throw error;
+    return { result: data };
+  },
+  // Productos - get by codigo
+  "productos.getByCodigo": async (input) => {
+    const { codigo } = input as any;
+    const { data, error } = await supabase.from("productos").select("*").eq("codigo", codigo).maybeSingle();
+    if (error) throw error;
+    return { result: data };
+  },
+  // Solicitudes Repuestos - search by incidente
+  "solicitudes_repuestos.search": async (input) => {
+    const { incidente_id, estado, limit = 50 } = input as any;
+    let query = supabase.from("solicitudes_repuestos").select("*");
+    if (incidente_id) query = query.eq("incidente_id", incidente_id);
+    if (estado) query = query.ilike("estado", `%${estado}%`);
+    const { data, error } = await query.order("created_at", { ascending: false }).limit(limit);
+    if (error) throw error;
+    return { results: data || [] };
+  },
+  // Inventario - search by codigos
+  "inventarios.search": async (input) => {
+    const { codigos_repuesto, centro_servicio_id } = input as any;
+    let query = supabase.from("inventario").select("codigo_repuesto, costo_unitario, descripcion");
+    if (codigos_repuesto?.length) query = query.in("codigo_repuesto", codigos_repuesto);
+    if (centro_servicio_id) query = query.eq("centro_servicio_id", centro_servicio_id);
+    const { data, error } = await query;
+    if (error) throw error;
+    return { results: data || [] };
+  },
+};
+
+// =============================================================================
 // HANDLERS MAP
 // =============================================================================
 const handlers: Partial<Record<ActionName, ActionHandler<any>>> = {
@@ -239,6 +380,7 @@ const handlers: Partial<Record<ActionName, ActionHandler<any>>> = {
   ...productosHandlers,
   ...incidentesHandlers,
   ...simpleHandlers,
+  ...mostradorHandlers,
 };
 
 // =============================================================================

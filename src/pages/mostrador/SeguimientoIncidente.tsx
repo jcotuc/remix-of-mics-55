@@ -6,7 +6,6 @@ import {
   User,
   MapPin,
   FileText,
-  CheckCircle,
   Printer,
   AlertTriangle,
   Wrench,
@@ -16,19 +15,16 @@ import {
   Truck,
   Edit,
   Save,
-  Box,
   Clock,
   History,
   Eye,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { supabase } from "@/integrations/supabase/client";
+import { apiBackendAction } from "@/lib/api-backend";
 import { StatusBadge, CompactPhotoGallery } from "@/components/shared";
-import { HistorialConObservaciones, IncidentePrintSheet } from "@/components/features/incidentes";
-import { GuiaHPCLabel } from "@/components/features/logistica";
 import {
   Dialog,
   DialogContent,
@@ -41,31 +37,79 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { showSuccess, showError } from "@/utils/toastHelpers";
 import { formatFechaLarga, formatFechaHora } from "@/utils/dateFormatters";
-import type { Database } from "@/integrations/supabase/types";
 
-type IncidenteDB = Database["public"]["Tables"]["incidentes"]["Row"];
-type ClienteDB = Database["public"]["Tables"]["clientes"]["Row"];
-type ProductoDB = Database["public"]["Tables"]["productos"]["Row"];
-type DiagnosticoDB = Database["public"]["Tables"]["diagnosticos"]["Row"];
-type DireccionEnvio = Database["public"]["Tables"]["direcciones_envio"]["Row"];
-type GuiaDB = Database["public"]["Tables"]["guias"]["Row"];
-type UsuarioDB = Database["public"]["Tables"]["usuarios"]["Row"];
+type IncidenteData = {
+  id: number;
+  codigo: string;
+  estado: string;
+  tipologia: string | null;
+  descripcion_problema: string | null;
+  observaciones: string | null;
+  quiere_envio: boolean | null;
+  aplica_garantia: boolean | null;
+  direccion_entrega_id: number | null;
+  created_at: string | null;
+};
+
+type ClienteData = {
+  id: number;
+  codigo: string;
+  nombre: string;
+  telefono_principal?: string | null;
+  correo?: string | null;
+  direccion?: string | null;
+  celular?: string | null;
+};
+
+type ProductoData = {
+  id: number;
+  codigo: string;
+  descripcion: string | null;
+};
+
+type DiagnosticoData = {
+  id: number;
+  estado: string;
+  es_reparable: boolean | null;
+  recomendaciones: string | null;
+};
+
+type DireccionEnvioData = {
+  id: number;
+  direccion_completa: string;
+  nombre_contacto?: string | null;
+  telefono_contacto?: string | null;
+};
+
+type GuiaData = {
+  id: number;
+  numero_guia: string | null;
+  estado: string;
+  fecha_guia: string | null;
+};
+
+type UsuarioData = {
+  id: number;
+  nombre: string;
+  apellido?: string | null;
+  email?: string | null;
+};
 
 export default function SeguimientoIncidente() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [incidente, setIncidente] = useState<IncidenteDB | null>(null);
-  const [cliente, setCliente] = useState<ClienteDB | null>(null);
-  const [producto, setProducto] = useState<ProductoDB | null>(null);
-  const [tecnico, setTecnico] = useState<UsuarioDB | null>(null);
-  const [diagnostico, setDiagnostico] = useState<DiagnosticoDB | null>(null);
-  const [direccionEnvio, setDireccionEnvio] = useState<DireccionEnvio | null>(null);
-  const [guiasEnvio, setGuiasEnvio] = useState<GuiaDB[]>([]);
+  const [incidente, setIncidente] = useState<IncidenteData | null>(null);
+  const [cliente, setCliente] = useState<ClienteData | null>(null);
+  const [producto, setProducto] = useState<ProductoData | null>(null);
+  const [tecnico, setTecnico] = useState<UsuarioData | null>(null);
+  const [diagnostico, setDiagnostico] = useState<DiagnosticoData | null>(null);
+  const [direccionEnvio, setDireccionEnvio] = useState<DireccionEnvioData | null>(null);
+  const [guiasEnvio, setGuiasEnvio] = useState<GuiaData[]>([]);
   const [clienteHistorial, setClienteHistorial] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [isEditingProductCode, setIsEditingProductCode] = useState(false);
   const [editedProductCode, setEditedProductCode] = useState("");
-  const [guiaSeleccionada, setGuiaSeleccionada] = useState<GuiaDB | null>(null);
+  const [guiaSeleccionada, setGuiaSeleccionada] = useState<GuiaData | null>(null);
   const [showPrintPreview, setShowPrintPreview] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
   
@@ -76,85 +120,109 @@ export default function SeguimientoIncidente() {
   const fetchData = async () => {
     try {
       // Fetch incident
-      const { data: incData, error: incError } = await supabase
-        .from("incidentes")
-        .select("*")
-        .eq("id", Number(id))
-        .single();
-      if (incError) throw incError;
-      setIncidente(incData);
+      const { result: incData } = await apiBackendAction("incidentes.get", { id: Number(id) });
+      
+      if (!incData) {
+        setLoading(false);
+        return;
+      }
 
-      // Fetch client
-      if (incData.cliente_id) {
-        const { data: clienteData } = await supabase
-          .from("clientes")
-          .select("*")
-          .eq("id", incData.cliente_id)
-          .maybeSingle();
-        setCliente(clienteData);
+      const incidenteMapped: IncidenteData = {
+        id: incData.id,
+        codigo: incData.codigo,
+        estado: incData.estado,
+        tipologia: incData.tipologia,
+        descripcion_problema: incData.descripcion_problema,
+        observaciones: incData.observaciones,
+        quiere_envio: incData.quiere_envio,
+        aplica_garantia: incData.aplica_garantia,
+        direccion_entrega_id: (incData as any).direccion_entrega_id || null,
+        created_at: incData.created_at,
+      };
+      setIncidente(incidenteMapped);
 
-        // Fetch client history
-        if (clienteData) {
-          const { count } = await supabase
-            .from("incidentes")
-            .select("*", { count: "exact", head: true })
-            .eq("cliente_id", clienteData.id);
-          setClienteHistorial(count || 0);
+      // Extract cliente from incidente response
+      if (incData.cliente) {
+        const c = incData.cliente as any;
+        setCliente({
+          id: c.id,
+          codigo: c.codigo,
+          nombre: c.nombre,
+          telefono_principal: c.telefono_principal,
+          correo: c.correo,
+          direccion: c.direccion,
+          celular: c.celular,
+        });
+      }
+
+      // Extract producto from incidente response
+      if (incData.producto) {
+        setProducto({
+          id: incData.producto.id,
+          codigo: incData.producto.codigo,
+          descripcion: incData.producto.descripcion,
+        });
+      }
+
+      // Fetch parallel data: technician, diagnostico, client history, direccion, guias
+      const [incTecRes, diagRes, guiasRes] = await Promise.all([
+        apiBackendAction("incidente_tecnico.list", { incidente_id: Number(id), es_principal: true }),
+        apiBackendAction("diagnosticos.search", { incidente_id: Number(id) }),
+        apiBackendAction("guias.search", { incidente_codigo: incData.codigo }),
+      ]);
+
+      // Fetch client history count
+      if (incData.cliente) {
+        const { results: allIncidentes } = await apiBackendAction("incidentes.list", { limit: 1000 });
+        const clienteIncidentes = (allIncidentes || []).filter((i: any) => i.cliente?.id === (incData.cliente as any).id);
+        setClienteHistorial(clienteIncidentes.length);
+      }
+
+      // Fetch technician
+      const incTecData = incTecRes.results?.[0] as any;
+      if (incTecData?.tecnico_id) {
+        const { result: tecData } = await apiBackendAction("usuarios.get", { id: incTecData.tecnico_id });
+        if (tecData) {
+          setTecnico({
+            id: (tecData as any).id,
+            nombre: (tecData as any).nombre,
+            apellido: (tecData as any).apellido,
+            email: (tecData as any).email,
+          });
         }
       }
 
-      // Fetch product
-      if (incData.producto_id) {
-        const { data: prodData } = await supabase
-          .from("productos")
-          .select("*")
-          .eq("id", incData.producto_id)
-          .maybeSingle();
-        setProducto(prodData);
+      // Set diagnostico
+      const diagData = diagRes.results?.[0];
+      if (diagData) {
+        setDiagnostico({
+          id: diagData.id,
+          estado: diagData.estado,
+          es_reparable: diagData.es_reparable,
+          recomendaciones: diagData.recomendaciones,
+        });
       }
 
-      // Fetch technician from incidente_tecnico
-      const { data: incTecData } = await supabase
-        .from("incidente_tecnico")
-        .select("tecnico_id")
-        .eq("incidente_id", Number(id))
-        .eq("es_principal", true)
-        .maybeSingle();
-      
-      if (incTecData?.tecnico_id) {
-        const { data: tecData } = await supabase
-          .from("usuarios")
-          .select("*")
-          .eq("id", incTecData.tecnico_id)
-          .maybeSingle();
-        setTecnico(tecData);
-      }
-
-      // Fetch diagnostico
-      const { data: diagData } = await supabase
-        .from("diagnosticos")
-        .select("*")
-        .eq("incidente_id", Number(id))
-        .maybeSingle();
-      setDiagnostico(diagData);
+      // Set guias
+      setGuiasEnvio((guiasRes.results || []).map((g: any) => ({
+        id: g.id,
+        numero_guia: g.numero_guia,
+        estado: g.estado,
+        fecha_guia: g.fecha_guia,
+      })));
 
       // Fetch direccion de envio si existe
-      if (incData.direccion_entrega_id) {
-        const { data: dirData } = await supabase
-          .from("direcciones_envio")
-          .select("*")
-          .eq("id", incData.direccion_entrega_id)
-          .maybeSingle();
-        setDireccionEnvio(dirData);
+      if (incidenteMapped.direccion_entrega_id) {
+        const { result: dirData } = await apiBackendAction("direcciones_envio.get", { id: incidenteMapped.direccion_entrega_id });
+        if (dirData) {
+          setDireccionEnvio({
+            id: (dirData as any).id,
+            direccion_completa: (dirData as any).direccion_completa,
+            nombre_contacto: (dirData as any).nombre_contacto,
+            telefono_contacto: (dirData as any).telefono_contacto,
+          });
+        }
       }
-
-      // Fetch guías de envío asociadas al incidente
-      const { data: guiasData } = await supabase
-        .from("guias")
-        .select("*")
-        .contains("incidentes_codigos", [incData.codigo])
-        .order("fecha_guia", { ascending: false });
-      setGuiasEnvio(guiasData || []);
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
@@ -206,13 +274,7 @@ export default function SeguimientoIncidente() {
 
     try {
       // Buscar el producto por código
-      const { data: newProdData, error: prodError } = await supabase
-        .from("productos")
-        .select("*")
-        .eq("codigo", editedProductCode.toUpperCase())
-        .maybeSingle();
-
-      if (prodError) throw prodError;
+      const { result: newProdData } = await apiBackendAction("productos.getByCodigo", { codigo: editedProductCode.toUpperCase() });
 
       if (!newProdData) {
         showError("Producto no encontrado");
@@ -220,14 +282,16 @@ export default function SeguimientoIncidente() {
       }
 
       // Actualizar el incidente
-      const { error: updateError } = await supabase
-        .from("incidentes")
-        .update({ producto_id: newProdData.id })
-        .eq("id", incidente.id);
+      await apiBackendAction("incidentes.update", {
+        id: incidente.id,
+        data: { producto_id: (newProdData as any).id }
+      } as any);
 
-      if (updateError) throw updateError;
-
-      setProducto(newProdData);
+      setProducto({
+        id: (newProdData as any).id,
+        codigo: (newProdData as any).codigo,
+        descripcion: (newProdData as any).descripcion,
+      });
       setIsEditingProductCode(false);
       showSuccess("Código de producto actualizado");
     } catch (error) {
@@ -261,6 +325,10 @@ export default function SeguimientoIncidente() {
         printWindow.print();
       }
     }
+  };
+
+  const formatFechaCorta = (date: Date): string => {
+    return date.toLocaleDateString("es-GT", { day: "2-digit", month: "short", year: "numeric" });
   };
 
   return (
@@ -508,29 +576,21 @@ export default function SeguimientoIncidente() {
           <DialogHeader>
             <DialogTitle>Vista Previa de Impresión</DialogTitle>
             <DialogDescription>
-              Revise el documento antes de imprimir
+              Hoja de ingreso para el incidente {incidente.codigo}
             </DialogDescription>
           </DialogHeader>
-          <div ref={printRef}>
-            <IncidentePrintSheet
-              data={{
-                codigo: incidente.codigo,
-                codigoCliente: cliente?.codigo || "",
-                nombreCliente: cliente?.nombre || "Desconocido",
-                telefonoCliente: cliente?.telefono_principal || "",
-                codigoProducto: producto?.codigo || "",
-                descripcionProducto: producto?.descripcion || "",
-                skuMaquina: producto?.codigo || "",
-                descripcionProblema: incidente.descripcion_problema || "",
-                accesorios: "",
-                fechaIngreso: new Date(incidente.fecha_ingreso || incidente.created_at || ""),
-                centroServicio: "Centro de Servicio",
-                personaDejaMaquina: "",
-                tipologia: incidente.tipologia,
-                esReingreso: false,
-                coberturaGarantia: incidente.aplica_garantia || false
-              }}
-            />
+          <div ref={printRef} className="p-4 bg-white text-black">
+            <h2 className="text-xl font-bold mb-4">Hoja de Ingreso - {incidente.codigo}</h2>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div><strong>Cliente:</strong> {cliente?.nombre || "N/A"}</div>
+              <div><strong>Código:</strong> {cliente?.codigo || "N/A"}</div>
+              <div><strong>Producto:</strong> {producto?.descripcion || "N/A"}</div>
+              <div><strong>Estado:</strong> {incidente.estado}</div>
+            </div>
+            <div className="mt-4">
+              <strong>Problema:</strong>
+              <p>{incidente.descripcion_problema || "Sin descripción"}</p>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowPrintPreview(false)}>
@@ -549,20 +609,16 @@ export default function SeguimientoIncidente() {
         <Dialog open={!!guiaSeleccionada} onOpenChange={() => setGuiaSeleccionada(null)}>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle>Detalle de Guía</DialogTitle>
+              <DialogTitle>Detalle de Guía - {guiaSeleccionada.numero_guia}</DialogTitle>
             </DialogHeader>
-            <GuiaHPCLabel guia={guiaSeleccionada} />
+            <div className="p-4">
+              <p><strong>Número:</strong> {guiaSeleccionada.numero_guia}</p>
+              <p><strong>Estado:</strong> {guiaSeleccionada.estado}</p>
+              <p><strong>Fecha:</strong> {guiaSeleccionada.fecha_guia ? formatFechaCorta(new Date(guiaSeleccionada.fecha_guia)) : "-"}</p>
+            </div>
           </DialogContent>
         </Dialog>
       )}
     </div>
   );
-}
-
-function formatFechaCorta(date: Date): string {
-  return date.toLocaleDateString("es-GT", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric"
-  });
 }

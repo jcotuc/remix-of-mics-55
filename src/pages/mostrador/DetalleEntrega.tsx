@@ -6,24 +6,49 @@ import { Label } from "@/components/ui/label";
 import { OutlinedInput } from "@/components/ui/outlined-input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { supabase } from "@/integrations/supabase/client";
+import { apiBackendAction } from "@/lib/api-backend";
 import { toast } from "sonner";
 import { SignatureCanvasComponent, SignatureCanvasRef, StatusBadge } from "@/components/shared";
 import { SidebarMediaCapture, SidebarPhoto } from "@/components/features/media";
-import type { Database } from "@/integrations/supabase/types";
 
-type IncidenteDB = Database['public']['Tables']['incidentes']['Row'];
-type ClienteDB = Database['public']['Tables']['clientes']['Row'];
-type DiagnosticoDB = Database['public']['Tables']['diagnosticos']['Row'];
+type IncidenteData = {
+  id: number;
+  codigo: string;
+  estado: string;
+  cliente_id: number | null;
+  producto_id: number | null;
+  centro_de_servicio_id: number | null;
+  quiere_envio: boolean | null;
+  aplica_garantia: boolean | null;
+  observaciones: string | null;
+};
+
+type ClienteData = {
+  id: number;
+  codigo: string;
+  nombre: string;
+  celular?: string | null;
+};
+
+type DiagnosticoData = {
+  id: number;
+  incidente_id: number;
+  tecnico_id: number | null;
+  estado: string;
+  tipo_resolucion: string | null;
+  aplica_garantia: boolean | null;
+  recomendaciones: string | null;
+  descuento_porcentaje: number | null;
+};
 
 export default function DetalleEntrega() {
   const { incidenteId } = useParams<{ incidenteId: string }>();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [delivering, setDelivering] = useState(false);
-  const [incidente, setIncidente] = useState<IncidenteDB | null>(null);
-  const [cliente, setCliente] = useState<ClienteDB | null>(null);
-  const [diagnostico, setDiagnostico] = useState<DiagnosticoDB | null>(null);
+  const [incidente, setIncidente] = useState<IncidenteData | null>(null);
+  const [cliente, setCliente] = useState<ClienteData | null>(null);
+  const [diagnostico, setDiagnostico] = useState<DiagnosticoData | null>(null);
   const [tecnicoNombre, setTecnicoNombre] = useState<string | null>(null);
   const [nombreRecibe, setNombreRecibe] = useState("");
   const [dpiRecibe, setDpiRecibe] = useState("");
@@ -43,13 +68,13 @@ export default function DetalleEntrega() {
     // Cargar nombre del técnico cuando tengamos el diagnóstico
     const loadTecnicoNombre = async () => {
       if (diagnostico?.tecnico_id) {
-        const { data } = await (supabase as any)
-          .from('usuarios')
-          .select('nombre')
-          .eq('id', diagnostico.tecnico_id)
-          .maybeSingle();
-        if (data) {
-          setTecnicoNombre(data.nombre);
+        try {
+          const { result } = await apiBackendAction("usuarios.get", { id: diagnostico.tecnico_id });
+          if (result) {
+            setTecnicoNombre((result as any).nombre);
+          }
+        } catch (error) {
+          console.error("Error loading tecnico:", error);
         }
       }
     };
@@ -60,13 +85,8 @@ export default function DetalleEntrega() {
     setLoading(true);
     try {
       // Cargar incidente
-      const { data: incidenteData, error: incidenteError } = await supabase
-        .from('incidentes')
-        .select('*')
-        .eq('id', Number(incidenteId))
-        .single();
+      const { result: incidenteData } = await apiBackendAction("incidentes.get", { id: Number(incidenteId) });
       
-      if (incidenteError) throw incidenteError;
       if (!incidenteData) {
         toast.error("Incidente no encontrado");
         navigate('/mostrador/entrega-maquinas');
@@ -80,49 +100,73 @@ export default function DetalleEntrega() {
         navigate('/mostrador/entrega-maquinas');
         return;
       }
-      setIncidente(incidenteData);
+      
+      const incidenteMapped: IncidenteData = {
+        id: incidenteData.id,
+        codigo: incidenteData.codigo,
+        estado: incidenteData.estado,
+        cliente_id: (incidenteData as any).cliente?.id || null,
+        producto_id: incidenteData.producto?.id || null,
+        centro_de_servicio_id: incidenteData.centro_de_servicio_id,
+        quiere_envio: incidenteData.quiere_envio,
+        aplica_garantia: incidenteData.aplica_garantia,
+        observaciones: incidenteData.observaciones,
+      };
+      setIncidente(incidenteMapped);
 
-      // Cargar cliente, diagnóstico, producto, centro de servicio y solicitudes de repuestos en paralelo
-      const [clienteRes, diagRes, productoRes, centroRes, solicitudesRes] = await Promise.all([
-        supabase.from('clientes').select('*').eq('id', incidenteData.cliente_id).single(),
-        supabase
-          .from('diagnosticos')
-          .select('*')
-          .eq('incidente_id', Number(incidenteId))
-          .eq('estado', 'COMPLETADO')
-          .order('created_at', { ascending: false })
-          .limit(1),
-        incidenteData.producto_id 
-          ? supabase.from('productos').select('descripcion').eq('id', incidenteData.producto_id).maybeSingle()
-          : Promise.resolve({ data: null, error: null }),
-        incidenteData.centro_de_servicio_id 
-          ? supabase.from('centros_de_servicio').select('nombre').eq('id', incidenteData.centro_de_servicio_id).maybeSingle()
-          : Promise.resolve({ data: null, error: null }),
-        (supabase as any)
-          .from('solicitudes_repuestos')
-          .select('repuestos, estado, created_at')
-          .eq('incidente_id', Number(incidenteId))
-          .order('created_at', { ascending: false })
-          .limit(20)
-      ]);
-
-      if (clienteRes.error) throw clienteRes.error;
-      setCliente(clienteRes.data);
-
-      // diagRes.data es un array, tomamos el primer elemento
-      const diagData = diagRes.data && diagRes.data.length > 0 ? diagRes.data[0] : null;
-      setDiagnostico(diagData);
-      setProductoInfo(productoRes.data);
-      if (centroRes.data) {
-        setCentroServicio(centroRes.data.nombre);
+      // Extract cliente from incidente response
+      if (incidenteData.cliente) {
+        setCliente({
+          id: (incidenteData.cliente as any).id,
+          codigo: (incidenteData.cliente as any).codigo,
+          nombre: (incidenteData.cliente as any).nombre,
+          celular: (incidenteData.cliente as any).celular,
+        });
       }
 
-      // Cargar repuestos utilizados (preferir diagnostico; si no existe, tomar de solicitudes_repuestos)
-      let repuestosUtilizados: any[] = [];
+      // Extract producto from incidente response
+      if (incidenteData.producto) {
+        setProductoInfo({
+          descripcion: incidenteData.producto.descripcion || "",
+        });
+      }
 
-      if (Array.isArray(solicitudesRes.data) && solicitudesRes.data.length > 0) {
-        const entregadas = solicitudesRes.data.filter((s: any) => (s.estado || '').toLowerCase().includes('entreg'));
-        const fuente = entregadas.length > 0 ? entregadas : solicitudesRes.data;
+      // Cargar diagnóstico, centro de servicio y solicitudes de repuestos en paralelo
+      const [diagRes, centroRes, solicitudesRes] = await Promise.all([
+        apiBackendAction("diagnosticos.search", { incidente_id: Number(incidenteId) }),
+        incidenteData.centro_de_servicio_id 
+          ? apiBackendAction("centros_de_servicio.get", { id: incidenteData.centro_de_servicio_id })
+          : Promise.resolve({ result: null }),
+        apiBackendAction("solicitudes_repuestos.search", { incidente_id: Number(incidenteId), limit: 20 }),
+      ]);
+
+      // diagRes.results es un array, tomamos el primer elemento completado
+      const diagList = diagRes.results || [];
+      const diagData = diagList.find((d: any) => d.estado === 'COMPLETADO') || diagList[0] || null;
+      if (diagData) {
+        setDiagnostico({
+          id: diagData.id,
+          incidente_id: diagData.incidente_id,
+          tecnico_id: diagData.tecnico?.id || (diagData as any).tecnico_id || null,
+          estado: diagData.estado,
+          tipo_resolucion: diagData.tipo_resolucion,
+          aplica_garantia: diagData.aplica_garantia,
+          recomendaciones: diagData.recomendaciones,
+          descuento_porcentaje: diagData.descuento_porcentaje,
+        });
+      }
+
+      if (centroRes.result) {
+        setCentroServicio((centroRes.result as any).nombre);
+      }
+
+      // Cargar repuestos utilizados
+      let repuestosUtilizados: any[] = [];
+      const solicitudesData = solicitudesRes.results || [];
+
+      if (solicitudesData.length > 0) {
+        const entregadas = solicitudesData.filter((s: any) => (s.estado || '').toLowerCase().includes('entreg'));
+        const fuente = entregadas.length > 0 ? entregadas : solicitudesData;
         repuestosUtilizados = fuente.flatMap((s: any) => (Array.isArray(s.repuestos) ? s.repuestos : []));
       }
 
@@ -146,16 +190,13 @@ export default function DetalleEntrega() {
         const repuestosAgrupados = Array.from(grouped.values());
         const codigosRepuestos = repuestosAgrupados.map(r => r.codigo);
 
-        const { data: inventarioData } = await supabase
-          .from('inventario')
-          .select('codigo_repuesto, costo_unitario, descripcion')
-          .in('codigo_repuesto', codigosRepuestos);
+        const { results: inventarioData } = await apiBackendAction("inventarios.search", { codigos_repuesto: codigosRepuestos });
 
         const invMap = new Map<string, { costo: number; descripcion: string }>();
         for (const inv of (inventarioData || [])) {
-          const codigo = inv.codigo_repuesto;
-          const costo = Number(inv.costo_unitario || 0);
-          const desc = inv.descripcion || '';
+          const codigo = (inv as any).codigo_repuesto;
+          const costo = Number((inv as any).costo_unitario || 0);
+          const desc = (inv as any).descripcion || '';
           const prev = invMap.get(codigo);
           // Elegir el costo más alto como referencia (evita tomar 0 si hay múltiples filas)
           if (!prev || costo > prev.costo) {
@@ -209,26 +250,18 @@ export default function DetalleEntrega() {
       const fechaEntregaActual = new Date().toISOString();
       
       // Store delivery confirmation data in observaciones since confirmacion_cliente doesn't exist
-      const confirmacionData = JSON.stringify({
-        fecha_entrega: fechaEntregaActual,
-        nombre_recibe: nombreRecibe,
-        dpi_recibe: dpiRecibe,
-        firma_base64: firmaBase64,
-        fotos_salida: fotosSalida.map(f => f.comment || 'Sin comentario')
-      });
-      
       const observacionesActuales = incidente.observaciones || '';
       const nuevasObservaciones = `${observacionesActuales}\n[${fechaEntregaActual}] ENTREGA CONFIRMADA - Recibe: ${nombreRecibe}, DPI: ${dpiRecibe}`;
       
-      const { error: updateError } = await (supabase as any)
-        .from('incidentes')
-        .update({
+      await apiBackendAction("incidentes.update", {
+        id: incidente.id,
+        data: {
           estado: 'ENTREGADO',
           fecha_entrega: fechaEntregaActual,
           observaciones: nuevasObservaciones
-        })
-        .eq('id', incidente.id);
-      if (updateError) throw updateError;
+        }
+      } as any);
+
       toast.success("Entrega registrada exitosamente");
       navigate('/mostrador/entrega-maquinas');
     } catch (error) {
@@ -377,22 +410,20 @@ export default function DetalleEntrega() {
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-muted-foreground text-sm">Código Incidente</Label>
-                  <p className="font-mono font-bold">{incidente.codigo}</p>
+                  <Label className="text-muted-foreground">Código</Label>
+                  <p className="font-medium">{incidente.codigo}</p>
                 </div>
                 <div>
-                  <Label className="text-muted-foreground text-sm">Estado</Label>
-                  <div><StatusBadge status={incidente.estado} /></div>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground text-sm">Producto</Label>
-                  <p>{productoInfo?.descripcion || `ID: ${incidente.producto_id || 'N/A'}`}</p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground text-sm">Centro de Servicio</Label>
-                  <p>{centroServicio}</p>
+                  <Label className="text-muted-foreground">Estado</Label>
+                  <StatusBadge status={incidente.estado} />
                 </div>
               </div>
+              {productoInfo && (
+                <div>
+                  <Label className="text-muted-foreground">Producto</Label>
+                  <p className="font-medium">{productoInfo.descripcion}</p>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -407,59 +438,60 @@ export default function DetalleEntrega() {
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-muted-foreground text-sm">Nombre</Label>
+                  <Label className="text-muted-foreground">Código</Label>
+                  <p className="font-medium">{cliente.codigo}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Nombre</Label>
                   <p className="font-medium">{cliente.nombre}</p>
                 </div>
-                <div>
-                  <Label className="text-muted-foreground text-sm">Código</Label>
-                  <p className="font-mono">{cliente.codigo}</p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground text-sm">Teléfono</Label>
-                  <p>{cliente.celular || cliente.telefono_principal || 'N/A'}</p>
-                </div>
-                <div>
-                  <Label className="text-muted-foreground text-sm">Correo</Label>
-                  <p>{cliente.correo || 'N/A'}</p>
-                </div>
               </div>
+              {cliente.celular && (
+                <div>
+                  <Label className="text-muted-foreground">Teléfono</Label>
+                  <p className="font-medium">{cliente.celular}</p>
+                </div>
+              )}
             </CardContent>
           </Card>
 
-          {/* Diagnóstico Summary */}
+          {/* Diagnóstico Summary Card */}
           {diagnostico && (
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
+              <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Wrench className="h-5 w-5" />
-                  Resumen del Diagnóstico
+                  Resumen de Diagnóstico
                 </CardTitle>
-                <Button variant="outline" size="sm" onClick={handlePrintDiagnostico}>
-                  <Printer className="h-4 w-4 mr-2" />
-                  Imprimir Diagnóstico
-                </Button>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label className="text-muted-foreground text-sm">Tipo Resolución</Label>
+                    <Label className="text-muted-foreground">Tipo de Resolución</Label>
                     <p className="font-medium">{diagnostico.tipo_resolucion || 'N/A'}</p>
                   </div>
                   <div>
-                    <Label className="text-muted-foreground text-sm">Aplica Garantía</Label>
-                    <p>{diagnostico.aplica_garantia ? 'Sí' : 'No'}</p>
-                  </div>
-                  <div>
-                    <Label className="text-muted-foreground text-sm">Técnico</Label>
-                    <p>{tecnicoNombre || `ID: ${diagnostico.tecnico_id}`}</p>
+                    <Label className="text-muted-foreground">Aplica Garantía</Label>
+                    <p className="font-medium">{diagnostico.aplica_garantia ? 'Sí' : 'No'}</p>
                   </div>
                 </div>
                 {diagnostico.recomendaciones && (
                   <div>
-                    <Label className="text-muted-foreground text-sm">Recomendaciones</Label>
-                    <p className="text-sm bg-muted p-2 rounded mt-1">{diagnostico.recomendaciones}</p>
+                    <Label className="text-muted-foreground">Recomendaciones</Label>
+                    <p className="text-sm">{diagnostico.recomendaciones}</p>
                   </div>
                 )}
+                {tecnicoNombre && (
+                  <div>
+                    <Label className="text-muted-foreground">Técnico</Label>
+                    <p className="font-medium">{tecnicoNombre}</p>
+                  </div>
+                )}
+                <Separator />
+                <Button variant="outline" onClick={handlePrintDiagnostico}>
+                  <Printer className="h-4 w-4 mr-2" />
+                  Imprimir Diagnóstico
+                </Button>
               </CardContent>
             </Card>
           )}
@@ -478,39 +510,42 @@ export default function DetalleEntrega() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <OutlinedInput
-                label="Nombre de quien recibe *"
-                value={nombreRecibe}
-                onChange={(e) => setNombreRecibe(e.target.value)}
-                placeholder="Nombre completo"
-              />
-              
-              <OutlinedInput
-                label="DPI / Identificación *"
-                value={dpiRecibe}
-                onChange={(e) => setDpiRecibe(e.target.value)}
-                placeholder="Número de DPI o identificación"
-              />
-
-              <Separator />
-
-              <div>
-                <Label className="text-sm font-medium mb-2 block">Firma del Cliente *</Label>
-                <SignatureCanvasComponent ref={signatureRef} />
-              </div>
-
-              <Separator />
-
-              <div>
-                <Label className="text-sm font-medium mb-2 block">Fotos de Salida (Opcional)</Label>
-                <SidebarMediaCapture
-                  tipo="salida"
-                  photos={fotosSalida}
-                  onPhotosChange={setFotosSalida}
-                  maxPhotos={5}
+              <div className="space-y-2">
+                <Label htmlFor="nombreRecibe">Nombre de quien recibe *</Label>
+                <OutlinedInput
+                  id="nombreRecibe"
+                  label="Nombre de quien recibe"
+                  value={nombreRecibe}
+                  onChange={(e) => setNombreRecibe(e.target.value)}
+                  placeholder="Nombre completo"
                 />
               </div>
-
+              <div className="space-y-2">
+                <Label htmlFor="dpiRecibe">DPI / Identificación *</Label>
+                <OutlinedInput
+                  id="dpiRecibe"
+                  label="DPI / Identificación"
+                  value={dpiRecibe}
+                  onChange={(e) => setDpiRecibe(e.target.value)}
+                  placeholder="Número de identificación"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Firma del Cliente *</Label>
+                <div className="border rounded-lg p-2 bg-white">
+                  <SignatureCanvasComponent ref={signatureRef} />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Fotos de Salida (opcional)</Label>
+                <SidebarMediaCapture
+                  photos={fotosSalida}
+                  onPhotosChange={setFotosSalida}
+                  maxPhotos={3}
+                  tipo="salida"
+                />
+              </div>
+              <Separator />
               <Button 
                 className="w-full" 
                 size="lg"
@@ -518,7 +553,7 @@ export default function DetalleEntrega() {
                 disabled={delivering}
               >
                 <FileCheck className="h-5 w-5 mr-2" />
-                {delivering ? "Registrando..." : "Confirmar Entrega"}
+                {delivering ? 'Procesando...' : 'Confirmar Entrega'}
               </Button>
             </CardContent>
           </Card>
