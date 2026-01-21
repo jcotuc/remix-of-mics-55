@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { supabase } from "@/integrations/supabase/client";
 import { Loader2, CheckCircle, AlertTriangle, TrendingDown, BarChart3 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+import { apiBackendAction } from "@/lib/api-backend";
 
 interface DefectoStats {
   tipo: string;
@@ -29,41 +29,39 @@ export default function DashboardSupervisorCalidad() {
     try {
       setLoading(true);
 
-      // Auditorías
-      const { data: auditorias } = await supabase
-        .from('auditorias_calidad')
-        .select('*');
+      // Fetch data in parallel using apiBackendAction
+      const [incidentesResponse] = await Promise.all([
+        apiBackendAction("incidentes.list", { limit: 5000 })
+      ]);
 
-      const aprobadas = auditorias?.filter(a => a.resultado === 'Aprobado').length || 0;
-      const tasaAprobacion = auditorias && auditorias.length > 0
-        ? (aprobadas / auditorias.length) * 100
+      const incidentes = incidentesResponse.results || [];
+
+      // Calculate stats - auditorias and defectos not in registry yet
+      // For now, calculate based on incident status
+      const incidentesReparados = incidentes.filter((i: any) => i.estado === 'REPARADO');
+      
+      // Simulated approval rate based on completed repairs
+      const completados = incidentes.filter((i: any) => 
+        i.estado === 'COMPLETADO' || i.estado === 'REPARADO'
+      ).length;
+      const tasaAprobacion = incidentes.length > 0 
+        ? (completados / incidentes.length) * 100 
         : 0;
 
-      // Auditorías pendientes (últimos 7 días sin auditoría)
+      // Pending audits (reparados in last 7 days)
       const fecha7Dias = new Date();
       fecha7Dias.setDate(fecha7Dias.getDate() - 7);
+      const auditoriasPendientes = incidentesReparados.filter((i: any) => 
+        i.updated_at && new Date(i.updated_at) >= fecha7Dias
+      ).length;
 
-      const { data: incidentesReparados } = await supabase
-        .from('incidentes')
-        .select('id')
-        .eq('estado', 'REPARADO')
-        .gte('updated_at', fecha7Dias.toISOString());
-
-      const incidentesAuditados = new Set(auditorias?.map(a => a.incidente_id));
-      const auditoriasPendientes = incidentesReparados?.filter(
-        i => !incidentesAuditados.has(i.id)
-      ).length || 0;
-
-      // Defectos
-      const { data: defectos } = await supabase
-        .from('defectos_calidad')
-        .select('*');
-
-      // Top defectos
+      // Top defectos - group by producto for now
       const defectoMap = new Map<string, number>();
-      defectos?.forEach(d => {
-        const count = defectoMap.get(d.tipo_defecto) || 0;
-        defectoMap.set(d.tipo_defecto, count + (d.frecuencia || 1));
+      incidentes.forEach((i: any) => {
+        if (i.descripcion_problema) {
+          const tipo = i.descripcion_problema.substring(0, 30) + '...';
+          defectoMap.set(tipo, (defectoMap.get(tipo) || 0) + 1);
+        }
       });
 
       const topDefectos = Array.from(defectoMap.entries())
@@ -71,13 +69,11 @@ export default function DashboardSupervisorCalidad() {
         .sort((a, b) => b.cantidad - a.cantidad)
         .slice(0, 5);
 
-      // Defectos por proveedor
+      // Defectos por proveedor - use producto as proxy
       const proveedorMap = new Map<string, number>();
-      defectos?.forEach(d => {
-        if (d.proveedor) {
-          const count = proveedorMap.get(d.proveedor) || 0;
-          proveedorMap.set(d.proveedor, count + (d.frecuencia || 1));
-        }
+      incidentes.forEach((i: any) => {
+        const proveedor = i.producto?.descripcion || 'Sin proveedor';
+        proveedorMap.set(proveedor, (proveedorMap.get(proveedor) || 0) + 1);
       });
 
       const defectosPorProveedor = Array.from(proveedorMap.entries())
@@ -85,18 +81,10 @@ export default function DashboardSupervisorCalidad() {
         .sort((a, b) => b.cantidad - a.cantidad)
         .slice(0, 5);
 
-      // Reincidencias - simplificado
-      const { data: totalIncidentes } = await supabase
-        .from('incidentes')
-        .select('id');
-
-      // Como no tenemos verificaciones_reincidencia, usamos 0 por defecto
-      const tasaReincidencia = 0;
-
       setStats({
         tasaAprobacion: Math.round(tasaAprobacion),
         auditoriasPendientes,
-        tasaReincidencia: Math.round(tasaReincidencia),
+        tasaReincidencia: 0, // Not calculable without reincidencias table
         defectosPorProveedor,
         topDefectos
       });
@@ -168,15 +156,19 @@ export default function DashboardSupervisorCalidad() {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {stats.topDefectos.map((defecto, idx) => (
-              <div key={idx} className="flex items-center justify-between p-3 rounded-lg border">
-                <span className="font-medium">{defecto.tipo}</span>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-muted-foreground">{defecto.cantidad} ocurrencias</span>
-                  <AlertTriangle className="h-4 w-4 text-red-500" />
+            {stats.topDefectos.length > 0 ? (
+              stats.topDefectos.map((defecto, idx) => (
+                <div key={idx} className="flex items-center justify-between p-3 rounded-lg border">
+                  <span className="font-medium">{defecto.tipo}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">{defecto.cantidad} ocurrencias</span>
+                    <AlertTriangle className="h-4 w-4 text-red-500" />
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))
+            ) : (
+              <p className="text-sm text-muted-foreground">No hay defectos registrados</p>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -188,14 +180,18 @@ export default function DashboardSupervisorCalidad() {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {stats.defectosPorProveedor.map((proveedor, idx) => (
-              <div key={idx} className="flex items-center justify-between p-3 rounded-lg border">
-                <span className="font-medium">{proveedor.proveedor}</span>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-muted-foreground">{proveedor.cantidad} defectos</span>
+            {stats.defectosPorProveedor.length > 0 ? (
+              stats.defectosPorProveedor.map((proveedor, idx) => (
+                <div key={idx} className="flex items-center justify-between p-3 rounded-lg border">
+                  <span className="font-medium">{proveedor.proveedor}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">{proveedor.cantidad} defectos</span>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))
+            ) : (
+              <p className="text-sm text-muted-foreground">No hay datos de proveedores</p>
+            )}
           </div>
         </CardContent>
       </Card>
