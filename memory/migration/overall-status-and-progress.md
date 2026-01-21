@@ -1,9 +1,9 @@
 # Memory: migration/overall-status-and-progress
 Updated: Now
 
-## Current Status: ~90% Complete
+## Current Status: ~95% Complete
 
-The project migration to align frontend with actual database schema and centralized apiBackendAction layer is nearly complete.
+The project migration to align frontend with actual database schema and centralized apiBackendAction layer is nearly complete. DiagnosticoInicial.tsx has been fully implemented.
 
 ## Completed Modules
 
@@ -58,8 +58,8 @@ The project migration to align frontend with actual database schema and centrali
 
 3. **Nullability Handling**: Added fallbacks for optional timestamp fields
 
-## Remaining Tasks (~10%)
+## Remaining Tasks (~5%)
 
-- [ ] DiagnosticoInicial.tsx - Needs full refactor (currently placeholder)
+- [x] DiagnosticoInicial.tsx - Fully implemented with correct schema
 - [ ] Runtime testing of all routes
 - [ ] Type regeneration when Supabase types are updated
