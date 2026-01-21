@@ -132,12 +132,30 @@ const incidentesHandlers: Record<string, ActionHandler<any>> = {
 // SIMPLE LIST HANDLERS (read-only)
 // =============================================================================
 const simpleHandlers: Record<string, ActionHandler<any>> = {
-  "diagnosticos.list": async () => { const { data, error } = await supabase.from("diagnosticos").select("*").order("created_at", { ascending: false }); if (error) throw error; return { results: data || [], total: data?.length || 0 }; },
-  "diagnosticos.get": async (input) => { const { data, error } = await supabase.from("diagnosticos").select("*").eq("id", input.id).maybeSingle(); if (error) throw error; return { result: data }; },
+  "diagnosticos.list": async (input) => { 
+    const { skip = 0, limit = 100 } = input as any; 
+    const { data, error } = await supabase.from("diagnosticos").select("*").range(skip, skip + limit - 1).order("created_at", { ascending: false }); 
+    if (error) throw error; 
+    return { results: data || [], total: data?.length || 0 }; 
+  },
+  "diagnosticos.get": async (input) => { 
+    const { data, error } = await supabase.from("diagnosticos").select("*").eq("id", input.id).maybeSingle(); 
+    if (error) throw error; 
+    return { result: data }; 
+  },
   "diagnosticos.create": notImplemented("diagnosticos.create"),
   "diagnosticos.update": notImplemented("diagnosticos.update"),
   "diagnosticos.delete": notImplemented("diagnosticos.delete"),
-  "diagnosticos.search": notImplemented("diagnosticos.search"),
+  "diagnosticos.search": async (input) => { 
+    const { incidente_id, tecnico_id, search } = input as any;
+    let query = supabase.from("diagnosticos").select("*");
+    if (incidente_id) query = query.eq("incidente_id", incidente_id);
+    if (tecnico_id) query = query.eq("tecnico_id", tecnico_id);
+    if (search) query = query.ilike("recomendaciones", `%${search}%`);
+    const { data, error } = await query.order("created_at", { ascending: false });
+    if (error) throw error;
+    return { results: data || [] };
+  },
   "repuestos.list": async () => { const { data, error } = await supabase.from("repuestos").select("*").order("codigo").limit(100); if (error) throw error; return { results: data || [], total: data?.length || 0 }; },
   "repuestos.get": async (input) => { const { data, error } = await supabase.from("repuestos").select("*").eq("id", input.id).maybeSingle(); if (error) throw error; return { result: data }; },
   "repuestos.create": notImplemented("repuestos.create"),

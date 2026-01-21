@@ -129,15 +129,9 @@ export default function BusquedaIncidentes() {
         productoData = productosResult.results.find(p => p.id === incidente.producto_id) as unknown as ProductoDB || null;
       }
 
-      // Diagnóstico and media still via direct Supabase (not in registry)
-      const [diagnosticoRes, mediaRes] = await Promise.all([
-        supabase
-          .from("diagnosticos")
-          .select("*")
-          .eq("incidente_id", incidente.id)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle(),
+      // Diagnóstico via apiBackendAction, media still via direct Supabase (not in registry)
+      const [diagnosticoResult, mediaRes] = await Promise.all([
+        apiBackendAction("diagnosticos.search", { incidente_id: incidente.id }),
         supabase
           .from("media")
           .select("*")
@@ -145,10 +139,12 @@ export default function BusquedaIncidentes() {
           .order("created_at", { ascending: false })
       ]);
 
+      const diagnosticoData = diagnosticoResult.results?.[0] || null;
+
       setDetalleData({
         cliente: clienteData as ClienteDB | null,
         producto: productoData as ProductoDB | null,
-        diagnostico: diagnosticoRes.data,
+        diagnostico: diagnosticoData as unknown as DiagnosticoDB | null,
         mediaFiles: mediaRes.data || [],
       });
     } catch (error) {

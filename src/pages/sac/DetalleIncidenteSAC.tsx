@@ -148,22 +148,14 @@ export default function DetalleIncidenteSAC() {
         setProducto(incData.producto as unknown as ProductoDB);
       }
 
-      // Fetch diagnosis (still direct Supabase - not in registry)
-      const { data: diagnosticoData } = await supabase
-        .from("diagnosticos")
-        .select("*")
-        .eq("incidente_id", Number(id))
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      // Fetch diagnosis via apiBackendAction
+      const diagnosticoResult = await apiBackendAction("diagnosticos.search", { incidente_id: Number(id) });
+      const diagnosticoData = diagnosticoResult.results?.[0] || null;
+      setDiagnostico(diagnosticoData as unknown as DiagnosticoDB | null);
 
-      setDiagnostico(diagnosticoData);
-
-      // Fetch tecnico info if diagnostico exists
-      if (diagnosticoData?.tecnico_id) {
-        const usuariosResult = await apiBackendAction("usuarios.list", {});
-        const tecnicoData = usuariosResult.results.find(u => u.id === diagnosticoData.tecnico_id);
-        setTecnico(tecnicoData as unknown as UsuarioDB || null);
+      // Fetch tecnico info from nested tecnico object in diagnostico
+      if (diagnosticoData?.tecnico) {
+        setTecnico(diagnosticoData.tecnico as unknown as UsuarioDB);
       }
 
     } catch (error: any) {
