@@ -229,6 +229,51 @@ const handlers: Partial<Record<ActionName, ActionHandler<any>>> = {
   "bodegas.create": notImplemented("bodegas.create"),
   "bodegas.update": notImplemented("bodegas.update"),
   "bodegas.delete": notImplemented("bodegas.delete"),
+
+  // Familias Producto (implemented)
+  "familias_producto.list": async (input: ActionRegistry["familias_producto.list"]["input"]) => {
+    const { data, error } = await supabase
+      .from("familias_producto")
+      .select("id, nombre, parent_id, created_at")
+      .is("parent_id", null) // Solo familias abuelas (top-level)
+      .order("nombre");
+
+    if (error) throw error;
+    return { results: data || [], total: data?.length || 0 };
+  },
+
+  // Centros de Servicio (implemented)
+  "centros_de_servicio.list": async (input: ActionRegistry["centros_de_servicio.list"]["input"]) => {
+    const { data, error } = await supabase
+      .from("centros_de_servicio")
+      .select("id, nombre, codigo, slug, direccion, telefono, correo, es_central, activo, responsable_id, empresa_id, created_at, updated_at")
+      .eq("activo", true)
+      .order("nombre");
+
+    if (error) throw error;
+    return { items: data || [] };
+  },
+
+  // Grupos Cola FIFO (implemented)
+  "grupos_cola_fifo.list": async (input: ActionRegistry["grupos_cola_fifo.list"]["input"]) => {
+    const { data, error } = await supabase
+      .from("grupos_cola_fifo")
+      .select("*")
+      .order("orden");
+
+    if (error) throw error;
+    return { results: data || [], total: data?.length || 0 };
+  },
+
+  // Grupos Cola FIFO Familias (implemented)
+  "grupos_cola_fifo_familias.list": async (input: ActionRegistry["grupos_cola_fifo_familias.list"]["input"]) => {
+    const { data, error } = await supabase
+      .from("grupos_cola_fifo_familias")
+      .select("*");
+
+    if (error) throw error;
+    return { results: data || [], total: data?.length || 0 };
+  },
 };
 
 // =============================================================================

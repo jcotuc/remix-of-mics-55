@@ -79,6 +79,18 @@ import type {
   BodegaUpdateOutput,
   BodegaDeleteInput,
   BodegaDeleteOutput,
+  // Familias Producto
+  FamiliaProductoListInput,
+  FamiliaProductoListOutput,
+  // Centros de Servicio
+  CentroDeServicioListInput,
+  CentroDeServicioListOutput,
+  // Grupos Cola FIFO
+  GrupoColaFifoListInput,
+  GrupoColaFifoListOutput,
+  // Grupos Cola FIFO Familias
+  GrupoColaFifoFamiliaListInput,
+  GrupoColaFifoFamiliaListOutput,
 } from "@/generated/actions.d";
 
 export interface ActionRegistry {
@@ -123,6 +135,14 @@ export interface ActionRegistry {
   "bodegas.create": { input: BodegaCreateInput; output: BodegaCreateOutput };
   "bodegas.update": { input: BodegaUpdateInput; output: BodegaUpdateOutput };
   "bodegas.delete": { input: BodegaDeleteInput; output: BodegaDeleteOutput };
+  // Familias Producto
+  "familias_producto.list": { input: FamiliaProductoListInput; output: FamiliaProductoListOutput };
+  // Centros de Servicio
+  "centros_de_servicio.list": { input: CentroDeServicioListInput; output: CentroDeServicioListOutput };
+  // Grupos Cola FIFO
+  "grupos_cola_fifo.list": { input: GrupoColaFifoListInput; output: GrupoColaFifoListOutput };
+  // Grupos Cola FIFO Familias
+  "grupos_cola_fifo_familias.list": { input: GrupoColaFifoFamiliaListInput; output: GrupoColaFifoFamiliaListOutput };
 }
 
 export type ActionName = keyof ActionRegistry;
