@@ -520,7 +520,7 @@ export default function GarantiasManuales() {
           }}>
                 <CardContent className="pt-4 space-y-2">
                   <div className="text-sm">
-                    <span className="font-semibold">ID:</span> {garantia.id.slice(0, 8)}
+                    <span className="font-semibold">ID:</span> {String(garantia.id).slice(0, 8)}
                   </div>
                   <div className="text-sm">
                     <span className="font-semibold">CODIGO CLIENTE:</span><br />
@@ -560,7 +560,7 @@ export default function GarantiasManuales() {
           }}>
                 <CardContent className="pt-4 space-y-2">
                   <div className="text-sm">
-                    <span className="font-semibold">ID:</span> {garantia.id.slice(0, 8)}
+                    <span className="font-semibold">ID:</span> {String(garantia.id).slice(0, 8)}
                   </div>
                   <div className="text-sm">
                     <span className="font-semibold">CODIGO CLIENTE:</span><br />
@@ -597,7 +597,7 @@ export default function GarantiasManuales() {
           }}>
                 <CardContent className="pt-4 space-y-2">
                   <div className="text-sm">
-                    <span className="font-semibold">ID:</span> {garantia.id.slice(0, 8)}
+                    <span className="font-semibold">ID:</span> {String(garantia.id).slice(0, 8)}
                   </div>
                   <div className="text-sm">
                     <span className="font-semibold">CODIGO CLIENTE:</span><br />
@@ -637,7 +637,7 @@ export default function GarantiasManuales() {
           }}>
                 <CardContent className="pt-4 space-y-2">
                   <div className="text-sm">
-                    <span className="font-semibold">ID:</span> {garantia.id.slice(0, 8)}
+                    <span className="font-semibold">ID:</span> {String(garantia.id).slice(0, 8)}
                   </div>
                   <div className="text-sm">
                     <span className="font-semibold">CODIGO CLIENTE:</span><br />
@@ -677,7 +677,7 @@ export default function GarantiasManuales() {
           }}>
                 <CardContent className="pt-4 space-y-2">
                   <div className="text-sm">
-                    <span className="font-semibold">ID:</span> {garantia.id.slice(0, 8)}
+                    <span className="font-semibold">ID:</span> {String(garantia.id).slice(0, 8)}
                   </div>
                   <div className="text-sm">
                     <span className="font-semibold">CODIGO CLIENTE:</span><br />

@@ -8,7 +8,7 @@ import { Search, Package, DollarSign } from "lucide-react";
 import { toast } from "sonner";
 
 type RepuestoConStock = {
-  id: string;
+  id: number;
   codigo: string;
   clave: string;
   descripcion: string;
