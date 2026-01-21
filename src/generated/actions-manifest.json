@@ -208,5 +208,437 @@
     "description": "Deletes a bodega.",
     "input_schema": "app.contracts.bodegas.delete.BodegaDeleteInput",
     "output_schema": "app.contracts.bodegas.delete.BodegaDeleteOutput"
+  },
+  {
+    "action": "direcciones.list",
+    "description": "Lists all direcciones.",
+    "input_schema": "app.contracts.direcciones.list.DireccionListInput",
+    "output_schema": "app.contracts.direcciones.list.DireccionListOutput"
+  },
+  {
+    "action": "fallas.list",
+    "description": "Lists all fallas.",
+    "input_schema": "app.contracts.fallas.list.FallaListInput",
+    "output_schema": "app.contracts.fallas.list.FallaListOutput"
+  },
+  {
+    "action": "causas.list",
+    "description": "Lists all causas.",
+    "input_schema": "app.contracts.causas.list.CausaListInput",
+    "output_schema": "app.contracts.causas.list.CausaListOutput"
+  },
+  {
+    "action": "media.list",
+    "description": "Lists all media.",
+    "input_schema": "app.contracts.media.list.MediaListInput",
+    "output_schema": "app.contracts.media.list.MediaListOutput"
+  },
+  {
+    "action": "notificaciones.list",
+    "description": "Lists all notificaciones.",
+    "input_schema": "app.contracts.notificaciones.list.NotificacionListInput",
+    "output_schema": "app.contracts.notificaciones.list.NotificacionListOutput"
+  },
+  {
+    "action": "usuarios.list",
+    "description": "Lists all usuarios.",
+    "input_schema": "app.contracts.usuarios.list.UsuarioListInput",
+    "output_schema": "app.contracts.usuarios.list.UsuarioListOutput"
+  },
+  {
+    "action": "guias.list",
+    "description": "Lists all guias.",
+    "input_schema": "app.contracts.guias.list.GuiaListInput",
+    "output_schema": "app.contracts.guias.list.GuiaListOutput"
+  },
+  {
+    "action": "accesorios.list",
+    "description": "Lists all accesorios.",
+    "input_schema": "app.contracts.accesorios.list.AccesorioListInput",
+    "output_schema": "app.contracts.accesorios.list.AccesorioListOutput"
+  },
+  {
+    "action": "accesorios.create",
+    "description": "Creates a new accesorio.",
+    "input_schema": "app.contracts.accesorios.create.AccesorioCreateInput",
+    "output_schema": "app.contracts.accesorios.create.AccesorioCreateOutput"
+  },
+  {
+    "action": "familias_producto.list",
+    "description": "Lists all familias_producto.",
+    "input_schema": "app.contracts.familias_producto.list.FamiliaProductoListInput",
+    "output_schema": "app.contracts.familias_producto.list.FamiliaProductoListOutput"
+  },
+  {
+    "action": "grupos_cola_fifo.list",
+    "description": "Lists all grupos_cola_fifo.",
+    "input_schema": "app.contracts.grupos_cola_fifo.list.GrupoColaFifoListInput",
+    "output_schema": "app.contracts.grupos_cola_fifo.list.GrupoColaFifoListOutput"
+  },
+  {
+    "action": "grupos_cola_fifo_familias.list",
+    "description": "Lists all grupos_cola_fifo_familias.",
+    "input_schema": "app.contracts.grupos_cola_fifo_familias.list.GrupoColaFifoFamiliaListInput",
+    "output_schema": "app.contracts.grupos_cola_fifo_familias.list.GrupoColaFifoFamiliaListOutput"
+  },
+  {
+    "action": "incidente_participacion.list",
+    "description": "Lists all incidente_participacion.",
+    "input_schema": "app.contracts.incidente_participacion.list.IncidenteParticipacionListInput",
+    "output_schema": "app.contracts.incidente_participacion.list.IncidenteParticipacionListOutput"
+  },
+  {
+    "action": "centro_de_servicio.list",
+    "description": "Lists all centros de servicio.",
+    "input_schema": "app.contracts.centros_de_servicio.list.CentroDeServicioListInput",
+    "output_schema": "app.contracts.centros_de_servicio.list.CentroDeServicioListOutput"
+  },
+  {
+    "action": "centro_de_servicio.get",
+    "description": "Gets a single centro de servicio by its ID.",
+    "input_schema": "app.contracts.centros_de_servicio.get.CentroDeServicioGetInput",
+    "output_schema": "app.contracts.centros_de_servicio.get.CentroDeServicioGetOutput"
+  },
+  {
+    "action": "centro_de_servicio.create",
+    "description": "Creates a new centro de servicio.",
+    "input_schema": "app.contracts.centros_de_servicio.create.CentroDeServicioCreateInput",
+    "output_schema": "app.contracts.centros_de_servicio.create.CentroDeServicioCreateOutput"
+  },
+  {
+    "action": "centro_de_servicio.update",
+    "description": "Updates an existing centro de servicio.",
+    "input_schema": "app.contracts.centros_de_servicio.update.CentroDeServicioUpdateInput",
+    "output_schema": "app.contracts.centros_de_servicio.update.CentroDeServicioUpdateOutput"
+  },
+  {
+    "action": "centro_de_servicio.delete",
+    "description": "Deletes a centro de servicio.",
+    "input_schema": "app.contracts.centros_de_servicio.delete.CentroDeServicioDeleteInput",
+    "output_schema": "app.contracts.centros_de_servicio.delete.CentroDeServicioDeleteOutput"
+  },
+  {
+    "action": "roles.list",
+    "description": "Lists all roles.",
+    "input_schema": "app.contracts.roles.list.RolListInput",
+    "output_schema": "app.contracts.roles.list.RolListOutput"
+  },
+  {
+    "action": "inventarios.list",
+    "description": "Lists all inventarios.",
+    "input_schema": "app.contracts.inventarios.list.InventarioListInput",
+    "output_schema": "app.contracts.inventarios.list.InventarioListOutput"
+  },
+  {
+    "action": "inventarios.get",
+    "description": "Gets a single inventario by its ID.",
+    "input_schema": "app.contracts.inventarios.get.InventarioGetInput",
+    "output_schema": "app.contracts.inventarios.get.InventarioGetOutput"
+  },
+  {
+    "action": "inventarios.create",
+    "description": "Creates a new inventario.",
+    "input_schema": "app.contracts.inventarios.create.InventarioCreateInput",
+    "output_schema": "app.contracts.inventarios.create.InventarioCreateOutput"
+  },
+  {
+    "action": "inventarios.update",
+    "description": "Updates an existing inventario.",
+    "input_schema": "app.contracts.inventarios.update.InventarioUpdateInput",
+    "output_schema": "app.contracts.inventarios.update.InventarioUpdateOutput"
+  },
+  {
+    "action": "inventarios.delete",
+    "description": "Deletes an inventario.",
+    "input_schema": "app.contracts.inventarios.delete.InventarioDeleteInput",
+    "output_schema": "app.contracts.inventarios.delete.InventarioDeleteOutput"
+  },
+  {
+    "action": "movimientos_inventario.list",
+    "description": "Lists all movimientos de inventario.",
+    "input_schema": "app.contracts.movimientos_inventario.list.MovimientoInventarioListInput",
+    "output_schema": "app.contracts.movimientos_inventario.list.MovimientoInventarioListOutput"
+  },
+  {
+    "action": "movimientos_inventario.get",
+    "description": "Gets a single movimiento de inventario by its ID.",
+    "input_schema": "app.contracts.movimientos_inventario.get.MovimientoInventarioGetInput",
+    "output_schema": "app.contracts.movimientos_inventario.get.MovimientoInventarioGetOutput"
+  },
+  {
+    "action": "movimientos_inventario.create",
+    "description": "Creates a new movimiento de inventario.",
+    "input_schema": "app.contracts.movimientos_inventario.create.MovimientoInventarioCreateInput",
+    "output_schema": "app.contracts.movimientos_inventario.create.MovimientoInventarioCreateOutput"
+  },
+  {
+    "action": "pedidos_bodega_central.list",
+    "description": "Lists all pedidos a bodega central.",
+    "input_schema": "app.contracts.pedidos_bodega_central.list.PedidoBodegaCentralListInput",
+    "output_schema": "app.contracts.pedidos_bodega_central.list.PedidoBodegaCentralListOutput"
+  },
+  {
+    "action": "pedidos_bodega_central.get",
+    "description": "Gets a single pedido a bodega central by its ID.",
+    "input_schema": "app.contracts.pedidos_bodega_central.get.PedidoBodegaCentralGetInput",
+    "output_schema": "app.contracts.pedidos_bodega_central.get.PedidoBodegaCentralGetOutput"
+  },
+  {
+    "action": "pedidos_bodega_central.create",
+    "description": "Creates a new pedido a bodega central.",
+    "input_schema": "app.contracts.pedidos_bodega_central.create.PedidoBodegaCentralCreateInput",
+    "output_schema": "app.contracts.pedidos_bodega_central.create.PedidoBodegaCentralCreateOutput"
+  },
+  {
+    "action": "pedidos_bodega_central.update",
+    "description": "Updates an existing pedido a bodega central.",
+    "input_schema": "app.contracts.pedidos_bodega_central.update.PedidoBodegaCentralUpdateInput",
+    "output_schema": "app.contracts.pedidos_bodega_central.update.PedidoBodegaCentralUpdateOutput"
+  },
+  {
+    "action": "pedidos_bodega_central.delete",
+    "description": "Deletes a pedido a bodega central.",
+    "input_schema": "app.contracts.pedidos_bodega_central.delete.PedidoBodegaCentralDeleteInput",
+    "output_schema": "app.contracts.pedidos_bodega_central.delete.PedidoBodegaCentralDeleteOutput"
+  },
+  {
+    "action": "presupuestos.list",
+    "description": "Lists all presupuestos for an incidente.",
+    "input_schema": "app.contracts.presupuestos.list.PresupuestoListInput",
+    "output_schema": "app.contracts.presupuestos.list.PresupuestoListOutput"
+  },
+  {
+    "action": "presupuestos.get",
+    "description": "Gets a single presupuesto by its ID.",
+    "input_schema": "app.contracts.presupuestos.get.PresupuestoGetInput",
+    "output_schema": "app.contracts.presupuestos.get.PresupuestoGetOutput"
+  },
+  {
+    "action": "presupuestos.create",
+    "description": "Creates a new presupuesto.",
+    "input_schema": "app.contracts.presupuestos.create.PresupuestoCreateInput",
+    "output_schema": "app.contracts.presupuestos.create.PresupuestoCreateOutput"
+  },
+  {
+    "action": "presupuestos.update",
+    "description": "Updates an existing presupuesto.",
+    "input_schema": "app.contracts.presupuestos.update.PresupuestoUpdateInput",
+    "output_schema": "app.contracts.presupuestos.update.PresupuestoUpdateOutput"
+  },
+  {
+    "action": "presupuestos.delete",
+    "description": "Deletes a presupuesto.",
+    "input_schema": "app.contracts.presupuestos.delete.PresupuestoDeleteInput",
+    "output_schema": "app.contracts.presupuestos.delete.PresupuestoDeleteOutput"
+  },
+  {
+    "action": "solicitudes_repuestos.list",
+    "description": "Lists all solicitudes de repuestos.",
+    "input_schema": "app.contracts.solicitudes_repuestos.list.SolicitudRepuestoListInput",
+    "output_schema": "app.contracts.solicitudes_repuestos.list.SolicitudRepuestoListOutput"
+  },
+  {
+    "action": "solicitudes_repuestos.get",
+    "description": "Gets a single solicitud de repuesto by its ID.",
+    "input_schema": "app.contracts.solicitudes_repuestos.get.SolicitudRepuestoGetInput",
+    "output_schema": "app.contracts.solicitudes_repuestos.get.SolicitudRepuestoGetOutput"
+  },
+  {
+    "action": "solicitudes_repuestos.create",
+    "description": "Creates a new solicitud de repuesto.",
+    "input_schema": "app.contracts.solicitudes_repuestos.create.SolicitudRepuestoCreateInput",
+    "output_schema": "app.contracts.solicitudes_repuestos.create.SolicitudRepuestoCreateOutput"
+  },
+  {
+    "action": "solicitudes_repuestos.update",
+    "description": "Updates an existing solicitud de repuesto.",
+    "input_schema": "app.contracts.solicitudes_repuestos.update.SolicitudRepuestoUpdateInput",
+    "output_schema": "app.contracts.solicitudes_repuestos.update.SolicitudRepuestoUpdateOutput"
+  },
+  {
+    "action": "solicitudes_repuestos.delete",
+    "description": "Deletes a solicitud de repuesto.",
+    "input_schema": "app.contracts.solicitudes_repuestos.delete.SolicitudRepuestoDeleteInput",
+    "output_schema": "app.contracts.solicitudes_repuestos.delete.SolicitudRepuestoDeleteOutput"
+  },
+  {
+    "action": "transitos_bodega.list",
+    "description": "Lists all transitos de bodega.",
+    "input_schema": "app.contracts.transitos_bodega.list.TransitoBodegaListInput",
+    "output_schema": "app.contracts.transitos_bodega.list.TransitoBodegaListOutput"
+  },
+  {
+    "action": "transitos_bodega.get",
+    "description": "Gets a single transito de bodega by its ID.",
+    "input_schema": "app.contracts.transitos_bodega.get.TransitoBodegaGetInput",
+    "output_schema": "app.contracts.transitos_bodega.get.TransitoBodegaGetOutput"
+  },
+  {
+    "action": "transitos_bodega.create",
+    "description": "Creates a new transito de bodega.",
+    "input_schema": "app.contracts.transitos_bodega.create.TransitoBodegaCreateInput",
+    "output_schema": "app.contracts.transitos_bodega.create.TransitoBodegaCreateOutput"
+  },
+  {
+    "action": "transitos_bodega.update",
+    "description": "Updates an existing transito de bodega.",
+    "input_schema": "app.contracts.transitos_bodega.update.TransitoBodegaUpdateInput",
+    "output_schema": "app.contracts.transitos_bodega.update.TransitoBodegaUpdateOutput"
+  },
+  {
+    "action": "transitos_bodega.delete",
+    "description": "Deletes a transito de bodega.",
+    "input_schema": "app.contracts.transitos_bodega.delete.TransitoBodegaDeleteInput",
+    "output_schema": "app.contracts.transitos_bodega.delete.TransitoBodegaDeleteOutput"
+  },
+  {
+    "action": "ubicaciones.list",
+    "description": "Lists all ubicaciones.",
+    "input_schema": "app.contracts.ubicaciones.list.UbicacionListInput",
+    "output_schema": "app.contracts.ubicaciones.list.UbicacionListOutput"
+  },
+  {
+    "action": "ubicaciones.get",
+    "description": "Gets a single ubicacion by its ID.",
+    "input_schema": "app.contracts.ubicaciones.get.UbicacionGetInput",
+    "output_schema": "app.contracts.ubicaciones.get.UbicacionGetOutput"
+  },
+  {
+    "action": "ubicaciones.create",
+    "description": "Creates a new ubicacion.",
+    "input_schema": "app.contracts.ubicaciones.create.UbicacionCreateInput",
+    "output_schema": "app.contracts.ubicaciones.create.UbicacionCreateOutput"
+  },
+  {
+    "action": "ubicaciones.update",
+    "description": "Updates an existing ubicacion.",
+    "input_schema": "app.contracts.ubicaciones.update.UbicacionUpdateInput",
+    "output_schema": "app.contracts.ubicaciones.update.UbicacionUpdateOutput"
+  },
+  {
+    "action": "ubicaciones.delete",
+    "description": "Deletes an ubicacion.",
+    "input_schema": "app.contracts.ubicaciones.delete.UbicacionDeleteInput",
+    "output_schema": "app.contracts.ubicaciones.delete.UbicacionDeleteOutput"
+  },
+  {
+    "action": "embarques.list",
+    "description": "Lists all embarques.",
+    "input_schema": "app.contracts.embarques.list.EmbarqueListInput",
+    "output_schema": "app.contracts.embarques.list.EmbarqueListOutput"
+  },
+  {
+    "action": "embarques.get",
+    "description": "Gets a single embarque by its ID.",
+    "input_schema": "app.contracts.embarques.get.EmbarqueGetInput",
+    "output_schema": "app.contracts.embarques.get.EmbarqueGetOutput"
+  },
+  {
+    "action": "embarques.create",
+    "description": "Creates a new embarque.",
+    "input_schema": "app.contracts.embarques.create.EmbarqueCreateInput",
+    "output_schema": "app.contracts.embarques.create.EmbarqueCreateOutput"
+  },
+  {
+    "action": "embarques.update",
+    "description": "Updates an existing embarque.",
+    "input_schema": "app.contracts.embarques.update.EmbarqueUpdateInput",
+    "output_schema": "app.contracts.embarques.update.EmbarqueUpdateOutput"
+  },
+  {
+    "action": "embarques.delete",
+    "description": "Deletes an embarque.",
+    "input_schema": "app.contracts.embarques.delete.EmbarqueDeleteInput",
+    "output_schema": "app.contracts.embarques.delete.EmbarqueDeleteOutput"
+  },
+  {
+    "action": "importaciones.list",
+    "description": "Lists all importaciones.",
+    "input_schema": "app.contracts.importaciones.list.ImportacionListInput",
+    "output_schema": "app.contracts.importaciones.list.ImportacionListOutput"
+  },
+  {
+    "action": "importaciones.get",
+    "description": "Gets a single importacion by its ID.",
+    "input_schema": "app.contracts.importaciones.get.ImportacionGetInput",
+    "output_schema": "app.contracts.importaciones.get.ImportacionGetOutput"
+  },
+  {
+    "action": "importaciones.create",
+    "description": "Creates a new importacion.",
+    "input_schema": "app.contracts.importaciones.create.ImportacionCreateInput",
+    "output_schema": "app.contracts.importaciones.create.ImportacionCreateOutput"
+  },
+  {
+    "action": "importaciones.update",
+    "description": "Updates an existing importacion.",
+    "input_schema": "app.contracts.importaciones.update.ImportacionUpdateInput",
+    "output_schema": "app.contracts.importaciones.update.ImportacionUpdateOutput"
+  },
+  {
+    "action": "importaciones.delete",
+    "description": "Deletes an importacion.",
+    "input_schema": "app.contracts.importaciones.delete.ImportacionDeleteInput",
+    "output_schema": "app.contracts.importaciones.delete.ImportacionDeleteOutput"
+  },
+  {
+    "action": "empresas.list",
+    "description": "Lists all empresas.",
+    "input_schema": "app.contracts.empresas.list.EmpresaListInput",
+    "output_schema": "app.contracts.empresas.list.EmpresaListOutput"
+  },
+  {
+    "action": "empresas.get",
+    "description": "Gets a single empresa by its ID.",
+    "input_schema": "app.contracts.empresas.get.EmpresaGetInput",
+    "output_schema": "app.contracts.empresas.get.EmpresaGetOutput"
+  },
+  {
+    "action": "empresas.create",
+    "description": "Creates a new empresa.",
+    "input_schema": "app.contracts.empresas.create.EmpresaCreateInput",
+    "output_schema": "app.contracts.empresas.create.EmpresaCreateOutput"
+  },
+  {
+    "action": "empresas.update",
+    "description": "Updates an existing empresa.",
+    "input_schema": "app.contracts.empresas.update.EmpresaUpdateInput",
+    "output_schema": "app.contracts.empresas.update.EmpresaUpdateOutput"
+  },
+  {
+    "action": "empresas.delete",
+    "description": "Deletes an empresa.",
+    "input_schema": "app.contracts.empresas.delete.EmpresaDeleteInput",
+    "output_schema": "app.contracts.empresas.delete.EmpresaDeleteOutput"
+  },
+  {
+    "action": "propietarios.list",
+    "description": "Lists all propietarios.",
+    "input_schema": "app.contracts.propietarios.list.PropietarioListInput",
+    "output_schema": "app.contracts.propietarios.list.PropietarioListOutput"
+  },
+  {
+    "action": "propietarios.get",
+    "description": "Gets a single propietario by its ID.",
+    "input_schema": "app.contracts.propietarios.get.PropietarioGetInput",
+    "output_schema": "app.contracts.propietarios.get.PropietarioGetOutput"
+  },
+  {
+    "action": "propietarios.create",
+    "description": "Creates a new propietario.",
+    "input_schema": "app.contracts.propietarios.create.PropietarioCreateInput",
+    "output_schema": "app.contracts.propietarios.create.PropietarioCreateOutput"
+  },
+  {
+    "action": "propietarios.update",
+    "description": "Updates an existing propietario.",
+    "input_schema": "app.contracts.propietarios.update.PropietarioUpdateInput",
+    "output_schema": "app.contracts.propietarios.update.PropietarioUpdateOutput"
+  },
+  {
+    "action": "propietarios.delete",
+    "description": "Deletes a propietario.",
+    "input_schema": "app.contracts.propietarios.delete.PropietarioDeleteInput",
+    "output_schema": "app.contracts.propietarios.delete.PropietarioDeleteOutput"
   }
 ]
