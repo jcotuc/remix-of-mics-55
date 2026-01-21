@@ -265,6 +265,51 @@ const handlers: Partial<Record<ActionName, ActionHandler<any>>> = {
     return { results: data || [], total: data?.length || 0 };
   },
 
+  "grupos_cola_fifo.get": async (input: ActionRegistry["grupos_cola_fifo.get"]["input"]) => {
+    const { data, error } = await supabase
+      .from("grupos_cola_fifo")
+      .select("*")
+      .eq("id", input.id)
+      .maybeSingle();
+
+    if (error) throw error;
+    return { result: data };
+  },
+
+  "grupos_cola_fifo.create": async (input: ActionRegistry["grupos_cola_fifo.create"]["input"]) => {
+    const { data, error } = await supabase
+      .from("grupos_cola_fifo")
+      .insert(input)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  "grupos_cola_fifo.update": async (input: ActionRegistry["grupos_cola_fifo.update"]["input"]) => {
+    const { id, data: updateData } = input;
+    const { data, error } = await supabase
+      .from("grupos_cola_fifo")
+      .update(updateData)
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  "grupos_cola_fifo.delete": async (input: ActionRegistry["grupos_cola_fifo.delete"]["input"]) => {
+    const { error } = await supabase
+      .from("grupos_cola_fifo")
+      .delete()
+      .eq("id", input.id);
+
+    if (error) throw error;
+    return { status: "deleted", id: input.id };
+  },
+
   // Grupos Cola FIFO Familias (implemented)
   "grupos_cola_fifo_familias.list": async (input: ActionRegistry["grupos_cola_fifo_familias.list"]["input"]) => {
     const { data, error } = await supabase
@@ -274,6 +319,52 @@ const handlers: Partial<Record<ActionName, ActionHandler<any>>> = {
     if (error) throw error;
     return { results: data || [], total: data?.length || 0 };
   },
+
+  "grupos_cola_fifo_familias.get": async (input: ActionRegistry["grupos_cola_fifo_familias.get"]["input"]) => {
+    const { data, error } = await supabase
+      .from("grupos_cola_fifo_familias")
+      .select("*")
+      .eq("id", input.id)
+      .maybeSingle();
+
+    if (error) throw error;
+    return { result: data };
+  },
+
+  "grupos_cola_fifo_familias.create": async (input: ActionRegistry["grupos_cola_fifo_familias.create"]["input"]) => {
+    const { data, error } = await supabase
+      .from("grupos_cola_fifo_familias")
+      .insert(input)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  "grupos_cola_fifo_familias.update": async (input: ActionRegistry["grupos_cola_fifo_familias.update"]["input"]) => {
+    const { id, data: updateData } = input;
+    const { data, error } = await supabase
+      .from("grupos_cola_fifo_familias")
+      .update(updateData)
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  "grupos_cola_fifo_familias.delete": async (input: ActionRegistry["grupos_cola_fifo_familias.delete"]["input"]) => {
+    const { error } = await supabase
+      .from("grupos_cola_fifo_familias")
+      .delete()
+      .eq("id", input.id);
+
+    if (error) throw error;
+    return { status: "deleted", id: input.id };
+  },
+
 };
 
 // =============================================================================
