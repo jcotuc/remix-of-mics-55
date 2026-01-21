@@ -13,68 +13,30 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { formatFechaLarga, formatFechaHora, formatFechaCorta } from "@/utils/dateFormatters";
 import { Skeleton } from "@/components/ui/skeleton";
+import type { Database } from "@/integrations/supabase/types";
 
-interface Incidente {
-  id: string;
-  codigo: string;
-  status: string;
-  fecha_ingreso: string;
-  codigo_cliente: string;
-  codigo_producto: string;
-  codigo_tecnico: string | null;
-  descripcion_problema: string;
-  familia_padre_id: number | null;
-  tipologia: string | null;
-  confirmacion_cliente: any;
-}
+type IncidenteDB = Database["public"]["Tables"]["incidentes"]["Row"];
+type ClienteDB = Database["public"]["Tables"]["clientes"]["Row"];
+type ProductoDB = Database["public"]["Tables"]["productos"]["Row"];
+type DiagnosticoDB = Database["public"]["Tables"]["diagnosticos"]["Row"];
+type MediaDB = Database["public"]["Tables"]["media"]["Row"];
 
-interface Cliente {
-  codigo: string;
-  nombre: string;
-  celular: string;
-}
-
-interface Producto {
-  codigo: string;
-  descripcion: string;
-}
-
-interface Diagnostico {
-  tecnico_codigo: string;
-  fallas: string[];
-  causas: string[];
-  resolucion: string | null;
-  estado: string;
-  created_at: string;
-  recomendaciones: string | null;
-  repuestos_utilizados: any;
-  accesorios: string | null;
-  tiempo_estimado: string | null;
-}
-
-interface MediaFile {
-  id: string;
-  nombre: string;
-  descripcion: string | null;
-  url: string;
-  tipo: string;
+interface DetalleData {
+  cliente: ClienteDB | null;
+  producto: ProductoDB | null;
+  diagnostico: DiagnosticoDB | null;
+  mediaFiles: MediaDB[];
 }
 
 export default function BusquedaIncidentes() {
-  const [incidentes, setIncidentes] = useState<Incidente[]>([]);
-  const [filteredIncidentes, setFilteredIncidentes] = useState<Incidente[]>([]);
+  const [incidentes, setIncidentes] = useState<IncidenteDB[]>([]);
+  const [filteredIncidentes, setFilteredIncidentes] = useState<IncidenteDB[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [estadoFiltro, setEstadoFiltro] = useState<string>("todos");
-  const [selectedIncidente, setSelectedIncidente] = useState<Incidente | null>(null);
-  const [detalleData, setDetalleData] = useState<{
-    cliente: Cliente | null;
-    producto: Producto | null;
-    diagnostico: Diagnostico | null;
-    mediaFiles: MediaFile[];
-  }>({
+  const [selectedIncidente, setSelectedIncidente] = useState<IncidenteDB | null>(null);
+  const [detalleData, setDetalleData] = useState<DetalleData>({
     cliente: null,
     producto: null,
     diagnostico: null,
@@ -96,7 +58,7 @@ export default function BusquedaIncidentes() {
       const { data, error } = await supabase
         .from("incidentes")
         .select("*")
-        .in("status", ["En diagnostico", "Reparado"])
+        .in("estado", ["EN_DIAGNOSTICO", "REPARADO"])
         .order("fecha_ingreso", { ascending: false });
 
       if (error) throw error;
@@ -118,21 +80,19 @@ export default function BusquedaIncidentes() {
       filtered = filtered.filter(
         (inc) =>
           inc.codigo.toLowerCase().includes(term) ||
-          inc.codigo_cliente.toLowerCase().includes(term) ||
-          inc.codigo_producto.toLowerCase().includes(term) ||
-          inc.descripcion_problema.toLowerCase().includes(term)
+          inc.descripcion_problema?.toLowerCase().includes(term)
       );
     }
 
     // Filtrar por estado
     if (estadoFiltro !== "todos") {
-      filtered = filtered.filter((inc) => inc.status === estadoFiltro);
+      filtered = filtered.filter((inc) => inc.estado === estadoFiltro);
     }
 
     setFilteredIncidentes(filtered);
   };
 
-  const handleVerDetalle = async (incidente: Incidente) => {
+  const handleVerDetalle = async (incidente: IncidenteDB) => {
     setSelectedIncidente(incidente);
     setLoadingDetalle(true);
 
@@ -140,16 +100,20 @@ export default function BusquedaIncidentes() {
       // Obtener cliente
       const { data: clienteData } = await supabase
         .from("clientes")
-        .select("codigo, nombre, celular")
-        .eq("codigo", incidente.codigo_cliente)
-        .single();
+        .select("*")
+        .eq("id", incidente.cliente_id)
+        .maybeSingle();
 
       // Obtener producto
-      const { data: productoData } = await supabase
-        .from("productos")
-        .select("codigo, descripcion")
-        .eq("codigo", incidente.codigo_producto)
-        .single();
+      let productoData = null;
+      if (incidente.producto_id) {
+        const { data } = await supabase
+          .from("productos")
+          .select("*")
+          .eq("id", incidente.producto_id)
+          .maybeSingle();
+        productoData = data;
+      }
 
       // Obtener diagnóstico
       const { data: diagnosticoData } = await supabase
@@ -162,7 +126,7 @@ export default function BusquedaIncidentes() {
 
       // Obtener archivos multimedia
       const { data: mediaData } = await supabase
-        .from("media_files")
+        .from("media")
         .select("*")
         .eq("incidente_id", incidente.id)
         .order("created_at", { ascending: false });
@@ -181,9 +145,9 @@ export default function BusquedaIncidentes() {
     }
   };
 
-  const getStatusBadgeVariant = (status: string) => {
-    if (status === "Reparado") return "default";
-    if (status === "En diagnostico") return "secondary";
+  const getStatusBadgeVariant = (estado: string) => {
+    if (estado === "REPARADO") return "default";
+    if (estado === "EN_DIAGNOSTICO") return "secondary";
     return "outline";
   };
 
@@ -192,7 +156,8 @@ export default function BusquedaIncidentes() {
     
     const mensaje = `Hola ${detalleData.cliente.nombre}, aquí están las fotos/videos del incidente ${selectedIncidente?.codigo}:\n\n${detalleData.mediaFiles.map((file, idx) => `${idx + 1}. ${file.url}`).join('\n')}`;
     
-    const whatsappUrl = `https://wa.me/${detalleData.cliente.celular.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(mensaje)}`;
+    const telefono = detalleData.cliente.celular || detalleData.cliente.telefono_principal || "";
+    const whatsappUrl = `https://wa.me/${telefono.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(mensaje)}`;
     window.open(whatsappUrl, '_blank');
   };
 
@@ -215,24 +180,8 @@ export default function BusquedaIncidentes() {
     }
   };
 
-  const parseResolucion = (resolucion: string | null) => {
-    if (!resolucion) return null;
-    try {
-      return JSON.parse(resolucion);
-    } catch {
-      return null;
-    }
-  };
-
   const handleImprimirDiagnostico = () => {
     if (!selectedIncidente || !detalleData.diagnostico) return;
-
-    const resolucionData = parseResolucion(detalleData.diagnostico.resolucion);
-    
-    // Generar enlace multimedia
-    const multimediaLinks = detalleData.mediaFiles.length > 0 
-      ? detalleData.mediaFiles.map((file, idx) => `${idx + 1}. ${file.url}`).join('\n')
-      : 'No hay multimedia disponible';
     
     const contenidoImpresion = `
       <!DOCTYPE html>
@@ -304,28 +253,6 @@ export default function BusquedaIncidentes() {
               line-height: 1.8;
               font-size: 14px;
             }
-            .section-content p {
-              margin: 8px 0;
-              white-space: pre-wrap;
-            }
-            .item-list {
-              margin: 8px 0;
-            }
-            .item {
-              padding: 6px 0;
-              border-bottom: 1px dotted #ddd;
-            }
-            .item:last-child {
-              border-bottom: none;
-            }
-            .multimedia-link {
-              word-break: break-all;
-              color: #0066cc;
-              font-size: 11px;
-              line-height: 1.6;
-              display: block;
-              margin: 4px 0;
-            }
             .footer {
               margin-top: 50px;
               padding-top: 20px;
@@ -367,85 +294,17 @@ export default function BusquedaIncidentes() {
           </div>
 
           <div class="section">
-            <div class="section-title">Fallas:</div>
+            <div class="section-title">Estado del Diagnóstico:</div>
             <div class="section-content">
-              <div class="item-list">
-                ${detalleData.diagnostico.fallas.map((f, idx) => `<div class="item">${idx + 1}. ${f}</div>`).join('')}
-              </div>
+              <p>${detalleData.diagnostico.estado}</p>
             </div>
           </div>
-
-          <div class="section">
-            <div class="section-title">Causas:</div>
-            <div class="section-content">
-              <div class="item-list">
-                ${detalleData.diagnostico.causas.map((c, idx) => `<div class="item">${idx + 1}. ${c}</div>`).join('')}
-              </div>
-            </div>
-          </div>
-
-          ${detalleData.diagnostico.accesorios ? `
-          <div class="section">
-            <div class="section-title">Accesorios:</div>
-            <div class="section-content">
-              <p>${detalleData.diagnostico.accesorios}</p>
-            </div>
-          </div>
-          ` : ''}
 
           ${detalleData.diagnostico.recomendaciones ? `
           <div class="section">
-            <div class="section-title">Recomendación:</div>
+            <div class="section-title">Recomendaciones:</div>
             <div class="section-content">
               <p>${detalleData.diagnostico.recomendaciones}</p>
-            </div>
-          </div>
-          ` : ''}
-
-          ${selectedIncidente.confirmacion_cliente ? `
-          <div class="section">
-            <div class="section-title">Observaciones:</div>
-            <div class="section-content">
-              <p>${typeof selectedIncidente.confirmacion_cliente === 'object' ? 
-                (selectedIncidente.confirmacion_cliente.observaciones || 'Sin observaciones') : 
-                selectedIncidente.confirmacion_cliente}</p>
-            </div>
-          </div>
-          ` : ''}
-
-          ${resolucionData ? `
-          <div class="section">
-            <div class="section-title">Costo:</div>
-            <div class="section-content">
-              <p><strong>Tipo de Resolución:</strong> ${resolucionData.tipoResolucion || 'No especificado'}</p>
-              ${resolucionData.tipoTrabajo ? `<p><strong>Tipo de Trabajo:</strong> ${resolucionData.tipoTrabajo}</p>` : ''}
-              ${resolucionData.aplicaGarantia !== undefined ? `<p><strong>Garantía:</strong> ${resolucionData.aplicaGarantia ? "Aplica" : "No Aplica"}</p>` : ''}
-            </div>
-          </div>
-          ` : ''}
-
-          ${resolucionData ? `
-          <div class="section">
-            <div class="section-title">Resolución:</div>
-            <div class="section-content">
-              <p><strong>Tipo:</strong> ${resolucionData.tipoResolucion || 'No especificado'}</p>
-              ${resolucionData.tipoTrabajo ? `<p><strong>Trabajo Realizado:</strong> ${resolucionData.tipoTrabajo}</p>` : ''}
-            </div>
-          </div>
-          ` : ''}
-
-          ${detalleData.diagnostico.repuestos_utilizados && Array.isArray(detalleData.diagnostico.repuestos_utilizados) && detalleData.diagnostico.repuestos_utilizados.length > 0 ? `
-          <div class="section">
-            <div class="section-title">Repuestos Utilizados:</div>
-            <div class="section-content">
-              <div class="item-list">
-                ${detalleData.diagnostico.repuestos_utilizados.map((r: any, idx: number) => `
-                  <div class="item">
-                    ${idx + 1}. ${r.descripcion || r.codigo} - Cantidad: ${r.cantidad || 1}
-                    ${r.codigo ? `<br><small style="color: #666;">Código: ${r.codigo}</small>` : ''}
-                  </div>
-                `).join('')}
-              </div>
             </div>
           </div>
           ` : ''}
@@ -455,7 +314,7 @@ export default function BusquedaIncidentes() {
             <div class="section-content">
               ${detalleData.mediaFiles.length > 0 ? 
                 detalleData.mediaFiles.map((file, idx) => 
-                  `<div class="multimedia-link">${idx + 1}. ${file.nombre}: ${file.url}</div>`
+                  `<div style="word-break: break-all; font-size: 11px; margin: 4px 0;">${idx + 1}. ${file.url}</div>`
                 ).join('') : 
                 '<p>No hay multimedia disponible</p>'
               }
@@ -502,100 +361,97 @@ export default function BusquedaIncidentes() {
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Filtros */}
-          <div className="flex gap-4">
+          <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1">
               <Input
-                placeholder="Buscar por código, cliente, producto..."
+                placeholder="Buscar por código o descripción..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="max-w-sm"
+                className="w-full"
               />
             </div>
             <Select value={estadoFiltro} onValueChange={setEstadoFiltro}>
-              <SelectTrigger className="w-[200px]">
-                <Filter className="h-4 w-4 mr-2" />
+              <SelectTrigger className="w-full sm:w-48">
                 <SelectValue placeholder="Filtrar por estado" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="todos">Todos los estados</SelectItem>
-                <SelectItem value="En diagnostico">En diagnóstico</SelectItem>
-                <SelectItem value="Reparado">Reparado</SelectItem>
+                <SelectItem value="todos">Todos</SelectItem>
+                <SelectItem value="EN_DIAGNOSTICO">En Diagnóstico</SelectItem>
+                <SelectItem value="REPARADO">Reparado</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
-          {/* Tabla de resultados */}
+          {/* Tabla */}
           {loading ? (
             <div className="space-y-2">
-              <Skeleton className="h-12 w-full" />
-              <Skeleton className="h-12 w-full" />
-              <Skeleton className="h-12 w-full" />
+              {[...Array(5)].map((_, i) => (
+                <Skeleton key={i} className="h-12 w-full" />
+              ))}
             </div>
           ) : (
-            <div className="rounded-md border">
-              <Table>
-                <TableHeader>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Código</TableHead>
+                  <TableHead>Estado</TableHead>
+                  <TableHead>Fecha Ingreso</TableHead>
+                  <TableHead>Problema</TableHead>
+                  <TableHead className="text-right">Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredIncidentes.length === 0 ? (
                   <TableRow>
-                    <TableHead>Código</TableHead>
-                    <TableHead>Cliente</TableHead>
-                    <TableHead>Producto</TableHead>
-                    <TableHead>Estado</TableHead>
-                    <TableHead>Fecha Ingreso</TableHead>
-                    <TableHead>Familia</TableHead>
-                    <TableHead className="text-right">Acciones</TableHead>
+                    <TableCell colSpan={5} className="text-center text-muted-foreground">
+                      No se encontraron incidentes
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredIncidentes.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={7} className="text-center text-muted-foreground">
-                        No se encontraron incidentes
+                ) : (
+                  filteredIncidentes.map((incidente) => (
+                    <TableRow key={incidente.id}>
+                      <TableCell className="font-mono font-semibold">
+                        {incidente.codigo}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={getStatusBadgeVariant(incidente.estado)}>
+                          {incidente.estado.replace(/_/g, " ")}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {incidente.fecha_ingreso
+                          ? format(new Date(incidente.fecha_ingreso), "dd/MM/yyyy", { locale: es })
+                          : "-"}
+                      </TableCell>
+                      <TableCell className="max-w-xs truncate">
+                        {incidente.descripcion_problema || "-"}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleVerDetalle(incidente)}
+                        >
+                          <Eye className="h-4 w-4 mr-1" />
+                          Ver
+                        </Button>
                       </TableCell>
                     </TableRow>
-                  ) : (
-                    filteredIncidentes.map((incidente) => (
-                      <TableRow key={incidente.id}>
-                        <TableCell className="font-medium">{incidente.codigo}</TableCell>
-                        <TableCell>{incidente.codigo_cliente}</TableCell>
-                        <TableCell>{incidente.codigo_producto}</TableCell>
-                        <TableCell>
-                          <Badge variant={getStatusBadgeVariant(incidente.status)}>
-                            {incidente.status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {format(new Date(incidente.fecha_ingreso), "dd/MM/yyyy", { locale: es })}
-                        </TableCell>
-                        <TableCell>
-                          {incidente.codigo_producto || "-"}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleVerDetalle(incidente)}
-                          >
-                            <Eye className="h-4 w-4 mr-2" />
-                            Ver Detalle
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
+                  ))
+                )}
+              </TableBody>
+            </Table>
           )}
         </CardContent>
       </Card>
 
-      {/* Dialog de Detalle */}
-      <Dialog open={selectedIncidente !== null} onOpenChange={() => setSelectedIncidente(null)}>
-        <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
+      {/* Dialog de detalle */}
+      <Dialog open={!!selectedIncidente} onOpenChange={() => setSelectedIncidente(null)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-xl">Detalle del Incidente {selectedIncidente?.codigo}</DialogTitle>
+            <DialogTitle>Detalle del Incidente {selectedIncidente?.codigo}</DialogTitle>
             <DialogDescription>
-              Información completa del diagnóstico y reparación
+              Información completa del incidente
             </DialogDescription>
           </DialogHeader>
 
@@ -603,365 +459,109 @@ export default function BusquedaIncidentes() {
             <div className="space-y-4">
               <Skeleton className="h-20 w-full" />
               <Skeleton className="h-20 w-full" />
-              <Skeleton className="h-32 w-full" />
             </div>
           ) : (
-            <Tabs defaultValue="general" className="w-full">
-              <TabsList className="grid w-full grid-cols-4">
-                <TabsTrigger value="general">General</TabsTrigger>
-                <TabsTrigger value="diagnostico">Diagnóstico</TabsTrigger>
-                <TabsTrigger value="multimedia">Multimedia</TabsTrigger>
-                <TabsTrigger value="cliente">Cliente</TabsTrigger>
-              </TabsList>
+            <div className="space-y-6">
+              {/* Cliente */}
+              <div>
+                <h4 className="font-semibold mb-2">Cliente</h4>
+                <p>{detalleData.cliente?.nombre || "No disponible"}</p>
+                <p className="text-sm text-muted-foreground">
+                  {detalleData.cliente?.codigo}
+                </p>
+              </div>
 
-              <TabsContent value="general" className="space-y-4 mt-4">
-                {/* Información General */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">Información General</CardTitle>
-                  </CardHeader>
-                  <CardContent className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">Estado</p>
-                      <Badge variant={getStatusBadgeVariant(selectedIncidente?.status || "")} className="mt-1">
-                        {selectedIncidente?.status}
-                      </Badge>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">Fecha Ingreso</p>
-                      <p className="text-sm mt-1">
-                        {selectedIncidente?.fecha_ingreso &&
-                          format(new Date(selectedIncidente.fecha_ingreso), "dd/MM/yyyy HH:mm", {
-                            locale: es,
-                          })}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">Técnico Asignado</p>
-                      <p className="text-sm mt-1">{selectedIncidente?.codigo_tecnico || "Sin asignar"}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">Código Producto</p>
-                      <p className="text-sm mt-1">{selectedIncidente?.codigo_producto || "-"}</p>
-                    </div>
-                    {selectedIncidente?.tipologia && (
-                      <div className="col-span-2">
-                        <p className="text-sm font-medium text-muted-foreground">Tipología</p>
-                        <Badge variant="outline" className="mt-1">{selectedIncidente.tipologia}</Badge>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
+              <Separator />
 
-                {/* Producto */}
-                {detalleData.producto && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-base">Producto</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-2">
-                      <div>
-                        <p className="text-sm font-medium text-muted-foreground">Descripción</p>
-                        <p className="text-sm">{detalleData.producto.descripcion}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-muted-foreground">Código</p>
-                        <p className="text-sm">{detalleData.producto.codigo}</p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
+              {/* Producto */}
+              <div>
+                <h4 className="font-semibold mb-2">Producto</h4>
+                <p>{detalleData.producto?.descripcion || "No disponible"}</p>
+                <p className="text-sm text-muted-foreground">
+                  {detalleData.producto?.codigo}
+                </p>
+              </div>
 
-                {/* Problema */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">Problema Reportado</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm">{selectedIncidente?.descripcion_problema}</p>
-                  </CardContent>
-                </Card>
-              </TabsContent>
+              <Separator />
 
-              <TabsContent value="diagnostico" className="space-y-4 mt-4">
-                {detalleData.diagnostico ? (
-                  <>
-                    <div className="flex justify-end mb-4">
-                      <Button
-                        variant="outline"
-                        onClick={handleImprimirDiagnostico}
-                      >
-                        <Printer className="h-4 w-4 mr-2" />
-                        Imprimir Diagnóstico
-                      </Button>
-                    </div>
-                    {/* Diagnóstico Principal */}
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="text-base">Diagnóstico Técnico</CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div>
-                          <p className="text-sm font-medium text-muted-foreground mb-2">Estado</p>
-                          <Badge variant="outline">{detalleData.diagnostico.estado}</Badge>
-                        </div>
-                        
-                        <Separator />
-
-                        <div>
-                          <p className="text-sm font-medium text-muted-foreground mb-2">Fallas Detectadas</p>
-                          <div className="flex flex-wrap gap-2">
-                            {detalleData.diagnostico.fallas.map((falla, idx) => (
-                              <Badge key={idx} variant="destructive" className="text-xs">
-                                {falla}
-                              </Badge>
-                            ))}
-                          </div>
-                        </div>
-
-                        <div>
-                          <p className="text-sm font-medium text-muted-foreground mb-2">Causas</p>
-                          <div className="flex flex-wrap gap-2">
-                            {detalleData.diagnostico.causas.map((causa, idx) => (
-                              <Badge key={idx} variant="secondary" className="text-xs">
-                                {causa}
-                              </Badge>
-                            ))}
-                          </div>
-                        </div>
-
-                        {detalleData.diagnostico.recomendaciones && (
-                          <>
-                            <Separator />
-                            <div>
-                              <p className="text-sm font-medium text-muted-foreground mb-2">Recomendaciones</p>
-                              <p className="text-sm bg-muted p-3 rounded-md">{detalleData.diagnostico.recomendaciones}</p>
-                            </div>
-                          </>
-                        )}
-
-                        {detalleData.diagnostico.tiempo_estimado && (
-                          <div>
-                            <p className="text-sm font-medium text-muted-foreground mb-1">Tiempo Estimado</p>
-                            <p className="text-sm">{detalleData.diagnostico.tiempo_estimado}</p>
-                          </div>
-                        )}
-
-                        {detalleData.diagnostico.accesorios && (
-                          <div>
-                            <p className="text-sm font-medium text-muted-foreground mb-1">Accesorios</p>
-                            <p className="text-sm">{detalleData.diagnostico.accesorios}</p>
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-
-                    {/* Resolución */}
-                    {detalleData.diagnostico.resolucion && (() => {
-                      const resolucionData = parseResolucion(detalleData.diagnostico.resolucion);
-                      return (
-                        <Card>
-                          <CardHeader>
-                            <CardTitle className="text-base">Resolución</CardTitle>
-                          </CardHeader>
-                          <CardContent className="space-y-3">
-                            {resolucionData ? (
-                              <>
-                                {resolucionData.tipoResolucion && (
-                                  <div>
-                                    <p className="text-sm font-medium text-muted-foreground mb-1">Tipo de Resolución</p>
-                                    <Badge variant="default">{resolucionData.tipoResolucion}</Badge>
-                                  </div>
-                                )}
-                                {resolucionData.tipoTrabajo && (
-                                  <div>
-                                    <p className="text-sm font-medium text-muted-foreground mb-1">Tipo de Trabajo</p>
-                                    <Badge variant="outline">{resolucionData.tipoTrabajo}</Badge>
-                                  </div>
-                                )}
-                                {resolucionData.aplicaGarantia !== undefined && (
-                                  <div>
-                                    <p className="text-sm font-medium text-muted-foreground mb-1">Garantía</p>
-                                    <Badge variant={resolucionData.aplicaGarantia ? "default" : "secondary"}>
-                                      {resolucionData.aplicaGarantia ? "Aplica Garantía" : "No Aplica Garantía"}
-                                    </Badge>
-                                  </div>
-                                )}
-                              </>
-                            ) : (
-                              <p className="text-sm">{detalleData.diagnostico.resolucion}</p>
-                            )}
-                          </CardContent>
-                        </Card>
-                      );
-                    })()}
-
-                    {/* Repuestos Utilizados */}
-                    {detalleData.diagnostico.repuestos_utilizados && (
-                      <Card>
-                        <CardHeader>
-                          <CardTitle className="text-base">Repuestos Utilizados</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="space-y-2">
-                            {Array.isArray(detalleData.diagnostico.repuestos_utilizados) ? (
-                              detalleData.diagnostico.repuestos_utilizados.map((repuesto: any, idx: number) => (
-                                <div key={idx} className="flex justify-between items-center p-3 bg-muted rounded-md">
-                                  <div>
-                                    <p className="text-sm font-medium">{repuesto.codigo || repuesto.descripcion}</p>
-                                    {repuesto.descripcion && repuesto.codigo && (
-                                      <p className="text-xs text-muted-foreground">{repuesto.descripcion}</p>
-                                    )}
-                                  </div>
-                                  <Badge variant="outline">Cant: {repuesto.cantidad || 1}</Badge>
-                                </div>
-                              ))
-                            ) : (
-                              <p className="text-sm text-muted-foreground">No hay repuestos registrados</p>
-                            )}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    )}
-                  </>
-                ) : (
-                  <Card>
-                    <CardContent className="py-8 text-center text-muted-foreground">
-                      No hay diagnóstico disponible para este incidente
-                    </CardContent>
-                  </Card>
-                )}
-              </TabsContent>
-
-              <TabsContent value="multimedia" className="space-y-4 mt-4">
-                <Card>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-base flex items-center gap-2">
-                        <ImageIcon className="h-4 w-4" />
-                        Fotos y Videos
-                      </CardTitle>
-                      {detalleData.mediaFiles.length > 0 && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={handleCompartirMultimedia}
-                        >
-                          <Share2 className="h-4 w-4 mr-2" />
-                          Compartir con Cliente
-                        </Button>
+              {/* Diagnóstico */}
+              {detalleData.diagnostico && (
+                <>
+                  <div>
+                    <h4 className="font-semibold mb-2">Diagnóstico</h4>
+                    <div className="space-y-2">
+                      <Badge>{detalleData.diagnostico.estado}</Badge>
+                      {detalleData.diagnostico.recomendaciones && (
+                        <p className="text-sm">{detalleData.diagnostico.recomendaciones}</p>
                       )}
                     </div>
-                  </CardHeader>
-                  <CardContent>
-                    {detalleData.mediaFiles.length > 0 ? (
-                      <div className="grid grid-cols-2 gap-4">
-                        {detalleData.mediaFiles.map((file) => (
-                          <div key={file.id} className="space-y-2">
-                            <div className="relative group">
-                              {file.tipo === "foto" ? (
-                                <img
-                                  src={file.url}
-                                  alt={file.nombre}
-                                  className="w-full h-48 object-cover rounded-lg border"
-                                />
-                              ) : (
-                                <video
-                                  src={file.url}
-                                  controls
-                                  className="w-full h-48 object-cover rounded-lg border"
-                                />
-                              )}
-                              <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
-                                <Button
-                                  size="icon"
-                                  variant="secondary"
-                                  className="h-8 w-8"
-                                  onClick={() => handleDescargarFoto(file.url, file.nombre)}
-                                >
-                                  <Download className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  size="icon"
-                                  variant="secondary"
-                                  className="h-8 w-8"
-                                  onClick={() => window.open(file.url, '_blank')}
-                                >
-                                  <ExternalLink className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            </div>
-                            <div>
-                              <p className="text-sm font-medium">{file.nombre}</p>
-                              {file.descripcion && (
-                                <p className="text-xs text-muted-foreground">{file.descripcion}</p>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="text-center py-8 text-muted-foreground">
-                        <ImageIcon className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                        <p>No hay fotos o videos disponibles</p>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </TabsContent>
+                  </div>
+                  <Separator />
+                </>
+              )}
 
-              <TabsContent value="cliente" className="space-y-4 mt-4">
-                {/* Cliente */}
-                {detalleData.cliente && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-base">Información del Cliente</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      <div>
-                        <p className="text-sm font-medium text-muted-foreground">Nombre</p>
-                        <p className="text-sm">{detalleData.cliente.nombre}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-muted-foreground">Código</p>
-                        <p className="text-sm">{detalleData.cliente.codigo}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-muted-foreground">Celular</p>
-                        <p className="text-sm">{detalleData.cliente.celular}</p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-
-                {/* Observaciones del Cliente */}
-                {selectedIncidente?.confirmacion_cliente && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-base">Observaciones del Cliente</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="bg-muted p-4 rounded-md">
-                        {typeof selectedIncidente.confirmacion_cliente === 'object' ? (
-                          <div className="space-y-2">
-                            {selectedIncidente.confirmacion_cliente.observaciones && (
-                              <p className="text-sm">{selectedIncidente.confirmacion_cliente.observaciones}</p>
-                            )}
-                            {selectedIncidente.confirmacion_cliente.fecha && (
-                              <p className="text-xs text-muted-foreground">
-                                Fecha: {format(new Date(selectedIncidente.confirmacion_cliente.fecha), "dd/MM/yyyy HH:mm", { locale: es })}
-                              </p>
-                            )}
-                          </div>
+              {/* Multimedia */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="font-semibold">Multimedia ({detalleData.mediaFiles.length})</h4>
+                  {detalleData.mediaFiles.length > 0 && (
+                    <Button size="sm" variant="outline" onClick={handleCompartirMultimedia}>
+                      <Share2 className="h-4 w-4 mr-1" />
+                      Compartir
+                    </Button>
+                  )}
+                </div>
+                {detalleData.mediaFiles.length > 0 ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {detalleData.mediaFiles.map((file) => (
+                      <div key={file.id} className="relative group">
+                        {file.tipo === "FOTO" ? (
+                          <img
+                            src={file.url}
+                            alt={file.descripcion || "Media"}
+                            className="w-full h-24 object-cover rounded-lg"
+                          />
                         ) : (
-                          <p className="text-sm">{selectedIncidente.confirmacion_cliente}</p>
+                          <div className="w-full h-24 bg-muted rounded-lg flex items-center justify-center">
+                            <ImageIcon className="h-8 w-8 text-muted-foreground" />
+                          </div>
                         )}
+                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center gap-2">
+                          <Button
+                            size="icon"
+                            variant="secondary"
+                            className="h-8 w-8"
+                            onClick={() => window.open(file.url, "_blank")}
+                          >
+                            <ExternalLink className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="icon"
+                            variant="secondary"
+                            className="h-8 w-8"
+                            onClick={() => handleDescargarFoto(file.url, `media-${file.id}`)}
+                          >
+                            <Download className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </div>
-                    </CardContent>
-                  </Card>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Sin archivos multimedia</p>
                 )}
-              </TabsContent>
-            </Tabs>
+              </div>
+
+              {/* Acciones */}
+              {detalleData.diagnostico && (
+                <div className="pt-4">
+                  <Button onClick={handleImprimirDiagnostico} className="w-full">
+                    <Printer className="h-4 w-4 mr-2" />
+                    Imprimir Diagnóstico
+                  </Button>
+                </div>
+              )}
+            </div>
           )}
         </DialogContent>
       </Dialog>

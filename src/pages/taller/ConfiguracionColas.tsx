@@ -30,11 +30,11 @@ import { CSS } from "@dnd-kit/utilities";
 
 interface FamiliaAbuelo {
   id: number;
-  Categoria: string;
+  nombre: string;
 }
 
 interface GrupoColaFifo {
-  id?: string;
+  id?: number;
   nombre: string;
   orden: number;
   activo: boolean;
@@ -43,7 +43,7 @@ interface GrupoColaFifo {
 }
 
 interface CentroServicio {
-  id: string;
+  id: number;
   nombre: string;
 }
 
@@ -203,24 +203,25 @@ export default function ConfiguracionColas() {
 
   const fetchInitialData = async () => {
     try {
-      const [familiasRes, centrosRes] = await Promise.all([
-        supabase
-          .from("CDS_Familias")
-          .select("id, Categoria")
-          .is("Padre", null)
-          .order("Categoria"),
-        supabase
-          .from("centros_servicio")
-          .select("id, nombre")
-          .eq("activo", true)
-          .order("nombre"),
-      ]);
+      // Fetch familias abuelas (parent_id = null)
+      const { data: familiasData } = await supabase
+        .from("familias_producto")
+        .select("id, nombre")
+        .is("parent_id", null)
+        .order("nombre");
 
-      setFamilias(familiasRes.data || []);
-      setCentros(centrosRes.data || []);
+      // Fetch centros de servicio
+      const { data: centrosData } = await supabase
+        .from("centros_de_servicio")
+        .select("id, nombre")
+        .eq("activo", true)
+        .order("nombre");
 
-      if (centrosRes.data && centrosRes.data.length > 0) {
-        setSelectedCentro(centrosRes.data[0].id);
+      setFamilias((familiasData || []).map(f => ({ id: f.id, nombre: f.nombre })));
+      setCentros((centrosData || []).map(c => ({ id: c.id, nombre: c.nombre })));
+
+      if (centrosData && centrosData.length > 0) {
+        setSelectedCentro(String(centrosData[0].id));
       }
     } catch (error) {
       console.error("Error:", error);
@@ -241,7 +242,7 @@ export default function ConfiguracionColas() {
       const { data: gruposData } = await supabase
         .from("grupos_cola_fifo")
         .select("*")
-        .eq("centro_servicio_id", selectedCentro)
+        .eq("centro_servicio_id", Number(selectedCentro))
         .order("orden");
 
       if (gruposData && gruposData.length > 0) {
@@ -250,12 +251,12 @@ export default function ConfiguracionColas() {
           .select("grupo_id, familia_abuelo_id")
           .in("grupo_id", gruposData.map((g) => g.id));
 
-        const gruposConFamilias = gruposData.map((grupo) => ({
+        const gruposConFamilias: GrupoColaFifo[] = gruposData.map((grupo) => ({
           id: grupo.id,
           nombre: grupo.nombre,
           orden: grupo.orden,
-          activo: grupo.activo,
-          color: grupo.color,
+          activo: grupo.activo ?? true,
+          color: grupo.color || undefined,
           familias: (familiasGrupos || [])
             .filter((fg) => fg.grupo_id === grupo.id)
             .map((fg) => fg.familia_abuelo_id),
@@ -277,7 +278,7 @@ export default function ConfiguracionColas() {
   );
 
   const getFamiliaName = (familiaId: number) => {
-    return familias.find((f) => f.id === familiaId)?.Categoria || "Desconocida";
+    return familias.find((f) => f.id === familiaId)?.nombre || "Desconocida";
   };
 
   // Get display name for a group (uses family names if no custom name)
@@ -292,6 +293,11 @@ export default function ConfiguracionColas() {
       return getFamiliaName(grupo.familias[0]);
     }
     return grupo.familias.map((id) => getFamiliaName(id)).join(" + ");
+  };
+
+  const getColorClass = (color?: string): string => {
+    const colorObj = COLORES_DISPONIBLES.find(c => c.value === color);
+    return colorObj?.class || "bg-gray-500";
   };
 
   // Handle drag end
@@ -333,7 +339,7 @@ export default function ConfiguracionColas() {
   // Quick create a group with a single family
   const handleQuickCreateGroup = (familia: FamiliaAbuelo) => {
     const nuevoGrupo: GrupoColaFifo = {
-      nombre: "", // Empty - will use family name
+      nombre: "",
       orden: grupos.length + 1,
       activo: true,
       color: getNextColor(),
@@ -342,7 +348,7 @@ export default function ConfiguracionColas() {
 
     setGrupos([...grupos, nuevoGrupo]);
     setHasChanges(true);
-    toast.success(`Grupo "${familia.Categoria}" creado`);
+    toast.success(`Grupo "${familia.nombre}" creado`);
   };
 
   const handleCreateGroup = () => {
@@ -352,7 +358,7 @@ export default function ConfiguracionColas() {
     }
 
     const nuevoGrupo: GrupoColaFifo = {
-      nombre: newGroupName.trim(), // Can be empty
+      nombre: newGroupName.trim(),
       orden: grupos.length + 1,
       activo: true,
       color: newGroupColor,
@@ -417,7 +423,7 @@ export default function ConfiguracionColas() {
       const { data: gruposData } = await supabase
         .from("grupos_cola_fifo")
         .select("*")
-        .eq("centro_servicio_id", copyFromCentro)
+        .eq("centro_servicio_id", Number(copyFromCentro))
         .order("orden");
 
       if (!gruposData || gruposData.length === 0) {
@@ -430,11 +436,11 @@ export default function ConfiguracionColas() {
         .select("grupo_id, familia_abuelo_id")
         .in("grupo_id", gruposData.map((g) => g.id));
 
-      const gruposCopiados = gruposData.map((grupo) => ({
+      const gruposCopiados: GrupoColaFifo[] = gruposData.map((grupo) => ({
         nombre: grupo.nombre,
         orden: grupo.orden,
-        activo: grupo.activo,
-        color: grupo.color,
+        activo: grupo.activo ?? true,
+        color: grupo.color || undefined,
         familias: (familiasGrupos || [])
           .filter((fg) => fg.grupo_id === grupo.id)
           .map((fg) => fg.familia_abuelo_id),
@@ -459,21 +465,20 @@ export default function ConfiguracionColas() {
       await supabase
         .from("grupos_cola_fifo")
         .delete()
-        .eq("centro_servicio_id", selectedCentro);
+        .eq("centro_servicio_id", Number(selectedCentro));
 
       for (const grupo of grupos) {
-        // Use getNombreMostrado for saving if nombre is empty
         const nombreGuardar = grupo.nombre.trim() || getNombreMostrado(grupo);
         
         const { data: grupoInserted, error: grupoError } = await supabase
           .from("grupos_cola_fifo")
           .insert({
-            centro_servicio_id: selectedCentro,
+            centro_servicio_id: Number(selectedCentro),
             nombre: nombreGuardar,
             orden: grupo.orden,
             activo: grupo.activo,
-            color: grupo.color,
-            updated_by: user.id,
+            color: grupo.color || null,
+            updated_by: null, // user.id is a string, column expects number or null
           })
           .select()
           .single();
@@ -498,35 +503,11 @@ export default function ConfiguracionColas() {
       setHasChanges(false);
       fetchConfiguracion();
     } catch (error: any) {
-      console.error("Error saving:", error);
+      console.error("Error:", error);
       toast.error(error.message || "Error al guardar configuración");
     } finally {
       setSaving(false);
     }
-  };
-
-  const handleReset = () => {
-    fetchConfiguracion();
-    toast.info("Cambios descartados");
-  };
-
-  const getColorClass = (color?: string) => {
-    return COLORES_DISPONIBLES.find((c) => c.value === color)?.class || "bg-gray-500";
-  };
-
-  const toggleFamiliaSelection = (familiaId: number) => {
-    setSelectedFamilias((prev) =>
-      prev.includes(familiaId)
-        ? prev.filter((id) => id !== familiaId)
-        : [...prev, familiaId]
-    );
-  };
-
-  const getFamiliasForDialog = (isEdit: boolean) => {
-    const familiasEnOtrosGrupos = grupos
-      .filter((g) => !isEdit || g !== editingGroup)
-      .flatMap((g) => g.familias);
-    return familias.filter((f) => !familiasEnOtrosGrupos.includes(f.id));
   };
 
   if (loading) {
@@ -539,11 +520,12 @@ export default function ConfiguracionColas() {
 
   return (
     <div className="container mx-auto p-4 space-y-6">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Configuración de Colas FIFO</h1>
           <p className="text-muted-foreground">
-            Crea grupos de familias para organizar las colas de reparación
+            Configura el orden y agrupación de familias para cada centro de servicio
           </p>
         </div>
         <Select value={selectedCentro} onValueChange={setSelectedCentro}>
@@ -551,8 +533,8 @@ export default function ConfiguracionColas() {
             <SelectValue placeholder="Seleccionar centro" />
           </SelectTrigger>
           <SelectContent>
-            {centros.map((centro) => (
-              <SelectItem key={centro.id} value={centro.id}>
+            {centros.map(centro => (
+              <SelectItem key={centro.id} value={String(centro.id)}>
                 {centro.nombre}
               </SelectItem>
             ))}
@@ -560,209 +542,184 @@ export default function ConfiguracionColas() {
         </Select>
       </div>
 
-      {/* Actions */}
+      {/* Action buttons */}
       <div className="flex flex-wrap gap-2">
-        {hasChanges && (
-          <>
-            <Button onClick={handleSave} disabled={saving}>
-              {saving ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Guardando...
-                </>
-              ) : (
-                <>
-                  <Save className="h-4 w-4 mr-2" />
-                  Guardar cambios
-                </>
-              )}
-            </Button>
-            <Button variant="outline" onClick={handleReset}>
-              <RotateCcw className="h-4 w-4 mr-2" />
-              Descartar
-            </Button>
-          </>
-        )}
-        <Button variant="outline" onClick={() => setShowCopyDialog(true)}>
+        <Button
+          variant="outline"
+          onClick={() => setShowNewGroupDialog(true)}
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          Nuevo Grupo
+        </Button>
+        <Button
+          variant="outline"
+          onClick={() => setShowCopyDialog(true)}
+        >
           <Copy className="h-4 w-4 mr-2" />
-          Copiar de otro centro
+          Copiar de Otro Centro
+        </Button>
+        <Button
+          variant="outline"
+          onClick={fetchConfiguracion}
+          disabled={!hasChanges}
+        >
+          <RotateCcw className="h-4 w-4 mr-2" />
+          Descartar Cambios
+        </Button>
+        <Button
+          onClick={handleSave}
+          disabled={!hasChanges || saving}
+        >
+          {saving ? (
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          ) : (
+            <Save className="h-4 w-4 mr-2" />
+          )}
+          Guardar
         </Button>
       </div>
 
-      {/* Info Card */}
-      <Card className="border-primary/20 bg-primary/5">
-        <CardContent className="pt-6">
-          <div className="flex items-start gap-3">
-            <div className="p-2 bg-primary/10 rounded-lg">
-              <Layers className="h-5 w-5 text-primary" />
-            </div>
-            <div>
-              <h3 className="font-medium">¿Cómo funciona?</h3>
-              <p className="text-sm text-muted-foreground">
-                Crea grupos para organizar las familias de productos. Puedes agrupar varias familias
-                relacionadas o crear un grupo con una sola familia. Arrastra y suelta los grupos
-                para cambiar su prioridad. El nombre es opcional - si no lo proporcionas, se usará
-                el nombre de la familia automáticamente.
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
+      {/* Main content */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Familias disponibles */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FolderPlus className="h-5 w-5" />
-              Familias Disponibles
-            </CardTitle>
-            <CardDescription>
-              {familiasDisponibles.length} familias sin asignar
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {familiasDisponibles.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">
-                Todas las familias están asignadas a grupos
-              </p>
-            ) : (
-              <div className="space-y-2">
-                {familiasDisponibles.map((familia) => (
-                  <div
-                    key={familia.id}
-                    className="flex items-center justify-between gap-2 p-2 rounded-lg border bg-card hover:bg-muted/50 transition-colors"
+        {/* Groups list */}
+        <div className="lg:col-span-2 space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Layers className="h-5 w-5" />
+                Grupos de Cola ({grupos.length})
+              </CardTitle>
+              <CardDescription>
+                Arrastra para reordenar. El orden determina la prioridad FIFO.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {grupos.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <p>No hay grupos configurados</p>
+                  <p className="text-sm">Agrega familias desde el panel derecho o crea un nuevo grupo</p>
+                </div>
+              ) : (
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleDragEnd}
+                >
+                  <SortableContext
+                    items={grupos.map((g, i) => g.id || `temp-${i}`)}
+                    strategy={verticalListSortingStrategy}
                   >
-                    <Badge variant="outline">{familia.Categoria}</Badge>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-7 w-7"
-                      onClick={() => handleQuickCreateGroup(familia)}
-                      title="Crear grupo con esta familia"
-                    >
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
-                <Button
-                  className="w-full mt-4"
-                  variant="outline"
-                  onClick={() => {
-                    setSelectedFamilias([]);
-                    setNewGroupName("");
-                    setNewGroupColor(getNextColor());
-                    setShowNewGroupDialog(true);
-                  }}
-                  disabled={familiasDisponibles.length === 0}
-                >
-                  <Layers className="h-4 w-4 mr-2" />
-                  Crear grupo con varias familias
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                    <div className="space-y-2">
+                      {grupos.map((grupo, index) => (
+                        <SortableGrupo
+                          key={grupo.id || `temp-${index}`}
+                          grupo={grupo}
+                          index={index}
+                          onToggleActivo={() => toggleGrupoActivo(index)}
+                          onEdit={() => openEditDialog(grupo)}
+                          onDelete={() => handleDeleteGroup(index)}
+                          getColorClass={getColorClass}
+                          getFamiliaName={getFamiliaName}
+                          getNombreMostrado={getNombreMostrado}
+                        />
+                      ))}
+                    </div>
+                  </SortableContext>
+                </DndContext>
+              )}
+            </CardContent>
+          </Card>
+        </div>
 
-        {/* Grupos de cola */}
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Layers className="h-5 w-5" />
-              Grupos de Cola ({grupos.length})
-            </CardTitle>
-            <CardDescription>
-              Arrastra los grupos para cambiar su prioridad
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {grupos.length === 0 ? (
-              <div className="text-center py-8">
-                <Layers className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
-                <p className="text-muted-foreground">No hay grupos configurados</p>
-                <p className="text-sm text-muted-foreground">
-                  Haz clic en + junto a una familia para crear un grupo
+        {/* Available families */}
+        <div className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FolderPlus className="h-5 w-5" />
+                Familias Disponibles
+              </CardTitle>
+              <CardDescription>
+                Click para agregar como grupo individual
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {familiasDisponibles.length === 0 ? (
+                <p className="text-center text-muted-foreground py-4">
+                  Todas las familias están asignadas
                 </p>
-              </div>
-            ) : (
-              <DndContext
-                sensors={sensors}
-                collisionDetection={closestCenter}
-                onDragEnd={handleDragEnd}
-              >
-                <SortableContext
-                  items={grupos.map((g, i) => g.id || `temp-${i}`)}
-                  strategy={verticalListSortingStrategy}
-                >
-                  <div className="space-y-3">
-                    {grupos.map((grupo, index) => (
-                      <SortableGrupo
-                        key={grupo.id || `temp-${index}`}
-                        grupo={grupo}
-                        index={index}
-                        onToggleActivo={() => toggleGrupoActivo(index)}
-                        onEdit={() => openEditDialog(grupo)}
-                        onDelete={() => handleDeleteGroup(index)}
-                        getColorClass={getColorClass}
-                        getFamiliaName={getFamiliaName}
-                        getNombreMostrado={getNombreMostrado}
-                      />
-                    ))}
-                  </div>
-                </SortableContext>
-              </DndContext>
-            )}
-          </CardContent>
-        </Card>
+              ) : (
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  {familiasDisponibles.map((familia) => (
+                    <Button
+                      key={familia.id}
+                      variant="outline"
+                      className="w-full justify-start"
+                      onClick={() => handleQuickCreateGroup(familia)}
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      {familia.nombre}
+                    </Button>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
-      {/* Dialog: Crear grupo */}
+      {/* New Group Dialog */}
       <Dialog open={showNewGroupDialog} onOpenChange={setShowNewGroupDialog}>
-        <DialogContent className="max-w-md">
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle>Crear nuevo grupo</DialogTitle>
+            <DialogTitle>Crear Nuevo Grupo</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="space-y-4 py-4">
             <div>
-              <label className="text-sm font-medium">Nombre del grupo (opcional)</label>
+              <label className="text-sm font-medium">Nombre (opcional)</label>
               <Input
                 value={newGroupName}
                 onChange={(e) => setNewGroupName(e.target.value)}
-                placeholder="Dejar vacío para usar nombre de familias"
+                placeholder="Se usará el nombre de las familias si está vacío"
               />
-              <p className="text-xs text-muted-foreground mt-1">
-                Si no proporcionas un nombre, se usará el nombre de las familias seleccionadas
-              </p>
             </div>
             <div>
               <label className="text-sm font-medium">Color</label>
-              <div className="flex flex-wrap gap-2 mt-2">
-                {COLORES_DISPONIBLES.map((color) => (
-                  <button
-                    key={color.value}
-                    className={`w-8 h-8 rounded-full ${color.class} flex items-center justify-center transition-transform ${
-                      newGroupColor === color.value ? "ring-2 ring-offset-2 ring-primary scale-110" : ""
-                    }`}
-                    onClick={() => setNewGroupColor(color.value)}
-                  >
-                    {newGroupColor === color.value && <Check className="h-4 w-4 text-white" />}
-                  </button>
-                ))}
-              </div>
+              <Select value={newGroupColor} onValueChange={setNewGroupColor}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {COLORES_DISPONIBLES.map((color) => (
+                    <SelectItem key={color.value} value={color.value}>
+                      <div className="flex items-center gap-2">
+                        <div className={`w-4 h-4 rounded ${color.class}`} />
+                        {color.label}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div>
-              <label className="text-sm font-medium">Selecciona las familias</label>
-              <div className="max-h-48 overflow-y-auto border rounded-lg p-2 mt-2 space-y-1">
-                {getFamiliasForDialog(false).map((familia) => (
-                  <div
-                    key={familia.id}
-                    className={`flex items-center gap-2 p-2 rounded cursor-pointer hover:bg-muted ${
-                      selectedFamilias.includes(familia.id) ? "bg-primary/10" : ""
-                    }`}
-                    onClick={() => toggleFamiliaSelection(familia.id)}
-                  >
-                    <Checkbox checked={selectedFamilias.includes(familia.id)} />
-                    <span>{familia.Categoria}</span>
+              <label className="text-sm font-medium">Familias</label>
+              <div className="space-y-2 max-h-48 overflow-y-auto border rounded-lg p-2 mt-2">
+                {familias.map((familia) => (
+                  <div key={familia.id} className="flex items-center gap-2">
+                    <Checkbox
+                      id={`familia-${familia.id}`}
+                      checked={selectedFamilias.includes(familia.id)}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setSelectedFamilias([...selectedFamilias, familia.id]);
+                        } else {
+                          setSelectedFamilias(selectedFamilias.filter(id => id !== familia.id));
+                        }
+                      }}
+                    />
+                    <label htmlFor={`familia-${familia.id}`} className="text-sm">
+                      {familia.nombre}
+                    </label>
                   </div>
                 ))}
               </div>
@@ -772,61 +729,66 @@ export default function ConfiguracionColas() {
             <Button variant="outline" onClick={() => setShowNewGroupDialog(false)}>
               Cancelar
             </Button>
-            <Button onClick={handleCreateGroup} disabled={selectedFamilias.length === 0}>
-              <Plus className="h-4 w-4 mr-2" />
-              Crear grupo
+            <Button onClick={handleCreateGroup}>
+              <Check className="h-4 w-4 mr-2" />
+              Crear Grupo
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Dialog: Editar grupo */}
+      {/* Edit Group Dialog */}
       <Dialog open={showEditGroupDialog} onOpenChange={setShowEditGroupDialog}>
-        <DialogContent className="max-w-md">
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle>Editar grupo</DialogTitle>
+            <DialogTitle>Editar Grupo</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="space-y-4 py-4">
             <div>
-              <label className="text-sm font-medium">Nombre del grupo (opcional)</label>
+              <label className="text-sm font-medium">Nombre (opcional)</label>
               <Input
                 value={newGroupName}
                 onChange={(e) => setNewGroupName(e.target.value)}
-                placeholder="Dejar vacío para usar nombre de familias"
+                placeholder="Se usará el nombre de las familias si está vacío"
               />
-              <p className="text-xs text-muted-foreground mt-1">
-                Si no proporcionas un nombre, se usará el nombre de las familias seleccionadas
-              </p>
             </div>
             <div>
               <label className="text-sm font-medium">Color</label>
-              <div className="flex flex-wrap gap-2 mt-2">
-                {COLORES_DISPONIBLES.map((color) => (
-                  <button
-                    key={color.value}
-                    className={`w-8 h-8 rounded-full ${color.class} flex items-center justify-center transition-transform ${
-                      newGroupColor === color.value ? "ring-2 ring-offset-2 ring-primary scale-110" : ""
-                    }`}
-                    onClick={() => setNewGroupColor(color.value)}
-                  >
-                    {newGroupColor === color.value && <Check className="h-4 w-4 text-white" />}
-                  </button>
-                ))}
-              </div>
+              <Select value={newGroupColor} onValueChange={setNewGroupColor}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {COLORES_DISPONIBLES.map((color) => (
+                    <SelectItem key={color.value} value={color.value}>
+                      <div className="flex items-center gap-2">
+                        <div className={`w-4 h-4 rounded ${color.class}`} />
+                        {color.label}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div>
-              <label className="text-sm font-medium">Familias en este grupo</label>
-              <div className="max-h-48 overflow-y-auto border rounded-lg p-2 mt-2 space-y-1">
-                {getFamiliasForDialog(true).map((familia) => (
-                  <div
-                    key={familia.id}
-                    className={`flex items-center gap-2 p-2 rounded cursor-pointer hover:bg-muted ${
-                      selectedFamilias.includes(familia.id) ? "bg-primary/10" : ""
-                    }`}
-                    onClick={() => toggleFamiliaSelection(familia.id)}
-                  >
-                    <Checkbox checked={selectedFamilias.includes(familia.id)} />
-                    <span>{familia.Categoria}</span>
+              <label className="text-sm font-medium">Familias</label>
+              <div className="space-y-2 max-h-48 overflow-y-auto border rounded-lg p-2 mt-2">
+                {familias.map((familia) => (
+                  <div key={familia.id} className="flex items-center gap-2">
+                    <Checkbox
+                      id={`edit-familia-${familia.id}`}
+                      checked={selectedFamilias.includes(familia.id)}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setSelectedFamilias([...selectedFamilias, familia.id]);
+                        } else {
+                          setSelectedFamilias(selectedFamilias.filter(id => id !== familia.id));
+                        }
+                      }}
+                    />
+                    <label htmlFor={`edit-familia-${familia.id}`} className="text-sm">
+                      {familia.nombre}
+                    </label>
                   </div>
                 ))}
               </div>
@@ -836,39 +798,39 @@ export default function ConfiguracionColas() {
             <Button variant="outline" onClick={() => setShowEditGroupDialog(false)}>
               Cancelar
             </Button>
-            <Button onClick={handleEditGroup} disabled={selectedFamilias.length === 0}>
+            <Button onClick={handleEditGroup}>
               <Check className="h-4 w-4 mr-2" />
-              Guardar cambios
+              Guardar Cambios
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Dialog: Copiar de otro centro */}
+      {/* Copy from Centro Dialog */}
       <Dialog open={showCopyDialog} onOpenChange={setShowCopyDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Copiar configuración</DialogTitle>
+            <DialogTitle>Copiar Configuración</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Selecciona un centro de servicio para copiar su configuración de colas.
-              Esto reemplazará la configuración actual.
-            </p>
+          <div className="py-4">
+            <label className="text-sm font-medium">Copiar desde</label>
             <Select value={copyFromCentro} onValueChange={setCopyFromCentro}>
-              <SelectTrigger>
+              <SelectTrigger className="mt-2">
                 <SelectValue placeholder="Seleccionar centro" />
               </SelectTrigger>
               <SelectContent>
                 {centros
-                  .filter((c) => c.id !== selectedCentro)
-                  .map((centro) => (
-                    <SelectItem key={centro.id} value={centro.id}>
+                  .filter(c => String(c.id) !== selectedCentro)
+                  .map(centro => (
+                    <SelectItem key={centro.id} value={String(centro.id)}>
                       {centro.nombre}
                     </SelectItem>
                   ))}
               </SelectContent>
             </Select>
+            <p className="text-sm text-muted-foreground mt-2">
+              Esto reemplazará la configuración actual
+            </p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCopyDialog(false)}>
@@ -876,7 +838,7 @@ export default function ConfiguracionColas() {
             </Button>
             <Button onClick={handleCopyFromCentro} disabled={!copyFromCentro}>
               <Copy className="h-4 w-4 mr-2" />
-              Copiar configuración
+              Copiar
             </Button>
           </DialogFooter>
         </DialogContent>

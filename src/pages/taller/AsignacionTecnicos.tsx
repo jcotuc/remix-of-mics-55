@@ -59,7 +59,7 @@ export default function AsignacionTecnicos() {
         .order("nombre");
 
       // Fetch users with taller role
-      const { data: usuariosData } = await supabase
+      const { data: usuariosData } = await (supabase as any)
         .from("usuarios")
         .select("id, nombre, apellido, email")
         .eq("rol", "tecnico")

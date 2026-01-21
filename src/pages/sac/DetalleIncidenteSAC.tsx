@@ -47,11 +47,11 @@ export default function DetalleIncidenteSAC() {
       if (!user) return;
 
       // Get user profile
-      const { data: userProfile } = await supabase
+      const { data: userProfile } = await (supabase as any)
         .from('usuarios')
         .select('id')
         .eq('auth_uid', user.id)
-        .single();
+        .maybeSingle();
 
       if (!userProfile) return;
 

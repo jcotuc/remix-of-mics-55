@@ -51,7 +51,7 @@ export default function IncidentesSAC() {
       
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-      const { data: perfil } = await supabase
+      const { data: perfil } = await (supabase as any)
         .from("usuarios")
         .select("id")
         .eq("auth_uid", user.id)
