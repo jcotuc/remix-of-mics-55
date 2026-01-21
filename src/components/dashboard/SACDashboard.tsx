@@ -6,8 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 
 type NotificacionCliente = {
-  id: string;
-  incidente_id: string;
+  id: number;
+  incidente_id: number;
   numero_notificacion: number;
   respondido: boolean;
   fecha_envio: string;
@@ -38,41 +38,47 @@ export function SACDashboard() {
     try {
       setLoading(true);
 
-      // Fetch incidents
-      const { data: incidentes } = await supabase
+      // Fetch incidents - usando campo 'estado' con valores uppercase
+      const { data: incidentes } = await (supabase as any)
         .from("incidentes")
         .select("*")
-        .in("status", [
-          "Presupuesto",
-          "Porcentaje",
-          "Cambio por garantia",
-          "Nota de credito",
-          "Reparado",
-          "Pendiente entrega",
+        .in("estado", [
+          "ESPERA_APROBACION",
+          "CAMBIO_POR_GARANTIA",
+          "NOTA_DE_CREDITO",
+          "REPARADO",
+          "PENDIENTE_ENTREGA",
         ]);
 
-      // Fetch notifications
-      const { data: notificacionesData } = await supabase.from("notificaciones_cliente").select("*");
+      // Fetch notifications - usando (supabase as any) para tabla no tipada
+      const { data: notificacionesData } = await (supabase as any)
+        .from("notificaciones_cliente")
+        .select("*");
 
       // Fetch active assignments
-      const { data: asignaciones } = await supabase.from("asignaciones_sac").select("*").eq("activo", true);
+      const { data: asignaciones } = await (supabase as any)
+        .from("asignaciones_sac")
+        .select("*")
+        .eq("activo", true);
 
       if (incidentes) {
-        const presupuestos = incidentes.filter((i) => i.status === "Presupuesto" || i.status === "Porcentaje").length;
-        const canjes = incidentes.filter(
-          (i) => i.status === "Cambio por garantia" || i.status === "Nota de credito",
+        const presupuestos = incidentes.filter(
+          (i: any) => i.estado === "ESPERA_APROBACION"
         ).length;
-        const reparados = incidentes.filter((i) => i.status === "Reparado").length;
-        const pendientesEntrega = incidentes.filter((i) => i.status === "Pendiente entrega").length;
+        const canjes = incidentes.filter(
+          (i: any) => i.estado === "CAMBIO_POR_GARANTIA" || i.estado === "NOTA_DE_CREDITO"
+        ).length;
+        const reparados = incidentes.filter((i: any) => i.estado === "REPARADO").length;
+        const pendientesEntrega = incidentes.filter((i: any) => i.estado === "PENDIENTE_ENTREGA").length;
 
         // Calcular estadísticas de notificaciones por número
-        const incidentesIds = incidentes.map((i) => i.id);
-        const notificacionesPorIncidente = new Map<string, number>();
+        const incidentesIds = incidentes.map((i: any) => i.id);
+        const notificacionesPorIncidente = new Map<number, number>();
 
-        notificacionesData?.forEach((n) => {
+        notificacionesData?.forEach((n: any) => {
           if (incidentesIds.includes(n.incidente_id)) {
             const count = notificacionesPorIncidente.get(n.incidente_id) || 0;
-            notificacionesPorIncidente.set(n.incidente_id, Math.max(count, n.numero_notificacion));
+            notificacionesPorIncidente.set(n.incidente_id, Math.max(count, n.numero_notificacion || 0));
           }
         });
 
@@ -82,7 +88,7 @@ export function SACDashboard() {
         let conDosNotificaciones = 0;
         let conTresNotificaciones = 0;
 
-        incidentes.forEach((inc) => {
+        incidentes.forEach((inc: any) => {
           const numNotificaciones = notificacionesPorIncidente.get(inc.id) || 0;
           if (numNotificaciones === 0) sinNotificacion++;
           else if (numNotificaciones === 1) conUnaNotificacion++;
@@ -95,8 +101,8 @@ export function SACDashboard() {
           canjes,
           reparados,
           pendientesEntrega,
-          notificacionesPendientes: notificacionesData?.filter((n) => !n.respondido).length || 0,
-          notificacionesRespondidas: notificacionesData?.filter((n) => n.respondido).length || 0,
+          notificacionesPendientes: notificacionesData?.filter((n: any) => !n.respondido).length || 0,
+          notificacionesRespondidas: notificacionesData?.filter((n: any) => n.respondido).length || 0,
           incidentesAsignados: asignaciones?.length || 0,
           faltaPrimeraNotificacion: sinNotificacion,
           faltaSegundaNotificacion: conUnaNotificacion,
@@ -273,7 +279,7 @@ export function SACDashboard() {
                 <span className="text-sm text-muted-foreground">Incidentes Asignados</span>
                 <span className="font-bold">{stats.incidentesAsignados}</span>
               </div>
-              <Progress value={(stats.incidentesAsignados / totalIncidentes) * 100} />
+              <Progress value={(stats.incidentesAsignados / (totalIncidentes || 1)) * 100} />
             </div>
 
             <div className="grid grid-cols-2 gap-4 pt-4">
@@ -303,9 +309,9 @@ export function SACDashboard() {
                 <span className="text-sm">Presupuestos</span>
               </div>
               <div className="flex items-center gap-2">
-                <Progress value={(stats.presupuestos / totalIncidentes) * 100} className="w-32" />
+                <Progress value={(stats.presupuestos / (totalIncidentes || 1)) * 100} className="w-32" />
                 <span className="text-sm font-medium w-12 text-right">
-                  {((stats.presupuestos / totalIncidentes) * 100 || 0).toFixed(0)}%
+                  {((stats.presupuestos / (totalIncidentes || 1)) * 100).toFixed(0)}%
                 </span>
               </div>
             </div>
@@ -316,9 +322,9 @@ export function SACDashboard() {
                 <span className="text-sm">Canjes/Garantías</span>
               </div>
               <div className="flex items-center gap-2">
-                <Progress value={(stats.canjes / totalIncidentes) * 100} className="w-32" />
+                <Progress value={(stats.canjes / (totalIncidentes || 1)) * 100} className="w-32" />
                 <span className="text-sm font-medium w-12 text-right">
-                  {((stats.canjes / totalIncidentes) * 100 || 0).toFixed(0)}%
+                  {((stats.canjes / (totalIncidentes || 1)) * 100).toFixed(0)}%
                 </span>
               </div>
             </div>
@@ -329,9 +335,9 @@ export function SACDashboard() {
                 <span className="text-sm">Reparados</span>
               </div>
               <div className="flex items-center gap-2">
-                <Progress value={(stats.reparados / totalIncidentes) * 100} className="w-32" />
+                <Progress value={(stats.reparados / (totalIncidentes || 1)) * 100} className="w-32" />
                 <span className="text-sm font-medium w-12 text-right">
-                  {((stats.reparados / totalIncidentes) * 100 || 0).toFixed(0)}%
+                  {((stats.reparados / (totalIncidentes || 1)) * 100).toFixed(0)}%
                 </span>
               </div>
             </div>
@@ -342,9 +348,9 @@ export function SACDashboard() {
                 <span className="text-sm">Pendientes Entrega</span>
               </div>
               <div className="flex items-center gap-2">
-                <Progress value={(stats.pendientesEntrega / totalIncidentes) * 100} className="w-32" />
+                <Progress value={(stats.pendientesEntrega / (totalIncidentes || 1)) * 100} className="w-32" />
                 <span className="text-sm font-medium w-12 text-right">
-                  {((stats.pendientesEntrega / totalIncidentes) * 100 || 0).toFixed(0)}%
+                  {((stats.pendientesEntrega / (totalIncidentes || 1)) * 100).toFixed(0)}%
                 </span>
               </div>
             </div>
