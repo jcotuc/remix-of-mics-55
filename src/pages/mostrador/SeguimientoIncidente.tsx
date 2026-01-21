@@ -374,7 +374,9 @@ export default function SeguimientoIncidente() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <HistorialConObservaciones incidenteId={String(incidente.id)} />
+              <div className="text-sm text-muted-foreground">
+                {incidente.observaciones || "Sin observaciones registradas"}
+              </div>
             </CardContent>
           </Card>
 
@@ -388,8 +390,6 @@ export default function SeguimientoIncidente() {
             </CardHeader>
             <CardContent>
               <CompactPhotoGallery incidenteId={String(incidente.id)} />
-            </CardContent>
-          </Card>
             </CardContent>
           </Card>
         </div>
@@ -515,13 +515,20 @@ export default function SeguimientoIncidente() {
             <IncidentePrintSheet
               data={{
                 codigo: incidente.codigo,
-                fechaIngreso: new Date(incidente.fecha_ingreso || incidente.created_at || ""),
-                cliente: cliente?.nombre || "Desconocido",
-                telefono: cliente?.telefono_principal || "",
-                producto: producto?.codigo || "",
+                codigoCliente: cliente?.codigo || "",
+                nombreCliente: cliente?.nombre || "Desconocido",
+                telefonoCliente: cliente?.telefono_principal || "",
+                codigoProducto: producto?.codigo || "",
                 descripcionProducto: producto?.descripcion || "",
-                problema: incidente.descripcion_problema || "",
-                observaciones: incidente.observaciones || ""
+                skuMaquina: producto?.codigo || "",
+                descripcionProblema: incidente.descripcion_problema || "",
+                accesorios: "",
+                fechaIngreso: new Date(incidente.fecha_ingreso || incidente.created_at || ""),
+                centroServicio: "Centro de Servicio",
+                personaDejaMaquina: "",
+                tipologia: incidente.tipologia,
+                esReingreso: false,
+                coberturaGarantia: incidente.aplica_garantia || false
               }}
             />
           </div>

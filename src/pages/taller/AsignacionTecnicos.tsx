@@ -4,44 +4,46 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Users, FolderTree, Plus, X, Save } from "lucide-react";
+import { Loader2, Users, FolderTree, X, Save } from "lucide-react";
 import { toast } from "sonner";
-import { useAuth } from "@/contexts/AuthContext";
+import type { Database } from "@/integrations/supabase/types";
+
+type FamiliaProductoDB = Database["public"]["Tables"]["familias_producto"]["Row"];
+type UsuarioDB = Database["public"]["Tables"]["usuarios"]["Row"];
+type CentroServicioDB = Database["public"]["Tables"]["centros_de_servicio"]["Row"];
 
 interface FamiliaAbuelo {
   id: number;
-  Categoria: string;
+  nombre: string;
 }
 
 interface Tecnico {
-  user_id: string;
+  id: number;
   nombre: string;
   apellido: string;
   email: string;
 }
 
 interface AsignacionTecnico {
-  id: string;
-  user_id: string;
+  id: number;
+  user_id: number;
   familia_abuelo_id: number;
-  centro_servicio_id: string;
+  centro_servicio_id: number;
   activo: boolean;
 }
 
 interface CentroServicio {
-  id: string;
+  id: number;
   nombre: string;
 }
 
 export default function AsignacionTecnicos() {
-  const { user } = useAuth();
   const [familias, setFamilias] = useState<FamiliaAbuelo[]>([]);
   const [tecnicos, setTecnicos] = useState<Tecnico[]>([]);
   const [asignaciones, setAsignaciones] = useState<AsignacionTecnico[]>([]);
   const [centros, setCentros] = useState<CentroServicio[]>([]);
   const [selectedCentro, setSelectedCentro] = useState<string>("");
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -49,42 +51,47 @@ export default function AsignacionTecnicos() {
 
   const fetchData = async () => {
     try {
-      // Fetch familias abuelas (those with Padre = NULL)
+      // Fetch familias abuelas (those with parent_id = NULL)
       const { data: familiasData } = await supabase
-        .from("CDS_Familias")
-        .select("id, Categoria")
-        .is("Padre", null)
-        .order("Categoria");
+        .from("familias_producto")
+        .select("id, nombre")
+        .is("parent_id", null)
+        .order("nombre");
 
       // Fetch users with taller role
-      const { data: rolesData } = await supabase
-        .from("user_roles")
-        .select("user_id")
-        .eq("role", "taller");
+      const { data: usuariosData } = await supabase
+        .from("usuarios")
+        .select("id, nombre, apellido, email")
+        .eq("rol", "tecnico")
+        .eq("activo", true);
 
-      if (rolesData && rolesData.length > 0) {
-        const userIds = rolesData.map(r => r.user_id);
-        const { data: profilesData } = await supabase
-          .from("profiles")
-          .select("user_id, nombre, apellido, email")
-          .in("user_id", userIds);
-
-        setTecnicos(profilesData || []);
-      }
+      setTecnicos((usuariosData || []).map(u => ({
+        id: u.id,
+        nombre: u.nombre || "",
+        apellido: u.apellido || "",
+        email: u.email || ""
+      })));
 
       // Fetch centros de servicio
       const { data: centrosData } = await supabase
-        .from("centros_servicio")
+        .from("centros_de_servicio")
         .select("id, nombre")
         .eq("activo", true)
         .order("nombre");
 
-      setCentros(centrosData || []);
+      setCentros((centrosData || []).map(c => ({
+        id: c.id,
+        nombre: c.nombre
+      })));
+      
       if (centrosData && centrosData.length > 0) {
-        setSelectedCentro(centrosData[0].id);
+        setSelectedCentro(String(centrosData[0].id));
       }
 
-      setFamilias(familiasData || []);
+      setFamilias((familiasData || []).map(f => ({
+        id: f.id,
+        nombre: f.nombre
+      })));
     } catch (error) {
       console.error("Error fetching data:", error);
       toast.error("Error al cargar datos");
@@ -101,19 +108,28 @@ export default function AsignacionTecnicos() {
 
   const fetchAsignaciones = async () => {
     try {
-      const { data } = await supabase
-        .from("tecnicos_familias")
+      const { data } = await (supabase as any)
+        .from("configuracion_fifo_centro")
         .select("*")
-        .eq("centro_servicio_id", selectedCentro)
+        .eq("centro_servicio_id", Number(selectedCentro))
         .eq("activo", true);
 
-      setAsignaciones(data || []);
+      // Map to our interface
+      const mapped: AsignacionTecnico[] = (data || []).map((d: any) => ({
+        id: d.id,
+        user_id: d.updated_by || 0,
+        familia_abuelo_id: d.familia_abuelo_id,
+        centro_servicio_id: d.centro_servicio_id,
+        activo: d.activo
+      }));
+
+      setAsignaciones(mapped);
     } catch (error) {
       console.error("Error fetching asignaciones:", error);
     }
   };
 
-  const handleAsignar = async (userId: string, familiaId: number) => {
+  const handleAsignar = async (userId: number, familiaId: number) => {
     try {
       const exists = asignaciones.find(
         a => a.user_id === userId && a.familia_abuelo_id === familiaId
@@ -124,13 +140,14 @@ export default function AsignacionTecnicos() {
         return;
       }
 
-      const { error } = await supabase
-        .from("tecnicos_familias")
+      const { error } = await (supabase as any)
+        .from("configuracion_fifo_centro")
         .insert({
-          user_id: userId,
+          updated_by: userId,
           familia_abuelo_id: familiaId,
-          centro_servicio_id: selectedCentro,
+          centro_servicio_id: Number(selectedCentro),
           activo: true,
+          orden: asignaciones.length + 1
         });
 
       if (error) throw error;
@@ -143,10 +160,10 @@ export default function AsignacionTecnicos() {
     }
   };
 
-  const handleRemover = async (asignacionId: string) => {
+  const handleRemover = async (asignacionId: number) => {
     try {
-      const { error } = await supabase
-        .from("tecnicos_familias")
+      const { error } = await (supabase as any)
+        .from("configuracion_fifo_centro")
         .update({ activo: false })
         .eq("id", asignacionId);
 
@@ -163,7 +180,7 @@ export default function AsignacionTecnicos() {
   const getTecnicosForFamilia = (familiaId: number) => {
     const asignacionesFamilia = asignaciones.filter(a => a.familia_abuelo_id === familiaId);
     return asignacionesFamilia.map(a => {
-      const tecnico = tecnicos.find(t => t.user_id === a.user_id);
+      const tecnico = tecnicos.find(t => t.id === a.user_id);
       return tecnico ? { ...tecnico, asignacionId: a.id } : null;
     }).filter(Boolean);
   };
@@ -172,7 +189,7 @@ export default function AsignacionTecnicos() {
     const asignadosIds = asignaciones
       .filter(a => a.familia_abuelo_id === familiaId)
       .map(a => a.user_id);
-    return tecnicos.filter(t => !asignadosIds.includes(t.user_id));
+    return tecnicos.filter(t => !asignadosIds.includes(t.id));
   };
 
   if (loading) {
@@ -198,7 +215,7 @@ export default function AsignacionTecnicos() {
           </SelectTrigger>
           <SelectContent>
             {centros.map(centro => (
-              <SelectItem key={centro.id} value={centro.id}>
+              <SelectItem key={centro.id} value={String(centro.id)}>
                 {centro.nombre}
               </SelectItem>
             ))}
@@ -260,7 +277,7 @@ export default function AsignacionTecnicos() {
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg flex items-center gap-2">
                   <FolderTree className="h-5 w-5 text-primary" />
-                  {familia.Categoria}
+                  {familia.nombre}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
@@ -269,7 +286,7 @@ export default function AsignacionTecnicos() {
                   {tecnicosAsignados.length > 0 ? (
                     tecnicosAsignados.map((tec: any) => (
                       <div
-                        key={tec.user_id}
+                        key={tec.id}
                         className="flex items-center justify-between p-2 bg-muted rounded-lg"
                       >
                         <div>
@@ -298,14 +315,14 @@ export default function AsignacionTecnicos() {
                 {/* Agregar técnico */}
                 {tecnicosDisponibles.length > 0 && (
                   <Select
-                    onValueChange={(userId) => handleAsignar(userId, familia.id)}
+                    onValueChange={(userId) => handleAsignar(Number(userId), familia.id)}
                   >
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="Agregar técnico..." />
                     </SelectTrigger>
                     <SelectContent>
                       {tecnicosDisponibles.map((tec) => (
-                        <SelectItem key={tec.user_id} value={tec.user_id}>
+                        <SelectItem key={tec.id} value={String(tec.id)}>
                           {tec.nombre} {tec.apellido}
                         </SelectItem>
                       ))}

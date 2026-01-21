@@ -9,14 +9,6 @@ interface DashboardStats {
   pendientesNotificacion: number;
   presupuestosPendientes: number;
   canjesEnProceso: number;
-  sinNotificar: number;
-  unaNotificacion: number;
-  dosNotificaciones: number;
-  tresNotificaciones: number;
-  llamadasObligatorias: number;
-  tasaRespuesta: number;
-  presupuestosAceptados: number;
-  presupuestosRechazados: number;
   equipoSAC: { nombre: string; incidentes: number }[];
 }
 
@@ -34,59 +26,36 @@ export default function DashboardSupervisorSAC() {
 
       // Incidentes de hoy
       const hoy = new Date().toISOString().split('T')[0];
-      const { data: incidentesHoy, error: e1 } = await supabase
+      const { data: incidentesHoy } = await supabase
         .from('incidentes')
-        .select('*')
-        .gte('created_at', hoy)
-        .eq('ingresado_en_mostrador', true);
+        .select('id')
+        .gte('created_at', hoy);
 
       // Pendientes de notificación (Reparado)
-      const { data: pendientesNotif, error: e2 } = await supabase
+      const { data: pendientesNotif } = await supabase
         .from('incidentes')
-        .select('*')
+        .select('id')
         .eq('estado', 'REPARADO');
 
-      // Presupuestos y Canjes
-      const { data: presupuestos, error: e3 } = await supabase
+      // Presupuestos pendientes
+      const { data: presupuestos } = await supabase
         .from('incidentes')
-        .select('*')
+        .select('id')
         .eq('estado', 'ESPERA_APROBACION');
 
-      const { data: canjes, error: e4 } = await supabase
+      // Canjes (cambio por garantía)
+      const { data: canjes } = await supabase
         .from('incidentes')
-        .select('*')
-        .eq('estado', 'PENDIENTE_APROBACION');
-
-      // Notificaciones por tier (use notificaciones table)
-      const { data: notificaciones, error: e5 } = await (supabase as any)
-        .from('notificaciones')
-        .select('incidente_id, tipo, enviada');
-
-      // Contar por tiers (simplified)
-      const notifMap = new Map<number, { count: number }>();
-      (notificaciones || []).forEach((n: any) => {
-        const current = notifMap.get(n.incidente_id) || { count: 0 };
-        notifMap.set(n.incidente_id, {
-          count: current.count + 1
-        });
-      });
-
-      let sin = 0, una = 0, dos = 0, tres = 0;
-      pendientesNotif?.forEach(inc => {
-        const notif = notifMap.get(inc.id);
-        if (!notif) sin++;
-        else if (notif.count === 1) una++;
-        else if (notif.count === 2) dos++;
-        else if (notif.count >= 3) tres++;
-      });
+        .select('id')
+        .eq('estado', 'CAMBIO_POR_GARANTIA');
 
       // Equipo SAC
-      const { data: asignaciones, error: e6 } = await supabase
+      const { data: asignaciones } = await supabase
         .from('asignaciones_sac')
         .select('user_id, incidente_id')
         .eq('activo', true);
 
-      const { data: usuarios, error: e7 } = await supabase
+      const { data: usuarios } = await supabase
         .from('usuarios')
         .select('id, nombre, apellido');
 
@@ -103,39 +72,11 @@ export default function DashboardSupervisorSAC() {
         };
       });
 
-      // Tasa de respuesta (simplified)
-      const totalNotifs = (notificaciones || []).length;
-      const respondidas = (notificaciones || []).filter((n: any) => n.enviada).length;
-      const tasaRespuesta = totalNotifs > 0 ? (respondidas / totalNotifs) * 100 : 0;
-
-      // Presupuestos aceptados/rechazados (simulado basado en status final)
-      const { data: entregados, error: e8 } = await supabase
-        .from('incidentes')
-        .select('*')
-        .in('estado', ['REPARADO', 'EN_ENTREGA']);
-
-      const { data: rechazados, error: e9 } = await supabase
-        .from('incidentes')
-        .select('*')
-        .eq('status', 'Rechazado');
-
-      if (e1 || e2 || e3 || e4 || e5 || e6 || e7 || e8 || e9) {
-        throw new Error('Error al cargar datos');
-      }
-
       setStats({
         incidentesHoy: incidentesHoy?.length || 0,
         pendientesNotificacion: pendientesNotif?.length || 0,
         presupuestosPendientes: presupuestos?.length || 0,
         canjesEnProceso: canjes?.length || 0,
-        sinNotificar: sin,
-        unaNotificacion: una,
-        dosNotificaciones: dos,
-        tresNotificaciones: tres,
-        llamadasObligatorias: tres,
-        tasaRespuesta: Math.round(tasaRespuesta),
-        presupuestosAceptados: entregados?.length || 0,
-        presupuestosRechazados: rechazados?.length || 0,
         equipoSAC: equipoSAC.sort((a, b) => b.incidentes - a.incidentes).slice(0, 5)
       });
 
@@ -171,7 +112,7 @@ export default function DashboardSupervisorSAC() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.incidentesHoy}</div>
-            <p className="text-xs text-muted-foreground">Ingresados en mostrador</p>
+            <p className="text-xs text-muted-foreground">Ingresados hoy</p>
           </CardContent>
         </Card>
 
@@ -209,79 +150,6 @@ export default function DashboardSupervisorSAC() {
         </Card>
       </div>
 
-      {/* Sistema de Tres Notificaciones */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Sistema de Tres Notificaciones</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="p-4 rounded-lg border bg-blue-50 dark:bg-blue-950">
-              <div className="text-2xl font-bold">{stats.sinNotificar}</div>
-              <p className="text-sm text-muted-foreground">Sin notificar</p>
-            </div>
-            <div className="p-4 rounded-lg border bg-yellow-50 dark:bg-yellow-950">
-              <div className="text-2xl font-bold">{stats.unaNotificacion}</div>
-              <p className="text-sm text-muted-foreground">1 notificación</p>
-            </div>
-            <div className="p-4 rounded-lg border bg-orange-50 dark:bg-orange-950">
-              <div className="text-2xl font-bold">{stats.dosNotificaciones}</div>
-              <p className="text-sm text-muted-foreground">2 notificaciones</p>
-            </div>
-            <div className="p-4 rounded-lg border bg-red-50 dark:bg-red-950">
-              <div className="text-2xl font-bold">{stats.tresNotificaciones}</div>
-              <p className="text-sm text-muted-foreground">3 notificaciones</p>
-            </div>
-          </div>
-
-          {stats.llamadasObligatorias > 0 && (
-            <div className="flex items-center gap-2 p-3 bg-red-100 dark:bg-red-900 rounded-lg">
-              <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400" />
-              <span className="font-medium">{stats.llamadasObligatorias} casos requieren llamada obligatoria</span>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Métricas de Conversión */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Tasa de Respuesta</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-2xl font-bold">{stats.tasaRespuesta}%</span>
-              <Clock className="h-5 w-5 text-muted-foreground" />
-            </div>
-            <Progress value={stats.tasaRespuesta} className="h-2" />
-            <p className="text-xs text-muted-foreground">Clientes que han respondido notificaciones</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Conversión de Presupuestos</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm">Aceptados</span>
-              <div className="flex items-center gap-2">
-                <CheckCircle className="h-4 w-4 text-green-500" />
-                <span className="font-bold">{stats.presupuestosAceptados}</span>
-              </div>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm">Rechazados</span>
-              <div className="flex items-center gap-2">
-                <AlertCircle className="h-4 w-4 text-red-500" />
-                <span className="font-bold">{stats.presupuestosRechazados}</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
       {/* Rendimiento del Equipo */}
       <Card>
         <CardHeader>
@@ -289,15 +157,19 @@ export default function DashboardSupervisorSAC() {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {stats.equipoSAC.map((miembro, idx) => (
-              <div key={idx} className="flex items-center justify-between p-3 rounded-lg border">
-                <span className="font-medium">{miembro.nombre}</span>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-muted-foreground">{miembro.incidentes} casos</span>
-                  <Users className="h-4 w-4" />
+            {stats.equipoSAC.length === 0 ? (
+              <p className="text-muted-foreground text-center py-4">Sin asignaciones activas</p>
+            ) : (
+              stats.equipoSAC.map((miembro, idx) => (
+                <div key={idx} className="flex items-center justify-between p-3 rounded-lg border">
+                  <span className="font-medium">{miembro.nombre}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">{miembro.incidentes} casos</span>
+                    <Users className="h-4 w-4" />
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </CardContent>
       </Card>
