@@ -9,14 +9,10 @@ import { toast } from "sonner";
 import { StatusBadge, TablePagination } from "@/components/shared";
 import { OutlinedInput, OutlinedSelect } from "@/components/ui/outlined-input";
 import { differenceInDays } from "date-fns";
-import type { Database } from "@/integrations/supabase/types";
+import { apiBackendAction } from "@/lib/api";
+import type { IncidenteSchema } from "@/generated/actions.d";
 
-type IncidenteDB = Database["public"]["Tables"]["incidentes"]["Row"];
-type ClienteDB = Database["public"]["Tables"]["clientes"]["Row"];
-
-type IncidenteConCliente = IncidenteDB & {
-  cliente?: ClienteDB | null;
-};
+type IncidenteConCliente = IncidenteSchema;
 
 type AsignacionSAC = {
   id: number;
@@ -51,27 +47,25 @@ export default function IncidentesSAC() {
       
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-      const { data: perfil } = await (supabase as any)
-        .from("usuarios")
-        .select("id")
-        .eq("auth_uid", user.id)
-        .maybeSingle();
-      if (perfil) {
-        setCurrentUserId(perfil.id);
+        const { data: perfil } = await (supabase as any)
+          .from("usuarios")
+          .select("id")
+          .eq("auth_uid", user.id)
+          .maybeSingle();
+        if (perfil) {
+          setCurrentUserId(perfil.id);
+        }
       }
-      }
 
-      const { data: incidentesData, error: incidentesError } = await supabase
-        .from("incidentes")
-        .select(`
-          *,
-          cliente:clientes(*)
-        `)
-        .in("estado", ["ESPERA_APROBACION", "REPARADO"])
-        .order("created_at", { ascending: false });
+      // Use apiBackendAction for incidents
+      const incidentesResponse = await apiBackendAction("incidentes.list", { limit: 1000 });
+      
+      // Filter by status client-side
+      const filtered = incidentesResponse.results
+        .filter(inc => inc.estado === "ESPERA_APROBACION" || inc.estado === "REPARADO")
+        .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
 
-      if (incidentesError) throw incidentesError;
-
+      // Fetch SAC assignments (keep direct Supabase for junction table)
       const { data: asignacionesData, error: asignacionesError } = await supabase
         .from("asignaciones_sac")
         .select("*")
@@ -79,7 +73,7 @@ export default function IncidentesSAC() {
 
       if (asignacionesError) throw asignacionesError;
 
-      setIncidentesList((incidentesData as IncidenteConCliente[]) || []);
+      setIncidentesList(filtered);
       setAsignaciones(asignacionesData || []);
     } catch (error: any) {
       console.error("Error fetching data:", error);
@@ -103,9 +97,10 @@ export default function IncidentesSAC() {
     );
   };
 
-  const getDiasDesdeIngreso = (fechaIngreso: string | null) => {
-    if (!fechaIngreso) return 0;
-    return differenceInDays(new Date(), new Date(fechaIngreso));
+  const getDiasDesdeIngreso = (incidente: IncidenteConCliente) => {
+    const fecha = incidente.created_at;
+    if (!fecha) return 0;
+    return differenceInDays(new Date(), new Date(fecha));
   };
 
   const handleRowClick = (incidente: IncidenteConCliente) => {
@@ -118,9 +113,10 @@ export default function IncidentesSAC() {
 
   const filteredIncidentes = useMemo(() => {
     return incidentesList.filter((incidente) => {
+      const clienteName = incidente.cliente?.nombre || "";
       const matchesSearch =
         incidente.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        incidente.cliente?.nombre?.toLowerCase().includes(searchTerm.toLowerCase());
+        clienteName.toLowerCase().includes(searchTerm.toLowerCase());
 
       const matchesStatus = statusFilter === "todos" || incidente.estado === statusFilter;
 
@@ -239,7 +235,7 @@ export default function IncidentesSAC() {
                   </TableRow>
                 ) : (
                   paginatedIncidentes.map((incidente) => {
-                    const dias = getDiasDesdeIngreso(incidente.fecha_ingreso);
+                    const dias = getDiasDesdeIngreso(incidente);
                     
                     return (
                       <TableRow
