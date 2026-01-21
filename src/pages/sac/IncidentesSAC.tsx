@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { StatusBadge, TablePagination } from "@/components/shared";
 import { OutlinedInput, OutlinedSelect } from "@/components/ui/outlined-input";
 import { differenceInDays } from "date-fns";
-import { apiBackendAction } from "@/lib/api";
+import { apiBackendAction } from "@/lib/api-backend";
 import type { IncidenteSchema } from "@/generated/actions.d";
 
 type IncidenteConCliente = IncidenteSchema;
@@ -65,7 +65,7 @@ export default function IncidentesSAC() {
         .filter(inc => inc.estado === "ESPERA_APROBACION" || inc.estado === "REPARADO")
         .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
 
-      // Fetch SAC assignments (keep direct Supabase for junction table)
+      // Fetch SAC assignments (keep direct Supabase for junction table not in registry)
       const { data: asignacionesData, error: asignacionesError } = await supabase
         .from("asignaciones_sac")
         .select("*")
