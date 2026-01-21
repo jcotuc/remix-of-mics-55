@@ -6,23 +6,22 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { apiBackendAction } from "@/lib/api-backend";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { StatusBadge } from "@/components/shared";
 import type { Database } from "@/integrations/supabase/types";
+import type { IncidenteSchema, ClienteSchema, ProductoSchema } from "@/generated/actions.d";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { es } from "date-fns/locale";
 import { formatFechaCorta } from "@/utils/dateFormatters";
 
-type IncidenteDB = Database['public']['Tables']['incidentes']['Row'];
-type ClienteDB = Database['public']['Tables']['clientes']['Row'];
-type ProductoDB = Database['public']['Tables']['productos']['Row'];
 type EstadoIncidente = Database["public"]["Enums"]["estadoincidente"];
 
-type IncidenteConRelaciones = IncidenteDB & {
-  cliente?: ClienteDB;
-  producto?: ProductoDB;
+type IncidenteConRelaciones = IncidenteSchema & {
+  clienteData?: ClienteSchema;
+  productoData?: ProductoSchema;
 };
 
 export default function EntregaMaquinas() {
@@ -44,48 +43,30 @@ export default function EntregaMaquinas() {
   const fetchIncidentesReparados = async () => {
     setLoading(true);
     try {
-      const { data: incidentesData, error: incidentesError } = await supabase
-        .from('incidentes')
-        .select('*')
-        .eq('estado', 'REPARADO')
-        .order('fecha_ingreso', { ascending: false });
+      // Fetch incidentes, clientes, y productos en paralelo
+      const [incidentesResult, clientesResult, productosResult] = await Promise.all([
+        apiBackendAction("incidentes.list", { limit: 1000 }),
+        apiBackendAction("clientes.list", { limit: 5000 }),
+        apiBackendAction("productos.list", { limit: 2000 }),
+      ]);
 
-      if (incidentesError) throw incidentesError;
+      // Filtrar solo los REPARADOS
+      const incidentesData = incidentesResult.results.filter(i => i.estado === "REPARADO");
       
-      // Obtener todos los clientes únicos
-      const clienteIds = [...new Set(incidentesData?.map(i => i.cliente_id) || [])];
-      const productoIds = [...new Set(incidentesData?.map(i => i.producto_id).filter(Boolean) || [])];
-      
-      let clientesMap = new Map<number, ClienteDB>();
-      let productosMap = new Map<number, ProductoDB>();
-      
-      if (clienteIds.length > 0) {
-        const { data: clientesData } = await supabase
-          .from('clientes')
-          .select('*')
-          .in('id', clienteIds);
-        
-        clientesData?.forEach(cliente => {
-          clientesMap.set(cliente.id, cliente);
-        });
-      }
-      
-      if (productoIds.length > 0) {
-        const { data: productosData } = await supabase
-          .from('productos')
-          .select('*')
-          .in('id', productoIds as number[]);
-        
-        productosData?.forEach(producto => {
-          productosMap.set(producto.id, producto);
-        });
-      }
+      // Crear mapas para búsqueda rápida
+      const clientesMap = new Map(clientesResult.results.map(c => [c.id, c]));
+      const productosMap = new Map(productosResult.results.map(p => [p.id, p]));
 
-      const incidentesConRelaciones = (incidentesData || []).map(inc => ({
+      const incidentesConRelaciones: IncidenteConRelaciones[] = incidentesData.map(inc => ({
         ...inc,
-        cliente: clientesMap.get(inc.cliente_id),
-        producto: inc.producto_id ? productosMap.get(inc.producto_id) : undefined
+        clienteData: inc.cliente ? clientesMap.get(inc.cliente.id) : undefined,
+        productoData: inc.producto ? productosMap.get(inc.producto.id) : undefined
       }));
+      
+      // Ordenar por fecha de ingreso descendente
+      incidentesConRelaciones.sort((a, b) => 
+        new Date(b.created_at || "").getTime() - new Date(a.created_at || "").getTime()
+      );
       
       setIncidentesReparados(incidentesConRelaciones);
     } catch (error) {
@@ -102,11 +83,11 @@ export default function EntregaMaquinas() {
       // Filtro de texto (código incidente o nombre cliente)
       const matchTexto = !filtroTexto || 
         inc.codigo.toLowerCase().includes(filtroTexto.toLowerCase()) ||
-        inc.cliente?.nombre?.toLowerCase().includes(filtroTexto.toLowerCase()) ||
-        inc.producto?.codigo?.toLowerCase().includes(filtroTexto.toLowerCase());
+        inc.clienteData?.nombre?.toLowerCase().includes(filtroTexto.toLowerCase()) ||
+        inc.productoData?.codigo?.toLowerCase().includes(filtroTexto.toLowerCase());
       
       // Filtro fecha desde
-      const fechaIngreso = new Date(inc.fecha_ingreso || inc.created_at || "");
+      const fechaIngreso = new Date(inc.created_at || "");
       const matchFechaDesde = !fechaDesde || fechaIngreso >= fechaDesde;
       
       // Filtro fecha hasta
@@ -360,11 +341,11 @@ export default function EntregaMaquinas() {
                     <TableRow key={inc.id}>
                       <TableCell className="font-medium">{inc.codigo}</TableCell>
                       <TableCell>
-                        {inc.cliente?.nombre || "Desconocido"}
+                        {inc.clienteData?.nombre || inc.cliente?.nombre || "Desconocido"}
                       </TableCell>
-                      <TableCell>{inc.producto?.codigo || "-"}</TableCell>
+                      <TableCell>{inc.productoData?.codigo || inc.producto?.codigo || "-"}</TableCell>
                       <TableCell>
-                        {new Date(inc.fecha_ingreso || inc.created_at || "").toLocaleDateString()}
+                        {new Date(inc.created_at || "").toLocaleDateString()}
                       </TableCell>
                       <TableCell>
                         <StatusBadge status={inc.estado as EstadoIncidente} />

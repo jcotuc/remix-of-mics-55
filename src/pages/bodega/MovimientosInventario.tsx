@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ArrowDownCircle, ArrowUpCircle, Plus, Trash2, Package, Search, History, AlertTriangle, Warehouse } from "lucide-react";
+import { apiBackendAction } from "@/lib/api-backend";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -76,17 +77,16 @@ export default function MovimientosInventario() {
     },
   });
 
-  // Búsqueda de repuestos
+  // Búsqueda de repuestos usando apiBackendAction
   const { data: resultadosBusqueda = [] } = useQuery({
     queryKey: ['busqueda-repuestos', searchRepuesto],
     queryFn: async () => {
       if (!searchRepuesto || searchRepuesto.length < 2) return [];
-      const { data } = await supabase
-        .from('repuestos')
-        .select('codigo, descripcion')
-        .or(`codigo.ilike.%${searchRepuesto}%,descripcion.ilike.%${searchRepuesto}%`)
-        .limit(10);
-      return data || [];
+      const { results } = await apiBackendAction("repuestos.search", { 
+        search: searchRepuesto, 
+        limit: 10 
+      });
+      return results.map(r => ({ codigo: r.codigo, descripcion: r.descripcion }));
     },
     enabled: searchRepuesto.length >= 2 && isSearching,
   });

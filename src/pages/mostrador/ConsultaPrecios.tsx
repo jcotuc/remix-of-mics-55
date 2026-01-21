@@ -8,21 +8,27 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { apiBackendAction } from "@/lib/api-backend";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import type { Database } from "@/integrations/supabase/types";
+import type { ProductoSchema, ClienteSchema } from "@/generated/actions.d";
 
-type Producto = Database['public']['Tables']['productos']['Row'];
-type Cliente = Database['public']['Tables']['clientes']['Row'];
+type ProductoDisplay = {
+  id: number;
+  codigo: string;
+  clave?: string | null;
+  descripcion?: string | null;
+  descontinuado?: boolean | null;
+};
 
 export default function ConsultaPrecios() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [productos, setProductos] = useState<Producto[]>([]);
-  const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [productos, setProductos] = useState<ProductoDisplay[]>([]);
+  const [clientes, setClientes] = useState<ClienteSchema[]>([]);
   const [loading, setLoading] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   
-  const [selectedProducto, setSelectedProducto] = useState<Producto | null>(null);
+  const [selectedProducto, setSelectedProducto] = useState<ProductoDisplay | null>(null);
   const [selectedCliente, setSelectedCliente] = useState<string>("");
   const [cantidad, setCantidad] = useState("1");
   const [precioUnitario, setPrecioUnitario] = useState("");
@@ -42,13 +48,10 @@ export default function ConsultaPrecios() {
 
   const fetchClientes = async () => {
     try {
-      const { data, error } = await supabase
-        .from('clientes')
-        .select('*')
-        .order('nombre', { ascending: true });
-
-      if (error) throw error;
-      setClientes(data || []);
+      const { results } = await apiBackendAction("clientes.list", { limit: 5000 });
+      // Ordenar por nombre
+      const sorted = [...results].sort((a, b) => (a.nombre || "").localeCompare(b.nombre || ""));
+      setClientes(sorted);
     } catch (error) {
       console.error('Error al cargar clientes:', error);
     }
@@ -57,14 +60,18 @@ export default function ConsultaPrecios() {
   const fetchProductos = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('productos')
-        .select('*')
-        .or(`codigo.ilike.%${searchTerm}%,descripcion.ilike.%${searchTerm}%`)
-        .limit(10);
-
-      if (error) throw error;
-      setProductos(data || []);
+      const { results } = await apiBackendAction("productos.search", { 
+        search: searchTerm, 
+        limit: 10 
+      });
+      // Map to display type with explicit casting
+      setProductos(results.map(r => ({
+        id: r.id,
+        codigo: r.codigo,
+        clave: r.clave as string | null | undefined,
+        descripcion: r.descripcion as string | null | undefined,
+        descontinuado: r.descontinuado as boolean | null | undefined
+      })));
     } catch (error) {
       console.error('Error al buscar productos:', error);
       toast.error('Error al buscar productos');
@@ -111,7 +118,7 @@ export default function ConsultaPrecios() {
     setNotas("");
   };
 
-  const abrirDialogoCotizacion = (producto: Producto) => {
+  const abrirDialogoCotizacion = (producto: ProductoDisplay) => {
     setSelectedProducto(producto);
     setIsDialogOpen(true);
   };

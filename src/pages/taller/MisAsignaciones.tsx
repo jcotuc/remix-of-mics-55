@@ -5,14 +5,15 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Wrench, Clock, Bell, AlertTriangle } from "lucide-react";
+import { apiBackendAction } from "@/lib/api-backend";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useActiveIncidents } from "@/contexts/ActiveIncidentsContext";
 import type { Database } from "@/integrations/supabase/types";
+import type { IncidenteSchema } from "@/generated/actions.d";
 
-type IncidenteDB = Database['public']['Tables']['incidentes']['Row'];
 type NotificacionDB = Database['public']['Tables']['notificaciones']['Row'];
-type UsuarioDB = Database['public']['Tables']['usuarios']['Row'];
+type IncidenteDB = Database['public']['Tables']['incidentes']['Row'];
 
 export default function MisAsignaciones() {
   const navigate = useNavigate();
