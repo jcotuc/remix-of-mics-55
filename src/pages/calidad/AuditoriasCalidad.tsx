@@ -16,19 +16,20 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WhatsAppStyleMediaCapture } from "@/components/features/media";
 
 interface Incidente {
+  id: number;
   codigo: string;
-  codigo_producto: string;
-  codigo_cliente: string;
+  producto_id: number | null;
+  cliente_id: number;
   sku_maquina?: string;
-  status: string;
+  estado: string;
   fecha_ingreso: string;
   clientes?: { nombre: string };
   productos?: { descripcion: string };
 }
 
 interface Auditoria {
-  id: string;
-  incidente_id: string;
+  id: number;
+  incidente_id: number;
   fecha_auditoria: string;
   tecnico_responsable: string;
   resultado: string;
@@ -45,7 +46,7 @@ interface Auditoria {
   cumple_presentacion: boolean;
   incidentes?: {
     codigo: string;
-    codigo_producto: string;
+    producto_id?: number;
     sku_maquina?: string;
     clientes?: { nombre: string };
     productos?: { descripcion: string };
@@ -91,22 +92,12 @@ export default function AuditoriasCalidad() {
     try {
       const { data, error } = await supabase
         .from("incidentes")
-        .select(`
-          id,
-          codigo,
-          codigo_producto,
-          codigo_cliente,
-          sku_maquina,
-          status,
-          fecha_ingreso,
-          clientes:clientes(nombre),
-          productos:productos(descripcion)
-        `)
-        .in("status", ["Reparado", "Cambio por garantia", "Nota de credito"])
+        .select("id, codigo, producto_id, cliente_id, fecha_ingreso, estado")
+        .in("estado", ["REPARADO", "CAMBIO_POR_GARANTIA", "NOTA_DE_CREDITO"])
         .order("fecha_ingreso", { ascending: false });
 
       if (error) throw error;
-      setIncidentes(data || []);
+      setIncidentes((data || []) as Incidente[]);
     } catch (error) {
       console.error("Error fetching incidentes:", error);
       toast.error("Error al cargar incidentes");
@@ -128,14 +119,8 @@ export default function AuditoriasCalidad() {
         (data || []).map(async (aud) => {
           const { data: incidente } = await supabase
             .from("incidentes")
-            .select(`
-              codigo,
-              codigo_producto,
-              sku_maquina,
-              clientes:clientes(nombre),
-              productos:productos(descripcion)
-            `)
-            .eq("codigo", aud.incidente_id)
+            .select("codigo, producto_id")
+            .eq("id", aud.incidente_id)
             .single();
           
           return {
@@ -145,7 +130,7 @@ export default function AuditoriasCalidad() {
         })
       );
       
-      setAuditorias(auditoriasConIncidentes as any);
+      setAuditorias(auditoriasConIncidentes as Auditoria[]);
     } catch (error) {
       console.error("Error fetching auditorias:", error);
       toast.error("Error al cargar auditorías");
@@ -163,8 +148,8 @@ export default function AuditoriasCalidad() {
 
     setLoading(true);
     try {
-      const { error } = await supabase.from("auditorias_calidad").insert({
-        incidente_id: formData.incidente_id,
+      const insertData = {
+        incidente_id: Number(formData.incidente_id),
         tecnico_responsable: formData.tecnico_responsable,
         resultado: formData.resultado,
         tipo_falla: formData.tipo_falla || null,
@@ -179,7 +164,8 @@ export default function AuditoriasCalidad() {
         cumple_sellado: formData.cumple_sellado,
         cumple_ensamblaje: formData.cumple_ensamblaje,
         cumple_presentacion: formData.cumple_presentacion,
-      });
+      };
+      const { error } = await supabase.from("auditorias_calidad").insert(insertData as any);
 
       if (error) throw error;
 
@@ -231,7 +217,7 @@ export default function AuditoriasCalidad() {
 
   const auditoriasFiltradas = auditorias.filter((aud) => {
     const matchSearch =
-      aud.incidentes?.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      aud.incidentes?.codigo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       aud.tecnico_responsable.toLowerCase().includes(searchTerm.toLowerCase()) ||
       aud.incidentes?.sku_maquina?.toLowerCase().includes(searchTerm.toLowerCase());
 
@@ -279,8 +265,8 @@ export default function AuditoriasCalidad() {
                         </SelectTrigger>
                         <SelectContent>
                           {incidentes.map((inc) => (
-                            <SelectItem key={inc.codigo} value={inc.codigo}>
-                              {inc.codigo} - {inc.sku_maquina || inc.codigo_producto} ({inc.clientes?.nombre})
+                            <SelectItem key={inc.id} value={String(inc.id)}>
+                              {inc.codigo} - {inc.producto_id || "Sin producto"}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -475,6 +461,7 @@ export default function AuditoriasCalidad() {
         </Dialog>
       </div>
 
+      {/* Filters */}
       <Card>
         <CardHeader>
           <CardTitle>Filtros</CardTitle>
@@ -486,14 +473,13 @@ export default function AuditoriasCalidad() {
               <div className="relative">
                 <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Código incidente, técnico, SKU..."
+                  placeholder="Código, SKU, técnico..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-8"
                 />
               </div>
             </div>
-
             <div>
               <Label>Resultado</Label>
               <Select value={filtroResultado} onValueChange={setFiltroResultado}>
@@ -512,9 +498,10 @@ export default function AuditoriasCalidad() {
         </CardContent>
       </Card>
 
+      {/* Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Auditorías Realizadas ({auditoriasFiltradas.length})</CardTitle>
+          <CardTitle>Auditorías ({auditoriasFiltradas.length})</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
@@ -522,8 +509,6 @@ export default function AuditoriasCalidad() {
               <TableRow>
                 <TableHead>Fecha</TableHead>
                 <TableHead>Incidente</TableHead>
-                <TableHead>SKU/Producto</TableHead>
-                <TableHead>Cliente</TableHead>
                 <TableHead>Técnico</TableHead>
                 <TableHead>Resultado</TableHead>
                 <TableHead>Tipo Falla</TableHead>
@@ -534,9 +519,12 @@ export default function AuditoriasCalidad() {
               {auditoriasFiltradas.map((aud) => (
                 <TableRow key={aud.id}>
                   <TableCell>{new Date(aud.fecha_auditoria).toLocaleDateString()}</TableCell>
-                  <TableCell className="font-mono">{aud.incidentes?.codigo}</TableCell>
-                  <TableCell>{aud.incidentes?.sku_maquina || aud.incidentes?.codigo_producto}</TableCell>
-                  <TableCell>{aud.incidentes?.clientes?.nombre}</TableCell>
+                  <TableCell>
+                    <div>
+                      <p className="font-medium">{aud.incidentes?.codigo || "N/A"}</p>
+                      <p className="text-xs text-muted-foreground">{aud.incidentes?.sku_maquina}</p>
+                    </div>
+                  </TableCell>
                   <TableCell>{aud.tecnico_responsable}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
@@ -546,16 +534,20 @@ export default function AuditoriasCalidad() {
                   </TableCell>
                   <TableCell>{aud.tipo_falla || "-"}</TableCell>
                   <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => navigate(`/calidad/auditorias/${aud.id}`)}
-                    >
-                      <FileText className="h-4 w-4" />
+                    <Button size="sm" variant="outline" onClick={() => navigate(`/calidad/auditorias/${aud.id}`)}>
+                      <FileText className="h-4 w-4 mr-1" />
+                      Ver
                     </Button>
                   </TableCell>
                 </TableRow>
               ))}
+              {auditoriasFiltradas.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                    No se encontraron auditorías
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </CardContent>

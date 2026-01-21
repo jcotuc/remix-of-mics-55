@@ -14,8 +14,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 
 interface Defecto {
-  id: string;
-  auditoria_id: string;
+  id: number;
+  auditoria_id: number;
   tipo_elemento: string;
   codigo_elemento: string;
   descripcion_elemento?: string;
@@ -30,8 +30,8 @@ interface Defecto {
 }
 
 interface Auditoria {
-  id: string;
-  incidente_id: string;
+  id: number;
+  incidente_id: number;
   fecha_auditoria: string;
   resultado: string;
   incidentes?: {
@@ -82,7 +82,7 @@ export default function AnalisisDefectos() {
           const { data: incidente } = await supabase
             .from("incidentes")
             .select("codigo")
-            .eq("codigo", aud.incidente_id)
+            .eq("id", aud.incidente_id)
             .single();
           
           return {
@@ -92,7 +92,7 @@ export default function AnalisisDefectos() {
         })
       );
       
-      setAuditorias(auditoriasConIncidentes as any);
+      setAuditorias(auditoriasConIncidentes as Auditoria[]);
     } catch (error) {
       console.error("Error fetching auditorias:", error);
     }
@@ -107,7 +107,7 @@ export default function AnalisisDefectos() {
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setDefectos(data || []);
+      setDefectos((data || []) as Defecto[]);
     } catch (error) {
       console.error("Error fetching defectos:", error);
       toast.error("Error al cargar defectos");
@@ -126,7 +126,7 @@ export default function AnalisisDefectos() {
     setLoading(true);
     try {
       const { error } = await supabase.from("defectos_calidad").insert({
-        auditoria_id: formData.auditoria_id,
+        auditoria_id: Number(formData.auditoria_id),
         tipo_elemento: formData.tipo_elemento,
         codigo_elemento: formData.codigo_elemento,
         descripcion_elemento: formData.descripcion_elemento || null,
@@ -248,7 +248,7 @@ export default function AnalisisDefectos() {
                     </SelectTrigger>
                     <SelectContent>
                       {auditorias.map((aud) => (
-                        <SelectItem key={aud.id} value={aud.id}>
+                        <SelectItem key={aud.id} value={String(aud.id)}>
                           {aud.incidentes?.codigo} - {new Date(aud.fecha_auditoria).toLocaleDateString()}
                         </SelectItem>
                       ))}

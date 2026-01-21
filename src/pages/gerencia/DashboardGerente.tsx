@@ -38,7 +38,7 @@ export default function DashboardGerente() {
       ).length || 0;
 
       // Tasa de garantía
-      const conGarantia = todosIncidentes?.filter(i => i.cobertura_garantia).length || 0;
+      const conGarantia = todosIncidentes?.filter(i => i.aplica_garantia).length || 0;
       const tasaGarantia = todosIncidentes && todosIncidentes.length > 0
         ? (conGarantia / todosIncidentes.length) * 100
         : 0;
@@ -47,8 +47,7 @@ export default function DashboardGerente() {
       const { data: sinAsignar } = await supabase
         .from('incidentes')
         .select('*')
-        .eq('status', 'Ingresado')
-        .is('codigo_tecnico', null);
+        .eq('estado', 'INGRESADO');
 
       // Stock bajo desde inventario
       const { data: inventarioData } = await supabase
@@ -60,21 +59,15 @@ export default function DashboardGerente() {
       const { data: sinNotificar } = await supabase
         .from('incidentes')
         .select('id')
-        .eq('status', 'Reparado');
+        .eq('estado', 'REPARADO');
 
-      const { data: notificaciones } = await supabase
-        .from('notificaciones_cliente')
-        .select('incidente_id');
-
-      const incidentesNotificados = new Set(notificaciones?.map(n => n.incidente_id));
-      const clientesSinNotificar = sinNotificar?.filter(
-        i => !incidentesNotificados.has(i.id)
-      ).length || 0;
+      // Simplificado sin notificaciones_cliente
+      const clientesSinNotificar = sinNotificar?.length || 0;
 
       // Incidentes por estado
       const estadoMap = new Map<string, number>();
       todosIncidentes?.forEach(i => {
-        estadoMap.set(i.status, (estadoMap.get(i.status) || 0) + 1);
+        estadoMap.set(i.estado, (estadoMap.get(i.estado) || 0) + 1);
       });
 
       const incidentesPorEstado = Array.from(estadoMap.entries())
@@ -85,7 +78,7 @@ export default function DashboardGerente() {
       // Incidentes por área (familia de producto)
       const areaMap = new Map<string, number>();
       todosIncidentes?.forEach(i => {
-        const producto = i.codigo_producto || 'Sin clasificar';
+        const producto = i.producto_id ? String(i.producto_id) : 'Sin clasificar';
         areaMap.set(producto, (areaMap.get(producto) || 0) + 1);
       });
 

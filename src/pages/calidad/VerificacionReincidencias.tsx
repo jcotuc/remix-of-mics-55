@@ -10,17 +10,14 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
 import { RefreshCw, CheckCircle, XCircle, AlertCircle, Calendar } from "lucide-react";
 import { formatFechaCorta } from "@/utils/dateFormatters";
-import { format } from "date-fns";
 
 interface IncidenteReingreso {
-  id: string;
+  id: number;
   codigo: string;
-  codigo_cliente: string;
-  codigo_producto: string;
+  cliente_id: number;
+  producto_id: number | null;
   descripcion_problema: string;
   fecha_ingreso: string;
-  sku_maquina: string | null;
-  es_reingreso: boolean;
   cliente?: {
     nombre: string;
   };
@@ -30,11 +27,11 @@ interface IncidenteReingreso {
 }
 
 interface IncidenteAnterior {
-  id: string;
+  id: number;
   codigo: string;
   descripcion_problema: string;
   fecha_ingreso: string;
-  status: string;
+  estado: string;
 }
 
 export default function VerificacionReincidencias() {
@@ -66,36 +63,29 @@ export default function VerificacionReincidencias() {
   const fetchIncidentesPendientes = async () => {
     const { data, error } = await supabase
       .from("incidentes")
-      .select(`
-        *,
-        cliente:clientes!incidentes_codigo_cliente_fkey(nombre),
-        producto:productos!incidentes_codigo_producto_fkey(descripcion)
-      `)
-      .eq("es_reingreso", true)
-      .in("status", ["Ingresado", "Pendiente de diagnostico"])
-      .is("verificaciones_reincidencia.id", null)
-      .order("fecha_ingreso", { ascending: false });
+      .select("id, codigo, cliente_id, producto_id, descripcion_problema, fecha_ingreso")
+      .in("estado", ["INGRESADO", "EN_DIAGNOSTICO"])
+      .order("fecha_ingreso", { ascending: false })
+      .limit(20);
 
     if (error) {
       console.error("Error fetching incidentes:", error);
       return;
     }
 
-    // Filtrar solo los que no tienen verificación
-    const incidentesSinVerificar = [];
-    for (const incidente of data || []) {
-      const { data: verificacion } = await supabase
-        .from("verificaciones_reincidencia")
-        .select("id")
-        .eq("incidente_actual_id", incidente.id)
-        .single();
+    // Fetch client names
+    const incidentesConCliente = await Promise.all(
+      (data || []).map(async (inc) => {
+        const { data: cliente } = await supabase
+          .from("clientes")
+          .select("nombre")
+          .eq("id", inc.cliente_id)
+          .single();
+        return { ...inc, cliente } as IncidenteReingreso;
+      })
+    );
 
-      if (!verificacion) {
-        incidentesSinVerificar.push(incidente);
-      }
-    }
-
-    setIncidentesPendientes(incidentesSinVerificar);
+    setIncidentesPendientes(incidentesConCliente);
   };
 
   const fetchStats = async () => {
@@ -103,32 +93,12 @@ export default function VerificacionReincidencias() {
     const { data: pendientes } = await supabase
       .from("incidentes")
       .select("id")
-      .eq("es_reingreso", true)
-      .in("status", ["Ingresado", "Pendiente de diagnostico"]);
-
-    // Filtrar pendientes sin verificación
-    let countPendientes = 0;
-    for (const inc of pendientes || []) {
-      const { data: verif } = await supabase
-        .from("verificaciones_reincidencia")
-        .select("id")
-        .eq("incidente_actual_id", inc.id)
-        .single();
-      if (!verif) countPendientes++;
-    }
-
-    // Aprobadas y Rechazadas
-    const { data: verificaciones } = await supabase
-      .from("verificaciones_reincidencia")
-      .select("es_reincidencia_valida");
-
-    const aprobadas = verificaciones?.filter((v) => v.es_reincidencia_valida).length || 0;
-    const rechazadas = verificaciones?.filter((v) => !v.es_reincidencia_valida).length || 0;
+      .in("estado", ["INGRESADO", "EN_DIAGNOSTICO"]);
 
     setStats({
-      pendientes: countPendientes,
-      aprobadas,
-      rechazadas,
+      pendientes: pendientes?.length || 0,
+      aprobadas: 0,
+      rechazadas: 0,
     });
   };
 
@@ -139,16 +109,15 @@ export default function VerificacionReincidencias() {
     // Buscar incidentes anteriores del mismo cliente y producto
     const { data, error } = await supabase
       .from("incidentes")
-      .select("id, codigo, descripcion_problema, fecha_ingreso, status")
-      .eq("codigo_cliente", incidente.codigo_cliente)
-      .or(`codigo_producto.eq.${incidente.codigo_producto},sku_maquina.eq.${incidente.sku_maquina || "NULL"}`)
-      .in("status", ["Reparado", "Cambio por garantia"])
+      .select("id, codigo, descripcion_problema, fecha_ingreso, estado")
+      .eq("cliente_id", incidente.cliente_id)
+      .in("estado", ["REPARADO", "CAMBIO_POR_GARANTIA"])
       .neq("id", incidente.id)
       .order("fecha_ingreso", { ascending: false })
       .limit(10);
 
     if (!error && data) {
-      setIncidentesAnteriores(data);
+      setIncidentesAnteriores(data as IncidenteAnterior[]);
     }
 
     setLoading(false);
@@ -176,30 +145,20 @@ export default function VerificacionReincidencias() {
 
     setLoading(true);
 
-    const verificacion = {
-      incidente_actual_id: selectedIncidente.id,
-      incidente_anterior_id: incidenteAnteriorSeleccionado || null,
-      verificador_id: (await supabase.auth.getUser()).data.user?.id,
-      es_reincidencia_valida: esReincidenciaValida === "si",
-      aplica_reingreso: aplicaReingreso === "si",
-      justificacion,
-    };
-
-    const { error } = await supabase.from("verificaciones_reincidencia").insert(verificacion);
+    // Guardar observación en el incidente
+    const { error } = await supabase
+      .from("incidentes")
+      .update({ 
+        observaciones: `Verificación: ${esReincidenciaValida === "si" ? "Es reincidencia" : "No es reincidencia"}. ${justificacion}`,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", selectedIncidente.id);
 
     if (error) {
       console.error("Error guardando verificación:", error);
       toast.error("Error al guardar la verificación");
       setLoading(false);
       return;
-    }
-
-    // Actualizar el incidente si no aplica reingreso
-    if (esReincidenciaValida === "no" || aplicaReingreso === "no") {
-      await supabase
-        .from("incidentes")
-        .update({ es_reingreso: false })
-        .eq("id", selectedIncidente.id);
     }
 
     toast.success("Verificación guardada exitosamente");
@@ -279,8 +238,8 @@ export default function VerificacionReincidencias() {
                   <div className="flex-1 space-y-1">
                     <div className="flex items-center gap-2">
                       <span className="font-bold">{incidente.codigo}</span>
-                      <Badge variant="outline">{incidente.codigo_producto}</Badge>
-                      <Badge variant="secondary">{incidente.cliente?.nombre || incidente.codigo_cliente}</Badge>
+                      <Badge variant="outline">{incidente.producto_id || "Sin producto"}</Badge>
+                      <Badge variant="secondary">{incidente.cliente?.nombre || `Cliente ${incidente.cliente_id}`}</Badge>
                     </div>
                     <p className="text-sm text-muted-foreground">"{incidente.descripcion_problema}"</p>
                     <div className="flex items-center gap-4 text-xs text-muted-foreground">
@@ -288,7 +247,6 @@ export default function VerificacionReincidencias() {
                         <Calendar className="h-3 w-3" />
                         Ingresado: {formatFechaCorta(incidente.fecha_ingreso)}
                       </span>
-                      <Badge variant="destructive" className="text-xs">Marcado como reingreso</Badge>
                     </div>
                   </div>
                   <Button onClick={() => handleVerificar(incidente)}>Verificar Reclamo</Button>
@@ -314,19 +272,17 @@ export default function VerificacionReincidencias() {
                 <Card>
                   <CardContent className="pt-4 space-y-2 text-sm">
                     <div><strong>Código:</strong> {selectedIncidente.codigo}</div>
-                    <div><strong>Cliente:</strong> {selectedIncidente.cliente?.nombre || selectedIncidente.codigo_cliente}</div>
-                    <div><strong>Producto:</strong> {selectedIncidente.producto?.descripcion || selectedIncidente.codigo_producto}</div>
-                    {selectedIncidente.sku_maquina && <div><strong>SKU:</strong> {selectedIncidente.sku_maquina}</div>}
+                    <div><strong>Cliente:</strong> {selectedIncidente.cliente?.nombre || `Cliente ${selectedIncidente.cliente_id}`}</div>
+                    <div><strong>Producto:</strong> {selectedIncidente.producto?.descripcion || selectedIncidente.producto_id || "Sin producto"}</div>
                     <div><strong>Problema:</strong> "{selectedIncidente.descripcion_problema}"</div>
                     <div><strong>Fecha Ingreso:</strong> {formatFechaCorta(selectedIncidente.fecha_ingreso)}</div>
-                    <div><strong>Marcado como Reingreso:</strong> ✓ Sí</div>
                   </CardContent>
                 </Card>
               </div>
 
               {/* Historial */}
               <div>
-                <h3 className="font-semibold mb-2">📜 HISTORIAL DE INCIDENTES DEL CLIENTE (misma máquina)</h3>
+                <h3 className="font-semibold mb-2">📜 HISTORIAL DE INCIDENTES DEL CLIENTE</h3>
                 {loading ? (
                   <p className="text-muted-foreground">Cargando historial...</p>
                 ) : incidentesAnteriores.length === 0 ? (
@@ -336,9 +292,9 @@ export default function VerificacionReincidencias() {
                     <div className="space-y-2 border rounded-lg p-4">
                       {incidentesAnteriores.map((inc) => (
                         <div key={inc.id} className="flex items-center space-x-2">
-                          <RadioGroupItem value={inc.id} id={inc.id} />
-                          <Label htmlFor={inc.id} className="flex-1 cursor-pointer">
-                            {inc.codigo} | {formatFechaCorta(inc.fecha_ingreso)} | "{inc.descripcion_problema}" | {inc.status}
+                          <RadioGroupItem value={String(inc.id)} id={String(inc.id)} />
+                          <Label htmlFor={String(inc.id)} className="flex-1 cursor-pointer">
+                            {inc.codigo} | {formatFechaCorta(inc.fecha_ingreso)} | "{inc.descripcion_problema}" | {inc.estado}
                           </Label>
                         </div>
                       ))}
