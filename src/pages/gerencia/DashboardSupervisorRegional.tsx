@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
+import { apiBackendAction } from "@/lib/api-backend";
+import type { IncidenteSchema } from "@/generated/actions.d";
 import { Loader2, Building2, TrendingUp, Truck, Package, Users, Settings } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -57,24 +59,26 @@ export default function DashboardSupervisorRegional() {
     try {
       setLoading(true);
 
-      const { data: centrosData } = await (supabase as any)
-        .from('centros_de_servicio')
-        .select('*')
-        .eq('activo', true);
+      // Use API for incidentes, Supabase for the rest (no handlers yet)
+      const [centrosRes, incidentesRes, inventarioRes, transitosRes] = await Promise.all([
+        supabase.from("centros_de_servicio").select("*").eq("activo", true),
+        apiBackendAction("incidentes.list", { limit: 5000 }),
+        supabase.from("inventario").select("centro_servicio_id, cantidad"),
+        supabase.from("transitos_bodega").select("*").eq("estado", "en_transito"),
+      ]);
 
-      const { data: incidentes } = await supabase
-        .from('incidentes')
-        .select('centro_de_servicio_id');
+      const centrosData = centrosRes.data || [];
+      const incidentes = incidentesRes.results || [];
+      const inventarioData = inventarioRes.data || [];
+      const transitos = transitosRes.data || [];
 
-      // Usar inventario en lugar de stock_departamental
-      const { data: inventarioData } = await supabase
-        .from('inventario')
-        .select('centro_servicio_id, cantidad');
-
-      const centroStats: CentroStats[] = (centrosData || []).map((centro: any) => {
-        const incidentesCentro = incidentes?.filter(i => i.centro_de_servicio_id === centro.id).length || 0;
-        const stockCentro = inventarioData?.filter(s => s.centro_servicio_id === centro.id)
-          .reduce((sum, s) => sum + (s.cantidad || 0), 0) || 0;
+      const centroStats: CentroStats[] = centrosData.map((centro: any) => {
+        const incidentesCentro = incidentes.filter((i: IncidenteSchema) => 
+          i.centro_de_servicio_id === centro.id
+        ).length;
+        const stockCentro = inventarioData
+          .filter((s: any) => s.centro_servicio_id === centro.id)
+          .reduce((sum: number, s: any) => sum + (s.cantidad || 0), 0);
 
         return {
           nombre: centro.nombre,
@@ -82,18 +86,13 @@ export default function DashboardSupervisorRegional() {
           eficiencia: 0,
           stock: stockCentro
         };
-      }).sort((a: CentroStats, b: CentroStats) => b.incidentes - a.incidentes) || [];
+      }).sort((a: CentroStats, b: CentroStats) => b.incidentes - a.incidentes);
 
-      const { data: transitos } = await supabase
-        .from('transitos_bodega')
-        .select('*')
-        .eq('estado', 'en_transito');
-
-      const stockConsolidado = inventarioData?.reduce((sum, s) => sum + (s.cantidad || 0), 0) || 0;
+      const stockConsolidado = inventarioData.reduce((sum: number, s: any) => sum + (s.cantidad || 0), 0);
 
       setStats({
         centros: centroStats,
-        transitosActivos: transitos?.length || 0,
+        transitosActivos: transitos.length,
         stockConsolidado,
       });
 
@@ -108,57 +107,51 @@ export default function DashboardSupervisorRegional() {
     try {
       setLoadingSupervisores(true);
 
-      const { data: centrosData } = await (supabase as any)
-        .from('centros_de_servicio')
-        .select('id, nombre')
-        .eq('activo', true)
-        .order('nombre');
+      // Fetch via Supabase (no handlers for these tables yet)
+      const [centrosRes, rolesRes, usuariosRes, asignacionesRes] = await Promise.all([
+        supabase.from("centros_de_servicio").select("id, nombre").eq("activo", true).order("nombre"),
+        (supabase as any).from("user_roles").select("user_id").eq("role", "supervisor_regional"),
+        supabase.from("usuarios").select("id, nombre, apellido, email"),
+        supabase.from("centros_supervisor").select("supervisor_id, centro_servicio_id"),
+      ]);
 
-      setCentros((centrosData || []) as CentroServicio[]);
+      const centrosData = centrosRes.data || [];
+      setCentros(centrosData.map((c: any) => ({ id: c.id, nombre: c.nombre })));
 
-      const { data: rolesData } = await (supabase as any)
-        .from('user_roles')
-        .select('user_id')
-        .eq('role', 'supervisor_regional');
+      const roles = rolesRes.data || [];
+      const supervisorUserIds = roles.map((r: any) => r.user_id);
 
-      if (!rolesData || rolesData.length === 0) {
+      if (supervisorUserIds.length === 0) {
         setSupervisores([]);
         return;
       }
 
-      const userIds = (rolesData as any[]).map(r => r.user_id);
+      const usuarios = usuariosRes.data || [];
+      const asignaciones = asignacionesRes.data || [];
 
-      const { data: profilesData } = await (supabase as any)
-        .from('profiles')
-        .select('id, user_id, nombre, apellido, email')
-        .in('user_id', userIds);
+      const supervisoresConCentros: SupervisorRegional[] = usuarios
+        .filter((u: any) => supervisorUserIds.includes(u.id))
+        .map((profile: any) => {
+          const centrosDelSupervisor = asignaciones
+            .filter((a: any) => a.supervisor_id === profile.id)
+            .map((a: any) => {
+              const centro = centrosData.find((c: any) => c.id === a.centro_servicio_id);
+              return {
+                id: centro?.id || 0,
+                nombre: centro?.nombre || ''
+              };
+            })
+            .filter((c: any) => c.id);
 
-      const { data: asignacionesData } = await supabase
-        .from('centros_supervisor')
-        .select('supervisor_id, centro_servicio_id')
-        .in('supervisor_id', userIds);
-
-      const supervisoresConCentros: SupervisorRegional[] = ((profilesData || []) as any[]).map(profile => {
-        const centrosDelSupervisor = ((asignacionesData || []) as any[])
-          .filter(a => a.supervisor_id === profile.user_id)
-          .map(a => {
-            const centro = (centrosData || []).find((c: any) => c.id === a.centro_servicio_id);
-            return {
-              id: centro?.id || 0,
-              nombre: centro?.nombre || ''
-            };
-          })
-          .filter(c => c.id);
-
-        return {
-          id: profile.id,
-          user_id: profile.user_id,
-          nombre: profile.nombre || '',
-          apellido: profile.apellido || '',
-          email: profile.email || '',
-          centrosAsignados: centrosDelSupervisor
-        };
-      });
+          return {
+            id: profile.id,
+            user_id: profile.id,
+            nombre: profile.nombre || '',
+            apellido: profile.apellido || '',
+            email: profile.email || '',
+            centrosAsignados: centrosDelSupervisor
+          };
+        });
 
       setSupervisores(supervisoresConCentros);
 
@@ -190,11 +183,13 @@ export default function DashboardSupervisorRegional() {
     try {
       setSaving(true);
 
+      // Delete existing assignments
       await supabase
         .from('centros_supervisor')
         .delete()
         .eq('supervisor_id', selectedSupervisor.user_id);
 
+      // Create new assignments
       if (selectedCentros.length > 0) {
         const nuevasAsignaciones = selectedCentros.map(centroId => ({
           supervisor_id: Number(selectedSupervisor.user_id),

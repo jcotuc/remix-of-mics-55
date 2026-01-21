@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { apiBackendAction } from "@/lib/api-backend";
+import type { IncidenteSchema, ClienteSchema } from "@/generated/actions.d";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,7 +24,7 @@ interface IncidenteReingreso {
     nombre: string;
   };
   producto?: {
-    descripcion: string;
+    descripcion?: string;
   };
 }
 
@@ -36,6 +38,7 @@ interface IncidenteAnterior {
 
 export default function VerificacionReincidencias() {
   const [incidentesPendientes, setIncidentesPendientes] = useState<IncidenteReingreso[]>([]);
+  const [allIncidentes, setAllIncidentes] = useState<IncidenteSchema[]>([]);
   const [stats, setStats] = useState({
     pendientes: 0,
     aprobadas: 0,
@@ -61,65 +64,74 @@ export default function VerificacionReincidencias() {
   };
 
   const fetchIncidentesPendientes = async () => {
-    const { data, error } = await supabase
-      .from("incidentes")
-      .select("id, codigo, cliente_id, producto_id, descripcion_problema, fecha_ingreso")
-      .in("estado", ["EN_DIAGNOSTICO", "EN_REPARACION"])
-      .order("fecha_ingreso", { ascending: false })
-      .limit(20);
+    try {
+      const incidentesRes = await apiBackendAction("incidentes.list", { limit: 2000 });
+      const incidentes = incidentesRes.results || [];
+      setAllIncidentes(incidentes);
 
-    if (error) {
+      // Filter pending incidents and map to local type
+      const pendientes = incidentes
+        .filter((i: IncidenteSchema) => 
+          ["EN_DIAGNOSTICO", "EN_REPARACION"].includes(i.estado)
+        )
+        .slice(0, 20)
+        .map((inc: IncidenteSchema) => ({
+          id: inc.id,
+          codigo: inc.codigo,
+          cliente_id: inc.cliente?.id || 0,
+          producto_id: inc.producto?.id || null,
+          descripcion_problema: inc.descripcion_problema || "",
+          fecha_ingreso: inc.created_at,
+          cliente: inc.cliente ? { nombre: inc.cliente.nombre } : undefined,
+          producto: inc.producto ? { descripcion: inc.producto.descripcion } : undefined,
+        }));
+
+      setIncidentesPendientes(pendientes);
+    } catch (error) {
       console.error("Error fetching incidentes:", error);
-      return;
     }
-
-    // Fetch client names
-    const incidentesConCliente = await Promise.all(
-      (data || []).map(async (inc) => {
-        const { data: cliente } = await supabase
-          .from("clientes")
-          .select("nombre")
-          .eq("id", inc.cliente_id)
-          .single();
-        return { ...inc, cliente } as IncidenteReingreso;
-      })
-    );
-
-    setIncidentesPendientes(incidentesConCliente);
   };
 
   const fetchStats = async () => {
-    // Pendientes
-    const { data: pendientes } = await supabase
-      .from("incidentes")
-      .select("id")
-      .in("estado", ["EN_DIAGNOSTICO", "EN_REPARACION"]);
+    try {
+      const response = await apiBackendAction("incidentes.list", { limit: 2000 });
+      const incidentes = response.results || [];
 
-    setStats({
-      pendientes: pendientes?.length || 0,
-      aprobadas: 0,
-      rechazadas: 0,
-    });
+      const pendientes = incidentes.filter((i: IncidenteSchema) =>
+        ["EN_DIAGNOSTICO", "EN_REPARACION"].includes(i.estado)
+      ).length;
+
+      setStats({
+        pendientes,
+        aprobadas: 0,
+        rechazadas: 0,
+      });
+    } catch (error) {
+      console.error("Error fetching stats:", error);
+    }
   };
 
   const handleVerificar = async (incidente: IncidenteReingreso) => {
     setSelectedIncidente(incidente);
     setLoading(true);
 
-    // Buscar incidentes anteriores del mismo cliente y producto
-    const { data, error } = await supabase
-      .from("incidentes")
-      .select("id, codigo, descripcion_problema, fecha_ingreso, estado")
-      .eq("cliente_id", incidente.cliente_id)
-      .in("estado", ["REPARADO", "CAMBIO_POR_GARANTIA"])
-      .neq("id", incidente.id)
-      .order("fecha_ingreso", { ascending: false })
-      .limit(10);
+    // Find previous incidents from the same client
+    const anteriores = allIncidentes
+      .filter((i: IncidenteSchema) => 
+        i.cliente?.id === incidente.cliente_id &&
+        ["REPARADO", "CAMBIO_POR_GARANTIA"].includes(i.estado) &&
+        i.id !== incidente.id
+      )
+      .slice(0, 10)
+      .map((i: IncidenteSchema) => ({
+        id: i.id,
+        codigo: i.codigo,
+        descripcion_problema: i.descripcion_problema || "",
+        fecha_ingreso: i.created_at,
+        estado: i.estado,
+      }));
 
-    if (!error && data) {
-      setIncidentesAnteriores(data as IncidenteAnterior[]);
-    }
-
+    setIncidentesAnteriores(anteriores);
     setLoading(false);
     setModalOpen(true);
   };
@@ -127,7 +139,6 @@ export default function VerificacionReincidencias() {
   const handleGuardarVerificacion = async () => {
     if (!selectedIncidente) return;
 
-    // Validaciones
     if (!esReincidenciaValida) {
       toast.error("Debe indicar si es reincidencia válida");
       return;
@@ -145,27 +156,28 @@ export default function VerificacionReincidencias() {
 
     setLoading(true);
 
-    // Guardar observación en el incidente
-    const { error } = await supabase
-      .from("incidentes")
-      .update({ 
-        observaciones: `Verificación: ${esReincidenciaValida === "si" ? "Es reincidencia" : "No es reincidencia"}. ${justificacion}`,
-        updated_at: new Date().toISOString()
-      })
-      .eq("id", selectedIncidente.id);
+    try {
+      // Use Supabase directly for update (no handler implemented yet)
+      const { error } = await supabase
+        .from("incidentes")
+        .update({ 
+          observaciones: `Verificación: ${esReincidenciaValida === "si" ? "Es reincidencia" : "No es reincidencia"}. ${justificacion}`,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", selectedIncidente.id);
 
-    if (error) {
+      if (error) throw error;
+
+      toast.success("Verificación guardada exitosamente");
+      setModalOpen(false);
+      resetForm();
+      fetchData();
+    } catch (error) {
       console.error("Error guardando verificación:", error);
       toast.error("Error al guardar la verificación");
+    } finally {
       setLoading(false);
-      return;
     }
-
-    toast.success("Verificación guardada exitosamente");
-    setModalOpen(false);
-    resetForm();
-    fetchData();
-    setLoading(false);
   };
 
   const resetForm = () => {
