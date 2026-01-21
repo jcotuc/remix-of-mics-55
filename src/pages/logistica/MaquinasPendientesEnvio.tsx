@@ -179,7 +179,7 @@ export default function MaquinasPendientesEnvio() {
                       <TableCell>
                         <div className="flex items-center gap-1 text-sm text-amber-600 dark:text-amber-400">
                           <Clock className="h-3 w-3" />
-                          {getTiempoEspera(inc.updated_at)}
+                          {getTiempoEspera(inc.updated_at || inc.created_at || '')}
                         </div>
                       </TableCell>
                       <TableCell>

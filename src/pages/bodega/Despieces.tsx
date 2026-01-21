@@ -194,7 +194,7 @@ export default function Despieces() {
     const skuDespiece = `DSP-${producto.codigo}-${timestamp}`;
     
     // Obtener el ID del usuario de la tabla usuarios
-    const { data: usuarioData } = await supabase
+    const { data: usuarioData } = await (supabase as any)
       .from('usuarios')
       .select('id')
       .eq('auth_uid', user.id)
@@ -333,7 +333,7 @@ export default function Despieces() {
       .eq('codigo', selectedRepuesto.codigo)
       .single();
     
-    const { data: usuarioData } = await supabase
+    const { data: usuarioData } = await (supabase as any)
       .from('usuarios')
       .select('id')
       .eq('auth_uid', user.id)

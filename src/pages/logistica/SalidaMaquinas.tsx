@@ -128,7 +128,7 @@ export default function SalidaMaquinas() {
                 <Badge variant="outline">{tipo}</Badge>
               </TableCell>
               <TableCell>
-                {new Date(incidente.updated_at).toLocaleDateString('es-GT')}
+                {new Date(incidente.updated_at || incidente.created_at || '').toLocaleDateString('es-GT')}
               </TableCell>
               <TableCell>
                 <Button 

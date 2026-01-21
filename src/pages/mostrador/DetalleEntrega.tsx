@@ -207,18 +207,25 @@ export default function DetalleEntrega() {
     try {
       const firmaBase64 = signatureRef.current?.toDataURL();
       const fechaEntregaActual = new Date().toISOString();
-      const { error: updateError } = await supabase
+      
+      // Store delivery confirmation data in observaciones since confirmacion_cliente doesn't exist
+      const confirmacionData = JSON.stringify({
+        fecha_entrega: fechaEntregaActual,
+        nombre_recibe: nombreRecibe,
+        dpi_recibe: dpiRecibe,
+        firma_base64: firmaBase64,
+        fotos_salida: fotosSalida.map(f => f.comment || 'Sin comentario')
+      });
+      
+      const observacionesActuales = incidente.observaciones || '';
+      const nuevasObservaciones = `${observacionesActuales}\n[${fechaEntregaActual}] ENTREGA CONFIRMADA - Recibe: ${nombreRecibe}, DPI: ${dpiRecibe}`;
+      
+      const { error: updateError } = await (supabase as any)
         .from('incidentes')
         .update({
-          estado: 'ENTREGADO' as any,
+          estado: 'ENTREGADO',
           fecha_entrega: fechaEntregaActual,
-          confirmacion_cliente: {
-            fecha_entrega: fechaEntregaActual,
-            nombre_recibe: nombreRecibe,
-            dpi_recibe: dpiRecibe,
-            firma_base64: firmaBase64,
-            fotos_salida: fotosSalida.map(f => f.comment || 'Sin comentario')
-          }
+          observaciones: nuevasObservaciones
         })
         .eq('id', incidente.id);
       if (updateError) throw updateError;
