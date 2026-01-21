@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { supabase } from "@/integrations/supabase/client";
 import { Loader2, Activity, TrendingUp, AlertCircle, Users, Clock } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+import { apiBackendAction } from "@/lib/api-backend";
 
 interface DashboardStats {
   incidentesTotales: number;
@@ -27,47 +27,46 @@ export default function DashboardGerente() {
     try {
       setLoading(true);
 
-      // Incidentes totales y de hoy
-      const { data: todosIncidentes } = await supabase
-        .from('incidentes')
-        .select('*');
+      // Fetch data in parallel using apiBackendAction
+      const [incidentesResponse, inventarioResponse] = await Promise.all([
+        apiBackendAction("incidentes.list", { limit: 5000 }),
+        apiBackendAction("inventarios.list", { limit: 5000 })
+      ]);
 
+      const todosIncidentes = incidentesResponse.results || [];
+      const inventarioData = (inventarioResponse as any).results || inventarioResponse.data || [];
+
+      // Incidentes de hoy
       const hoy = new Date().toISOString().split('T')[0];
-      const incidentesHoy = todosIncidentes?.filter(i =>
-        i.created_at.startsWith(hoy)
-      ).length || 0;
+      const incidentesHoy = todosIncidentes.filter((i: any) =>
+        i.created_at?.startsWith(hoy)
+      ).length;
 
       // Tasa de garantía
-      const conGarantia = todosIncidentes?.filter(i => i.aplica_garantia).length || 0;
-      const tasaGarantia = todosIncidentes && todosIncidentes.length > 0
+      const conGarantia = todosIncidentes.filter((i: any) => i.aplica_garantia).length;
+      const tasaGarantia = todosIncidentes.length > 0
         ? (conGarantia / todosIncidentes.length) * 100
         : 0;
 
-      // Alertas críticas
-      const { data: sinAsignar } = await supabase
-        .from('incidentes')
-        .select('*')
-        .eq('estado', 'EN_DIAGNOSTICO');
+      // Sin asignar (EN_DIAGNOSTICO)
+      const sinAsignar = todosIncidentes.filter((i: any) => 
+        i.estado === 'EN_DIAGNOSTICO'
+      ).length;
 
-      // Stock bajo desde inventario
-      const { data: inventarioData } = await supabase
-        .from('inventario')
-        .select('cantidad');
+      // Stock bajo
+      const stockBajo = inventarioData.filter((i: any) => i.cantidad < 5).length;
 
-      const stockBajo = inventarioData?.filter(i => i.cantidad < 5).length || 0;
-
-      const { data: sinNotificar } = await supabase
-        .from('incidentes')
-        .select('id')
-        .eq('estado', 'REPARADO');
-
-      // Simplificado sin notificaciones_cliente
-      const clientesSinNotificar = sinNotificar?.length || 0;
+      // Sin notificar (REPARADO)
+      const clientesSinNotificar = todosIncidentes.filter((i: any) => 
+        i.estado === 'REPARADO'
+      ).length;
 
       // Incidentes por estado
       const estadoMap = new Map<string, number>();
-      todosIncidentes?.forEach(i => {
-        estadoMap.set(i.estado, (estadoMap.get(i.estado) || 0) + 1);
+      todosIncidentes.forEach((i: any) => {
+        if (i.estado) {
+          estadoMap.set(i.estado, (estadoMap.get(i.estado) || 0) + 1);
+        }
       });
 
       const incidentesPorEstado = Array.from(estadoMap.entries())
@@ -75,10 +74,10 @@ export default function DashboardGerente() {
         .sort((a, b) => b.cantidad - a.cantidad)
         .slice(0, 5);
 
-      // Incidentes por área (familia de producto)
+      // Incidentes por área (producto)
       const areaMap = new Map<string, number>();
-      todosIncidentes?.forEach(i => {
-        const producto = i.producto_id ? String(i.producto_id) : 'Sin clasificar';
+      todosIncidentes.forEach((i: any) => {
+        const producto = i.producto?.descripcion || i.producto?.codigo || 'Sin clasificar';
         areaMap.set(producto, (areaMap.get(producto) || 0) + 1);
       });
 
@@ -88,10 +87,10 @@ export default function DashboardGerente() {
         .slice(0, 5);
 
       setStats({
-        incidentesTotales: todosIncidentes?.length || 0,
+        incidentesTotales: todosIncidentes.length,
         incidentesHoy,
         tasaGarantia: Math.round(tasaGarantia),
-        incidentesSinAsignar: sinAsignar?.length || 0,
+        incidentesSinAsignar: sinAsignar,
         stockBajo,
         clientesSinNotificar,
         incidentesPorEstado,

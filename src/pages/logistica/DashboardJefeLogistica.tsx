@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { supabase } from "@/integrations/supabase/client";
 import { Loader2, Truck, AlertCircle, Package, TrendingUp, Clock } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+import { apiBackendAction } from "@/lib/api-backend";
 
 interface DashboardStats {
   guiasPendientes: number;
@@ -26,66 +26,48 @@ export default function DashboardJefeLogistica() {
     try {
       setLoading(true);
 
-      // Guías por estado
-      const { data: guiasPendientes } = await (supabase as any)
-        .from('guias')
-        .select('*')
-        .in('estado', ['PENDIENTE', 'EN_TRANSITO']);
+      // Fetch data in parallel using apiBackendAction
+      const [guiasResponse, embarquesResponse, incidentesResponse] = await Promise.all([
+        apiBackendAction("guias.list", {}),
+        apiBackendAction("embarques.list", { limit: 500 }),
+        apiBackendAction("incidentes.list", { limit: 2000 })
+      ]);
 
-      // Guías retrasadas (sin entrega después de fecha promesa)
+      const guias = (guiasResponse as any).results || [];
+      const embarques = embarquesResponse.data || [];
+      const incidentes = incidentesResponse.results || [];
+
+      // Calculate stats from fetched data
+      const guiasPendientes = guias.filter((g: any) => 
+        g.estado === 'PENDIENTE' || g.estado === 'EN_TRANSITO'
+      ).length;
+
       const hoy = new Date().toISOString();
-      const { data: guiasRetrasadas } = await (supabase as any)
-        .from('guias')
-        .select('*')
-        .eq('estado', 'EN_TRANSITO')
-        .lt('fecha_promesa_entrega', hoy)
-        .is('fecha_entrega', null);
+      const guiasRetrasadas = guias.filter((g: any) => 
+        g.estado === 'EN_TRANSITO' && 
+        g.fecha_promesa_entrega && 
+        g.fecha_promesa_entrega < hoy && 
+        !g.fecha_entrega
+      ).length;
 
-      // Embarques
-      const { data: embarques } = await supabase
-        .from('embarques')
-        .select('*');
+      const guiasEntregadas = guias.filter((g: any) => g.estado === 'ENTREGADA').length;
+      const tasaEntrega = guias.length > 0 ? (guiasEntregadas / guias.length) * 100 : 0;
 
-      // Garantías manuales
-      const { data: garantiasManuales } = await supabase
-        .from('garantias_manuales')
-        .select('*')
-        .eq('estatus', 'pendiente_resolucion');
-
-      // Tasa de entrega
-      const { data: guiasEntregadas } = await (supabase as any)
-        .from('guias')
-        .select('*')
-        .eq('estado', 'ENTREGADA');
-
-      const { data: todasGuias } = await (supabase as any)
-        .from('guias')
-        .select('*');
-
-      const tasaEntrega = todasGuias && todasGuias.length > 0
-        ? ((guiasEntregadas?.length || 0) / todasGuias.length) * 100
-        : 0;
-
-      // Costo promedio
-      const guiasConTarifa = (todasGuias || []).filter((g: any) => g.tarifa) || [];
+      const guiasConTarifa = guias.filter((g: any) => g.tarifa);
       const costoPromedio = guiasConTarifa.length > 0
         ? guiasConTarifa.reduce((sum: number, g: any) => sum + (g.tarifa || 0), 0) / guiasConTarifa.length
         : 0;
 
-      // Máquinas en ruta
-      const { data: maquinasEnRuta } = await supabase
-        .from('incidentes')
-        .select('*')
-        .eq('estado', 'EN_ENTREGA');
+      const maquinasEnRuta = incidentes.filter((i: any) => i.estado === 'EN_ENTREGA').length;
 
       setStats({
-        guiasPendientes: guiasPendientes?.length || 0,
-        guiasRetrasadas: guiasRetrasadas?.length || 0,
-        embarquesEnTransito: embarques?.length || 0,
-        garantiasManualesPendientes: garantiasManuales?.length || 0,
+        guiasPendientes,
+        guiasRetrasadas,
+        embarquesEnTransito: embarques.length,
+        garantiasManualesPendientes: 0, // Table not in registry yet
         tasaEntregaExitosa: Math.round(tasaEntrega),
         costoPromedioEnvio: Math.round(costoPromedio),
-        maquinasEnRuta: maquinasEnRuta?.length || 0
+        maquinasEnRuta
       });
 
     } catch (error) {
