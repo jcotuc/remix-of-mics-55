@@ -36,8 +36,8 @@ export default function InventarioNuevo() {
 
   const fetchCentrosServicio = async () => {
     try {
-      const { data, error } = await supabase
-        .from("centros_servicio")
+      const { data, error } = await (supabase as any)
+        .from("centros_de_servicio")
         .select("*")
         .eq("activo", true);
 
@@ -46,7 +46,7 @@ export default function InventarioNuevo() {
       
       // Seleccionar primer centro por defecto
       if (data && data.length > 0) {
-        setCentroSeleccionado(data[0].id);
+        setCentroSeleccionado(String(data[0].id));
       }
     } catch (error) {
       console.error("Error:", error);
@@ -59,7 +59,7 @@ export default function InventarioNuevo() {
       const { data, error } = await supabase
         .from("inventario")
         .select("codigo_repuesto, descripcion, cantidad, ubicacion_legacy")
-        .eq("centro_servicio_id", centroId)
+        .eq("centro_servicio_id", Number(centroId))
         .order("codigo_repuesto");
 
       if (error) throw error;
