@@ -21,13 +21,16 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { formatFechaRelativa, formatLogEntry, formatFechaCorta } from "@/utils/dateFormatters";
+import type { Database } from "@/integrations/supabase/types";
+
+type EstadoIncidente = Database['public']['Enums']['estadoincidente'];
 
 interface IncidenteReparado {
   id: number;
   codigo: string;
   cliente_id: number;
   producto_id: number | null;
-  quiere_envio: boolean;
+  quiere_envio: boolean | null;
   updated_at: string | null;
   descripcion_problema: string | null;
 }
@@ -49,10 +52,8 @@ interface SolicitudDespachada {
   repuestos: any;
   estado: string;
   updated_at: string;
-  incidente: {
-    codigo: string;
-    producto_id: number | null;
-  } | null;
+  incidente_codigo: string | null;
+  incidente_producto_id: number | null;
 }
 
 interface ClienteMap {
@@ -92,7 +93,7 @@ export default function WaterspiderPendientes() {
         .order("updated_at", { ascending: true });
 
       if (error) throw error;
-      setIncidentes(data || []);
+      setIncidentes((data || []) as IncidenteReparado[]);
       setSelectedMostrador(new Set());
       setSelectedLogistica(new Set());
 
@@ -125,7 +126,7 @@ export default function WaterspiderPendientes() {
         .order("updated_at", { ascending: false });
 
       if (error) throw error;
-      setIncidentesDepuracion(data || []);
+      setIncidentesDepuracion((data || []) as IncidenteDepuracion[]);
       setSelectedDepuracion(new Set());
 
       // Fetch clients
@@ -157,7 +158,7 @@ export default function WaterspiderPendientes() {
         .order("updated_at", { ascending: false });
 
       if (error) throw error;
-      setIncidentesRechazados(data || []);
+      setIncidentesRechazados((data || []) as IncidenteDepuracion[]);
 
       // Fetch clients
       const clienteIds = [...new Set((data || []).map(i => i.cliente_id))];
@@ -181,21 +182,43 @@ export default function WaterspiderPendientes() {
   // Fetch solicitudes despachadas (repuestos listos para recoger)
   const fetchSolicitudesDespachadas = async () => {
     try {
-      const { data, error } = await supabase
+      // Fetch solicitudes first - use only columns that exist in the table
+      const { data: solicitudesData, error: solicitudesError } = await supabase
         .from("solicitudes_repuestos")
-        .select(`
-          id, incidente_id, tecnico_solicitante, repuestos, estado, updated_at,
-          incidentes:incidente_id(codigo, producto_id)
-        `)
+        .select("id, incidente_id, repuestos, estado, updated_at, solicitante_id")
         .eq("estado", "DESPACHADO")
         .order("updated_at", { ascending: true });
 
-      if (error) throw error;
+      if (solicitudesError) throw solicitudesError;
+
+      // Get unique incidente_ids - cast to avoid TS2589
+      const rawData = (solicitudesData || []) as any[];
+      const incidenteIds = [...new Set(rawData.map(s => s.incidente_id as number))];
       
-      const formatted: SolicitudDespachada[] = (data || []).map(s => ({
-        ...s,
-        incidente: (s as any).incidentes as SolicitudDespachada['incidente']
+      // Fetch incidentes data
+      let incidentesMap: Record<number, { codigo: string; producto_id: number | null }> = {};
+      if (incidenteIds.length > 0) {
+        const { data: incidentesData } = await supabase
+          .from("incidentes")
+          .select("id, codigo, producto_id")
+          .in("id", incidenteIds);
+        
+        (incidentesData || []).forEach(inc => {
+          incidentesMap[inc.id] = { codigo: inc.codigo, producto_id: inc.producto_id };
+        });
+      }
+
+      const formatted: SolicitudDespachada[] = rawData.map(s => ({
+        id: s.id,
+        incidente_id: s.incidente_id,
+        tecnico_solicitante: null, // Column doesn't exist, use null
+        repuestos: s.repuestos,
+        estado: s.estado,
+        updated_at: s.updated_at,
+        incidente_codigo: incidentesMap[s.incidente_id]?.codigo || null,
+        incidente_producto_id: incidentesMap[s.incidente_id]?.producto_id || null,
       }));
+      
       setSolicitudesDespachadas(formatted);
       setSelectedRepuestos(new Set());
     } catch (error) {
@@ -265,9 +288,9 @@ export default function WaterspiderPendientes() {
   const solicitudesFiltradas = useMemo(() => {
     return solicitudesDespachadas.filter(sol => {
       return !filtroTexto || 
-        sol.incidente?.codigo?.toLowerCase().includes(filtroTexto.toLowerCase()) ||
+        sol.incidente_codigo?.toLowerCase().includes(filtroTexto.toLowerCase()) ||
         sol.tecnico_solicitante?.toLowerCase().includes(filtroTexto.toLowerCase()) ||
-        sol.incidente?.producto_id?.toString().includes(filtroTexto.toLowerCase());
+        sol.incidente_producto_id?.toString().includes(filtroTexto.toLowerCase());
     });
   }, [solicitudesDespachadas, filtroTexto]);
 
@@ -328,7 +351,8 @@ export default function WaterspiderPendientes() {
           ? Array.from(selectedMostrador) 
           : Array.from(selectedLogistica);
         
-        const nuevoEstado = confirmingType === "mostrador" ? "LISTO_PARA_ENTREGA" : "EN_ENTREGA";
+        // Use valid enum values
+        const nuevoEstado: EstadoIncidente = confirmingType === "mostrador" ? "COMPLETADO" : "EN_ENTREGA";
         const destinoLabel = confirmingType === "mostrador" ? "Mostrador" : "Logística";
         
         const logEntry = formatLogEntry(`Waterspider: Entregado a ${destinoLabel}${observaciones ? ` - ${observaciones}` : ''}`);
@@ -358,7 +382,6 @@ export default function WaterspiderPendientes() {
       } else if (confirmingType === "depuracion") {
         const selectedIds = Array.from(selectedDepuracion);
         
-        // Mark as "depurado" - could add a new status or just log it
         const logEntry = formatLogEntry(`Waterspider: Máquina depurada/descartada${observaciones ? ` - ${observaciones}` : ''}`);
         
         for (const incId of selectedIds) {
@@ -382,7 +405,6 @@ export default function WaterspiderPendientes() {
       } else if (confirmingType === "repuestos") {
         const selectedIds = Array.from(selectedRepuestos);
         
-        // Mark solicitudes as "recogido" by waterspider
         const { error } = await supabase
           .from("solicitudes_repuestos")
           .update({ 
@@ -458,7 +480,7 @@ export default function WaterspiderPendientes() {
     }
   };
 
-  // Card component
+  // Card component for incidents
   const IncidentCard = ({ 
     inc, 
     isSelected, 
@@ -479,6 +501,8 @@ export default function WaterspiderPendientes() {
       gray: { selected: "bg-gray-100 dark:bg-gray-800 border-gray-400", normal: "bg-gray-50/50 dark:bg-gray-900/20 border-gray-200 hover:border-gray-300" },
     };
 
+    const clienteNombre = clientes[inc.cliente_id]?.nombre || `Cliente #${inc.cliente_id}`;
+
     return (
       <Card 
         className={`cursor-pointer transition-all border-2 ${isSelected ? colors[colorScheme].selected : colors[colorScheme].normal}`}
@@ -496,9 +520,9 @@ export default function WaterspiderPendientes() {
               <div className="flex items-center justify-between gap-2">
                 <span className="font-bold text-sm">{inc.codigo}</span>
                 <div className="flex items-center gap-1">
-                  {showStatus && 'status' in inc && (
+                  {showStatus && 'estado' in inc && (
                     <Badge variant="outline" className="text-xs">
-                      {inc.status}
+                      {inc.estado}
                     </Badge>
                   )}
                   <Badge variant="outline" className="text-xs shrink-0">
@@ -508,10 +532,10 @@ export default function WaterspiderPendientes() {
                 </div>
               </div>
               <p className="text-sm font-medium text-foreground truncate mt-1">
-                {clientes[inc.codigo_cliente]?.nombre || inc.codigo_cliente}
+                {clienteNombre}
               </p>
               <p className="text-xs text-muted-foreground truncate">
-                {inc.codigo_producto}
+                Producto #{inc.producto_id || 'N/A'}
               </p>
             </div>
           </div>
@@ -743,8 +767,8 @@ export default function WaterspiderPendientes() {
                           {rechazadosFiltrados.map((inc) => (
                             <TableRow key={inc.id}>
                               <TableCell className="font-medium">{inc.codigo}</TableCell>
-                              <TableCell>{clientes[inc.codigo_cliente]?.nombre || inc.codigo_cliente}</TableCell>
-                              <TableCell>{inc.codigo_producto}</TableCell>
+                              <TableCell>{clientes[inc.cliente_id]?.nombre || `Cliente #${inc.cliente_id}`}</TableCell>
+                              <TableCell>#{inc.producto_id || 'N/A'}</TableCell>
                               <TableCell>{formatFechaCorta(inc.updated_at)}</TableCell>
                               <TableCell>
                                 <Button size="sm" variant="outline" onClick={() => navigate(`/incidentes/${inc.id}`)}>
@@ -803,28 +827,18 @@ export default function WaterspiderPendientes() {
                                 />
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center justify-between gap-2">
-                                    <span className="font-bold text-sm">{sol.incidente?.codigo || "Sin incidente"}</span>
-                                    <Badge variant="outline" className="text-xs shrink-0 bg-green-100 text-green-700">
-                                      <Wrench className="w-3 h-3 mr-1" />
-                                      {Array.isArray(sol.repuestos) ? sol.repuestos.length : 0} repuesto(s)
+                                    <span className="font-bold text-sm">{sol.incidente_codigo || `Inc #${sol.incidente_id}`}</span>
+                                    <Badge variant="outline" className="text-xs shrink-0">
+                                      <Clock className="w-3 h-3 mr-1" />
+                                      {getTiempoEspera(sol.updated_at)}
                                     </Badge>
                                   </div>
-                                  <p className="text-sm text-foreground mt-1">
-                                    Técnico: <span className="font-medium">{sol.tecnico_solicitante || "No especificado"}</span>
+                                  <p className="text-sm text-muted-foreground mt-1">
+                                    Técnico: {sol.tecnico_solicitante || 'N/A'}
                                   </p>
-                                  <p className="text-xs text-muted-foreground truncate">
-                                    {sol.incidente?.codigo_producto}
+                                  <p className="text-xs text-muted-foreground">
+                                    Producto #{sol.incidente_producto_id || 'N/A'}
                                   </p>
-                                  <div className="flex flex-wrap gap-1 mt-2">
-                                    {Array.isArray(sol.repuestos) && sol.repuestos.slice(0, 3).map((rep: any, idx: number) => (
-                                      <Badge key={idx} variant="secondary" className="text-xs">
-                                        {rep.codigo || rep.codigo_repuesto}
-                                      </Badge>
-                                    ))}
-                                    {Array.isArray(sol.repuestos) && sol.repuestos.length > 3 && (
-                                      <Badge variant="secondary" className="text-xs">+{sol.repuestos.length - 3}</Badge>
-                                    )}
-                                  </div>
                                 </div>
                               </div>
                             </CardContent>
@@ -846,7 +860,7 @@ export default function WaterspiderPendientes() {
         )}
       </Tabs>
 
-      {/* Confirmation Dialog */}
+      {/* Confirm Dialog */}
       <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
         <DialogContent>
           <DialogHeader>
@@ -854,27 +868,27 @@ export default function WaterspiderPendientes() {
               {dialogConfig.icon}
               {dialogConfig.title}
             </DialogTitle>
-            <DialogDescription>{dialogConfig.description}</DialogDescription>
+            <DialogDescription>
+              {dialogConfig.description}
+            </DialogDescription>
           </DialogHeader>
-          
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Observaciones (opcional)</label>
+          <div className="py-4">
+            <label className="text-sm font-medium mb-2 block">Observaciones (opcional)</label>
             <Textarea
               value={observaciones}
               onChange={(e) => setObservaciones(e.target.value)}
-              placeholder="Agregar observaciones..."
-              rows={2}
+              placeholder="Agregar notas o comentarios..."
+              rows={3}
             />
           </div>
-          
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setShowConfirmDialog(false); setObservaciones(""); }} disabled={submitting}>
+            <Button variant="outline" onClick={() => setShowConfirmDialog(false)} disabled={submitting}>
               Cancelar
             </Button>
             <Button onClick={handleBatchDelivery} disabled={submitting} className={dialogConfig.color}>
               {submitting ? (
                 <>
-                  <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2" />
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
                   Procesando...
                 </>
               ) : (

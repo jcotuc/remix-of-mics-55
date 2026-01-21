@@ -4,15 +4,16 @@ import type { Database } from "@/integrations/supabase/types";
 type Diagnostico = Database["public"]["Tables"]["diagnosticos"]["Row"];
 type DiagnosticoInsert = Database["public"]["Tables"]["diagnosticos"]["Insert"];
 type DiagnosticoUpdate = Database["public"]["Tables"]["diagnosticos"]["Update"];
+type EstadoDiagnostico = Database["public"]["Enums"]["estadodiagnostico"];
 
 /**
  * Servicio centralizado para operaciones de diagnósticos
  */
 export const diagnosticoService = {
   /**
-   * Obtiene un diagnóstico por su ID
+   * Obtiene un diagnóstico por su ID (numérico)
    */
-  async getById(id: string): Promise<Diagnostico | null> {
+  async getById(id: number): Promise<Diagnostico | null> {
     const { data, error } = await supabase
       .from("diagnosticos")
       .select("*")
@@ -20,7 +21,7 @@ export const diagnosticoService = {
       .single();
     
     if (error) {
-      if (error.code === "PGRST116") return null; // No encontrado
+      if (error.code === "PGRST116") return null;
       throw error;
     }
     return data;
@@ -29,7 +30,7 @@ export const diagnosticoService = {
   /**
    * Obtiene el diagnóstico de un incidente
    */
-  async getByIncidenteId(incidenteId: string): Promise<Diagnostico | null> {
+  async getByIncidenteId(incidenteId: number): Promise<Diagnostico | null> {
     const { data, error } = await supabase
       .from("diagnosticos")
       .select("*")
@@ -55,13 +56,13 @@ export const diagnosticoService = {
   },
 
   /**
-   * Lista diagnósticos pendientes de digitación
+   * Lista diagnósticos pendientes
    */
   async listPendientesDigitacion(): Promise<Diagnostico[]> {
     const { data, error } = await supabase
       .from("diagnosticos")
       .select("*")
-      .eq("estado", "pendiente_digitacion")
+      .eq("estado", "PENDIENTE" as EstadoDiagnostico)
       .order("created_at", { ascending: true });
     
     if (error) throw error;
@@ -85,7 +86,7 @@ export const diagnosticoService = {
   /**
    * Actualiza un diagnóstico
    */
-  async update(id: string, updates: DiagnosticoUpdate): Promise<Diagnostico> {
+  async update(id: number, updates: DiagnosticoUpdate): Promise<Diagnostico> {
     const { data, error } = await supabase
       .from("diagnosticos")
       .update({ ...updates, updated_at: new Date().toISOString() })
@@ -101,7 +102,7 @@ export const diagnosticoService = {
    * Actualiza un diagnóstico por incidente ID
    */
   async updateByIncidenteId(
-    incidenteId: string, 
+    incidenteId: number, 
     updates: DiagnosticoUpdate
   ): Promise<Diagnostico | null> {
     const { data, error } = await supabase
@@ -121,9 +122,9 @@ export const diagnosticoService = {
   /**
    * Marca un diagnóstico como finalizado
    */
-  async finalizarDiagnostico(id: string): Promise<Diagnostico> {
+  async finalizarDiagnostico(id: number): Promise<Diagnostico> {
     return this.update(id, {
-      estado: "completado",
+      estado: "COMPLETADO" as EstadoDiagnostico,
       fecha_fin_diagnostico: new Date().toISOString()
     });
   },
@@ -132,8 +133,8 @@ export const diagnosticoService = {
    * Asigna un digitador al diagnóstico
    */
   async asignarDigitador(
-    id: string, 
-    digitadorId: string, 
+    id: number, 
+    digitadorId: number, 
     digitadorCodigo: string
   ): Promise<Diagnostico> {
     return this.update(id, {
@@ -146,7 +147,7 @@ export const diagnosticoService = {
   /**
    * Agrega fotos al diagnóstico
    */
-  async addFotos(id: string, fotosUrls: string[]): Promise<Diagnostico> {
+  async addFotos(id: number, fotosUrls: string[]): Promise<Diagnostico> {
     const current = await this.getById(id);
     if (!current) throw new Error("Diagnóstico no encontrado");
 
@@ -159,7 +160,7 @@ export const diagnosticoService = {
   /**
    * Cuenta diagnósticos por estado
    */
-  async countByEstado(estado: string): Promise<number> {
+  async countByEstado(estado: EstadoDiagnostico): Promise<number> {
     const { count, error } = await supabase
       .from("diagnosticos")
       .select("id", { count: "exact", head: true })

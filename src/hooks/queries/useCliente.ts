@@ -9,11 +9,12 @@ type ClienteUpdate = Database["public"]["Tables"]["clientes"]["Update"];
 /**
  * Hook para obtener un cliente por ID
  */
-export const useCliente = (id: string | undefined) => {
+export const useCliente = (id: number | string | undefined) => {
+  const numericId = typeof id === 'string' ? parseInt(id, 10) : id;
   return useQuery({
-    queryKey: ["cliente", id],
-    queryFn: () => clienteService.getById(id!),
-    enabled: !!id,
+    queryKey: ["cliente", numericId],
+    queryFn: () => clienteService.getById(numericId!),
+    enabled: !!numericId && !isNaN(numericId),
   });
 };
 
@@ -110,7 +111,7 @@ export const useUpdateCliente = () => {
       id, 
       updates 
     }: { 
-      id: string; 
+      id: number; 
       updates: ClienteUpdate;
     }) => clienteService.update(id, updates),
     onSuccess: (data) => {
@@ -146,7 +147,7 @@ export const useVerificarNit = () => {
       excludeId 
     }: { 
       nit: string; 
-      excludeId?: string;
+      excludeId?: number;
     }) => clienteService.existeNit(nit, excludeId),
   });
 };
