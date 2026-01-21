@@ -7,8 +7,13 @@ export default function FamiliasProductos() {
       <Alert variant="destructive">
         <AlertCircle className="h-4 w-4" />
         <AlertDescription>
-          <strong>Página no disponible</strong>
-          <p className="mt-2">Requiere tabla: CDS_Familias</p>
+          <strong>Página en desarrollo</strong>
+          <p className="mt-2">
+            Esta página administra la tabla: <code>familias_producto</code>
+          </p>
+          <p className="mt-1 text-sm">
+            La tabla existe en la base de datos con estructura jerárquica (parent_id). Requiere implementación del CRUD.
+          </p>
         </AlertDescription>
       </Alert>
     </div>
