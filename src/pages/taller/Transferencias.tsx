@@ -12,13 +12,16 @@ import { Loader2, Truck, Plus, Search, CheckCircle2, XCircle, Clock } from "luci
 import { formatFechaCorta } from "@/utils/dateFormatters";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
-import type { Database } from "@/integrations/supabase/types";
+import { apiBackendAction } from "@/lib/api-backend";
 
-type TransferenciaDB = Database['public']['Tables']['solicitudes_transferencia_maquinas']['Row'];
-type CentroServicioDB = Database['public']['Tables']['centros_de_servicio']['Row'];
-type IncidenteDB = Database['public']['Tables']['incidentes']['Row'];
-
-interface Transferencia extends TransferenciaDB {
+interface Transferencia {
+  id: number;
+  incidente_id: number;
+  centro_origen_id: number;
+  centro_destino_id: number;
+  motivo: string | null;
+  estado: string | null;
+  created_at: string | null;
   incidente?: { codigo: string; producto_id: number | null } | null;
   centro_origen?: { nombre: string } | null;
   centro_destino?: { nombre: string } | null;
@@ -57,7 +60,7 @@ export default function Transferencias() {
 
   const fetchData = async () => {
     try {
-      // Fetch transferencias
+      // Fetch transferencias (not in registry yet, using Supabase)
       const { data: transferenciasData, error: transferenciasError } = await supabase
         .from("solicitudes_transferencia_maquinas")
         .select(`
@@ -68,39 +71,38 @@ export default function Transferencias() {
 
       if (transferenciasError) throw transferenciasError;
 
-      // Fetch centros
-      const { data: centrosData, error: centrosError } = await supabase
-        .from("centros_de_servicio")
-        .select("id, nombre")
-        .eq("activo", true)
-        .order("nombre");
+      // Fetch centros via Registry
+      const centrosRes = await apiBackendAction("centros_de_servicio.list", {});
+      const allCentros = ((centrosRes as any).results || (centrosRes as any).data || [])
+        .filter((c: any) => c.activo);
 
-      if (centrosError) throw centrosError;
-
-      // Fetch incidentes elegibles (en diagnóstico o pendientes)
-      const { data: incidentesData, error: incidentesError } = await supabase
-        .from("incidentes")
-        .select("id, codigo, producto_id, estado")
-        .in("estado", ["EN_DIAGNOSTICO", "ESPERA_REPUESTOS", "REGISTRADO"])
-        .order("codigo");
-
-      if (incidentesError) throw incidentesError;
+      // Fetch incidentes via Registry
+      const incidentesRes = await apiBackendAction("incidentes.list", { limit: 2000 });
+      const allIncidentes = (incidentesRes as any).results || [];
+      
+      // Filter eligible incidentes
+      const eligibleIncidentes = allIncidentes.filter((inc: any) => 
+        ["EN_DIAGNOSTICO", "ESPERA_REPUESTOS", "REGISTRADO"].includes(inc.estado)
+      );
 
       // Process transferencias with centro names
-      const processedTransferencias: Transferencia[] = (transferenciasData || []).map((t) => {
-        const centroOrigen = centrosData?.find((c) => c.id === t.centro_origen_id);
-        const centroDestino = centrosData?.find((c) => c.id === t.centro_destino_id);
-        return {
-          ...t,
-          incidente: (t as any).incidentes as { codigo: string; producto_id: number | null } | null,
-          centro_origen: centroOrigen ? { nombre: centroOrigen.nombre } : null,
-          centro_destino: centroDestino ? { nombre: centroDestino.nombre } : null,
-        };
-      });
+      const centrosMap = new Map(allCentros.map((c: any) => [c.id, c.nombre]));
+      
+      const processedTransferencias: Transferencia[] = (transferenciasData || []).map((t: any) => ({
+        ...t,
+        incidente: t.incidentes as { codigo: string; producto_id: number | null } | null,
+        centro_origen: centrosMap.get(t.centro_origen_id) ? { nombre: centrosMap.get(t.centro_origen_id) } : null,
+        centro_destino: centrosMap.get(t.centro_destino_id) ? { nombre: centrosMap.get(t.centro_destino_id) } : null,
+      }));
 
       setTransferencias(processedTransferencias);
-      setCentros(centrosData || []);
-      setIncidentes(incidentesData || []);
+      setCentros(allCentros);
+      setIncidentes(eligibleIncidentes.map((inc: any) => ({
+        id: inc.id,
+        codigo: inc.codigo,
+        producto_id: inc.producto_id,
+        estado: inc.estado,
+      })));
     } catch (error) {
       console.error("Error:", error);
       toast.error("Error al cargar datos");
@@ -122,16 +124,18 @@ export default function Transferencias() {
 
     setSubmitting(true);
     try {
-      // Get user's info
-      const { data: usuario } = await (supabase as any)
+      // Get user's info (still using Supabase for auth-related queries)
+      const usuarioQuery = await (supabase as any)
         .from("usuarios")
         .select("id, centro_de_servicio_id")
         .eq("auth_uid", user.id)
         .maybeSingle();
+      
+      const usuario = usuarioQuery.data as { id: number; centro_de_servicio_id: number | null } | null;
 
       const centroOrigenId = usuario?.centro_de_servicio_id || centros[0]?.id;
 
-      const { error } = await supabase.from("solicitudes_transferencia_maquinas").insert({
+      const insertResult = await supabase.from("solicitudes_transferencia_maquinas").insert({
         incidente_id: parseInt(selectedIncidente),
         centro_origen_id: centroOrigenId,
         centro_destino_id: parseInt(selectedCentroDestino),
@@ -140,7 +144,7 @@ export default function Transferencias() {
         estado: "PENDIENTE",
       });
 
-      if (error) throw error;
+      if (insertResult.error) throw insertResult.error;
 
       toast.success("Solicitud de transferencia creada");
       setIsDialogOpen(false);

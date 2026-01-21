@@ -3,13 +3,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { AlertCircle, CheckCircle2, XCircle, Image as ImageIcon } from "lucide-react";
+import { CheckCircle2, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import type { Database } from "@/integrations/supabase/types";
-
-type IncidenteDB = Database["public"]["Tables"]["incidentes"]["Row"];
+import { apiBackendAction } from "@/lib/api-backend";
 
 interface RevisionDisplay {
   id: number;
@@ -34,24 +31,21 @@ export default function AprobacionesStockCemaco() {
 
   const fetchRevisiones = async () => {
     try {
-      // Fetch incidentes en estado de espera de aprobación
-      const { data, error } = await supabase
-        .from("incidentes")
-        .select(`
-          id,
-          codigo,
-          descripcion_problema,
-          observaciones,
-          created_at,
-          cliente:clientes(nombre),
-          producto:productos(descripcion)
-        `)
-        .eq("estado", "ESPERA_APROBACION")
-        .order("created_at", { ascending: true });
+      // Fetch incidentes via Registry
+      const incidentesRes = await apiBackendAction("incidentes.list", { limit: 2000 });
+      const allIncidentes = (incidentesRes as any).results || [];
+      
+      // Filter by estado ESPERA_APROBACION
+      const pendingIncidentes = allIncidentes.filter((inc: any) => 
+        inc.estado === "ESPERA_APROBACION"
+      );
 
-      if (error) throw error;
+      // Sort by created_at ascending
+      pendingIncidentes.sort((a: any, b: any) => 
+        new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      );
 
-      const formatted: RevisionDisplay[] = (data || []).map((inc: any) => ({
+      const formatted: RevisionDisplay[] = pendingIncidentes.map((inc: any) => ({
         id: inc.id,
         incidente_id: inc.id,
         fecha: inc.created_at,
@@ -76,7 +70,7 @@ export default function AprobacionesStockCemaco() {
     setSubmitting(true);
 
     try {
-      // Actualizar status del incidente
+      // Update status (using Supabase for updates - not in registry yet)
       const { error: updateError } = await supabase
         .from("incidentes")
         .update({ 
@@ -110,7 +104,6 @@ export default function AprobacionesStockCemaco() {
     setSubmitting(true);
 
     try {
-      // Devolver incidente a diagnóstico
       const { error: updateError } = await supabase
         .from("incidentes")
         .update({ 

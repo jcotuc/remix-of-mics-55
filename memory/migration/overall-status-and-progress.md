@@ -4,10 +4,10 @@ Updated: Now
 ## Progreso General de Migración
 
 ```
-████████████████████████████████████████████░░ 47% (35/75 páginas migradas)
+████████████████████████████████████████████████░░ 55% (41/75 páginas migradas)
 ```
 
-**Total de archivos en src/pages:** 75  
+**Total de archivos en src/pages:** 75
 **Páginas 100% migradas o híbridas:** 35  
 **Páginas con imports Supabase restantes:** 40
 
