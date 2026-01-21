@@ -1,11 +1,9 @@
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
-import type { Database } from "@/integrations/supabase/types";
-
-type IncidenteDB = Database['public']['Tables']['incidentes']['Row'];
+import type { IncidenteSchema } from "@/generated/actions.d";
 
 interface TallerDashboardProps {
-  incidentes: IncidenteDB[];
+  incidentes: IncidenteSchema[];
 }
 
 export function TallerDashboard({ incidentes }: TallerDashboardProps) {

@@ -1,20 +1,18 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TrendingUp, Clock, CheckCircle2, AlertCircle } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
-import type { Database } from "@/integrations/supabase/types";
-
-type IncidenteDB = Database['public']['Tables']['incidentes']['Row'];
+import type { IncidenteSchema } from "@/generated/actions.d";
 
 interface MostradorDashboardProps {
-  incidentes: IncidenteDB[];
+  incidentes: IncidenteSchema[];
 }
 
 export function MostradorDashboard({ incidentes }: MostradorDashboardProps) {
-  // Métricas para mostrador using correct column names
+  // Métricas para mostrador using IncidenteSchema
   const incidentesHoy = incidentes.filter(i => {
-    if (!i.fecha_ingreso) return false;
+    if (!i.created_at) return false;
     const today = new Date().toDateString();
-    return new Date(i.fecha_ingreso).toDateString() === today;
+    return new Date(i.created_at).toDateString() === today;
   }).length;
 
   const incidentesPendientesEntrega = incidentes.filter(i => 
@@ -36,7 +34,7 @@ export function MostradorDashboard({ incidentes }: MostradorDashboardProps) {
 
   const incidentesPorDia = last7Days.map(date => {
     const count = incidentes.filter(i => 
-      i.fecha_ingreso && i.fecha_ingreso.split('T')[0] === date
+      i.created_at && i.created_at.split('T')[0] === date
     ).length;
     return {
       fecha: new Date(date).toLocaleDateString('es-GT', { weekday: 'short' }),
