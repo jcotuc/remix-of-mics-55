@@ -1,10 +1,8 @@
-import { lazy, Suspense } from "react";
+import { lazy } from "react";
 import { Route } from "react-router-dom";
 import { mostradorRoutes } from "./mostradorRoutes";
 import { logisticaRoutes } from "./logisticaRoutes";
 import { tallerRoutes } from "./tallerRoutes";
-import { bodegaRoutes } from "./bodegaRoutes";
-import { adminRoutes } from "./adminRoutes";
 import { sacRoutes } from "./sacRoutes";
 import { calidadRoutes } from "./calidadRoutes";
 import { gerenciaRoutes } from "./gerenciaRoutes";
@@ -33,8 +31,6 @@ export const allRoutes = [
   ...mostradorRoutes,
   ...logisticaRoutes,
   ...tallerRoutes,
-  ...bodegaRoutes,
-  ...adminRoutes,
   ...sacRoutes,
   ...calidadRoutes,
   ...gerenciaRoutes,
@@ -53,8 +49,6 @@ export {
   mostradorRoutes,
   logisticaRoutes,
   tallerRoutes,
-  bodegaRoutes,
-  adminRoutes,
   sacRoutes,
   calidadRoutes,
   gerenciaRoutes,
