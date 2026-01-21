@@ -32,21 +32,21 @@ export default function DashboardJefeBodega() {
         .select('*')
         .in('estado', ['pendiente', 'asignado']);
 
-      // Despachos de hoy
+      // Despachos de hoy - usar casting para tipo_movimiento lowercase
       const hoy = new Date().toISOString().split('T')[0];
-      const { data: despachosHoy } = await supabase
+      const { data: despachosHoy } = await (supabase as any)
         .from('movimientos_inventario')
         .select('*')
-        .eq('tipo_movimiento', 'salida')
+        .eq('tipo_movimiento', 'SALIDA')
         .gte('created_at', hoy);
 
       // Ingresos pendientes de ubicar
-      const { data: importaciones } = await supabase
+      const { data: importaciones } = await (supabase as any)
         .from('importaciones')
         .select('*')
         .eq('estado', 'pendiente');
 
-      const { data: detalleImportaciones } = await supabase
+      const { data: detalleImportaciones } = await (supabase as any)
         .from('importaciones_detalle')
         .select('*')
         .eq('procesado', false);
@@ -65,18 +65,18 @@ export default function DashboardJefeBodega() {
       const fecha90Dias = new Date();
       fecha90Dias.setDate(fecha90Dias.getDate() - 90);
       
-      const { data: movimientos } = await supabase
+      const { data: movimientos } = await (supabase as any)
         .from('movimientos_inventario')
-        .select('codigo_repuesto')
+        .select('repuesto_id')
         .gte('created_at', fecha90Dias.toISOString());
 
-      const repuestosConMovimiento = new Set(movimientos?.map(m => m.codigo_repuesto));
+      const repuestosConMovimiento = new Set(movimientos?.map((m: any) => m.repuesto_id));
       const { data: todosRepuestos } = await supabase
         .from('repuestos')
-        .select('codigo');
+        .select('id');
 
       const sinMovimiento = todosRepuestos?.filter(r =>
-        !repuestosConMovimiento.has(r.codigo)
+        !repuestosConMovimiento.has(r.id)
       ).length || 0;
 
       // Tasa de cumplimiento

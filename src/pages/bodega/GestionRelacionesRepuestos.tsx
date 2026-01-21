@@ -28,9 +28,9 @@ import {
 
 interface RepuestoRelacion {
   id: number;
-  Código: string;
-  Descripción: string;
-  Padre: number | null;
+  codigo: string;
+  descripcion: string;
+  padre_id: number | null;
 }
 
 interface PadreConHijos {
@@ -174,31 +174,32 @@ export default function GestionRelacionesRepuestos() {
 
   const fetchKPIs = async () => {
     try {
-      const { count: totalPadres } = await supabase
+      // Usar casting para repuestos_relaciones que puede no estar en types
+      const { count: totalPadres } = await (supabase as any)
         .from('repuestos_relaciones')
         .select('*', { count: 'exact', head: true })
-        .is('Padre', null);
+        .is('padre_id', null);
 
-      const { count: totalHijos } = await supabase
+      const { count: totalHijos } = await (supabase as any)
         .from('repuestos_relaciones')
         .select('*', { count: 'exact', head: true })
-        .not('Padre', 'is', null);
+        .not('padre_id', 'is', null);
 
-      const { data: padres } = await supabase
+      const { data: padres } = await (supabase as any)
         .from('repuestos_relaciones')
         .select('*')
-        .is('Padre', null);
+        .is('padre_id', null);
 
       let topPadre: { codigo: string; cantidad: number } | null = null;
 
       if (padres && padres.length > 0) {
         const counts = await Promise.all(
-          padres.slice(0, 50).map(async (p: RepuestoRelacion) => {
-            const { count } = await supabase
+          (padres as any[]).slice(0, 50).map(async (p: any) => {
+            const { count } = await (supabase as any)
               .from('repuestos_relaciones')
               .select('*', { count: 'exact', head: true })
-              .eq('Padre', p.id);
-            return { codigo: p.Código, cantidad: count || 0 };
+              .eq('padre_id', p.id);
+            return { codigo: p.codigo, cantidad: count || 0 };
           })
         );
         topPadre = counts.reduce((max, curr) => 
@@ -223,11 +224,11 @@ export default function GestionRelacionesRepuestos() {
   const fetchTopPadres = async () => {
     setLoadingPadres(true);
     try {
-      const { data: padres } = await supabase
+      const { data: padres } = await (supabase as any)
         .from('repuestos_relaciones')
         .select('*')
-        .is('Padre', null)
-        .order('Código');
+        .is('padre_id', null)
+        .order('codigo');
 
       if (!padres) {
         setTopPadres([]);
@@ -235,15 +236,15 @@ export default function GestionRelacionesRepuestos() {
       }
 
       const padresConConteo = await Promise.all(
-        (padres as RepuestoRelacion[]).slice(0, 100).map(async (p) => {
-          const { count } = await supabase
+        (padres as any[]).slice(0, 100).map(async (p: any) => {
+          const { count } = await (supabase as any)
             .from('repuestos_relaciones')
             .select('*', { count: 'exact', head: true })
-            .eq('Padre', p.id);
+            .eq('padre_id', p.id);
           return {
             id: p.id,
-            codigo: p.Código,
-            descripcion: p.Descripción,
+            codigo: p.codigo,
+            descripcion: p.descripcion,
             cantidadHijos: count || 0
           };
         })
@@ -261,17 +262,17 @@ export default function GestionRelacionesRepuestos() {
   // ==================== FUNCIONES PARA EQUIVALENTES ====================
   const fetchEquivalentesKPIs = async () => {
     try {
-      const { count: totalEquivalencias } = await supabase
+      const { count: totalEquivalencias } = await (supabase as any)
         .from('repuestos_equivalentes')
         .select('*', { count: 'exact', head: true });
 
       // Contar padres únicos que tienen al menos un equivalente
-      const { data: equivs } = await supabase
+      const { data: equivs } = await (supabase as any)
         .from('repuestos_equivalentes')
         .select('padre_id_1, padre_id_2');
 
       const padresUnicos = new Set<number>();
-      equivs?.forEach(e => {
+      (equivs || []).forEach((e: any) => {
         padresUnicos.add(e.padre_id_1);
         padresUnicos.add(e.padre_id_2);
       });
@@ -292,7 +293,7 @@ export default function GestionRelacionesRepuestos() {
   const fetchTopPadresEquivalentes = async () => {
     setLoadingEquivalentes(true);
     try {
-      const { data: equivs } = await supabase
+      const { data: equivs } = await (supabase as any)
         .from('repuestos_equivalentes')
         .select('padre_id_1, padre_id_2');
 
@@ -304,7 +305,7 @@ export default function GestionRelacionesRepuestos() {
 
       // Contar equivalentes por padre
       const conteoMap = new Map<number, number>();
-      equivs.forEach(e => {
+      (equivs as any[]).forEach((e: any) => {
         conteoMap.set(e.padre_id_1, (conteoMap.get(e.padre_id_1) || 0) + 1);
         conteoMap.set(e.padre_id_2, (conteoMap.get(e.padre_id_2) || 0) + 1);
       });
@@ -316,17 +317,17 @@ export default function GestionRelacionesRepuestos() {
 
       // Obtener datos de los padres
       const padreIds = topIds.map(([id]) => id);
-      const { data: padres } = await supabase
+      const { data: padres } = await (supabase as any)
         .from('repuestos_relaciones')
         .select('*')
         .in('id', padreIds);
 
       const result: PadreConEquivalentes[] = topIds.map(([id, cantidad]) => {
-        const padre = padres?.find(p => p.id === id);
+        const padre = (padres || []).find((p: any) => p.id === id);
         return {
           id,
-          codigo: padre?.Código || 'N/A',
-          descripcion: padre?.Descripción || '',
+          codigo: padre?.codigo || 'N/A',
+          descripcion: padre?.descripcion || '',
           cantidadEquivalentes: cantidad
         };
       });
@@ -340,16 +341,16 @@ export default function GestionRelacionesRepuestos() {
   };
 
   const seleccionarPadreEquiv = async (padre: RepuestoRelacion | PadreConEquivalentes) => {
-    const padreData: RepuestoRelacion = 'Código' in padre 
+    const padreData: RepuestoRelacion = 'codigo' in padre && 'padre_id' in padre
       ? padre as RepuestoRelacion
-      : { id: padre.id, Código: padre.codigo, Descripción: padre.descripcion, Padre: null };
+      : { id: padre.id, codigo: padre.codigo, descripcion: padre.descripcion, padre_id: null };
     
     setSelectedPadreEquiv(padreData);
     setLoadingEquivDelPadre(true);
 
     try {
       // Buscar equivalencias donde este padre participa
-      const { data: equivs } = await supabase
+      const { data: equivs } = await (supabase as any)
         .from('repuestos_equivalentes')
         .select('*')
         .or(`padre_id_1.eq.${padreData.id},padre_id_2.eq.${padreData.id}`);
@@ -361,16 +362,16 @@ export default function GestionRelacionesRepuestos() {
       }
 
       // Obtener los IDs de los otros padres
-      const otrosIds = equivs.map(e => 
+      const otrosIds = (equivs as any[]).map((e: any) => 
         e.padre_id_1 === padreData.id ? e.padre_id_2 : e.padre_id_1
       );
 
-      const { data: padres } = await supabase
+      const { data: padres } = await (supabase as any)
         .from('repuestos_relaciones')
         .select('*')
         .in('id', otrosIds);
 
-      setEquivalentesDelPadre(padres || []);
+      setEquivalentesDelPadre((padres || []) as RepuestoRelacion[]);
     } catch (error) {
       console.error('Error cargando equivalentes:', error);
     } finally {
@@ -380,14 +381,14 @@ export default function GestionRelacionesRepuestos() {
 
   const buscarPadreParaEquiv = async (term: string, setter: (data: RepuestoRelacion[]) => void) => {
     try {
-      const { data } = await supabase
+      const { data } = await (supabase as any)
         .from('repuestos_relaciones')
         .select('*')
-        .is('Padre', null)
-        .or(`Código.ilike.%${term}%,Descripción.ilike.%${term}%`)
+        .is('padre_id', null)
+        .or(`codigo.ilike.%${term}%,descripcion.ilike.%${term}%`)
         .limit(10);
       
-      setter(data || []);
+      setter((data || []) as RepuestoRelacion[]);
     } catch (error) {
       console.error('Error buscando padre:', error);
     }
@@ -412,7 +413,7 @@ export default function GestionRelacionesRepuestos() {
         : [padre2Seleccionado.id, padre1Seleccionado.id];
 
       // Verificar si ya existe
-      const { data: existe } = await supabase
+      const { data: existe } = await (supabase as any)
         .from('repuestos_equivalentes')
         .select('id')
         .eq('padre_id_1', id1)
@@ -424,7 +425,7 @@ export default function GestionRelacionesRepuestos() {
         return;
       }
 
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('repuestos_equivalentes')
         .insert({
           padre_id_1: id1,
@@ -463,7 +464,7 @@ export default function GestionRelacionesRepuestos() {
         ? [selectedPadreEquiv.id, otroPadreId]
         : [otroPadreId, selectedPadreEquiv.id];
 
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('repuestos_equivalentes')
         .delete()
         .eq('padre_id_1', id1)
@@ -485,13 +486,13 @@ export default function GestionRelacionesRepuestos() {
   const buscarGlobal = async () => {
     setSearching(true);
     try {
-      const { data } = await supabase
+      const { data } = await (supabase as any)
         .from('repuestos_relaciones')
         .select('*')
-        .or(`Código.ilike.%${searchTerm}%,Descripción.ilike.%${searchTerm}%`)
+        .or(`codigo.ilike.%${searchTerm}%,descripcion.ilike.%${searchTerm}%`)
         .limit(20);
       
-      setSearchResults(data || []);
+      setSearchResults((data || []) as RepuestoRelacion[]);
     } catch (error) {
       console.error('Error buscando:', error);
     } finally {

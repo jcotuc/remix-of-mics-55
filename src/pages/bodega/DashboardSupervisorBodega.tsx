@@ -69,12 +69,13 @@ export default function DashboardSupervisorBodega() {
       const fecha180Dias = new Date();
       fecha180Dias.setDate(fecha180Dias.getDate() - 180);
 
-      const { data: movimientos } = await supabase
+      // Usar casting porque movimientos_inventario no tiene codigo_repuesto en types
+      const { data: movimientos } = await (supabase as any)
         .from('movimientos_inventario')
-        .select('codigo_repuesto')
+        .select('repuesto_id')
         .gte('created_at', fecha180Dias.toISOString());
 
-      const repuestosConMovimiento = new Set(movimientos?.map(m => m.codigo_repuesto));
+      const repuestosConMovimiento = new Set((movimientos || []).map((m: any) => m.repuesto_id));
       
       // Usar tabla inventario en lugar de repuestos.stock_actual
       const { data: inventarioData } = await supabase

@@ -20,15 +20,15 @@ interface Repuesto {
 }
 
 interface PedidoBodega {
-  id: string;
-  incidente_id: string;
-  centro_servicio_id: string;
+  id: number;
+  incidente_id: number;
+  centro_servicio_id: number;
   estado: string;
   repuestos: Repuesto[];
   notas: string | null;
   solicitado_por: string;
-  aprobado_jefe_taller_id: string | null;
-  aprobado_supervisor_id: string | null;
+  aprobado_jefe_taller_id: number | null;
+  aprobado_supervisor_id: number | null;
   fecha_aprobacion_jt: string | null;
   fecha_aprobacion_sr: string | null;
   created_at: string;
@@ -75,7 +75,7 @@ function PedidoCard({
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
             <p className="font-mono font-bold text-base truncate">
-              {pedido.incidentes?.codigo || pedido.incidente_id.slice(0, 8)}
+              {pedido.incidentes?.codigo || `INC-${pedido.incidente_id}`}
             </p>
             <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5 truncate">
               <User className="h-3 w-3 shrink-0" />
@@ -143,33 +143,29 @@ export default function DespachosDepartamentales() {
   const fetchPedidos = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      // Usar casting para estados que no están en el enum de TypeScript
+      const { data, error } = await (supabase as any)
         .from("pedidos_bodega_central")
         .select(`
           *,
-          incidentes!pedidos_bodega_central_incidente_id_fkey(
-            codigo,
-            codigo_producto,
-            centro_servicio,
-            clientes!incidentes_codigo_cliente_fkey(nombre),
-            productos!incidentes_codigo_producto_fkey(descripcion)
-          ),
-          centros_servicio!pedidos_bodega_central_centro_servicio_id_fkey(nombre)
+          incidentes(codigo),
+          centros_de_servicio(nombre)
         `)
-        .in("estado", ["aprobado_jt", "aprobado_sr", "en_proceso", "despachado"])
+        .in("estado", ["APROBADO_JEFE_TALLER", "APROBADO_SUPERVISOR", "ENVIADO", "RECIBIDO"])
         .order("created_at", { ascending: false });
 
       if (error) throw error;
 
       // Filter out Zona 5
       const filtered = (data || []).filter((p: any) => {
-        const centro = (p.incidentes?.centro_servicio || p.centros_servicio?.nombre || "").toLowerCase();
+        const centro = (p.centros_de_servicio?.nombre || "").toLowerCase();
         return !centro.includes("zona 5");
       });
 
-      // Parse repuestos JSON
+      // Parse repuestos JSON and normalize estructura
       const parsed = filtered.map((p: any) => ({
         ...p,
+        centros_servicio: p.centros_de_servicio,
         repuestos: typeof p.repuestos === 'string' ? JSON.parse(p.repuestos) : (p.repuestos || [])
       }));
 
@@ -226,15 +222,15 @@ export default function DespachosDepartamentales() {
     return result;
   }, [pedidos, activeTab, search]);
 
-  // Split by estado
-  const pendientes = pedidosFiltrados.filter(p => p.estado === "aprobado_jt" || p.estado === "aprobado_sr");
-  const enProceso = pedidosFiltrados.filter(p => p.estado === "en_proceso");
-  const despachados = pedidosFiltrados.filter(p => p.estado === "despachado");
+  // Split by estado - usar los estados correctos del enum
+  const pendientes = pedidosFiltrados.filter(p => p.estado === "APROBADO_JEFE_TALLER" || p.estado === "APROBADO_SUPERVISOR");
+  const enProceso = pedidosFiltrados.filter(p => p.estado === "ENVIADO");
+  const despachados = pedidosFiltrados.filter(p => p.estado === "RECIBIDO");
 
   // KPIs (global counts)
-  const totalPendientes = pedidos.filter(p => p.estado === "aprobado_jt" || p.estado === "aprobado_sr").length;
-  const totalEnProceso = pedidos.filter(p => p.estado === "en_proceso").length;
-  const totalDespachados = pedidos.filter(p => p.estado === "despachado").length;
+  const totalPendientes = pedidos.filter(p => p.estado === "APROBADO_JEFE_TALLER" || p.estado === "APROBADO_SUPERVISOR").length;
+  const totalEnProceso = pedidos.filter(p => p.estado === "ENVIADO").length;
+  const totalDespachados = pedidos.filter(p => p.estado === "RECIBIDO").length;
 
   const handleVerDetalle = (pedido: PedidoBodega) => {
     setSelectedPedido(pedido);
@@ -253,10 +249,11 @@ export default function DespachosDepartamentales() {
     try {
       setDespachando(true);
       
-      const { error } = await supabase
+      // Usar casting para estado que puede no coincidir con enum
+      const { error } = await (supabase as any)
         .from("pedidos_bodega_central")
         .update({
-          estado: "despachado",
+          estado: "ENVIADO",
           notas: selectedPedido.notas 
             ? `${selectedPedido.notas}\n---\nDespacho: ${notasDespacho}`
             : `Despacho: ${notasDespacho}`,
@@ -447,7 +444,7 @@ export default function DespachosDepartamentales() {
                         >
                           <div className="min-w-0 flex-1">
                             <p className="font-mono font-medium text-sm truncate">
-                              {pedido.incidentes?.codigo || pedido.incidente_id.slice(0, 8)}
+                              {pedido.incidentes?.codigo || `INC-${pedido.incidente_id}`}
                             </p>
                             <p className="text-xs text-muted-foreground truncate">
                               {(pedido.centros_servicio?.nombre || pedido.incidentes?.centro_servicio || "").replace("Centro de Servicio ", "")}
@@ -479,7 +476,7 @@ export default function DespachosDepartamentales() {
               Detalle del Pedido
             </DialogTitle>
             <DialogDescription>
-              {selectedPedido?.incidentes?.codigo || selectedPedido?.incidente_id.slice(0, 8)}
+              {selectedPedido?.incidentes?.codigo || `INC-${selectedPedido?.incidente_id}`}
             </DialogDescription>
           </DialogHeader>
           

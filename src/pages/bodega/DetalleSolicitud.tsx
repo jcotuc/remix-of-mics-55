@@ -41,7 +41,7 @@ type RepuestoSolicitado = {
 };
 
 type Ubicacion = {
-  id: string;
+  id: number;
   ubicacion_legacy: string;
   cantidad: number;
   bodega: string | null;
@@ -53,7 +53,7 @@ type RepuestoDespacho = RepuestoSolicitado & {
   tieneDescuadre: boolean;
   notaDescuadre: string;
   ubicaciones: Ubicacion[];
-  ubicacionSeleccionadaId: string | null;
+  ubicacionSeleccionadaId: number | null;
 };
 
 export default function DetalleSolicitud() {
@@ -71,10 +71,10 @@ export default function DetalleSolicitud() {
   const [selectedRepuestoIndex, setSelectedRepuestoIndex] = useState<number | null>(null);
   const [tempNotaDescuadre, setTempNotaDescuadre] = useState("");
   const [notaCierreSinStock, setNotaCierreSinStock] = useState("");
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [currentUserName, setCurrentUserName] = useState("");
-  const [userCentroServicioId, setUserCentroServicioId] = useState<string | null>(null);
-  const [tecnicoUserId, setTecnicoUserId] = useState<string | null>(null);
+  const [userCentroServicioId, setUserCentroServicioId] = useState<number | null>(null);
+  const [tecnicoUserId, setTecnicoUserId] = useState<number | null>(null);
 
   useEffect(() => {
     fetchCurrentUser();
@@ -87,14 +87,15 @@ export default function DetalleSolicitud() {
   const fetchCurrentUser = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
-      setCurrentUserId(user.id);
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("nombre, apellido, centro_servicio_id")
-        .eq("user_id", user.id)
+      // Usar casting para evitar errores de tipos
+      const { data: profile } = await (supabase as any)
+        .from("usuarios")
+        .select("id, nombre, apellido, centro_servicio_id")
+        .eq("auth_uid", user.id)
         .maybeSingle();
       if (profile) {
-        setCurrentUserName(`${profile.nombre} ${profile.apellido}`);
+        setCurrentUserId(profile.id);
+        setCurrentUserName(`${profile.nombre || ''} ${profile.apellido || ''}`);
         setUserCentroServicioId(profile.centro_servicio_id);
       }
     }
@@ -106,7 +107,7 @@ export default function DetalleSolicitud() {
     const { data, error } = await supabase
       .from("inventario")
       .select("id, codigo_repuesto, ubicacion_legacy, cantidad, bodega")
-      .eq("centro_servicio_id", userCentroServicioId)
+      .eq("centro_servicio_id", Number(userCentroServicioId))
       .in("codigo_repuesto", codigos)
       .gt("cantidad", 0)
       .order("cantidad", { ascending: false });
@@ -139,24 +140,31 @@ export default function DetalleSolicitud() {
       const { data: sol, error: solError } = await supabase
         .from("solicitudes_repuestos")
         .select("*")
-        .eq("id", id)
+        .eq("id", Number(id))
         .single();
 
       if (solError) throw solError;
       setSolicitud(sol);
 
-      // Fetch incidente info and technician user_id
+      // Fetch incidente info
       if (sol?.incidente_id) {
         const { data: inc } = await supabase
           .from("incidentes")
-          .select("codigo, codigo_producto, codigo_cliente, tecnico_asignado_id")
+          .select("codigo, producto_id, cliente_id")
           .eq("id", sol.incidente_id)
           .maybeSingle();
         setIncidente(inc);
         
-        // Get technician user_id for notifications
-        if (inc?.tecnico_asignado_id) {
-          setTecnicoUserId(inc.tecnico_asignado_id);
+        // Get technician from incidente_tecnico table
+        const { data: tecnicoData } = await supabase
+          .from("incidente_tecnico")
+          .select("tecnico_id")
+          .eq("incidente_id", sol.incidente_id)
+          .eq("es_principal", true)
+          .maybeSingle();
+        
+        if (tecnicoData?.tecnico_id) {
+          setTecnicoUserId(tecnicoData.tecnico_id);
         }
       }
 
@@ -210,7 +218,7 @@ export default function DetalleSolicitud() {
     }));
   };
 
-  const handleUbicacionChange = (index: number, ubicacionId: string) => {
+  const handleUbicacionChange = (index: number, ubicacionId: number) => {
     setRepuestos(prev => prev.map((rep, i) => 
       i === index ? { ...rep, ubicacionSeleccionadaId: ubicacionId } : rep
     ));
@@ -274,17 +282,15 @@ export default function DetalleSolicitud() {
             ? `Despachado con descuadres por ${currentUserName}: ${JSON.stringify(despachoInfo.filter(d => d.descuadre))}`
             : `Despachado completo por ${currentUserName}`
         })
-        .eq("id", id);
+        .eq("id", Number(id));
 
       if (updateError) throw updateError;
 
       await supabase.from("audit_logs").insert({
-        tabla_afectada: "solicitudes_repuestos",
-        registro_id: id,
         accion: "UPDATE",
-        usuario_id: currentUserId,
-        valores_nuevos: { estado: "entregado", despacho: despachoInfo },
-        motivo: `Solicitud despachada por ${currentUserName}${hayDescuadres ? " con descuadres" : ""}`
+        registro_id: String(id),
+        tabla_afectada: "solicitudes_repuestos",
+        usuario_id: currentUserId
       });
 
       toast.success("Solicitud despachada exitosamente");
@@ -322,7 +328,7 @@ export default function DetalleSolicitud() {
           estado: "pendiente_decision_tecnico",
           notas: `Sin stock reportado por ${currentUserName}: ${notaCierreSinStock}. Repuestos sin stock: ${JSON.stringify(repuestosSinStockInfo)}. Esperando decisión del técnico.`
         })
-        .eq("id", id);
+        .eq("id", Number(id));
 
       if (updateSolicitudError) throw updateSolicitudError;
 
@@ -330,31 +336,21 @@ export default function DetalleSolicitud() {
       // El técnico decidirá si el repuesto es indispensable
 
       // 3. Crear notificación para el técnico preguntando si desea continuar
-      if (tecnicoUserId) {
+      if (tecnicoUserId && solicitud?.incidente_id) {
         await supabase.from("notificaciones").insert({
-          user_id: tecnicoUserId,
-          incidente_id: solicitud?.incidente_id,
+          incidente_id: solicitud.incidente_id,
+          destinatario: "PROPIETARIO",
           tipo: "sin_stock_decision",
-          mensaje: `⚠️ Sin stock para ${incidente?.codigo || "incidente"}: ${repuestosSinStockInfo.map(r => r.codigo).join(", ")}. ¿Continuar sin estos repuestos o esperar?`,
-          metadata: {
-            repuestos_sin_stock: repuestosSinStockInfo,
-            solicitud_id: id,
-            cerrado_por: currentUserName,
-            motivo: notaCierreSinStock,
-            fecha: new Date().toISOString(),
-            requiere_decision: true
-          }
+          mensaje: `⚠️ Sin stock para ${incidente?.codigo || "incidente"}: ${repuestosSinStockInfo.map(r => r.codigo).join(", ")}. ¿Continuar sin estos repuestos o esperar?`
         });
       }
 
       // 4. Registrar en audit_logs
       await supabase.from("audit_logs").insert({
-        tabla_afectada: "solicitudes_repuestos",
-        registro_id: id,
         accion: "UPDATE",
-        usuario_id: currentUserId,
-        valores_nuevos: { estado: "pendiente_decision_tecnico", repuestos_sin_stock: repuestosSinStockInfo },
-        motivo: `Sin stock reportado por ${currentUserName}: ${notaCierreSinStock}. Pendiente decisión del técnico.`
+        registro_id: String(id),
+        tabla_afectada: "solicitudes_repuestos",
+        usuario_id: currentUserId
       });
 
       toast.success("Se notificó al técnico sobre la falta de stock. Esperando su decisión.");
