@@ -13,49 +13,38 @@ import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
+import type { Database } from "@/integrations/supabase/types";
 
-interface PedidoBodega {
-  id: string;
-  incidente_id: string;
-  centro_servicio_id: string;
-  solicitado_por: string;
-  repuestos: any;
-  estado: string;
-  notas: string | null;
-  notas_rechazo: string | null;
-  dias_sin_stock: number;
-  convertido_cxg: boolean;
-  created_at: string;
-  updated_at: string;
-  aprobado_jefe_taller_id: string | null;
-  fecha_aprobacion_jt: string | null;
+type PedidoBodegaCentralDB = Database['public']['Tables']['pedidos_bodega_central']['Row'];
+type EstadoPedidoBodega = Database['public']['Enums']['estadopedidobodega'];
+
+interface PedidoBodegaExtended extends PedidoBodegaCentralDB {
   incidente?: {
     codigo: string;
-    codigo_producto: string;
-    codigo_cliente: string;
-    codigo_tecnico: string | null;
+    producto_id: number | null;
+    cliente_id: number | null;
     cliente?: { nombre: string } | null;
     producto?: { descripcion: string } | null;
-  };
-  centro_servicio?: { nombre: string };
-  solicitante?: { nombre: string; apellido: string };
+  } | null;
+  centro_servicio?: { nombre: string } | null;
+  solicitante?: { nombre: string; apellido: string | null } | null;
 }
 
 const ESTADO_CONFIG: Record<string, { label: string; color: string; icon: any }> = {
-  pendiente: { label: "Pendiente Aprobación", color: "bg-yellow-100 text-yellow-800 border-yellow-300", icon: Clock },
-  aprobado_jt: { label: "Aprobado por Jefe Taller", color: "bg-blue-100 text-blue-800 border-blue-300", icon: CheckCircle },
-  aprobado_sr: { label: "Aprobado por Supervisor", color: "bg-indigo-100 text-indigo-800 border-indigo-300", icon: CheckCircle },
-  en_proceso: { label: "En Proceso (Bodega)", color: "bg-purple-100 text-purple-800 border-purple-300", icon: Package },
-  despachado: { label: "Despachado", color: "bg-green-100 text-green-800 border-green-300", icon: Truck },
-  cancelado: { label: "Cancelado", color: "bg-red-100 text-red-800 border-red-300", icon: XCircle },
+  PENDIENTE: { label: "Pendiente Aprobación", color: "bg-yellow-100 text-yellow-800 border-yellow-300", icon: Clock },
+  APROBADO_JEFE_TALLER: { label: "Aprobado por Jefe Taller", color: "bg-blue-100 text-blue-800 border-blue-300", icon: CheckCircle },
+  APROBADO_SUPERVISOR: { label: "Aprobado por Supervisor", color: "bg-indigo-100 text-indigo-800 border-indigo-300", icon: CheckCircle },
+  ENVIADO: { label: "En Proceso (Bodega)", color: "bg-purple-100 text-purple-800 border-purple-300", icon: Package },
+  RECIBIDO: { label: "Recibido", color: "bg-green-100 text-green-800 border-green-300", icon: Truck },
+  RECHAZADO: { label: "Rechazado", color: "bg-red-100 text-red-800 border-red-300", icon: XCircle },
 };
 
 export default function PedidosBodegaCentral() {
-  const [pedidos, setPedidos] = useState<PedidoBodega[]>([]);
+  const [pedidos, setPedidos] = useState<PedidoBodegaExtended[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [activeTab, setActiveTab] = useState("pendiente");
-  const [selectedPedido, setSelectedPedido] = useState<PedidoBodega | null>(null);
+  const [activeTab, setActiveTab] = useState("PENDIENTE");
+  const [selectedPedido, setSelectedPedido] = useState<PedidoBodegaExtended | null>(null);
   const [showApprovalDialog, setShowApprovalDialog] = useState(false);
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
@@ -73,40 +62,45 @@ export default function PedidosBodegaCentral() {
         .from("pedidos_bodega_central")
         .select(`
           *,
-          incidentes!pedidos_bodega_central_incidente_id_fkey(
+          incidentes!incidente_id(
             codigo,
-            codigo_producto,
-            codigo_cliente,
-            codigo_tecnico,
-            clientes!incidentes_codigo_cliente_fkey(nombre),
-            productos!incidentes_codigo_producto_fkey(descripcion)
+            producto_id,
+            cliente_id,
+            clientes!cliente_id(nombre),
+            productos!producto_id(descripcion)
           ),
-          centros_servicio!pedidos_bodega_central_centro_servicio_id_fkey(nombre)
+          centros_de_servicio!centro_servicio_id(nombre)
         `)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
 
       // Fetch solicitantes info
-      const solicitanteIds = [...new Set((data || []).map(p => p.solicitado_por))];
-      const { data: profilesData } = await supabase
-        .from("profiles")
-        .select("user_id, nombre, apellido")
-        .in("user_id", solicitanteIds);
+      const solicitanteIds = [...new Set((data || []).map(p => p.solicitado_por_id).filter(Boolean))] as number[];
+      
+      let profilesMap = new Map<number, { nombre: string; apellido: string | null }>();
+      if (solicitanteIds.length > 0) {
+        const { data: usuariosData } = await supabase
+          .from("usuarios")
+          .select("id, nombre, apellido")
+          .in("id", solicitanteIds);
 
-      const profilesMap = new Map(
-        (profilesData || []).map(p => [p.user_id, { nombre: p.nombre, apellido: p.apellido }])
-      );
+        profilesMap = new Map(
+          (usuariosData || []).map(u => [u.id, { nombre: u.nombre, apellido: u.apellido }])
+        );
+      }
 
-      const formattedData = (data || []).map(item => ({
+      const formattedData: PedidoBodegaExtended[] = (data || []).map(item => ({
         ...item,
         incidente: item.incidentes ? {
-          ...item.incidentes,
-          cliente: item.incidentes.clientes,
-          producto: item.incidentes.productos,
-        } : undefined,
-        centro_servicio: item.centros_servicio,
-        solicitante: profilesMap.get(item.solicitado_por) || null,
+          codigo: (item.incidentes as any).codigo,
+          producto_id: (item.incidentes as any).producto_id,
+          cliente_id: (item.incidentes as any).cliente_id,
+          cliente: (item.incidentes as any).clientes,
+          producto: (item.incidentes as any).productos,
+        } : null,
+        centro_servicio: item.centros_de_servicio as any,
+        solicitante: item.solicitado_por_id ? profilesMap.get(item.solicitado_por_id) || null : null,
       }));
 
       setPedidos(formattedData);
@@ -121,12 +115,11 @@ export default function PedidosBodegaCentral() {
   const filteredPedidos = pedidos.filter(p => {
     const matchesSearch = 
       p.incidente?.codigo?.toLowerCase().includes(search.toLowerCase()) ||
-      p.incidente?.codigo_producto?.toLowerCase().includes(search.toLowerCase()) ||
       p.incidente?.cliente?.nombre?.toLowerCase().includes(search.toLowerCase());
     
     const matchesTab = p.estado === activeTab || 
       (activeTab === "todos") ||
-      (activeTab === "aprobados" && (p.estado === "aprobado_jt" || p.estado === "aprobado_sr"));
+      (activeTab === "aprobados" && (p.estado === "APROBADO_JEFE_TALLER" || p.estado === "APROBADO_SUPERVISOR"));
     
     return matchesSearch && matchesTab;
   });
@@ -139,9 +132,8 @@ export default function PedidosBodegaCentral() {
       const { error } = await supabase
         .from("pedidos_bodega_central")
         .update({
-          estado: "aprobado_jt",
-          aprobado_jefe_taller_id: user.id,
-          fecha_aprobacion_jt: new Date().toISOString(),
+          estado: "APROBADO_JEFE_TALLER" as EstadoPedidoBodega,
+          aprobado_jefe_taller_id: typeof user.id === 'string' ? parseInt(user.id) || 0 : user.id,
         })
         .eq("id", selectedPedido.id);
 
@@ -170,8 +162,7 @@ export default function PedidosBodegaCentral() {
       const { error } = await supabase
         .from("pedidos_bodega_central")
         .update({
-          estado: "cancelado",
-          notas_rechazo: rejectReason,
+          estado: "RECHAZADO" as EstadoPedidoBodega,
         })
         .eq("id", selectedPedido.id);
 
@@ -193,7 +184,7 @@ export default function PedidosBodegaCentral() {
   const getDaysWaiting = (date: string) => differenceInDays(new Date(), new Date(date));
 
   const getEstadoBadge = (estado: string) => {
-    const config = ESTADO_CONFIG[estado] || ESTADO_CONFIG.pendiente;
+    const config = ESTADO_CONFIG[estado] || ESTADO_CONFIG.PENDIENTE;
     const Icon = config.icon;
     return (
       <Badge variant="outline" className={`${config.color} gap-1`}>
@@ -234,10 +225,10 @@ export default function PedidosBodegaCentral() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
-        <Card className={countByEstado("pendiente") > 0 ? "border-yellow-500" : ""}>
+        <Card className={countByEstado("PENDIENTE") > 0 ? "border-yellow-500" : ""}>
           <CardContent className="pt-4 pb-4">
             <div className="text-center">
-              <p className="text-2xl font-bold text-yellow-600">{countByEstado("pendiente")}</p>
+              <p className="text-2xl font-bold text-yellow-600">{countByEstado("PENDIENTE")}</p>
               <p className="text-xs text-muted-foreground">Pendientes</p>
             </div>
           </CardContent>
@@ -245,7 +236,7 @@ export default function PedidosBodegaCentral() {
         <Card>
           <CardContent className="pt-4 pb-4">
             <div className="text-center">
-              <p className="text-2xl font-bold text-blue-600">{countByEstado("aprobado_jt")}</p>
+              <p className="text-2xl font-bold text-blue-600">{countByEstado("APROBADO_JEFE_TALLER")}</p>
               <p className="text-xs text-muted-foreground">Aprobados JT</p>
             </div>
           </CardContent>
@@ -253,7 +244,7 @@ export default function PedidosBodegaCentral() {
         <Card>
           <CardContent className="pt-4 pb-4">
             <div className="text-center">
-              <p className="text-2xl font-bold text-indigo-600">{countByEstado("aprobado_sr")}</p>
+              <p className="text-2xl font-bold text-indigo-600">{countByEstado("APROBADO_SUPERVISOR")}</p>
               <p className="text-xs text-muted-foreground">Aprobados SR</p>
             </div>
           </CardContent>
@@ -261,7 +252,7 @@ export default function PedidosBodegaCentral() {
         <Card>
           <CardContent className="pt-4 pb-4">
             <div className="text-center">
-              <p className="text-2xl font-bold text-purple-600">{countByEstado("en_proceso")}</p>
+              <p className="text-2xl font-bold text-purple-600">{countByEstado("ENVIADO")}</p>
               <p className="text-xs text-muted-foreground">En Proceso</p>
             </div>
           </CardContent>
@@ -269,8 +260,8 @@ export default function PedidosBodegaCentral() {
         <Card>
           <CardContent className="pt-4 pb-4">
             <div className="text-center">
-              <p className="text-2xl font-bold text-green-600">{countByEstado("despachado")}</p>
-              <p className="text-xs text-muted-foreground">Despachados</p>
+              <p className="text-2xl font-bold text-green-600">{countByEstado("RECIBIDO")}</p>
+              <p className="text-xs text-muted-foreground">Recibidos</p>
             </div>
           </CardContent>
         </Card>
@@ -281,7 +272,7 @@ export default function PedidosBodegaCentral() {
         <div className="relative max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Buscar por código, producto o cliente..."
+            placeholder="Buscar por código o cliente..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-10"
@@ -290,10 +281,10 @@ export default function PedidosBodegaCentral() {
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid grid-cols-5 w-full max-w-2xl">
-            <TabsTrigger value="pendiente">Pendientes</TabsTrigger>
+            <TabsTrigger value="PENDIENTE">Pendientes</TabsTrigger>
             <TabsTrigger value="aprobados">Aprobados</TabsTrigger>
-            <TabsTrigger value="en_proceso">En Proceso</TabsTrigger>
-            <TabsTrigger value="despachado">Despachados</TabsTrigger>
+            <TabsTrigger value="ENVIADO">En Proceso</TabsTrigger>
+            <TabsTrigger value="RECIBIDO">Recibidos</TabsTrigger>
             <TabsTrigger value="todos">Todos</TabsTrigger>
           </TabsList>
 
@@ -320,7 +311,7 @@ export default function PedidosBodegaCentral() {
                             {pedido.incidente?.codigo || "Sin incidente"}
                           </CardTitle>
                           <CardDescription className="truncate">
-                            {pedido.incidente?.producto?.descripcion || pedido.incidente?.codigo_producto}
+                            {pedido.incidente?.producto?.descripcion || `Producto #${pedido.incidente?.producto_id}`}
                           </CardDescription>
                         </div>
                         <div className="flex flex-col items-end gap-1">
@@ -354,39 +345,22 @@ export default function PedidosBodegaCentral() {
                       </div>
 
                       <div className="text-sm">
-                        <p className="text-muted-foreground text-xs mb-1">Repuestos ({pedido.repuestos?.length || 0})</p>
-                        <div className="flex flex-wrap gap-1">
-                          {pedido.repuestos?.slice(0, 3).map((rep: any, idx: number) => (
-                            <Badge key={idx} variant="secondary" className="text-xs">
-                              {rep.codigo} x{rep.cantidad}
-                            </Badge>
-                          ))}
-                          {(pedido.repuestos?.length || 0) > 3 && (
-                            <Badge variant="outline" className="text-xs">+{pedido.repuestos.length - 3}</Badge>
-                          )}
-                        </div>
+                        <p className="text-muted-foreground text-xs mb-1">Días sin stock</p>
+                        <Badge variant="secondary">{pedido.dias_sin_stock} días</Badge>
                       </div>
 
-                      {pedido.notas && (
-                        <p className="text-xs text-muted-foreground italic truncate">
-                          Nota: {pedido.notas}
-                        </p>
-                      )}
-
                       <div className="flex gap-2 pt-2">
-                        <Dialog>
-                          <Button 
-                            size="sm" 
-                            variant="ghost"
-                            className="flex-1"
-                            onClick={() => setSelectedPedido(pedido)}
-                          >
-                            <Eye className="h-4 w-4 mr-1" />
-                            Detalle
-                          </Button>
-                        </Dialog>
+                        <Button 
+                          size="sm" 
+                          variant="ghost"
+                          className="flex-1"
+                          onClick={() => setSelectedPedido(pedido)}
+                        >
+                          <Eye className="h-4 w-4 mr-1" />
+                          Detalle
+                        </Button>
 
-                        {pedido.estado === "pendiente" && (
+                        {pedido.estado === "PENDIENTE" && (
                           <>
                             <Button 
                               size="sm" 
@@ -450,89 +424,66 @@ export default function PedidosBodegaCentral() {
 
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
-                  <p className="text-muted-foreground">Producto</p>
-                  <p className="font-medium">{selectedPedido.incidente?.codigo_producto}</p>
-                </div>
-                <div>
                   <p className="text-muted-foreground">Cliente</p>
                   <p className="font-medium">{selectedPedido.incidente?.cliente?.nombre || "N/A"}</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">Centro de Servicio</p>
-                  <p className="font-medium">{selectedPedido.centro_servicio?.nombre}</p>
+                  <p className="font-medium">{selectedPedido.centro_servicio?.nombre || "N/A"}</p>
                 </div>
                 <div>
                   <p className="text-muted-foreground">Solicitante</p>
                   <p className="font-medium">
                     {selectedPedido.solicitante 
-                      ? `${selectedPedido.solicitante.nombre} ${selectedPedido.solicitante.apellido}`
+                      ? `${selectedPedido.solicitante.nombre} ${selectedPedido.solicitante.apellido || ''}`
                       : "N/A"
                     }
                   </p>
                 </div>
+                <div>
+                  <p className="text-muted-foreground">Días sin stock</p>
+                  <p className="font-medium">{selectedPedido.dias_sin_stock} días</p>
+                </div>
               </div>
 
               <div>
-                <p className="text-sm font-medium mb-2">Repuestos solicitados:</p>
-                <div className="space-y-2 p-3 bg-muted rounded-lg max-h-48 overflow-y-auto">
-                  {selectedPedido.repuestos?.map((rep: any, idx: number) => (
-                    <div key={idx} className="flex justify-between text-sm">
-                      <span>{rep.codigo}</span>
-                      <span className="text-muted-foreground">x{rep.cantidad}</span>
-                    </div>
-                  ))}
-                </div>
+                <p className="text-muted-foreground text-sm mb-2">Producto</p>
+                <p className="font-medium">
+                  {selectedPedido.incidente?.producto?.descripcion || `Producto #${selectedPedido.incidente?.producto_id}`}
+                </p>
               </div>
 
-              {selectedPedido.notas && (
-                <div>
-                  <p className="text-sm font-medium">Notas:</p>
-                  <p className="text-sm text-muted-foreground">{selectedPedido.notas}</p>
-                </div>
-              )}
-
-              {selectedPedido.notas_rechazo && (
-                <div className="p-3 bg-red-50 dark:bg-red-950 rounded-lg">
-                  <p className="text-sm font-medium text-red-700">Motivo de rechazo:</p>
-                  <p className="text-sm text-red-600">{selectedPedido.notas_rechazo}</p>
-                </div>
-              )}
-
-              {selectedPedido.fecha_aprobacion_jt && (
-                <div className="text-sm text-muted-foreground">
-                  Aprobado por Jefe de Taller: {formatFechaHora(selectedPedido.fecha_aprobacion_jt)}
-                </div>
-              )}
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setSelectedPedido(null)}>
+                  Cerrar
+                </Button>
+                {selectedPedido.incidente && (
+                  <Button onClick={() => navigate(`/mostrador/seguimiento/${selectedPedido.incidente_id}`)}>
+                    Ver Incidente
+                  </Button>
+                )}
+              </DialogFooter>
             </div>
           )}
         </DialogContent>
       </Dialog>
 
-      {/* Approval Confirmation Dialog */}
+      {/* Approval Dialog */}
       <Dialog open={showApprovalDialog} onOpenChange={setShowApprovalDialog}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Confirmar Aprobación</DialogTitle>
             <DialogDescription>
-              ¿Está seguro de aprobar este pedido a Bodega Central?
+              ¿Está seguro de aprobar este pedido a bodega central?
             </DialogDescription>
           </DialogHeader>
-          
-          {selectedPedido && (
-            <div className="py-4">
-              <p><strong>Incidente:</strong> {selectedPedido.incidente?.codigo}</p>
-              <p><strong>Repuestos:</strong> {selectedPedido.repuestos?.length} items</p>
-              <p><strong>Centro:</strong> {selectedPedido.centro_servicio?.nombre}</p>
-            </div>
-          )}
-
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowApprovalDialog(false)}>
+            <Button variant="outline" onClick={() => setShowApprovalDialog(false)} disabled={isProcessing}>
               Cancelar
             </Button>
             <Button onClick={handleAprobar} disabled={isProcessing}>
-              {isProcessing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Aprobar Pedido
+              {isProcessing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Aprobar
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -547,23 +498,19 @@ export default function PedidosBodegaCentral() {
               Indique el motivo del rechazo
             </DialogDescription>
           </DialogHeader>
-          
-          <div className="py-4">
-            <Textarea
-              placeholder="Escriba el motivo del rechazo..."
-              value={rejectReason}
-              onChange={(e) => setRejectReason(e.target.value)}
-              rows={3}
-            />
-          </div>
-
+          <Textarea
+            placeholder="Motivo del rechazo..."
+            value={rejectReason}
+            onChange={(e) => setRejectReason(e.target.value)}
+            rows={3}
+          />
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowRejectDialog(false)}>
+            <Button variant="outline" onClick={() => setShowRejectDialog(false)} disabled={isProcessing}>
               Cancelar
             </Button>
             <Button variant="destructive" onClick={handleRechazar} disabled={isProcessing || !rejectReason.trim()}>
-              {isProcessing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Rechazar Pedido
+              {isProcessing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Rechazar
             </Button>
           </DialogFooter>
         </DialogContent>

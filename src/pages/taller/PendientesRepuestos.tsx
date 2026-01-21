@@ -6,36 +6,25 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Package, Search, Clock, User, Eye, Truck, AlertTriangle, ArrowRight, DollarSign } from "lucide-react";
+import { Loader2, Package, Search, Clock, Eye, Truck, AlertTriangle, DollarSign } from "lucide-react";
 import { differenceInDays } from "date-fns";
-import { formatFechaCorta, formatFechaHora } from "@/utils/dateFormatters";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-interface IncidentePendiente {
-  id: string;
-  codigo: string;
-  codigo_producto: string;
-  codigo_tecnico: string | null;
-  tecnico_asignado_id: string | null;
-  updated_at: string;
-  created_at: string;
-  centro_servicio: string | null;
-  presupuesto_cliente_aprobado: boolean | null;
-  cliente: { nombre: string } | null;
-  producto: { descripcion: string } | null;
-  tecnico: { nombre: string; apellido: string } | null;
-  solicitudes_repuestos: {
-    id: string;
-    estado: string;
-    repuestos: any;
-    created_at: string;
-    presupuesto_aprobado: boolean | null;
-  }[];
+import type { Database } from "@/integrations/supabase/types";
+
+type IncidenteDB = Database['public']['Tables']['incidentes']['Row'];
+type SolicitudRepuestoDB = Database['public']['Tables']['solicitudes_repuestos']['Row'];
+
+interface IncidentePendiente extends IncidenteDB {
+  cliente?: { nombre: string } | null;
+  producto?: { descripcion: string } | null;
+  tecnico?: { nombre: string; apellido: string | null } | null;
+  solicitudes_repuestos?: SolicitudRepuestoDB[];
   pedido_bodega?: {
-    id: string;
+    id: number;
     estado: string;
     created_at: string;
   } | null;
@@ -64,20 +53,12 @@ export default function PendientesRepuestos() {
       const { data, error } = await supabase
         .from("incidentes")
         .select(`
-          id,
-          codigo,
-          codigo_producto,
-          codigo_tecnico,
-          tecnico_asignado_id,
-          updated_at,
-          created_at,
-          centro_servicio,
-          presupuesto_cliente_aprobado,
-          clientes!incidentes_codigo_cliente_fkey(nombre),
-          productos!incidentes_codigo_producto_fkey(descripcion),
-          solicitudes_repuestos(id, estado, repuestos, created_at, presupuesto_aprobado)
+          *,
+          clientes!cliente_id(nombre),
+          productos!producto_id(descripcion),
+          solicitudes_repuestos(id, estado, repuestos, created_at)
         `)
-        .eq("status", "Pendiente por repuestos")
+        .eq("estado", "ESPERA_REPUESTOS")
         .order("updated_at", { ascending: true });
 
       if (error) throw error;
@@ -93,30 +74,48 @@ export default function PendientesRepuestos() {
         (pedidosData || []).map(p => [p.incidente_id, { id: p.id, estado: p.estado, created_at: p.created_at }])
       );
 
-      // Fetch technician names from profiles
-      const tecnicoIds = [...new Set((data || []).map(i => i.tecnico_asignado_id).filter(Boolean))] as string[];
-      const { data: tecnicosData } = await supabase
-        .from("profiles")
-        .select("user_id, nombre, apellido")
-        .in("user_id", tecnicoIds);
+      // Fetch technician names from incidente_tecnico junction
+      const { data: asignaciones } = await supabase
+        .from("incidente_tecnico")
+        .select("incidente_id, tecnico_id")
+        .in("incidente_id", incidenteIds)
+        .eq("es_principal", true);
 
-      const tecnicosMap = new Map(
-        (tecnicosData || []).map(t => [t.user_id, { nombre: t.nombre, apellido: t.apellido }])
+      const tecnicoIds = [...new Set((asignaciones || []).map(a => a.tecnico_id).filter(Boolean))] as number[];
+      
+      let tecnicosMap = new Map<number, { nombre: string; apellido: string | null }>();
+      if (tecnicoIds.length > 0) {
+        const { data: usuariosData } = await supabase
+          .from("usuarios")
+          .select("id, nombre, apellido")
+          .in("id", tecnicoIds);
+
+        tecnicosMap = new Map(
+          (usuariosData || []).map(u => [u.id, { nombre: u.nombre, apellido: u.apellido }])
+        );
+      }
+
+      // Map asignaciones to incidentes
+      const asignacionesMap = new Map(
+        (asignaciones || []).map(a => [a.incidente_id, a.tecnico_id])
       );
 
-      const formattedData = (data || []).map(item => ({
-        ...item,
-        cliente: item.clientes,
-        producto: item.productos,
-        tecnico: item.tecnico_asignado_id ? tecnicosMap.get(item.tecnico_asignado_id) || null : null,
-        pedido_bodega: pedidosMap.get(item.id) || null,
-      }));
+      const formattedData: IncidentePendiente[] = (data || []).map(item => {
+        const tecnicoId = asignacionesMap.get(item.id);
+        return {
+          ...item,
+          cliente: item.clientes as any,
+          producto: item.productos as any,
+          tecnico: tecnicoId ? tecnicosMap.get(tecnicoId) || null : null,
+          pedido_bodega: pedidosMap.get(item.id) || null,
+        };
+      });
 
-      setIncidentes(formattedData as IncidentePendiente[]);
+      setIncidentes(formattedData);
 
-      // Extract unique technicians with names
+      // Extract unique technician names
       const uniqueTecnicos = [...new Set(formattedData.map(i => 
-        i.tecnico ? `${i.tecnico.nombre} ${i.tecnico.apellido}` : null
+        i.tecnico ? `${i.tecnico.nombre} ${i.tecnico.apellido || ''}`.trim() : null
       ).filter(Boolean))] as string[];
       setTecnicos(uniqueTecnicos);
     } catch (error) {
@@ -127,18 +126,18 @@ export default function PendientesRepuestos() {
     }
   };
 
-  // Separar incidentes por tipo
-  const incidentesGarantia = incidentes.filter(inc => !inc.presupuesto_cliente_aprobado);
-  const incidentesPresupuesto = incidentes.filter(inc => inc.presupuesto_cliente_aprobado);
+  // Separar incidentes por tipo (usando aplica_garantia)
+  const incidentesGarantia = incidentes.filter(inc => inc.aplica_garantia);
+  const incidentesPresupuesto = incidentes.filter(inc => !inc.aplica_garantia);
 
   const getFilteredIncidentes = (lista: IncidentePendiente[]) => {
     return lista.filter(inc => {
       const matchesSearch = 
         inc.codigo.toLowerCase().includes(search.toLowerCase()) ||
-        inc.codigo_producto.toLowerCase().includes(search.toLowerCase()) ||
         inc.cliente?.nombre?.toLowerCase().includes(search.toLowerCase());
       
-      const matchesTecnico = filterTecnico === "all" || inc.codigo_tecnico === filterTecnico;
+      const tecnicoNombre = inc.tecnico ? `${inc.tecnico.nombre} ${inc.tecnico.apellido || ''}`.trim() : "";
+      const matchesTecnico = filterTecnico === "all" || tecnicoNombre === filterTecnico;
       
       return matchesSearch && matchesTecnico;
     });
@@ -164,21 +163,21 @@ export default function PendientesRepuestos() {
 
     setIsCreatingPedido(true);
     try {
-      // Get user's profile to get centro_servicio_id
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("centro_servicio_id")
-        .eq("user_id", user.id)
+      // Get user's info to get centro_servicio_id
+      const { data: usuario } = await supabase
+        .from("usuarios")
+        .select("id, centro_de_servicio_id")
+        .eq("auth_uid", user.id)
         .single();
 
-      if (!profile?.centro_servicio_id) {
+      if (!usuario?.centro_de_servicio_id) {
         toast.error("No se encontró tu centro de servicio asignado");
         return;
       }
 
       // Build repuestos array from solicitudes
       const repuestos = selectedIncidente.solicitudes_repuestos?.flatMap(sol => 
-        Array.isArray(sol.repuestos) ? sol.repuestos.map((rep: any) => ({
+        Array.isArray(sol.repuestos) ? (sol.repuestos as any[]).map((rep: any) => ({
           codigo: rep.codigo || rep.codigo_repuesto,
           cantidad: rep.cantidad,
           descripcion: rep.descripcion || ""
@@ -189,11 +188,10 @@ export default function PendientesRepuestos() {
         .from("pedidos_bodega_central")
         .insert({
           incidente_id: selectedIncidente.id,
-          centro_servicio_id: profile.centro_servicio_id,
-          solicitado_por: user.id,
-          repuestos: repuestos,
-          notas: pedidoNotas,
-          estado: "pendiente"
+          centro_servicio_id: usuario.centro_de_servicio_id,
+          solicitado_por_id: usuario.id,
+          dias_sin_stock: getDaysWaiting(selectedIncidente.updated_at),
+          estado: "PENDIENTE"
         });
 
       if (error) throw error;
@@ -215,7 +213,7 @@ export default function PendientesRepuestos() {
     try {
       const { error } = await supabase
         .from("incidentes")
-        .update({ status: "Cambio por garantia" })
+        .update({ estado: "CAMBIO_POR_GARANTIA" })
         .eq("id", incidente.id);
 
       if (error) throw error;
@@ -226,6 +224,108 @@ export default function PendientesRepuestos() {
       console.error("Error converting to CXG:", error);
       toast.error("Error al convertir a CXG");
     }
+  };
+
+  const renderIncidentCard = (inc: IncidentePendiente, esPresupuesto: boolean) => {
+    const days = getDaysWaiting(inc.updated_at);
+    const priority = getPriorityInfo(days);
+
+    return (
+      <Card 
+        key={inc.id}
+        className={`relative overflow-hidden ${priority.urgent ? "ring-2 ring-red-500" : ""}`}
+      >
+        {priority.urgent && (
+          <div className="absolute top-0 left-0 right-0 h-1 bg-red-500" />
+        )}
+        
+        <CardHeader className="pb-2">
+          <div className="flex justify-between items-start gap-2">
+            <div className="min-w-0">
+              <CardTitle className="text-base truncate">{inc.codigo}</CardTitle>
+              <CardDescription className="truncate">
+                {inc.producto?.descripcion || `Producto #${inc.producto_id}`}
+              </CardDescription>
+            </div>
+            <div className="flex flex-col items-end gap-1">
+              <Badge variant="outline" className={`font-mono text-xs ${priority.textColor}`}>
+                {days}d
+              </Badge>
+              {priority.urgent && (
+                <Badge variant="destructive" className="text-xs">
+                  <AlertTriangle className="h-3 w-3 mr-1" />
+                  CXG
+                </Badge>
+              )}
+            </div>
+          </div>
+        </CardHeader>
+
+        <CardContent className="space-y-3">
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <div>
+              <p className="text-muted-foreground text-xs">Cliente</p>
+              <p className="font-medium truncate">{inc.cliente?.nombre || "N/A"}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground text-xs">Técnico</p>
+              <p className="font-medium truncate">
+                {inc.tecnico ? `${inc.tecnico.nombre} ${inc.tecnico.apellido || ''}`.trim() : "Sin asignar"}
+              </p>
+            </div>
+          </div>
+
+          {inc.pedido_bodega ? (
+            <Badge variant="secondary" className="bg-green-50 text-green-700 border-green-200">
+              <Truck className="h-3 w-3 mr-1" />
+              Pedido creado
+            </Badge>
+          ) : (
+            <Badge variant="outline" className="text-orange-600 border-orange-300">
+              <Clock className="h-3 w-3 mr-1" />
+              Sin pedido
+            </Badge>
+          )}
+
+          <div className="flex gap-2 pt-2">
+            <Button 
+              size="sm" 
+              variant="ghost"
+              className="flex-1"
+              onClick={() => navigate(`/mostrador/seguimiento/${inc.id}`)}
+            >
+              <Eye className="h-4 w-4 mr-1" />
+              Ver
+            </Button>
+
+            {!inc.pedido_bodega && (
+              <Button 
+                size="sm" 
+                variant="default"
+                className="flex-1"
+                onClick={() => {
+                  setSelectedIncidente(inc);
+                  setShowPedidoDialog(true);
+                }}
+              >
+                <Truck className="h-4 w-4 mr-1" />
+                Pedir
+              </Button>
+            )}
+
+            {priority.urgent && !esPresupuesto && (
+              <Button 
+                size="sm" 
+                variant="destructive"
+                onClick={() => handleConvertirCXG(inc)}
+              >
+                CXG
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    );
   };
 
   if (loading) {
@@ -324,7 +424,7 @@ export default function PendientesRepuestos() {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Buscar por código, producto o cliente..."
+                placeholder="Buscar por código o cliente..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-10"
@@ -379,7 +479,7 @@ export default function PendientesRepuestos() {
                   <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400">
                     <DollarSign className="h-5 w-5" />
                     <p className="text-sm font-medium">
-                      Estos incidentes tienen presupuesto aprobado por el cliente. El técnico verificó que no hay stock local.
+                      Estos incidentes son de presupuesto (no garantía). El técnico verificó que no hay stock local.
                     </p>
                   </div>
                 </CardContent>
@@ -412,16 +512,16 @@ export default function PendientesRepuestos() {
           
           {selectedIncidente && (
             <div className="space-y-4">
-              {selectedIncidente.presupuesto_cliente_aprobado && (
+              {!selectedIncidente.aplica_garantia && (
                 <Badge className="bg-emerald-500/20 text-emerald-700 border-emerald-400/50">
-                  ✓ Cliente pagó presupuesto
+                  Incidente de presupuesto
                 </Badge>
               )}
               <div className="p-3 bg-muted rounded-lg">
                 <p className="text-sm font-medium mb-2">Repuestos a solicitar:</p>
                 <div className="space-y-1 text-sm">
                   {selectedIncidente.solicitudes_repuestos?.flatMap(sol => 
-                    Array.isArray(sol.repuestos) ? sol.repuestos.map((rep: any, idx: number) => (
+                    Array.isArray(sol.repuestos) ? (sol.repuestos as any[]).map((rep: any, idx: number) => (
                       <p key={`${sol.id}-${idx}`} className="flex justify-between">
                         <span>{rep.codigo || rep.codigo_repuesto}</span>
                         <span className="text-muted-foreground">x{rep.cantidad}</span>
@@ -436,213 +536,28 @@ export default function PendientesRepuestos() {
 
               <div>
                 <label className="text-sm font-medium">Notas adicionales (opcional)</label>
-                <Textarea 
-                  placeholder="Agregar observaciones o urgencia..."
+                <Textarea
+                  placeholder="Agregar notas..."
                   value={pedidoNotas}
                   onChange={(e) => setPedidoNotas(e.target.value)}
+                  rows={2}
                   className="mt-1"
                 />
               </div>
+
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setShowPedidoDialog(false)} disabled={isCreatingPedido}>
+                  Cancelar
+                </Button>
+                <Button onClick={handleCrearPedido} disabled={isCreatingPedido}>
+                  {isCreatingPedido ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Truck className="h-4 w-4 mr-2" />}
+                  Crear Pedido
+                </Button>
+              </DialogFooter>
             </div>
           )}
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowPedidoDialog(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleCrearPedido} disabled={isCreatingPedido}>
-              {isCreatingPedido && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Crear Pedido
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
   );
-
-  function renderIncidentCard(inc: IncidentePendiente, isPresupuesto: boolean) {
-    const days = getDaysWaiting(inc.updated_at);
-    const priority = getPriorityInfo(days);
-    const hasPedido = !!inc.pedido_bodega;
-
-    return (
-      <Card
-        key={inc.id} 
-        className={`relative overflow-hidden transition-all hover:shadow-lg cursor-pointer ${isPresupuesto ? 'border-emerald-400 bg-emerald-50/30 dark:bg-emerald-950/20' : priority.bgLight} ${priority.urgent ? "ring-2 ring-red-500" : ""}`}
-        onClick={() => navigate(`/taller/pendientes-repuestos/${inc.id}`)}
-      >
-        {/* Priority indicator bar */}
-        <div className={`absolute top-0 left-0 right-0 h-1 ${isPresupuesto ? 'bg-emerald-500' : priority.color}`} />
-        
-        <CardHeader className="pb-2">
-          <div className="flex justify-between items-start">
-            <div>
-              <CardTitle className="text-lg">{inc.codigo}</CardTitle>
-              <CardDescription className="truncate max-w-[200px]">
-                {inc.producto?.descripcion || inc.codigo_producto}
-              </CardDescription>
-              {isPresupuesto && (
-                <Badge className="mt-1 text-xs bg-emerald-500/20 text-emerald-700 border-emerald-400/50">
-                  ✓ Presupuesto Aprobado
-                </Badge>
-              )}
-            </div>
-            <div className="flex flex-col items-end gap-1">
-              <Badge variant={priority.urgent ? "destructive" : "secondary"} className="font-mono">
-                {days}d
-              </Badge>
-              {hasPedido && (
-                <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300">
-                  Pedido: {inc.pedido_bodega?.estado}
-                </Badge>
-              )}
-            </div>
-          </div>
-        </CardHeader>
-
-        <CardContent className="space-y-3">
-          <div className="grid grid-cols-2 gap-2 text-sm">
-            <div>
-              <p className="text-muted-foreground">Cliente</p>
-              <p className="font-medium truncate">{inc.cliente?.nombre || "N/A"}</p>
-            </div>
-            <div>
-              <p className="text-muted-foreground">Técnico</p>
-              <p className="font-medium">{inc.tecnico ? `${inc.tecnico.nombre} ${inc.tecnico.apellido}` : "Sin asignar"}</p>
-            </div>
-          </div>
-
-          <div className="text-sm">
-            <p className="text-muted-foreground">Repuestos solicitados</p>
-            <div className="flex flex-wrap gap-1 mt-1">
-              {inc.solicitudes_repuestos?.slice(0, 3).flatMap(sol => 
-                Array.isArray(sol.repuestos) ? sol.repuestos.slice(0, 2).map((rep: any, idx: number) => (
-                  <Badge key={`${sol.id}-${idx}`} variant="outline" className="text-xs">
-                    {rep.codigo || rep.codigo_repuesto}
-                  </Badge>
-                )) : []
-              )}
-              {(inc.solicitudes_repuestos?.reduce((acc, sol) => 
-                acc + (Array.isArray(sol.repuestos) ? sol.repuestos.length : 0), 0) || 0) > 4 && (
-                <Badge variant="outline" className="text-xs">+más</Badge>
-              )}
-            </div>
-          </div>
-
-          <div className="flex gap-2 pt-2" onClick={(e) => e.stopPropagation()}>
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button 
-                  size="sm" 
-                  variant="ghost"
-                  className="flex-1"
-                  onClick={() => setSelectedIncidente(inc)}
-                >
-                  <Eye className="h-4 w-4 mr-1" />
-                  Detalle
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl">
-                <DialogHeader>
-                  <DialogTitle>Detalle - {inc.codigo}</DialogTitle>
-                  <DialogDescription>
-                    {days} días esperando repuestos
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4">
-                  {inc.presupuesto_cliente_aprobado && (
-                    <Badge className="bg-emerald-500/20 text-emerald-700 border-emerald-400/50">
-                      ✓ Cliente pagó presupuesto
-                    </Badge>
-                  )}
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <p className="text-muted-foreground">Producto</p>
-                      <p className="font-medium">{inc.codigo_producto}</p>
-                      <p className="text-xs text-muted-foreground">{inc.producto?.descripcion}</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Técnico</p>
-                      <p className="font-medium">{inc.tecnico ? `${inc.tecnico.nombre} ${inc.tecnico.apellido}` : "Sin asignar"}</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Cliente</p>
-                      <p className="font-medium">{inc.cliente?.nombre || "N/A"}</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Desde</p>
-                      <p className="font-medium">{formatFechaCorta(inc.updated_at)}</p>
-                    </div>
-                  </div>
-                  <div className="border-t pt-4">
-                    <h4 className="font-medium mb-2">Repuestos Solicitados:</h4>
-                    {inc.solicitudes_repuestos?.length > 0 ? (
-                      <div className="space-y-2 max-h-48 overflow-y-auto">
-                        {inc.solicitudes_repuestos.map((sol) => (
-                          <div key={sol.id} className="p-3 bg-muted rounded-lg">
-                            <div className="flex justify-between items-center mb-2">
-                              <Badge variant={sol.estado === "pendiente" ? "secondary" : "default"}>
-                                {sol.estado}
-                              </Badge>
-                              <span className="text-xs text-muted-foreground">
-                                {formatFechaHora(sol.created_at)}
-                              </span>
-                            </div>
-                            <div className="text-sm space-y-1">
-                              {Array.isArray(sol.repuestos) && sol.repuestos.map((rep: any, idx: number) => (
-                                <p key={idx}>
-                                  • {rep.codigo || rep.codigo_repuesto} - Cant: {rep.cantidad}
-                                </p>
-                              ))}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-muted-foreground">No hay solicitudes registradas</p>
-                    )}
-                  </div>
-                </div>
-              </DialogContent>
-            </Dialog>
-
-            {!hasPedido ? (
-              <Button 
-                size="sm" 
-                variant="default"
-                className="flex-1"
-                onClick={() => {
-                  setSelectedIncidente(inc);
-                  setShowPedidoDialog(true);
-                }}
-              >
-                <Truck className="h-4 w-4 mr-1" />
-                Crear Pedido
-              </Button>
-            ) : (
-              <Button 
-                size="sm" 
-                variant="outline"
-                className="flex-1"
-                onClick={() => navigate("/taller/pedidos-bodega")}
-              >
-                Ver Pedido
-                <ArrowRight className="h-4 w-4 ml-1" />
-              </Button>
-            )}
-
-            {days >= 8 && !isPresupuesto && (
-              <Button 
-                size="sm" 
-                variant="destructive"
-                onClick={() => handleConvertirCXG(inc)}
-              >
-                CXG
-              </Button>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
 }

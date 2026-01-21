@@ -12,6 +12,7 @@ import type { Database } from "@/integrations/supabase/types";
 
 type IncidenteDB = Database['public']['Tables']['incidentes']['Row'];
 type NotificacionDB = Database['public']['Tables']['notificaciones']['Row'];
+type UsuarioDB = Database['public']['Tables']['usuarios']['Row'];
 
 export default function MisAsignaciones() {
   const navigate = useNavigate();
@@ -29,14 +30,15 @@ export default function MisAsignaciones() {
 
       setUserId(user.id);
 
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('codigo_empleado')
-        .eq('user_id', user.id)
+      // Buscar usuario en tabla usuarios
+      const { data: usuario } = await supabase
+        .from('usuarios')
+        .select('id, nombre, email')
+        .eq('auth_uid', user.id)
         .maybeSingle();
 
-      if (profile?.codigo_empleado) {
-        setCodigoEmpleado(profile.codigo_empleado);
+      if (usuario) {
+        setCodigoEmpleado(usuario.id.toString());
       }
     };
     init();
@@ -76,7 +78,21 @@ export default function MisAsignaciones() {
 
     try {
       setLoading(true);
-      // Filtrar incidentes asignados al técnico actual por tecnico_asignado_id
+      // Filtrar incidentes asignados al técnico actual
+      // Buscar en incidente_tecnico junction table
+      const { data: asignaciones } = await supabase
+        .from('incidente_tecnico')
+        .select('incidente_id')
+        .eq('tecnico_id', userId);
+
+      if (!asignaciones || asignaciones.length === 0) {
+        setIncidentes([]);
+        setLoading(false);
+        return;
+      }
+
+      const incidenteIds = asignaciones.map(a => a.incidente_id);
+
       const { data, error } = await supabase
         .from('incidentes')
         .select(`
@@ -84,11 +100,11 @@ export default function MisAsignaciones() {
           diagnosticos(
             id,
             estado,
-            tecnico_codigo
+            tecnico_id
           )
         `)
-        .eq('status', 'En diagnostico')
-        .eq('tecnico_asignado_id', userId)
+        .in('id', incidenteIds)
+        .eq('estado', 'EN_DIAGNOSTICO')
         .order('fecha_ingreso', { ascending: true });
 
       if (error) throw error;
@@ -106,11 +122,33 @@ export default function MisAsignaciones() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      // Buscar usuario_id en tabla usuarios
+      const { data: usuario } = await supabase
+        .from('usuarios')
+        .select('id')
+        .eq('auth_uid', user.id)
+        .maybeSingle();
+
+      if (!usuario) return;
+
+      // Notificaciones donde el incidente está asignado al técnico
+      const { data: asignaciones } = await supabase
+        .from('incidente_tecnico')
+        .select('incidente_id')
+        .eq('tecnico_id', usuario.id);
+
+      if (!asignaciones || asignaciones.length === 0) {
+        setNotificaciones([]);
+        return;
+      }
+
+      const incidenteIds = asignaciones.map(a => a.incidente_id);
+
       const { data, error } = await supabase
         .from('notificaciones')
         .select('*')
-        .eq('user_id', user.id)
-        .eq('leido', false)
+        .in('incidente_id', incidenteIds)
+        .eq('enviada', false)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -120,11 +158,11 @@ export default function MisAsignaciones() {
     }
   };
 
-  const marcarNotificacionLeida = async (id: string, incidenteId?: string | null) => {
+  const marcarNotificacionLeida = async (id: number, incidenteId?: number | null) => {
     try {
       const { error } = await supabase
         .from('notificaciones')
-        .update({ leido: true })
+        .update({ enviada: true })
         .eq('id', id);
 
       if (error) throw error;
@@ -141,54 +179,29 @@ export default function MisAsignaciones() {
   // Manejar decisión del técnico sobre falta de stock
   const handleDecisionStock = async (notif: NotificacionDB, continuar: boolean) => {
     try {
-      const metadata = notif.metadata as any;
-      const solicitudId = metadata?.solicitud_id;
       const incidenteId = notif.incidente_id;
 
       if (continuar) {
-        // El técnico decide continuar sin estos repuestos
-        // Actualizar solicitud a "cancelado_tecnico"
-        if (solicitudId) {
-          await supabase
-            .from("solicitudes_repuestos")
-            .update({
-              estado: "cancelado_tecnico",
-              notas: `${metadata?.notas || ""} | Técnico decidió continuar sin estos repuestos.`
-            })
-            .eq("id", solicitudId);
-        }
-
         toast.success("Se continuará la reparación sin los repuestos faltantes");
       } else {
-        // El técnico decide esperar - cambiar incidente a Pendiente por repuestos
+        // El técnico decide esperar - cambiar incidente a Espera repuestos
         if (incidenteId) {
           await supabase
             .from("incidentes")
             .update({
-              status: "Pendiente por repuestos",
+              estado: "ESPERA_REPUESTOS",
               updated_at: new Date().toISOString()
             })
             .eq("id", incidenteId);
         }
 
-        // Actualizar solicitud a sin_stock
-        if (solicitudId) {
-          await supabase
-            .from("solicitudes_repuestos")
-            .update({
-              estado: "sin_stock",
-              notas: `${metadata?.notas || ""} | Técnico confirmó que repuestos son indispensables.`
-            })
-            .eq("id", solicitudId);
-        }
-
         toast.success("Incidente marcado como pendiente por repuestos");
       }
 
-      // Marcar notificación como leída
+      // Marcar notificación como enviada
       await supabase
         .from('notificaciones')
-        .update({ leido: true })
+        .update({ enviada: true })
         .eq('id', notif.id);
 
       setNotificaciones(prev => prev.filter(n => n.id !== notif.id));
@@ -223,28 +236,42 @@ export default function MisAsignaciones() {
     
     const fetchMetricas = async () => {
       try {
+        // Buscar usuario_id
+        const { data: usuario } = await supabase
+          .from('usuarios')
+          .select('id')
+          .eq('auth_uid', userId)
+          .maybeSingle();
+
+        if (!usuario) return;
+
         // Productividad del día: diagnósticos completados hoy por este técnico
-        // Usamos el codigo_empleado para diagnósticos ya que esa tabla aún usa tecnico_codigo
-        if (codigoEmpleado) {
-          const { data: diagHoy } = await supabase
-            .from('diagnosticos')
-            .select('id')
-            .eq('estado', 'completado')
-            .eq('tecnico_codigo', codigoEmpleado)
-            .gte('updated_at', hoy.toISOString());
-          
-          setProductividadDia(diagHoy?.length || 0);
-        }
+        const { data: diagHoy } = await supabase
+          .from('diagnosticos')
+          .select('id')
+          .eq('estado', 'COMPLETADO')
+          .eq('tecnico_id', usuario.id)
+          .gte('updated_at', hoy.toISOString());
+        
+        setProductividadDia(diagHoy?.length || 0);
 
         // Reingresos: incidentes marcados como reingreso asignados a este técnico
-        const { data: reingresosData } = await supabase
-          .from('incidentes')
-          .select('id')
-          .eq('es_reingreso', true)
-          .eq('status', 'En diagnostico')
-          .eq('tecnico_asignado_id', userId);
-        
-        setReingresos(reingresosData?.length || 0);
+        const { data: asignaciones } = await supabase
+          .from('incidente_tecnico')
+          .select('incidente_id')
+          .eq('tecnico_id', usuario.id);
+
+        if (asignaciones && asignaciones.length > 0) {
+          const incidenteIds = asignaciones.map(a => a.incidente_id);
+          const { data: reingresosData } = await supabase
+            .from('incidentes')
+            .select('id')
+            .eq('es_reingreso', true)
+            .eq('estado', 'EN_DIAGNOSTICO')
+            .in('id', incidenteIds);
+          
+          setReingresos(reingresosData?.length || 0);
+        }
       } catch (error) {
         console.error('Error:', error);
       }
@@ -297,9 +324,7 @@ export default function MisAsignaciones() {
           </CardHeader>
           <CardContent className="space-y-2">
             {notificaciones.map((notif) => {
-              const metadata = notif.metadata as any;
-              const esDecisionStock = notif.tipo === "sin_stock_decision" && metadata?.requiere_decision;
-              const repuestosSinStock = metadata?.repuestos_sin_stock || [];
+              const esDecisionStock = notif.tipo === "sin_stock_decision";
               
               return (
                 <div
@@ -308,26 +333,6 @@ export default function MisAsignaciones() {
                 >
                   <div className="flex-1 space-y-2">
                     <p className="font-medium">{notif.mensaje}</p>
-                    
-                    {/* Mostrar repuestos sin stock si es notificación de decisión */}
-                    {esDecisionStock && repuestosSinStock.length > 0 && (
-                      <div className="mt-2 p-2 bg-muted rounded text-sm">
-                        <p className="font-medium text-muted-foreground mb-1">Repuestos sin stock:</p>
-                        <ul className="list-disc list-inside space-y-1">
-                          {repuestosSinStock.map((rep: any, idx: number) => (
-                            <li key={idx} className="text-muted-foreground">
-                              <span className="font-mono">{rep.codigo}</span> - {rep.descripcion} 
-                              <span className="text-amber-600 ml-1">(solicitados: {rep.cantidad_solicitada})</span>
-                            </li>
-                          ))}
-                        </ul>
-                        {metadata?.motivo && (
-                          <p className="mt-2 text-xs text-muted-foreground">
-                            <span className="font-medium">Motivo bodega:</span> {metadata.motivo}
-                          </p>
-                        )}
-                      </div>
-                    )}
                     
                     <p className="text-xs text-muted-foreground">
                       {new Date(notif.created_at || '').toLocaleString()}
@@ -463,7 +468,7 @@ export default function MisAsignaciones() {
             <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
               {incidentes.map((inc) => {
                 const dias = getDiasDesdeIngreso(inc.fecha_ingreso);
-                const tieneBorrador = (inc as any).diagnosticos?.some((d: any) => d.estado === 'borrador');
+                const tieneBorrador = (inc as any).diagnosticos?.some((d: any) => d.estado === 'PENDIENTE' || d.estado === 'EN_PROGRESO');
                 return (
                   <div
                     key={inc.id}
@@ -475,7 +480,7 @@ export default function MisAsignaciones() {
                       <div className="flex items-center justify-between">
                         <p className="font-bold text-lg">{inc.codigo}</p>
                         <Badge variant="outline" className="bg-blue-50">
-                          {inc.codigo_producto}
+                          {inc.producto_id ? `Producto #${inc.producto_id}` : "Sin producto"}
                         </Badge>
                       </div>
 
@@ -499,7 +504,7 @@ export default function MisAsignaciones() {
                           <Clock className="h-3 w-3 mr-1" />
                           {dias}d
                         </Badge>
-                        {inc.cobertura_garantia && (
+                        {inc.aplica_garantia && (
                           <Badge variant="secondary" className="text-xs bg-green-50 text-green-700">
                             Garantía
                           </Badge>

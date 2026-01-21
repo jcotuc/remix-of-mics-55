@@ -5,8 +5,6 @@ import {
   Eye,
   AlertTriangle,
   CheckCircle,
-  Calendar,
-  Plus,
   Package,
   PlusCircle,
   Bell,
@@ -18,28 +16,35 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { StatusBadge } from "@/components/shared";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
 
-type StatusIncidente = Database["public"]["Enums"]["status_incidente"];
+type EstadoIncidente = Database["public"]["Enums"]["estadoincidente"];
 
 type IncidenteDB = Database["public"]["Tables"]["incidentes"]["Row"];
 type ClienteDB = Database["public"]["Tables"]["clientes"]["Row"];
-type NotificacionDB = Database["public"]["Tables"]["notificaciones_cliente"]["Row"];
-type ProductoDescontinuado = { codigo: string; descontinuado: boolean };
+type ProductoDB = Database["public"]["Tables"]["productos"]["Row"];
+
+// Notificaciones cliente - interface local ya que puede no estar tipada
+interface NotificacionCliente {
+  id: number;
+  incidente_id: number;
+  numero_notificacion: number;
+  canal: string;
+  mensaje: string;
+  enviado_por: string;
+  fecha_envio: string;
+  created_at: string;
+}
 
 export default function IncidentesMostrador() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [incidentesList, setIncidentesList] = useState<IncidenteDB[]>([]);
   const [clientesList, setClientesList] = useState<ClienteDB[]>([]);
-  const [notificacionesList, setNotificacionesList] = useState<NotificacionDB[]>([]);
-  const [productosList, setProductosList] = useState<ProductoDescontinuado[]>([]);
+  const [productosList, setProductosList] = useState<ProductoDB[]>([]);
+  const [notificacionesList, setNotificacionesList] = useState<NotificacionCliente[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -50,23 +55,30 @@ export default function IncidentesMostrador() {
     try {
       setLoading(true);
 
-      // Cargar incidentes, clientes, notificaciones y productos en paralelo
-      const [incidentesResult, clientesResult, notificacionesResult, productosResult] = await Promise.all([
+      // Cargar incidentes, clientes y productos en paralelo
+      const [incidentesResult, clientesResult, productosResult] = await Promise.all([
         supabase.from("incidentes").select("*").order("fecha_ingreso", { ascending: false }),
         supabase.from("clientes").select("*"),
-        supabase.from("notificaciones_cliente").select("*"),
-        supabase.from("productos").select("codigo, descontinuado"),
+        supabase.from("productos").select("*"),
       ]);
 
       if (incidentesResult.error) throw incidentesResult.error;
       if (clientesResult.error) throw clientesResult.error;
-      if (notificacionesResult.error) throw notificacionesResult.error;
       if (productosResult.error) throw productosResult.error;
 
       setIncidentesList(incidentesResult.data || []);
       setClientesList(clientesResult.data || []);
-      setNotificacionesList(notificacionesResult.data || []);
       setProductosList(productosResult.data || []);
+      
+      // Intentar cargar notificaciones (tabla puede no existir)
+      try {
+        const { data: notifData } = await (supabase as any)
+          .from("notificaciones_cliente")
+          .select("*");
+        setNotificacionesList(notifData || []);
+      } catch {
+        setNotificacionesList([]);
+      }
     } catch (error) {
       console.error("Error al cargar datos:", error);
       toast.error("Error al cargar los datos");
@@ -75,80 +87,33 @@ export default function IncidentesMostrador() {
     }
   };
 
-  const getClienteName = (codigo: string) => {
-    const cliente = clientesList.find((c) => c.codigo === codigo);
+  // Buscar cliente por ID
+  const getClienteName = (clienteId: number | null): string => {
+    if (!clienteId) return "Cliente no asignado";
+    const cliente = clientesList.find((c) => c.id === clienteId);
     return cliente ? cliente.nombre : "Cliente no encontrado";
   };
 
-  const getProductDisplayName = (codigo: string) => {
-    return `Código: ${codigo}`;
+  // Buscar producto por ID
+  const getProductDisplayName = (productoId: number | null): string => {
+    if (!productoId) return "Producto no asignado";
+    const producto = productosList.find((p) => p.id === productoId);
+    return producto ? producto.descripcion : `ID: ${productoId}`;
   };
 
-  const isProductDiscontinued = (codigo: string) => {
-    const producto = productosList.find((p) => p.codigo === codigo);
+  const isProductDiscontinued = (productoId: number | null): boolean => {
+    if (!productoId) return false;
+    const producto = productosList.find((p) => p.id === productoId);
     return producto?.descontinuado ?? false;
   };
 
-  const getTecnicoName = (codigo: string) => {
-    return codigo || "No asignado";
-  };
-
-  const statusOptions: StatusIncidente[] = [
-    "Ingresado",
-    "En ruta",
-    "Pendiente de diagnostico",
-    "En diagnostico",
-    "Pendiente por repuestos",
-    "Presupuesto",
-    "Porcentaje",
-    "Reparado",
-    "Cambio por garantia",
-    "Nota de credito",
-    "Bodega pedido",
-    "Rechazado",
-  ];
-
-  const categoryOptions = ["Electricas", "Neumaticas", "Hidraulicas", "4 tiempos", "2 tiempos", "Estacionarias"];
-
-  const filteredIncidentes = incidentesList
-    .filter((incidente) => {
-      const matchesSearch =
-        incidente.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        incidente.descripcion_problema.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        getClienteName(incidente.codigo_cliente).toLowerCase().includes(searchTerm.toLowerCase()) ||
-        getProductDisplayName(incidente.codigo_producto).toLowerCase().includes(searchTerm.toLowerCase());
-
-      const matchesStatus = statusFilter === "all" || incidente.status === statusFilter;
-      const matchesCategory = categoryFilter === "all";
-
-      return matchesSearch && matchesStatus && matchesCategory;
-    })
-    .sort((a, b) => new Date(b.fecha_ingreso).getTime() - new Date(a.fecha_ingreso).getTime());
-
-  const handleRowClick = (incidenteId: string) => {
-    navigate(`/mostrador/seguimiento/${incidenteId}`);
-  };
-
-  // Calcular métricas del dashboard
-  const hoy = new Date();
-  hoy.setHours(0, 0, 0, 0);
-  const ingresadasHoy = incidentesList.filter((i) => {
-    const fechaIngreso = new Date(i.fecha_ingreso);
-    fechaIngreso.setHours(0, 0, 0, 0);
-    return fechaIngreso.getTime() === hoy.getTime();
-  }).length;
-
-  const maquinasIngresadas = incidentesList.filter((i) => i.status === "Ingresado").length;
-  const pendientesNotificar = incidentesList.filter((i) => i.status === "Reparado").length;
-  const pendientesEntrega = incidentesList.filter((i) => i.status === "Reparado").length;
-
   // Obtener número de notificaciones por incidente
-  const getNotificacionesCount = (incidenteId: string) => {
+  const getNotificacionesCount = (incidenteId: number): number => {
     return notificacionesList.filter((n) => n.incidente_id === incidenteId).length;
   };
 
   // Obtener última notificación
-  const getUltimaNotificacion = (incidenteId: string) => {
+  const getUltimaNotificacion = (incidenteId: number): NotificacionCliente | undefined => {
     const notifs = notificacionesList
       .filter((n) => n.incidente_id === incidenteId)
       .sort((a, b) => new Date(b.fecha_envio).getTime() - new Date(a.fecha_envio).getTime());
@@ -156,7 +121,7 @@ export default function IncidentesMostrador() {
   };
 
   // Función para verificar si debe reaparecer (después de 1 día)
-  const debeReaparecer = (incidenteId: string) => {
+  const debeReaparecer = (incidenteId: number): boolean => {
     const ultimaNotif = getUltimaNotificacion(incidenteId);
     if (!ultimaNotif) return true;
 
@@ -165,14 +130,23 @@ export default function IncidentesMostrador() {
     return new Date(ultimaNotif.fecha_envio) <= haceUnDia;
   };
 
+  // Calcular métricas del dashboard usando estado correcto
+  const maquinasIngresadas = incidentesList.filter((i) => i.estado === "REGISTRADO").length;
+  const pendientesNotificar = incidentesList.filter((i) => i.estado === "REPARADO").length;
+  const pendientesEntrega = incidentesList.filter((i) => i.estado === "REPARADO").length;
+
   // Filtrar incidentes reparados para notificar
-  const incidentesReparados = incidentesList.filter((i) => i.status === "Reparado");
+  const incidentesReparados = incidentesList.filter((i) => i.estado === "REPARADO");
 
   const incidentesPorNotificaciones = {
     cero: incidentesReparados.filter((i) => getNotificacionesCount(i.id) === 0),
     una: incidentesReparados.filter((i) => getNotificacionesCount(i.id) === 1 && debeReaparecer(i.id)),
     dos: incidentesReparados.filter((i) => getNotificacionesCount(i.id) === 2 && debeReaparecer(i.id)),
     tresMas: incidentesReparados.filter((i) => getNotificacionesCount(i.id) >= 3),
+  };
+
+  const handleRowClick = (incidenteId: number) => {
+    navigate(`/mostrador/seguimiento/${incidenteId}`);
   };
 
   // Función para enviar notificaciones masivas
@@ -194,7 +168,9 @@ export default function IncidentesMostrador() {
         enviado_por: user.id,
       }));
 
-      const { error } = await supabase.from("notificaciones_cliente").insert(notificaciones);
+      const { error } = await (supabase as any)
+        .from("notificaciones_cliente")
+        .insert(notificaciones);
 
       if (error) throw error;
 
@@ -272,7 +248,7 @@ export default function IncidentesMostrador() {
             <CardHeader>
               <CardTitle>Máquinas Ingresadas</CardTitle>
               <CardDescription>
-                {incidentesList.filter((i) => i.status === "Ingresado").length} máquinas ingresadas
+                {incidentesList.filter((i) => i.estado === "REGISTRADO").length} máquinas ingresadas
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -311,8 +287,8 @@ export default function IncidentesMostrador() {
                         const matchesSearch =
                           i.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           i.descripcion_problema.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          getClienteName(i.codigo_cliente).toLowerCase().includes(searchTerm.toLowerCase());
-                        return i.status === "Ingresado" && matchesSearch;
+                          getClienteName(i.cliente_id).toLowerCase().includes(searchTerm.toLowerCase());
+                        return i.estado === "REGISTRADO" && matchesSearch;
                       }).length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={6} className="text-center">
@@ -325,8 +301,8 @@ export default function IncidentesMostrador() {
                           const matchesSearch =
                             i.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
                             i.descripcion_problema.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                            getClienteName(i.codigo_cliente).toLowerCase().includes(searchTerm.toLowerCase());
-                          return i.status === "Ingresado" && matchesSearch;
+                            getClienteName(i.cliente_id).toLowerCase().includes(searchTerm.toLowerCase());
+                          return i.estado === "REGISTRADO" && matchesSearch;
                         })
                         .map((incidente) => (
                           <TableRow
@@ -335,12 +311,12 @@ export default function IncidentesMostrador() {
                             onClick={() => handleRowClick(incidente.id)}
                           >
                             <TableCell className="font-medium">{incidente.codigo}</TableCell>
-                            <TableCell>{getClienteName(incidente.codigo_cliente)}</TableCell>
+                            <TableCell>{getClienteName(incidente.cliente_id)}</TableCell>
                             <TableCell>
-                              <span className="text-sm">{getProductDisplayName(incidente.codigo_producto)}</span>
+                              <span className="text-sm">{getProductDisplayName(incidente.producto_id)}</span>
                             </TableCell>
                             <TableCell>
-                              {incidente.cobertura_garantia ? (
+                              {incidente.aplica_garantia ? (
                                 <Badge className="bg-success text-success-foreground">Sí</Badge>
                               ) : (
                                 <Badge variant="outline">No</Badge>
@@ -375,7 +351,7 @@ export default function IncidentesMostrador() {
             <CardHeader>
               <CardTitle>Pendientes de Notificar</CardTitle>
               <CardDescription>
-                {incidentesList.filter((i) => i.status === "Reparado").length} máquinas listas para notificar al cliente
+                {incidentesList.filter((i) => i.estado === "REPARADO").length} máquinas listas para notificar al cliente
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -479,8 +455,8 @@ export default function IncidentesMostrador() {
                                 onClick={() => handleRowClick(incidente.id)}
                               >
                                 <TableCell className="font-medium">{incidente.codigo}</TableCell>
-                                <TableCell>{getClienteName(incidente.codigo_cliente)}</TableCell>
-                                <TableCell>{getProductDisplayName(incidente.codigo_producto)}</TableCell>
+                                <TableCell>{getClienteName(incidente.cliente_id)}</TableCell>
+                                <TableCell>{getProductDisplayName(incidente.producto_id)}</TableCell>
                                 <TableCell>
                                   <Badge className="bg-red-600 text-white">{numNotif} notificaciones</Badge>
                                 </TableCell>
@@ -546,10 +522,10 @@ export default function IncidentesMostrador() {
                         const matchesSearch =
                           i.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           i.descripcion_problema.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                          getClienteName(i.codigo_cliente).toLowerCase().includes(searchTerm.toLowerCase());
+                          getClienteName(i.cliente_id).toLowerCase().includes(searchTerm.toLowerCase());
                         const numNotif = getNotificacionesCount(i.id);
                         const esVisible = numNotif < 3 && (numNotif === 0 || debeReaparecer(i.id));
-                        return i.status === "Reparado" && matchesSearch && esVisible;
+                        return i.estado === "REPARADO" && matchesSearch && esVisible;
                       }).length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={7} className="text-center">
@@ -562,10 +538,10 @@ export default function IncidentesMostrador() {
                           const matchesSearch =
                             i.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
                             i.descripcion_problema.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                            getClienteName(i.codigo_cliente).toLowerCase().includes(searchTerm.toLowerCase());
+                            getClienteName(i.cliente_id).toLowerCase().includes(searchTerm.toLowerCase());
                           const numNotif = getNotificacionesCount(i.id);
                           const esVisible = numNotif < 3 && (numNotif === 0 || debeReaparecer(i.id));
-                          return i.status === "Reparado" && matchesSearch && esVisible;
+                          return i.estado === "REPARADO" && matchesSearch && esVisible;
                         })
                         .map((incidente) => {
                           const numNotif = getNotificacionesCount(incidente.id);
@@ -576,11 +552,11 @@ export default function IncidentesMostrador() {
                               onClick={() => handleRowClick(incidente.id)}
                             >
                               <TableCell className="font-medium">{incidente.codigo}</TableCell>
-                              <TableCell>{getClienteName(incidente.codigo_cliente)}</TableCell>
+                              <TableCell>{getClienteName(incidente.cliente_id)}</TableCell>
                               <TableCell>
                                 <div className="flex items-center space-x-2">
-                                  <span className="text-sm">{getProductDisplayName(incidente.codigo_producto)}</span>
-                                  {isProductDiscontinued(incidente.codigo_producto) && (
+                                  <span className="text-sm">{getProductDisplayName(incidente.producto_id)}</span>
+                                  {isProductDiscontinued(incidente.producto_id) && (
                                     <Badge variant="destructive" className="text-xs">
                                       <AlertTriangle className="h-3 w-3 mr-1" />
                                       Descontinuado
@@ -603,7 +579,7 @@ export default function IncidentesMostrador() {
                                 </Badge>
                               </TableCell>
                               <TableCell>
-                                {incidente.cobertura_garantia ? (
+                                {incidente.aplica_garantia ? (
                                   <Badge className="bg-success text-success-foreground">Sí</Badge>
                                 ) : (
                                   <Badge variant="outline">No</Badge>
