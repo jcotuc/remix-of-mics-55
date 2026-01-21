@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -14,9 +13,17 @@ import { format } from "date-fns";
 import { useAuth } from "@/contexts/AuthContext";
 import type { Database } from "@/integrations/supabase/types";
 
-type IncidenteDB = Database['public']['Tables']['incidentes']['Row'];
+type EstadoIncidente = Database['public']['Enums']['estadoincidente'];
 
-interface Incidente extends IncidenteDB {
+interface Incidente {
+  id: number;
+  codigo: string;
+  cliente_id: number;
+  producto_id: number | null;
+  quiere_envio: boolean | null;
+  updated_at: string | null;
+  descripcion_problema: string | null;
+  observaciones: string | null;
   cliente?: {
     nombre: string;
     celular: string | null;
@@ -40,12 +47,10 @@ export default function WaterspiderEntrega() {
       if (!incidenteId) return;
 
       try {
-        // Fetch incident
         const { data: incData, error: incError } = await supabase
           .from("incidentes")
           .select(`
-            *,
-            clientes:cliente_id(nombre, celular, telefono_principal, direccion)
+            id, codigo, cliente_id, producto_id, quiere_envio, updated_at, descripcion_problema, observaciones, estado
           `)
           .eq("id", parseInt(incidenteId))
           .single();
@@ -58,15 +63,26 @@ export default function WaterspiderEntrega() {
           return;
         }
 
-        if (incData.estado !== "EN_REPARACION" && incData.estado !== "REPARADO") {
+        if ((incData as any).estado !== "EN_REPARACION" && (incData as any).estado !== "REPARADO") {
           toast.error("Este incidente no está en estado válido para entrega");
           navigate("/taller/waterspider");
           return;
         }
 
+        // Fetch cliente data separately
+        let clienteData = null;
+        if (incData.cliente_id) {
+          const { data: cliente } = await supabase
+            .from("clientes")
+            .select("nombre, celular, telefono_principal, direccion")
+            .eq("id", incData.cliente_id)
+            .single();
+          clienteData = cliente;
+        }
+
         const formattedIncidente: Incidente = {
           ...incData,
-          cliente: (incData as any).clientes as Incidente['cliente'],
+          cliente: clienteData,
         };
 
         setIncidente(formattedIncidente);
@@ -86,12 +102,11 @@ export default function WaterspiderEntrega() {
 
     setSubmitting(true);
     try {
-      // Determine new status based on quiere_envio
-      const nuevoEstado = incidente.quiere_envio 
+      // Use valid enum values - EN_ENTREGA for logistics, COMPLETADO for counter pickup
+      const nuevoEstado: EstadoIncidente = incidente.quiere_envio 
         ? "EN_ENTREGA" 
-        : "LISTO_PARA_ENTREGA";
+        : "COMPLETADO";
 
-      // Update incident estado
       const fechaActual = new Date().toISOString();
       const logEntry = `[${format(new Date(), "dd/MM/yyyy HH:mm")}] Waterspider: Entregado a ${incidente.quiere_envio ? 'Logística' : 'Mostrador'}${observaciones ? ` - ${observaciones}` : ''}`;
       

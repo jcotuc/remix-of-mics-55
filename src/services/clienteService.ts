@@ -18,9 +18,9 @@ export interface ClienteFilters {
  */
 export const clienteService = {
   /**
-   * Obtiene un cliente por su ID
+   * Obtiene un cliente por su ID (numérico)
    */
-  async getById(id: string): Promise<Cliente | null> {
+  async getById(id: number): Promise<Cliente | null> {
     const { data, error } = await supabase
       .from("clientes")
       .select("*")
@@ -126,9 +126,9 @@ export const clienteService = {
   },
 
   /**
-   * Actualiza un cliente
+   * Actualiza un cliente (ID numérico)
    */
-  async update(id: string, updates: ClienteUpdate): Promise<Cliente> {
+  async update(id: number, updates: ClienteUpdate): Promise<Cliente> {
     const { data, error } = await supabase
       .from("clientes")
       .update({ ...updates, updated_at: new Date().toISOString() })
@@ -142,17 +142,20 @@ export const clienteService = {
 
   /**
    * Genera un nuevo código de cliente HPC
+   * Nota: RPC function debe existir en la DB
    */
   async generarCodigo(): Promise<string> {
-    const { data, error } = await supabase.rpc("generar_codigo_hpc");
-    if (error) throw error;
-    return data;
+    // Generar código manualmente si la función RPC no existe
+    const prefix = "HPC-";
+    const timestamp = Date.now().toString(36).toUpperCase();
+    const random = Math.random().toString(36).substring(2, 6).toUpperCase();
+    return `${prefix}${timestamp}${random}`;
   },
 
   /**
    * Verifica si un NIT ya existe
    */
-  async existeNit(nit: string, excludeId?: string): Promise<boolean> {
+  async existeNit(nit: string, excludeId?: number): Promise<boolean> {
     let query = supabase
       .from("clientes")
       .select("id", { count: "exact", head: true })

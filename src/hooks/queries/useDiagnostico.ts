@@ -9,22 +9,24 @@ type DiagnosticoUpdate = Database["public"]["Tables"]["diagnosticos"]["Update"];
 /**
  * Hook para obtener un diagnóstico por ID
  */
-export const useDiagnostico = (id: string | undefined) => {
+export const useDiagnostico = (id: number | string | undefined) => {
+  const numericId = typeof id === 'string' ? parseInt(id, 10) : id;
   return useQuery({
-    queryKey: ["diagnostico", id],
-    queryFn: () => diagnosticoService.getById(id!),
-    enabled: !!id,
+    queryKey: ["diagnostico", numericId],
+    queryFn: () => diagnosticoService.getById(numericId!),
+    enabled: !!numericId && !isNaN(numericId),
   });
 };
 
 /**
  * Hook para obtener el diagnóstico de un incidente
  */
-export const useDiagnosticoByIncidente = (incidenteId: string | undefined) => {
+export const useDiagnosticoByIncidente = (incidenteId: number | string | undefined) => {
+  const numericId = typeof incidenteId === 'string' ? parseInt(incidenteId, 10) : incidenteId;
   return useQuery({
-    queryKey: ["diagnostico", "incidente", incidenteId],
-    queryFn: () => diagnosticoService.getByIncidenteId(incidenteId!),
-    enabled: !!incidenteId,
+    queryKey: ["diagnostico", "incidente", numericId],
+    queryFn: () => diagnosticoService.getByIncidenteId(numericId!),
+    enabled: !!numericId && !isNaN(numericId),
   });
 };
 
@@ -82,7 +84,7 @@ export const useUpdateDiagnostico = () => {
       id, 
       updates 
     }: { 
-      id: string; 
+      id: number; 
       updates: DiagnosticoUpdate;
     }) => diagnosticoService.update(id, updates),
     onSuccess: (data) => {
@@ -105,7 +107,7 @@ export const useFinalizarDiagnostico = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: string) => diagnosticoService.finalizarDiagnostico(id),
+    mutationFn: (id: number) => diagnosticoService.finalizarDiagnostico(id),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["diagnosticos"] });
       queryClient.invalidateQueries({ queryKey: ["diagnostico", data.id] });
@@ -129,8 +131,8 @@ export const useAsignarDigitador = () => {
       digitadorId, 
       digitadorCodigo 
     }: { 
-      id: string; 
-      digitadorId: string; 
+      id: number; 
+      digitadorId: number; 
       digitadorCodigo: string;
     }) => diagnosticoService.asignarDigitador(id, digitadorId, digitadorCodigo),
     onSuccess: (data) => {
@@ -155,7 +157,7 @@ export const useAddFotosDiagnostico = () => {
       id, 
       fotosUrls 
     }: { 
-      id: string; 
+      id: number; 
       fotosUrls: string[];
     }) => diagnosticoService.addFotos(id, fotosUrls),
     onSuccess: (data) => {

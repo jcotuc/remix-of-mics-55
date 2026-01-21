@@ -4,7 +4,8 @@ import type { Database } from "@/integrations/supabase/types";
 type SolicitudRepuesto = Database["public"]["Tables"]["solicitudes_repuestos"]["Row"];
 type SolicitudRepuestoInsert = Database["public"]["Tables"]["solicitudes_repuestos"]["Insert"];
 type SolicitudRepuestoUpdate = Database["public"]["Tables"]["solicitudes_repuestos"]["Update"];
-type EstadoSolicitud = Database["public"]["Enums"]["estado_solicitud"];
+// Use string literal type since estado_solicitud enum doesn't exist in schema
+type EstadoSolicitud = "PENDIENTE" | "EN_PROCESO" | "DESPACHADO" | "CANCELADO";
 
 export interface SolicitudFilters {
   incidenteId?: number;
@@ -18,18 +19,21 @@ export interface SolicitudFilters {
  * Servicio para solicitudes de repuestos
  */
 export const solicitudService = {
-  async getById(id: string): Promise<SolicitudRepuesto | null> {
+  async getById(id: number): Promise<SolicitudRepuesto | null> {
     const { data, error } = await supabase
       .from("solicitudes_repuestos")
       .select("*")
       .eq("id", id)
       .single();
 
-    if (error) throw error;
+    if (error) {
+      if (error.code === "PGRST116") return null;
+      throw error;
+    }
     return data;
   },
 
-  async listByIncidente(incidenteId: string): Promise<SolicitudRepuesto[]> {
+  async listByIncidente(incidenteId: number): Promise<SolicitudRepuesto[]> {
     const { data, error } = await supabase
       .from("solicitudes_repuestos")
       .select("*")
@@ -78,7 +82,7 @@ export const solicitudService = {
     let query = supabase
       .from("solicitudes_repuestos")
       .select("*")
-      .eq("estado", "pendiente")
+      .eq("estado", "PENDIENTE")
       .order("created_at", { ascending: false });
 
     if (centroServicioId) {
@@ -111,7 +115,7 @@ export const solicitudService = {
     return data || [];
   },
 
-  async update(id: string, updates: SolicitudRepuestoUpdate): Promise<SolicitudRepuesto> {
+  async update(id: number, updates: SolicitudRepuestoUpdate): Promise<SolicitudRepuesto> {
     const { data, error } = await supabase
       .from("solicitudes_repuestos")
       .update(updates)
@@ -123,11 +127,11 @@ export const solicitudService = {
     return data;
   },
 
-  async despachar(id: string, cantidadEntregada: number, despachadorId?: string): Promise<SolicitudRepuesto> {
+  async despachar(id: number, cantidadEntregada: number, despachadorId?: number): Promise<SolicitudRepuesto> {
     const { data, error } = await supabase
       .from("solicitudes_repuestos")
       .update({
-        estado: "despachado",
+        estado: "DESPACHADO",
         cantidad_entregada: cantidadEntregada,
         despachador_id: despachadorId,
         fecha_despacho: new Date().toISOString(),
@@ -140,11 +144,11 @@ export const solicitudService = {
     return data;
   },
 
-  async cancelar(id: string, motivo?: string): Promise<SolicitudRepuesto> {
+  async cancelar(id: number, motivo?: string): Promise<SolicitudRepuesto> {
     const { data, error } = await supabase
       .from("solicitudes_repuestos")
       .update({
-        estado: "cancelado",
+        estado: "CANCELADO",
         motivo_cancelacion: motivo,
         fecha_cancelacion: new Date().toISOString(),
       })
@@ -160,7 +164,7 @@ export const solicitudService = {
     let query = supabase
       .from("solicitudes_repuestos")
       .select("id", { count: "exact", head: true })
-      .eq("estado", "pendiente");
+      .eq("estado", "PENDIENTE");
 
     if (centroServicioId) {
       query = query.eq("centro_servicio_id", centroServicioId);
@@ -171,7 +175,7 @@ export const solicitudService = {
     return count || 0;
   },
 
-  async getEstadisticas(centroServicioId?: number): Promise<Record<EstadoSolicitud, number>> {
+  async getEstadisticas(centroServicioId?: number): Promise<Record<string, number>> {
     let query = supabase
       .from("solicitudes_repuestos")
       .select("estado");
@@ -184,9 +188,10 @@ export const solicitudService = {
     if (error) throw error;
 
     const stats = (data || []).reduce((acc, solicitud) => {
-      acc[solicitud.estado] = (acc[solicitud.estado] || 0) + 1;
+      const estado = solicitud.estado || "UNKNOWN";
+      acc[estado] = (acc[estado] || 0) + 1;
       return acc;
-    }, {} as Record<EstadoSolicitud, number>);
+    }, {} as Record<string, number>);
 
     return stats;
   }
