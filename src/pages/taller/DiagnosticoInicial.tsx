@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft, Save, Wrench, AlertCircle, CheckCircle2, Package } from "lucide-react";
 import { toast } from "sonner";
+import { apiBackendAction } from "@/lib/api-backend";
 
 type TipoResolucion = "REPARAR_EN_GARANTIA" | "PRESUPUESTO" | "CANJE" | "NOTA_DE_CREDITO";
 type EstadoDiagnostico = "PENDIENTE" | "EN_PROGRESO" | "COMPLETADO";
@@ -70,68 +71,41 @@ export default function DiagnosticoInicial() {
     causas_seleccionadas: [],
   });
 
-  // Fetch incidente
+  // Fetch incidente using apiBackendAction
   const { data: incidente, isLoading: loadingIncidente } = useQuery({
     queryKey: ["incidente", incidenteId],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("incidentes")
-        .select(`
-          id,
-          codigo,
-          estado,
-          descripcion_problema,
-          producto_id,
-          cliente_id,
-          productos:producto_id(id, nombre, modelo, codigo),
-          clientes:cliente_id(id, nombre, codigo)
-        `)
-        .eq("id", incidenteId)
-        .single();
-      if (error) throw error;
-      return data;
+      const result = await apiBackendAction("incidentes.get", { id: incidenteId });
+      return result.result;
     },
     enabled: !!incidenteId,
   });
 
-  // Fetch existing diagnostico
+  // Fetch existing diagnostico using apiBackendAction
   const { data: diagnosticoExistente } = useQuery({
     queryKey: ["diagnostico", incidenteId],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("diagnosticos")
-        .select("*")
-        .eq("incidente_id", incidenteId)
-        .maybeSingle();
-      if (error) throw error;
-      return data;
+      const result = await apiBackendAction("diagnosticos.search", { incidente_id: incidenteId });
+      return result.results?.[0] || null;
     },
     enabled: !!incidenteId,
   });
 
-  // Fetch fallas
+  // Fetch fallas using apiBackendAction
   const { data: fallas = [] } = useQuery({
     queryKey: ["fallas"],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("fallas")
-        .select("id, nombre, familia_id")
-        .order("nombre");
-      if (error) throw error;
-      return data as Falla[];
+      const result = await apiBackendAction("fallas.list", {});
+      return (result.results || []) as Falla[];
     },
   });
 
-  // Fetch causas
+  // Fetch causas using apiBackendAction
   const { data: causas = [] } = useQuery({
     queryKey: ["causas"],
     queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("causas")
-        .select("id, nombre, familia_id")
-        .order("nombre");
-      if (error) throw error;
-      return data as Causa[];
+      const result = await apiBackendAction("causas.list", {});
+      return (result.results || []) as Causa[];
     },
   });
 
@@ -142,7 +116,7 @@ export default function DiagnosticoInicial() {
         recomendaciones: diagnosticoExistente.recomendaciones || "",
         es_reparable: diagnosticoExistente.es_reparable ?? true,
         aplica_garantia: diagnosticoExistente.aplica_garantia ?? false,
-        tipo_resolucion: diagnosticoExistente.tipo_resolucion,
+        tipo_resolucion: diagnosticoExistente.tipo_resolucion as TipoResolucion,
         tipo_trabajo: diagnosticoExistente.tipo_trabajo || "",
         fallas_seleccionadas: [],
         causas_seleccionadas: [],
@@ -379,13 +353,12 @@ export default function DiagnosticoInicial() {
           <div className="grid gap-4 md:grid-cols-3">
             <div>
               <Label className="text-muted-foreground text-sm">Producto</Label>
-              <p className="font-medium">{incidente.productos?.nombre || "N/A"}</p>
-              <p className="text-sm text-muted-foreground">{incidente.productos?.codigo}</p>
+              <p className="font-medium">{incidente.producto?.descripcion || incidente.producto?.codigo || "N/A"}</p>
             </div>
             <div>
               <Label className="text-muted-foreground text-sm">Cliente</Label>
-              <p className="font-medium">{incidente.clientes?.nombre || "N/A"}</p>
-              <p className="text-sm text-muted-foreground">{incidente.clientes?.codigo}</p>
+              <p className="font-medium">{incidente.cliente?.nombre || "N/A"}</p>
+              <p className="text-sm text-muted-foreground">{incidente.cliente?.codigo}</p>
             </div>
             <div>
               <Label className="text-muted-foreground text-sm">Estado</Label>
@@ -503,7 +476,7 @@ export default function DiagnosticoInicial() {
                   }))}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Seleccione..." />
+                    <SelectValue placeholder="Seleccionar..." />
                   </SelectTrigger>
                   <SelectContent>
                     {TIPOS_RESOLUCION.map((tipo) => (
@@ -514,6 +487,7 @@ export default function DiagnosticoInicial() {
                   </SelectContent>
                 </Select>
               </div>
+
               <div className="space-y-2">
                 <Label>Tipo de Trabajo</Label>
                 <Select
@@ -521,7 +495,7 @@ export default function DiagnosticoInicial() {
                   onValueChange={(value) => setFormData(prev => ({ ...prev, tipo_trabajo: value }))}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Seleccione..." />
+                    <SelectValue placeholder="Seleccionar..." />
                   </SelectTrigger>
                   <SelectContent>
                     {TIPOS_TRABAJO.map((tipo) => (
@@ -540,37 +514,37 @@ export default function DiagnosticoInicial() {
             <Label htmlFor="recomendaciones">Recomendaciones</Label>
             <Textarea
               id="recomendaciones"
-              placeholder="Describa las recomendaciones para la reparación..."
+              placeholder="Ingrese las recomendaciones técnicas..."
               value={formData.recomendaciones}
               onChange={(e) => setFormData(prev => ({ ...prev, recomendaciones: e.target.value }))}
               rows={4}
             />
           </div>
+
+          {/* Action Buttons */}
+          <div className="flex gap-4 pt-4">
+            <Button
+              onClick={() => saveMutation.mutate()}
+              disabled={saveMutation.isPending}
+            >
+              <Save className="h-4 w-4 mr-2" />
+              {saveMutation.isPending ? "Guardando..." : "Guardar Diagnóstico"}
+            </Button>
+
+            {diagnosticoExistente && diagnosticoExistente.estado !== "COMPLETADO" && (
+              <Button
+                variant="default"
+                className="bg-green-600 hover:bg-green-700"
+                onClick={() => completeMutation.mutate()}
+                disabled={completeMutation.isPending}
+              >
+                <CheckCircle2 className="h-4 w-4 mr-2" />
+                {completeMutation.isPending ? "Completando..." : "Completar Diagnóstico"}
+              </Button>
+            )}
+          </div>
         </CardContent>
       </Card>
-
-      {/* Actions */}
-      <div className="flex gap-4 justify-end">
-        <Button variant="outline" onClick={() => navigate(-1)}>
-          Cancelar
-        </Button>
-        <Button
-          onClick={() => saveMutation.mutate()}
-          disabled={saveMutation.isPending}
-        >
-          <Save className="h-4 w-4 mr-2" />
-          {saveMutation.isPending ? "Guardando..." : "Guardar"}
-        </Button>
-        <Button
-          variant="default"
-          onClick={() => completeMutation.mutate()}
-          disabled={completeMutation.isPending || !diagnosticoExistente}
-          className="bg-green-600 hover:bg-green-700"
-        >
-          <CheckCircle2 className="h-4 w-4 mr-2" />
-          {completeMutation.isPending ? "Completando..." : "Completar Diagnóstico"}
-        </Button>
-      </div>
     </div>
   );
 }

@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { formatFechaRelativa } from "@/utils/dateFormatters";
+import { apiBackendAction } from "@/lib/api-backend";
 
 type Repuesto = {
   codigo: string;
@@ -59,22 +60,26 @@ export default function Solicitudes() {
   const fetchSolicitudes = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('solicitudes_repuestos')
-        .select(`
-          *,
-          incidentes (
-            codigo
-          )
-        `)
-        .order('created_at', { ascending: false });
+      
+      // Usar apiBackendAction para obtener solicitudes
+      const result = await apiBackendAction("solicitudes_repuestos.list", { limit: 500 });
+      
+      // Obtener códigos de incidentes
+      const incidenteIds = [...new Set((result.data || []).map((s: any) => s.incidente_id).filter(Boolean))];
+      
+      let incidentesMap: Record<number, string> = {};
+      if (incidenteIds.length > 0) {
+        const incidentesResult = await apiBackendAction("incidentes.list", { limit: 1000 });
+        incidentesMap = (incidentesResult.results || []).reduce((acc: Record<number, string>, inc: any) => {
+          acc[inc.id] = inc.codigo;
+          return acc;
+        }, {});
+      }
 
-      if (error) throw error;
-
-      const solicitudesMapeadas = (data || []).map((sol: any) => ({
+      const solicitudesMapeadas = (result.data || []).map((sol: any) => ({
         id: sol.id,
         incidente_id: sol.incidente_id,
-        incidente_codigo: sol.incidentes?.codigo || 'N/A',
+        incidente_codigo: incidentesMap[sol.incidente_id] || 'N/A',
         tecnico_solicitante: sol.tecnico_solicitante,
         repuestos: sol.repuestos || [],
         estado: sol.estado,
@@ -425,17 +430,10 @@ export default function Solicitudes() {
                         </div>
                         <div className="text-right shrink-0">
                           <Badge variant="secondary" className="bg-green-100 text-green-700 text-[10px]">
-                            {solicitud.repuestos?.reduce((sum, r) => sum + r.cantidad, 0) || 0} rep
+                            Entregado
                           </Badge>
-                          <p className="text-[10px] text-muted-foreground mt-0.5 flex items-center justify-end gap-1">
-                            <Calendar className="h-2.5 w-2.5" />
-                            {solicitud.fecha_entrega 
-                              ? new Date(solicitud.fecha_entrega).toLocaleDateString('es-GT', { 
-                                  day: '2-digit', 
-                                  month: 'short'
-                                })
-                              : '-'
-                            }
+                          <p className="text-[10px] text-muted-foreground mt-0.5">
+                            {solicitud.fecha_entrega ? formatFechaRelativa(solicitud.fecha_entrega) : '-'}
                           </p>
                         </div>
                         <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
