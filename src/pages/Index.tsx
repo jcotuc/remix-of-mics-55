@@ -6,23 +6,21 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Search, Calendar, Hash, Wrench } from "lucide-react";
 import { StatusBadge } from "@/components/shared";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { MostradorDashboard } from "@/components/dashboard/MostradorDashboard";
 import { TallerDashboard } from "@/components/dashboard/TallerDashboard";
 import { LogisticaDashboard } from "@/components/dashboard/LogisticaDashboard";
 import { BodegaDashboard } from "@/components/dashboard/BodegaDashboard";
 import { SACDashboard } from "@/components/dashboard/SACDashboard";
-import type { Database } from "@/integrations/supabase/types";
-
-type IncidenteDB = Database['public']['Tables']['incidentes']['Row'];
+import { apiBackendAction } from "@/lib/api";
+import type { IncidenteSchema } from "@/generated/actions.d";
 
 const Index = () => {
   const navigate = useNavigate();
   const { userRole } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [searchFilter, setSearchFilter] = useState("all");
-  const [incidentes, setIncidentes] = useState<IncidenteDB[]>([]);
+  const [incidentes, setIncidentes] = useState<IncidenteSchema[]>([]);
   const [loading, setLoading] = useState(true);
   
   useEffect(() => {
@@ -32,12 +30,8 @@ const Index = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const { data } = await supabase
-        .from('incidentes')
-        .select('*')
-        .order('fecha_ingreso', { ascending: false });
-
-      if (data) setIncidentes(data);
+      const response = await apiBackendAction("incidentes.list", { limit: 500 });
+      setIncidentes(response.results);
     } catch (error) {
       console.error('Error:', error);
     } finally {
@@ -45,23 +39,23 @@ const Index = () => {
     }
   };
 
-  // Filtros para el buscador - using actual columns from schema
+  // Filtros para el buscador - using schema from apiBackendAction
   const filteredIncidentes = incidentes.filter(incidente => {
     if (!searchTerm) return false;
     
     const codigo = incidente.codigo?.toLowerCase() || "";
-    const productoId = String(incidente.producto_id || "");
-    const fechaIngreso = incidente.fecha_ingreso 
-      ? new Date(incidente.fecha_ingreso).toLocaleDateString() 
+    const productoCodigo = incidente.producto?.codigo?.toLowerCase() || "";
+    const fechaCreacion = incidente.created_at 
+      ? new Date(incidente.created_at).toLocaleDateString() 
       : "";
     
     const matchesSearch = searchFilter === "all" ? 
       codigo.includes(searchTerm.toLowerCase()) ||
-      productoId.includes(searchTerm.toLowerCase()) ||
-      fechaIngreso.includes(searchTerm)
+      productoCodigo.includes(searchTerm.toLowerCase()) ||
+      fechaCreacion.includes(searchTerm)
       : searchFilter === "codigo" ? codigo.includes(searchTerm.toLowerCase())
-      : searchFilter === "maquina" ? productoId.includes(searchTerm.toLowerCase())
-      : searchFilter === "fecha" ? fechaIngreso.includes(searchTerm)
+      : searchFilter === "maquina" ? productoCodigo.includes(searchTerm.toLowerCase())
+      : searchFilter === "fecha" ? fechaCreacion.includes(searchTerm)
       : false;
     
     return matchesSearch;
@@ -146,7 +140,7 @@ const Index = () => {
                   <div className="flex-1">
                     <p className="font-medium text-xs sm:text-sm">{incidente.codigo}</p>
                     <p className="text-[10px] sm:text-xs text-muted-foreground">
-                      Producto ID: {incidente.producto_id} | Fecha: {incidente.fecha_ingreso ? new Date(incidente.fecha_ingreso).toLocaleDateString('es-GT') : 'N/A'}
+                      Producto: {incidente.producto?.codigo || 'N/A'} | Fecha: {incidente.created_at ? new Date(incidente.created_at).toLocaleDateString('es-GT') : 'N/A'}
                     </p>
                   </div>
                   <StatusBadge status={incidente.estado} />
