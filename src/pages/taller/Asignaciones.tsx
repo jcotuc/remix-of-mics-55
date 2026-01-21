@@ -10,8 +10,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useActiveIncidents, MAX_ASSIGNMENTS } from "@/contexts/ActiveIncidentsContext";
-import { apiBackendAction } from "@/lib/api";
-import type { IncidenteSchema } from "@/generated/actions.d";
+import { apiBackendAction } from "@/lib/api-backend";
 
 interface IncidenteConProducto {
   id: number;
@@ -159,15 +158,16 @@ export default function Asignaciones() {
   }, []);
 
   const fetchFamilias = async () => {
-    const { data } = await supabase
-      .from('familias_producto')
-      .select('id, nombre, parent_id');
-    if (data) {
-      setFamilias(data.map(f => ({
+    try {
+      const result = await apiBackendAction("familias_producto.list", {});
+      const data = result.results || [];
+      setFamilias(data.map((f: any) => ({
         id: f.id,
         nombre: f.nombre,
         parent_id: f.parent_id
       })));
+    } catch (error) {
+      console.error("Error fetching familias:", error);
     }
   };
 

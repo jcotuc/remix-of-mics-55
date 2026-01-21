@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { apiBackendAction } from "@/lib/api-backend";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -7,10 +8,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2, Users, FolderTree, X, Save } from "lucide-react";
 import { toast } from "sonner";
 import type { Database } from "@/integrations/supabase/types";
-
-type FamiliaProductoDB = Database["public"]["Tables"]["familias_producto"]["Row"];
-type UsuarioDB = Database["public"]["Tables"]["usuarios"]["Row"];
-type CentroServicioDB = Database["public"]["Tables"]["centros_de_servicio"]["Row"];
 
 interface FamiliaAbuelo {
   id: number;
@@ -51,44 +48,36 @@ export default function AsignacionTecnicos() {
 
   const fetchData = async () => {
     try {
-      // Fetch familias abuelas (those with parent_id = NULL)
-      const { data: familiasData } = await supabase
-        .from("familias_producto")
-        .select("id, nombre")
-        .is("parent_id", null)
-        .order("nombre");
+      // Fetch familias abuelas using apiBackendAction
+      const familiasResult = await apiBackendAction("familias_producto.list", {});
+      const familiasData = (familiasResult.results || []).filter((f: any) => f.parent_id === null);
 
-      // Fetch users with taller role
-      const { data: usuariosData } = await (supabase as any)
-        .from("usuarios")
-        .select("id, nombre, apellido, email")
-        .eq("rol", "tecnico")
-        .eq("activo", true);
+      // Fetch users with taller role using apiBackendAction
+      const usuariosResult = await apiBackendAction("usuarios.list", {});
+      const usuariosData = (usuariosResult.results || [])
+        .filter((u: any) => u.rol === "tecnico" && u.activo);
 
-      setTecnicos((usuariosData || []).map(u => ({
+      setTecnicos(usuariosData.map((u: any) => ({
         id: u.id,
         nombre: u.nombre || "",
         apellido: u.apellido || "",
         email: u.email || ""
       })));
 
-      // Fetch centros de servicio
-      const { data: centrosData } = await supabase
-        .from("centros_de_servicio")
-        .select("id, nombre")
-        .eq("activo", true)
-        .order("nombre");
+      // Fetch centros de servicio using apiBackendAction
+      const centrosResult = await apiBackendAction("centros_de_servicio.list", {});
+      const centrosData = ((centrosResult as any).results || (centrosResult as any).data || []).filter((c: any) => c.activo);
 
-      setCentros((centrosData || []).map(c => ({
+      setCentros(centrosData.map((c: any) => ({
         id: c.id,
         nombre: c.nombre
       })));
       
-      if (centrosData && centrosData.length > 0) {
+      if (centrosData.length > 0) {
         setSelectedCentro(String(centrosData[0].id));
       }
 
-      setFamilias((familiasData || []).map(f => ({
+      setFamilias(familiasData.map((f: any) => ({
         id: f.id,
         nombre: f.nombre
       })));
