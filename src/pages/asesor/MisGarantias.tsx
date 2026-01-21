@@ -16,8 +16,9 @@ import { PhotoGalleryWithDescriptions } from "@/components/shared";
 import { uploadMediaToStorage } from "@/lib/uploadMedia";
 import { MediaFile } from "@/components/features/media";
 
+// Type for garantias_manuales table (not yet in generated types)
 interface GarantiaManual {
-  id: string;
+  id: number;
   codigo_cliente: string;
   sku_reportado: string;
   descripcion_sku: string;
@@ -28,6 +29,7 @@ interface GarantiaManual {
   comentarios_logistica: string | null;
   numero_incidente: string | null;
   created_at: string;
+  created_by: number | null;
 }
 
 interface PhotoWithDescription {
@@ -73,7 +75,8 @@ export default function MisGarantias() {
   const fetchGarantias = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      // Using any cast because garantias_manuales types are not yet generated
+      const { data, error } = await (supabase as any)
         .from("garantias_manuales")
         .select("*")
         .eq("created_by", user?.id)
@@ -115,7 +118,8 @@ export default function MisGarantias() {
         fotosUrls = uploadedMedia.map(m => m.url);
       }
 
-      const { error } = await supabase
+      // Using any cast because garantias_manuales types are not yet generated
+      const { error } = await (supabase as any)
         .from("garantias_manuales")
         .insert([{
           codigo_cliente: codigoCliente,
@@ -375,7 +379,7 @@ export default function MisGarantias() {
                     )}
                   </TableCell>
                   <TableCell>
-                    <Button 
+                    <Button
                       variant="ghost" 
                       size="sm"
                       onClick={() => setSelectedGarantia(garantia)}
@@ -448,8 +452,8 @@ export default function MisGarantias() {
               )}
               {selectedGarantia.numero_incidente && (
                 <div className="bg-primary/10 p-4 rounded-lg">
-                  <Label className="text-muted-foreground">Número de Incidente Asignado</Label>
-                  <p className="font-medium font-mono text-lg mt-1">{selectedGarantia.numero_incidente}</p>
+                  <Label className="text-muted-foreground">Número de Incidente</Label>
+                  <p className="font-medium font-mono mt-1">{selectedGarantia.numero_incidente}</p>
                 </div>
               )}
               {selectedGarantia.fotos_urls && selectedGarantia.fotos_urls.length > 0 && (
@@ -457,18 +461,8 @@ export default function MisGarantias() {
                   <Label className="text-muted-foreground">Fotos Adjuntas</Label>
                   <div className="grid grid-cols-3 gap-2 mt-2">
                     {selectedGarantia.fotos_urls.map((url, idx) => (
-                      <a
-                        key={idx}
-                        href={url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="relative aspect-square rounded-lg overflow-hidden border hover:border-primary transition-colors"
-                      >
-                        <img
-                          src={url}
-                          alt={`Foto ${idx + 1}`}
-                          className="w-full h-full object-cover"
-                        />
+                      <a key={idx} href={url} target="_blank" rel="noopener noreferrer">
+                        <img src={url} alt={`Foto ${idx + 1}`} className="rounded-lg object-cover aspect-square" />
                       </a>
                     ))}
                   </div>

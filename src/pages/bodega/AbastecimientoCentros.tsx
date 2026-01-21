@@ -12,18 +12,19 @@ import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
+// Types for tables not yet in generated types
 interface CentroServicio {
-  id: string;
+  id: number;
   nombre: string;
-  es_central: boolean;
+  es_central: boolean | null;
 }
 
 interface ListadoAbastecimiento {
-  id: string;
+  id: number;
+  centro_servicio_destino_id: number;
   nombre: string;
   estado: string;
   fecha_generacion: string;
-  centro_servicio_destino_id: string;
   notas: string | null;
   items_total?: number;
   items_pickeados?: number;
@@ -31,7 +32,7 @@ interface ListadoAbastecimiento {
 }
 
 interface Profile {
-  user_id: string;
+  id: number;
   nombre: string;
   apellido: string;
 }
@@ -41,7 +42,7 @@ export default function AbastecimientoCentros() {
   const [loading, setLoading] = useState(true);
   const [centros, setCentros] = useState<CentroServicio[]>([]);
   const [listados, setListados] = useState<ListadoAbastecimiento[]>([]);
-  const [pickers, setPickers] = useState<Record<string, Profile[]>>({});
+  const [pickers, setPickers] = useState<Record<number, Profile[]>>({});
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedCentro, setSelectedCentro] = useState<CentroServicio | null>(null);
   const [nuevoListado, setNuevoListado] = useState({ nombre: "", notas: "" });
@@ -56,8 +57,8 @@ export default function AbastecimientoCentros() {
       setLoading(true);
       
       // Fetch centros de servicio (excluyendo el central zona 5)
-      const { data: centrosData, error: centrosError } = await supabase
-        .from("centros_servicio")
+      const { data: centrosData, error: centrosError } = await (supabase as any)
+        .from("centros_de_servicio")
         .select("id, nombre, es_central")
         .eq("activo", true)
         .order("nombre");
@@ -69,7 +70,8 @@ export default function AbastecimientoCentros() {
       setCentros(centrosDestino);
 
       // Fetch listados activos (no completados ni cancelados)
-      const { data: listadosData, error: listadosError } = await supabase
+      // Using any cast because listados_abastecimiento types are not yet generated
+      const { data: listadosData, error: listadosError } = await (supabase as any)
         .from("listados_abastecimiento")
         .select("*")
         .in("estado", ["borrador", "en_picking"])
@@ -78,21 +80,21 @@ export default function AbastecimientoCentros() {
       if (listadosError) throw listadosError;
 
       // Para cada listado, obtener conteo de items y pickers
-      const listadosConStats = await Promise.all((listadosData || []).map(async (listado) => {
-        // Contar items
-        const { count: totalItems } = await supabase
+      const listadosConStats = await Promise.all((listadosData || []).map(async (listado: any) => {
+        // Contar items - using any cast
+        const { count: totalItems } = await (supabase as any)
           .from("listados_abastecimiento_items")
           .select("*", { count: "exact", head: true })
           .eq("listado_id", listado.id);
 
-        const { count: itemsPickeados } = await supabase
+        const { count: itemsPickeados } = await (supabase as any)
           .from("listados_abastecimiento_items")
           .select("*", { count: "exact", head: true })
           .eq("listado_id", listado.id)
           .eq("estado", "pickeado");
 
         // Contar pickers
-        const { count: pickersCount } = await supabase
+        const { count: pickersCount } = await (supabase as any)
           .from("listados_abastecimiento_pickers")
           .select("*", { count: "exact", head: true })
           .eq("listado_id", listado.id)
@@ -109,22 +111,22 @@ export default function AbastecimientoCentros() {
       setListados(listadosConStats);
 
       // Fetch pickers activos por listado
-      const pickersMap: Record<string, Profile[]> = {};
+      const pickersMap: Record<number, Profile[]> = {};
       for (const listado of listadosConStats) {
-        const { data: pickersData } = await supabase
+        const { data: pickersData } = await (supabase as any)
           .from("listados_abastecimiento_pickers")
           .select("picker_id")
           .eq("listado_id", listado.id)
           .eq("estado", "activo");
 
         if (pickersData && pickersData.length > 0) {
-          const pickerIds = pickersData.map(p => p.picker_id);
+          const pickerIds = pickersData.map((p: any) => p.picker_id);
           const { data: profiles } = await supabase
-            .from("profiles")
-            .select("user_id, nombre, apellido")
-            .in("user_id", pickerIds);
+            .from("usuarios")
+            .select("id, nombre, apellido")
+            .in("id", pickerIds);
           
-          pickersMap[listado.id] = profiles || [];
+          pickersMap[listado.id] = (profiles || []) as Profile[];
         }
       }
       setPickers(pickersMap);
@@ -147,8 +149,8 @@ export default function AbastecimientoCentros() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       
-      // Crear el listado
-      const { data: listado, error: listadoError } = await supabase
+      // Crear el listado - using any cast
+      const { data: listado, error: listadoError } = await (supabase as any)
         .from("listados_abastecimiento")
         .insert({
           centro_servicio_destino_id: selectedCentro.id,
@@ -181,11 +183,11 @@ export default function AbastecimientoCentros() {
     }
   };
 
-  const generarItemsListado = async (listadoId: string, centroDestinoId: string) => {
+  const generarItemsListado = async (listadoId: number, centroDestinoId: number) => {
     try {
       // Obtener el centro de servicio Zona 5 (central)
-      const { data: centroCentral } = await supabase
-        .from("centros_servicio")
+      const { data: centroCentral } = await (supabase as any)
+        .from("centros_de_servicio")
         .select("id")
         .eq("es_central", true)
         .single();
@@ -236,7 +238,7 @@ export default function AbastecimientoCentros() {
         }));
 
       if (itemsToInsert.length > 0) {
-        const { error } = await supabase
+        const { error } = await (supabase as any)
           .from("listados_abastecimiento_items")
           .insert(itemsToInsert);
 
@@ -248,7 +250,7 @@ export default function AbastecimientoCentros() {
     }
   };
 
-  const getListadosByCentro = (centroId: string) => {
+  const getListadosByCentro = (centroId: number) => {
     return listados.filter(l => l.centro_servicio_destino_id === centroId);
   };
 
@@ -338,7 +340,7 @@ export default function AbastecimientoCentros() {
                       {pickers[listadoActivo.id]?.length > 0 && (
                         <div className="flex flex-wrap gap-1">
                           {pickers[listadoActivo.id].map(p => (
-                            <Badge key={p.user_id} variant="outline" className="text-xs">
+                            <Badge key={p.id} variant="outline" className="text-xs">
                               {p.nombre} {p.apellido?.[0]}.
                             </Badge>
                           ))}

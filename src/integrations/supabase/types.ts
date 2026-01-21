@@ -61,6 +61,241 @@ export type Database = {
         }
         Relationships: []
       }
+      analisis_inventario: {
+        Row: {
+          centro_servicio_id: number
+          clasificacion_abc: string | null
+          clasificacion_xyz: string | null
+          codigo_repuesto: string
+          costo_unitario: number
+          created_at: string
+          dias_en_inventario: number
+          dias_sin_movimiento: number
+          id: number
+          meses_analizados: number
+          meses_con_movimiento: number
+          primera_entrada: string | null
+          stock_actual: number
+          total_movimientos: number
+          total_salidas: number
+          ultimo_movimiento: string | null
+          updated_at: string
+          valor_inventario: number
+        }
+        Insert: {
+          centro_servicio_id: number
+          clasificacion_abc?: string | null
+          clasificacion_xyz?: string | null
+          codigo_repuesto: string
+          costo_unitario: number
+          created_at?: string
+          dias_en_inventario: number
+          dias_sin_movimiento: number
+          id?: number
+          meses_analizados: number
+          meses_con_movimiento: number
+          primera_entrada?: string | null
+          stock_actual: number
+          total_movimientos: number
+          total_salidas: number
+          ultimo_movimiento?: string | null
+          updated_at?: string
+          valor_inventario: number
+        }
+        Update: {
+          centro_servicio_id?: number
+          clasificacion_abc?: string | null
+          clasificacion_xyz?: string | null
+          codigo_repuesto?: string
+          costo_unitario?: number
+          created_at?: string
+          dias_en_inventario?: number
+          dias_sin_movimiento?: number
+          id?: number
+          meses_analizados?: number
+          meses_con_movimiento?: number
+          primera_entrada?: string | null
+          stock_actual?: number
+          total_movimientos?: number
+          total_salidas?: number
+          ultimo_movimiento?: string | null
+          updated_at?: string
+          valor_inventario?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "analisis_inventario_centro_servicio_id_fkey"
+            columns: ["centro_servicio_id"]
+            isOneToOne: false
+            referencedRelation: "centros_de_servicio"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      asignaciones_sac: {
+        Row: {
+          activo: boolean | null
+          created_at: string
+          fecha_asignacion: string
+          id: number
+          incidente_id: number
+          user_id: number
+        }
+        Insert: {
+          activo?: boolean | null
+          created_at?: string
+          fecha_asignacion?: string
+          id?: number
+          incidente_id: number
+          user_id: number
+        }
+        Update: {
+          activo?: boolean | null
+          created_at?: string
+          fecha_asignacion?: string
+          id?: number
+          incidente_id?: number
+          user_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "asignaciones_sac_incidente_id_fkey"
+            columns: ["incidente_id"]
+            isOneToOne: false
+            referencedRelation: "incidentes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "asignaciones_sac_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      audit_logs: {
+        Row: {
+          accion: string
+          created_at: string | null
+          id: number
+          registro_id: string
+          tabla_afectada: string
+          usuario_id: number | null
+        }
+        Insert: {
+          accion: string
+          created_at?: string | null
+          id?: number
+          registro_id: string
+          tabla_afectada: string
+          usuario_id?: number | null
+        }
+        Update: {
+          accion?: string
+          created_at?: string | null
+          id?: number
+          registro_id?: string
+          tabla_afectada?: string
+          usuario_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_logs_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      auditorias_calidad: {
+        Row: {
+          auditor_id: number | null
+          causa_raiz: string | null
+          created_at: string
+          cumple_ensamblaje: boolean | null
+          cumple_limpieza: boolean | null
+          cumple_presentacion: boolean | null
+          cumple_sellado: boolean | null
+          evidencias_urls: Json | null
+          fecha_auditoria: string
+          id: number
+          incidente_id: number
+          observaciones: string | null
+          presion_medida: number | null
+          proveedor_involucrado: string | null
+          resultado: string
+          tecnico_responsable: string
+          temperatura_medida: number | null
+          tipo_falla: string | null
+          updated_at: string
+          velocidad_medida: number | null
+          voltaje_medido: number | null
+        }
+        Insert: {
+          auditor_id?: number | null
+          causa_raiz?: string | null
+          created_at?: string
+          cumple_ensamblaje?: boolean | null
+          cumple_limpieza?: boolean | null
+          cumple_presentacion?: boolean | null
+          cumple_sellado?: boolean | null
+          evidencias_urls?: Json | null
+          fecha_auditoria?: string
+          id?: number
+          incidente_id: number
+          observaciones?: string | null
+          presion_medida?: number | null
+          proveedor_involucrado?: string | null
+          resultado: string
+          tecnico_responsable: string
+          temperatura_medida?: number | null
+          tipo_falla?: string | null
+          updated_at: string
+          velocidad_medida?: number | null
+          voltaje_medido?: number | null
+        }
+        Update: {
+          auditor_id?: number | null
+          causa_raiz?: string | null
+          created_at?: string
+          cumple_ensamblaje?: boolean | null
+          cumple_limpieza?: boolean | null
+          cumple_presentacion?: boolean | null
+          cumple_sellado?: boolean | null
+          evidencias_urls?: Json | null
+          fecha_auditoria?: string
+          id?: number
+          incidente_id?: number
+          observaciones?: string | null
+          presion_medida?: number | null
+          proveedor_involucrado?: string | null
+          resultado?: string
+          tecnico_responsable?: string
+          temperatura_medida?: number | null
+          tipo_falla?: string | null
+          updated_at?: string
+          velocidad_medida?: number | null
+          voltaje_medido?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "auditorias_calidad_auditor_id_fkey"
+            columns: ["auditor_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "auditorias_calidad_incidente_id_fkey"
+            columns: ["incidente_id"]
+            isOneToOne: false
+            referencedRelation: "incidentes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bodegas: {
         Row: {
           activo: boolean | null
@@ -138,10 +373,13 @@ export type Database = {
           correo: string | null
           created_at: string | null
           direccion: string | null
+          email: string | null
           empresa_id: number | null
           es_central: boolean | null
           id: number
+          id_numerico: number | null
           nombre: string
+          numero_bodega: string | null
           responsable_id: number | null
           slug: string
           telefono: string | null
@@ -153,10 +391,13 @@ export type Database = {
           correo?: string | null
           created_at?: string | null
           direccion?: string | null
+          email?: string | null
           empresa_id?: number | null
           es_central?: boolean | null
           id?: number
+          id_numerico?: number | null
           nombre: string
+          numero_bodega?: string | null
           responsable_id?: number | null
           slug: string
           telefono?: string | null
@@ -168,10 +409,13 @@ export type Database = {
           correo?: string | null
           created_at?: string | null
           direccion?: string | null
+          email?: string | null
           empresa_id?: number | null
           es_central?: boolean | null
           id?: number
+          id_numerico?: number | null
           nombre?: string
+          numero_bodega?: string | null
           responsable_id?: number | null
           slug?: string
           telefono?: string | null
@@ -183,6 +427,42 @@ export type Database = {
             columns: ["empresa_id"]
             isOneToOne: false
             referencedRelation: "empresas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      centros_supervisor: {
+        Row: {
+          centro_servicio_id: number
+          created_at: string | null
+          id: number
+          supervisor_id: number
+        }
+        Insert: {
+          centro_servicio_id: number
+          created_at?: string | null
+          id?: number
+          supervisor_id: number
+        }
+        Update: {
+          centro_servicio_id?: number
+          created_at?: string | null
+          id?: number
+          supervisor_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "centros_supervisor_centro_servicio_id_fkey"
+            columns: ["centro_servicio_id"]
+            isOneToOne: false
+            referencedRelation: "centros_de_servicio"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "centros_supervisor_supervisor_id_fkey"
+            columns: ["supervisor_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
             referencedColumns: ["id"]
           },
         ]
@@ -308,6 +588,256 @@ export type Database = {
             columns: ["incidente_id"]
             isOneToOne: false
             referencedRelation: "incidentes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      configuracion_fifo_centro: {
+        Row: {
+          activo: boolean | null
+          centro_servicio_id: number
+          familia_abuelo_id: number
+          id: number
+          orden: number
+          updated_at: string | null
+          updated_by: number | null
+        }
+        Insert: {
+          activo?: boolean | null
+          centro_servicio_id: number
+          familia_abuelo_id: number
+          id?: number
+          orden: number
+          updated_at?: string | null
+          updated_by?: number | null
+        }
+        Update: {
+          activo?: boolean | null
+          centro_servicio_id?: number
+          familia_abuelo_id?: number
+          id?: number
+          orden?: number
+          updated_at?: string | null
+          updated_by?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "configuracion_fifo_centro_centro_servicio_id_fkey"
+            columns: ["centro_servicio_id"]
+            isOneToOne: false
+            referencedRelation: "centros_de_servicio"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "configuracion_fifo_centro_familia_abuelo_id_fkey"
+            columns: ["familia_abuelo_id"]
+            isOneToOne: false
+            referencedRelation: "familias_producto"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "configuracion_fifo_centro_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conteos_programados: {
+        Row: {
+          activo: boolean | null
+          centro_servicio_id: number
+          clasificacion_abc: string | null
+          created_at: string | null
+          created_by: number | null
+          frecuencia: string | null
+          id: number
+          proximo_conteo: string | null
+          ubicacion: string
+          updated_at: string | null
+        }
+        Insert: {
+          activo?: boolean | null
+          centro_servicio_id: number
+          clasificacion_abc?: string | null
+          created_at?: string | null
+          created_by?: number | null
+          frecuencia?: string | null
+          id?: number
+          proximo_conteo?: string | null
+          ubicacion: string
+          updated_at?: string | null
+        }
+        Update: {
+          activo?: boolean | null
+          centro_servicio_id?: number
+          clasificacion_abc?: string | null
+          created_at?: string | null
+          created_by?: number | null
+          frecuencia?: string | null
+          id?: number
+          proximo_conteo?: string | null
+          ubicacion?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conteos_programados_centro_servicio_id_fkey"
+            columns: ["centro_servicio_id"]
+            isOneToOne: false
+            referencedRelation: "centros_de_servicio"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conteos_programados_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cotizaciones: {
+        Row: {
+          cantidad: number
+          codigo_cliente: string
+          codigo_producto: string
+          created_at: string
+          created_by: number | null
+          id: number
+          notas: string | null
+          precio_unitario: number | null
+        }
+        Insert: {
+          cantidad: number
+          codigo_cliente: string
+          codigo_producto: string
+          created_at?: string
+          created_by?: number | null
+          id?: number
+          notas?: string | null
+          precio_unitario?: number | null
+        }
+        Update: {
+          cantidad?: number
+          codigo_cliente?: string
+          codigo_producto?: string
+          created_at?: string
+          created_by?: number | null
+          id?: number
+          notas?: string | null
+          precio_unitario?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cotizaciones_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      defectos_calidad: {
+        Row: {
+          auditoria_id: number | null
+          codigo_elemento: string
+          comentarios_tecnicos: string | null
+          created_at: string
+          descripcion_defecto: string
+          descripcion_elemento: string | null
+          frecuencia: number | null
+          gravedad: string | null
+          id: number
+          proveedor: string | null
+          sugerencias_mejora: string | null
+          tipo_defecto: string
+          tipo_elemento: string
+        }
+        Insert: {
+          auditoria_id?: number | null
+          codigo_elemento: string
+          comentarios_tecnicos?: string | null
+          created_at?: string
+          descripcion_defecto: string
+          descripcion_elemento?: string | null
+          frecuencia?: number | null
+          gravedad?: string | null
+          id?: number
+          proveedor?: string | null
+          sugerencias_mejora?: string | null
+          tipo_defecto: string
+          tipo_elemento: string
+        }
+        Update: {
+          auditoria_id?: number | null
+          codigo_elemento?: string
+          comentarios_tecnicos?: string | null
+          created_at?: string
+          descripcion_defecto?: string
+          descripcion_elemento?: string | null
+          frecuencia?: number | null
+          gravedad?: string | null
+          id?: number
+          proveedor?: string | null
+          sugerencias_mejora?: string | null
+          tipo_defecto?: string
+          tipo_elemento?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "defectos_calidad_auditoria_id_fkey"
+            columns: ["auditoria_id"]
+            isOneToOne: false
+            referencedRelation: "auditorias_calidad"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      despieces: {
+        Row: {
+          codigo_producto: string
+          created_at: string
+          created_by: number | null
+          descripcion: string
+          estado: string
+          fecha_ingreso: string
+          id: number
+          repuestos_disponibles: Json
+          sku_maquina: string
+          updated_at: string
+        }
+        Insert: {
+          codigo_producto: string
+          created_at?: string
+          created_by?: number | null
+          descripcion: string
+          estado: string
+          fecha_ingreso?: string
+          id?: number
+          repuestos_disponibles: Json
+          sku_maquina: string
+          updated_at?: string
+        }
+        Update: {
+          codigo_producto?: string
+          created_at?: string
+          created_by?: number | null
+          descripcion?: string
+          estado?: string
+          fecha_ingreso?: string
+          id?: number
+          repuestos_disponibles?: Json
+          sku_maquina?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "despieces_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
             referencedColumns: ["id"]
           },
         ]
@@ -510,6 +1040,89 @@ export type Database = {
           },
         ]
       }
+      direcciones_envio: {
+        Row: {
+          ciudad: string | null
+          codigo_postal: string | null
+          created_at: string | null
+          direccion_completa: string
+          embarque_id: number | null
+          estado: string | null
+          id: number
+          nombre_contacto: string | null
+          notas_adicionales: string | null
+          pais: string | null
+          telefono_contacto: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          ciudad?: string | null
+          codigo_postal?: string | null
+          created_at?: string | null
+          direccion_completa: string
+          embarque_id?: number | null
+          estado?: string | null
+          id?: number
+          nombre_contacto?: string | null
+          notas_adicionales?: string | null
+          pais?: string | null
+          telefono_contacto?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          ciudad?: string | null
+          codigo_postal?: string | null
+          created_at?: string | null
+          direccion_completa?: string
+          embarque_id?: number | null
+          estado?: string | null
+          id?: number
+          nombre_contacto?: string | null
+          notas_adicionales?: string | null
+          pais?: string | null
+          telefono_contacto?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "direcciones_envio_embarque_id_fkey"
+            columns: ["embarque_id"]
+            isOneToOne: false
+            referencedRelation: "embarques"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      embarques: {
+        Row: {
+          created_at: string | null
+          fecha_llegada: string
+          id: number
+          notas: string | null
+          numero_embarque: string
+          transportista: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          fecha_llegada?: string
+          id?: number
+          notas?: string | null
+          numero_embarque: string
+          transportista?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          fecha_llegada?: string
+          id?: number
+          notas?: string | null
+          numero_embarque?: string
+          transportista?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       empresas: {
         Row: {
           activo: boolean | null
@@ -533,50 +1146,6 @@ export type Database = {
           nombre?: string
         }
         Relationships: []
-      }
-      eventos_auditoria: {
-        Row: {
-          accion: string
-          actor_id: number | null
-          created_at: string | null
-          entidad: string
-          entidad_id: number
-          id: number
-          rol_actor: string | null
-          valor_anterior: Json | null
-          valor_nuevo: Json | null
-        }
-        Insert: {
-          accion: string
-          actor_id?: number | null
-          created_at?: string | null
-          entidad: string
-          entidad_id: number
-          id?: number
-          rol_actor?: string | null
-          valor_anterior?: Json | null
-          valor_nuevo?: Json | null
-        }
-        Update: {
-          accion?: string
-          actor_id?: number | null
-          created_at?: string | null
-          entidad?: string
-          entidad_id?: number
-          id?: number
-          rol_actor?: string | null
-          valor_anterior?: Json | null
-          valor_nuevo?: Json | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "eventos_auditoria_actor_id_fkey"
-            columns: ["actor_id"]
-            isOneToOne: false
-            referencedRelation: "usuarios"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       fallas: {
         Row: {
@@ -632,6 +1201,92 @@ export type Database = {
             columns: ["parent_id"]
             isOneToOne: false
             referencedRelation: "familias_producto"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      garantias_manuales: {
+        Row: {
+          cantidad_sku: number
+          codigo_cliente: string
+          comentarios_logistica: string | null
+          created_at: string
+          created_by: number | null
+          descripcion_problema: string
+          descripcion_sku: string
+          estatus: string
+          fotos_urls: Json | null
+          id: number
+          incidente_id: number | null
+          modified_by: number | null
+          numero_incidente: string | null
+          origen: string | null
+          sku_reportado: string
+          updated_at: string
+        }
+        Insert: {
+          cantidad_sku: number
+          codigo_cliente: string
+          comentarios_logistica?: string | null
+          created_at?: string
+          created_by?: number | null
+          descripcion_problema: string
+          descripcion_sku: string
+          estatus: string
+          fotos_urls?: Json | null
+          id?: number
+          incidente_id?: number | null
+          modified_by?: number | null
+          numero_incidente?: string | null
+          origen?: string | null
+          sku_reportado: string
+          updated_at?: string
+        }
+        Update: {
+          cantidad_sku?: number
+          codigo_cliente?: string
+          comentarios_logistica?: string | null
+          created_at?: string
+          created_by?: number | null
+          descripcion_problema?: string
+          descripcion_sku?: string
+          estatus?: string
+          fotos_urls?: Json | null
+          id?: number
+          incidente_id?: number | null
+          modified_by?: number | null
+          numero_incidente?: string | null
+          origen?: string | null
+          sku_reportado?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "garantias_manuales_codigo_cliente_fkey"
+            columns: ["codigo_cliente"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["codigo"]
+          },
+          {
+            foreignKeyName: "garantias_manuales_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "garantias_manuales_incidente_id_fkey"
+            columns: ["incidente_id"]
+            isOneToOne: false
+            referencedRelation: "incidentes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "garantias_manuales_modified_by_fkey"
+            columns: ["modified_by"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
             referencedColumns: ["id"]
           },
         ]
@@ -725,12 +1380,33 @@ export type Database = {
       }
       guias: {
         Row: {
+          cantidad_piezas: number | null
           centro_de_servicio_destino_id: number | null
           centro_de_servicio_origen_id: number
+          ciudad_destino: string | null
           created_at: string | null
+          created_by: number | null
+          destinatario: string | null
+          direccion_destinatario: string | null
+          direccion_remitente: string | null
+          empacador: string | null
           estado: Database["public"]["Enums"]["estadoguia"]
+          fecha_entrega: string | null
+          fecha_guia: string | null
+          fecha_ingreso: string | null
+          fecha_promesa_entrega: string | null
           id: number
           incidente_id: number | null
+          incidentes_codigos: Json | null
+          numero_guia: string | null
+          operador_pod: string | null
+          peso: number | null
+          recibido_por: string | null
+          referencia_1: string | null
+          referencia_2: string | null
+          remitente: string | null
+          tarifa: number | null
+          telefono_destinatario: string | null
           tipo: Database["public"]["Enums"]["tipoguia"]
           tracking_number: string | null
           updated_at: string | null
@@ -740,12 +1416,33 @@ export type Database = {
           zigo_response_data: Json | null
         }
         Insert: {
+          cantidad_piezas?: number | null
           centro_de_servicio_destino_id?: number | null
           centro_de_servicio_origen_id: number
+          ciudad_destino?: string | null
           created_at?: string | null
+          created_by?: number | null
+          destinatario?: string | null
+          direccion_destinatario?: string | null
+          direccion_remitente?: string | null
+          empacador?: string | null
           estado: Database["public"]["Enums"]["estadoguia"]
+          fecha_entrega?: string | null
+          fecha_guia?: string | null
+          fecha_ingreso?: string | null
+          fecha_promesa_entrega?: string | null
           id?: number
           incidente_id?: number | null
+          incidentes_codigos?: Json | null
+          numero_guia?: string | null
+          operador_pod?: string | null
+          peso?: number | null
+          recibido_por?: string | null
+          referencia_1?: string | null
+          referencia_2?: string | null
+          remitente?: string | null
+          tarifa?: number | null
+          telefono_destinatario?: string | null
           tipo: Database["public"]["Enums"]["tipoguia"]
           tracking_number?: string | null
           updated_at?: string | null
@@ -755,12 +1452,33 @@ export type Database = {
           zigo_response_data?: Json | null
         }
         Update: {
+          cantidad_piezas?: number | null
           centro_de_servicio_destino_id?: number | null
           centro_de_servicio_origen_id?: number
+          ciudad_destino?: string | null
           created_at?: string | null
+          created_by?: number | null
+          destinatario?: string | null
+          direccion_destinatario?: string | null
+          direccion_remitente?: string | null
+          empacador?: string | null
           estado?: Database["public"]["Enums"]["estadoguia"]
+          fecha_entrega?: string | null
+          fecha_guia?: string | null
+          fecha_ingreso?: string | null
+          fecha_promesa_entrega?: string | null
           id?: number
           incidente_id?: number | null
+          incidentes_codigos?: Json | null
+          numero_guia?: string | null
+          operador_pod?: string | null
+          peso?: number | null
+          recibido_por?: string | null
+          referencia_1?: string | null
+          referencia_2?: string | null
+          remitente?: string | null
+          tarifa?: number | null
+          telefono_destinatario?: string | null
           tipo?: Database["public"]["Enums"]["tipoguia"]
           tracking_number?: string | null
           updated_at?: string | null
@@ -785,10 +1503,134 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "guias_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "guias_incidente_id_fkey"
             columns: ["incidente_id"]
             isOneToOne: false
             referencedRelation: "incidentes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      importaciones: {
+        Row: {
+          centro_destino_id: number | null
+          created_at: string
+          created_by: number | null
+          estado: string | null
+          fecha_llegada: string
+          id: number
+          notas: string | null
+          numero_embarque: string
+          origen: string
+          updated_at: string
+        }
+        Insert: {
+          centro_destino_id?: number | null
+          created_at?: string
+          created_by?: number | null
+          estado?: string | null
+          fecha_llegada: string
+          id?: number
+          notas?: string | null
+          numero_embarque: string
+          origen: string
+          updated_at?: string
+        }
+        Update: {
+          centro_destino_id?: number | null
+          created_at?: string
+          created_by?: number | null
+          estado?: string | null
+          fecha_llegada?: string
+          id?: number
+          notas?: string | null
+          numero_embarque?: string
+          origen?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "importaciones_centro_destino_id_fkey"
+            columns: ["centro_destino_id"]
+            isOneToOne: false
+            referencedRelation: "centros_de_servicio"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "importaciones_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      importaciones_detalle: {
+        Row: {
+          cantidad: number
+          cantidad_esperada: number | null
+          cantidad_recibida: number | null
+          created_at: string
+          descripcion: string
+          estado: string | null
+          id: number
+          importacion_id: number
+          procesado: boolean | null
+          recibido_at: string | null
+          recibido_por: number | null
+          sku: string
+          ubicacion_asignada: string | null
+        }
+        Insert: {
+          cantidad: number
+          cantidad_esperada?: number | null
+          cantidad_recibida?: number | null
+          created_at?: string
+          descripcion: string
+          estado?: string | null
+          id?: number
+          importacion_id: number
+          procesado?: boolean | null
+          recibido_at?: string | null
+          recibido_por?: number | null
+          sku: string
+          ubicacion_asignada?: string | null
+        }
+        Update: {
+          cantidad?: number
+          cantidad_esperada?: number | null
+          cantidad_recibida?: number | null
+          created_at?: string
+          descripcion?: string
+          estado?: string | null
+          id?: number
+          importacion_id?: number
+          procesado?: boolean | null
+          recibido_at?: string | null
+          recibido_por?: number | null
+          sku?: string
+          ubicacion_asignada?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "importaciones_detalle_importacion_id_fkey"
+            columns: ["importacion_id"]
+            isOneToOne: false
+            referencedRelation: "importaciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "importaciones_detalle_recibido_por_fkey"
+            columns: ["recibido_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
             referencedColumns: ["id"]
           },
         ]
@@ -816,6 +1658,54 @@ export type Database = {
           },
           {
             foreignKeyName: "incidente_accesorios_incidente_id_fkey"
+            columns: ["incidente_id"]
+            isOneToOne: false
+            referencedRelation: "incidentes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      incidente_fotos: {
+        Row: {
+          created_at: string
+          created_by: number | null
+          id: number
+          incidente_id: number
+          orden: number | null
+          storage_path: string
+          tipo: string
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: number | null
+          id?: number
+          incidente_id: number
+          orden?: number | null
+          storage_path: string
+          tipo: string
+          url: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: number | null
+          id?: number
+          incidente_id?: number
+          orden?: number | null
+          storage_path?: string
+          tipo?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "incidente_fotos_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "incidente_fotos_incidente_id_fkey"
             columns: ["incidente_id"]
             isOneToOne: false
             referencedRelation: "incidentes"
@@ -1074,6 +1964,57 @@ export type Database = {
           },
         ]
       }
+      ingresos_logistica: {
+        Row: {
+          created_at: string | null
+          fecha_recepcion: string | null
+          fotos_urls: Json
+          id: number
+          incidente_id: number
+          observaciones: string | null
+          recibido_por: number | null
+          sku_corregido: string | null
+          sku_original: string
+        }
+        Insert: {
+          created_at?: string | null
+          fecha_recepcion?: string | null
+          fotos_urls: Json
+          id?: number
+          incidente_id: number
+          observaciones?: string | null
+          recibido_por?: number | null
+          sku_corregido?: string | null
+          sku_original: string
+        }
+        Update: {
+          created_at?: string | null
+          fecha_recepcion?: string | null
+          fotos_urls?: Json
+          id?: number
+          incidente_id?: number
+          observaciones?: string | null
+          recibido_por?: number | null
+          sku_corregido?: string | null
+          sku_original?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ingresos_logistica_incidente_id_fkey"
+            columns: ["incidente_id"]
+            isOneToOne: false
+            referencedRelation: "incidentes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ingresos_logistica_recibido_por_fkey"
+            columns: ["recibido_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inventario: {
         Row: {
           bodega: string | null
@@ -1285,6 +2226,175 @@ export type Database = {
             columns: ["centro_de_servicio_id"]
             isOneToOne: false
             referencedRelation: "centros_de_servicio"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      listados_abastecimiento: {
+        Row: {
+          centro_servicio_destino_id: number
+          created_at: string
+          estado: string
+          fecha_generacion: string
+          generado_por: number | null
+          id: number
+          nombre: string
+          notas: string | null
+          updated_at: string
+        }
+        Insert: {
+          centro_servicio_destino_id: number
+          created_at?: string
+          estado: string
+          fecha_generacion?: string
+          generado_por?: number | null
+          id?: number
+          nombre: string
+          notas?: string | null
+          updated_at?: string
+        }
+        Update: {
+          centro_servicio_destino_id?: number
+          created_at?: string
+          estado?: string
+          fecha_generacion?: string
+          generado_por?: number | null
+          id?: number
+          nombre?: string
+          notas?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "listados_abastecimiento_centro_servicio_destino_id_fkey"
+            columns: ["centro_servicio_destino_id"]
+            isOneToOne: false
+            referencedRelation: "centros_de_servicio"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "listados_abastecimiento_generado_por_fkey"
+            columns: ["generado_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      listados_abastecimiento_items: {
+        Row: {
+          cantidad_confirmada: number | null
+          cantidad_pickeada: number | null
+          cantidad_sugerida: number
+          codigo_repuesto: string
+          created_at: string
+          descripcion: string | null
+          estado: string
+          id: number
+          listado_id: number
+          notas: string | null
+          pickeado_at: string | null
+          pickeado_por: number | null
+          picker_asignado_at: string | null
+          picker_asignado_id: number | null
+          ubicacion_origen: string | null
+        }
+        Insert: {
+          cantidad_confirmada?: number | null
+          cantidad_pickeada?: number | null
+          cantidad_sugerida: number
+          codigo_repuesto: string
+          created_at?: string
+          descripcion?: string | null
+          estado: string
+          id?: number
+          listado_id: number
+          notas?: string | null
+          pickeado_at?: string | null
+          pickeado_por?: number | null
+          picker_asignado_at?: string | null
+          picker_asignado_id?: number | null
+          ubicacion_origen?: string | null
+        }
+        Update: {
+          cantidad_confirmada?: number | null
+          cantidad_pickeada?: number | null
+          cantidad_sugerida?: number
+          codigo_repuesto?: string
+          created_at?: string
+          descripcion?: string | null
+          estado?: string
+          id?: number
+          listado_id?: number
+          notas?: string | null
+          pickeado_at?: string | null
+          pickeado_por?: number | null
+          picker_asignado_at?: string | null
+          picker_asignado_id?: number | null
+          ubicacion_origen?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "listados_abastecimiento_items_listado_id_fkey"
+            columns: ["listado_id"]
+            isOneToOne: false
+            referencedRelation: "listados_abastecimiento"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "listados_abastecimiento_items_pickeado_por_fkey"
+            columns: ["pickeado_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "listados_abastecimiento_items_picker_asignado_id_fkey"
+            columns: ["picker_asignado_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      listados_abastecimiento_pickers: {
+        Row: {
+          asignado_at: string
+          estado: string
+          id: number
+          items_pickeados: number | null
+          listado_id: number
+          picker_id: number
+        }
+        Insert: {
+          asignado_at?: string
+          estado: string
+          id?: number
+          items_pickeados?: number | null
+          listado_id: number
+          picker_id: number
+        }
+        Update: {
+          asignado_at?: string
+          estado?: string
+          id?: number
+          items_pickeados?: number | null
+          listado_id?: number
+          picker_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "listados_abastecimiento_pickers_listado_id_fkey"
+            columns: ["listado_id"]
+            isOneToOne: false
+            referencedRelation: "listados_abastecimiento"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "listados_abastecimiento_pickers_picker_id_fkey"
+            columns: ["picker_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
             referencedColumns: ["id"]
           },
         ]
@@ -1549,6 +2659,66 @@ export type Database = {
           },
         ]
       }
+      presupuestos: {
+        Row: {
+          aprobado_por: string | null
+          created_at: string | null
+          created_by: number | null
+          estado: string | null
+          fecha_aprobacion: string | null
+          id: number
+          incidente_id: number
+          mano_obra: number | null
+          notas: string | null
+          repuestos: Json | null
+          total: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          aprobado_por?: string | null
+          created_at?: string | null
+          created_by?: number | null
+          estado?: string | null
+          fecha_aprobacion?: string | null
+          id?: number
+          incidente_id: number
+          mano_obra?: number | null
+          notas?: string | null
+          repuestos?: Json | null
+          total?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          aprobado_por?: string | null
+          created_at?: string | null
+          created_by?: number | null
+          estado?: string | null
+          fecha_aprobacion?: string | null
+          id?: number
+          incidente_id?: number
+          mano_obra?: number | null
+          notas?: string | null
+          repuestos?: Json | null
+          total?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "presupuestos_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "presupuestos_incidente_id_fkey"
+            columns: ["incidente_id"]
+            isOneToOne: false
+            referencedRelation: "incidentes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       producto_familia: {
         Row: {
           familia_id: number
@@ -1673,6 +2843,111 @@ export type Database = {
             columns: ["cliente_id"]
             isOneToOne: false
             referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      reclamos_faltantes: {
+        Row: {
+          cantidad_faltante: number
+          codigo_repuesto: string
+          descripcion: string | null
+          estado: string | null
+          fecha_reclamo: string
+          fecha_resolucion: string | null
+          id: number
+          notas_resolucion: string | null
+          reclamado_por: number | null
+          resuelto_por: number | null
+          transito_id: number
+        }
+        Insert: {
+          cantidad_faltante: number
+          codigo_repuesto: string
+          descripcion?: string | null
+          estado?: string | null
+          fecha_reclamo?: string
+          fecha_resolucion?: string | null
+          id?: number
+          notas_resolucion?: string | null
+          reclamado_por?: number | null
+          resuelto_por?: number | null
+          transito_id: number
+        }
+        Update: {
+          cantidad_faltante?: number
+          codigo_repuesto?: string
+          descripcion?: string | null
+          estado?: string | null
+          fecha_reclamo?: string
+          fecha_resolucion?: string | null
+          id?: number
+          notas_resolucion?: string | null
+          reclamado_por?: number | null
+          resuelto_por?: number | null
+          transito_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reclamos_faltantes_reclamado_por_fkey"
+            columns: ["reclamado_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reclamos_faltantes_resuelto_por_fkey"
+            columns: ["resuelto_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reclamos_faltantes_transito_id_fkey"
+            columns: ["transito_id"]
+            isOneToOne: false
+            referencedRelation: "transitos_bodega"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      recomendaciones: {
+        Row: {
+          activo: boolean | null
+          created_at: string | null
+          descripcion: string | null
+          familia_hija_id: number
+          id: number
+          tipo: string | null
+          titulo: string
+          updated_at: string | null
+        }
+        Insert: {
+          activo?: boolean | null
+          created_at?: string | null
+          descripcion?: string | null
+          familia_hija_id: number
+          id?: number
+          tipo?: string | null
+          titulo: string
+          updated_at?: string | null
+        }
+        Update: {
+          activo?: boolean | null
+          created_at?: string | null
+          descripcion?: string | null
+          familia_hija_id?: number
+          id?: number
+          tipo?: string | null
+          titulo?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recomendaciones_familia_hija_id_fkey"
+            columns: ["familia_hija_id"]
+            isOneToOne: false
+            referencedRelation: "familias_producto"
             referencedColumns: ["id"]
           },
         ]
@@ -1848,6 +3123,70 @@ export type Database = {
           },
         ]
       }
+      repuestos_solicitud_detalle: {
+        Row: {
+          cantidad_encontrada: number | null
+          cantidad_solicitada: number
+          codigo_repuesto: string
+          created_at: string | null
+          estado: string | null
+          fecha_verificacion: string | null
+          id: number
+          notas: string | null
+          solicitud_id: number
+          updated_at: string | null
+          verificado_por: number | null
+        }
+        Insert: {
+          cantidad_encontrada?: number | null
+          cantidad_solicitada: number
+          codigo_repuesto: string
+          created_at?: string | null
+          estado?: string | null
+          fecha_verificacion?: string | null
+          id?: number
+          notas?: string | null
+          solicitud_id: number
+          updated_at?: string | null
+          verificado_por?: number | null
+        }
+        Update: {
+          cantidad_encontrada?: number | null
+          cantidad_solicitada?: number
+          codigo_repuesto?: string
+          created_at?: string | null
+          estado?: string | null
+          fecha_verificacion?: string | null
+          id?: number
+          notas?: string | null
+          solicitud_id?: number
+          updated_at?: string | null
+          verificado_por?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "repuestos_solicitud_detalle_codigo_repuesto_fkey"
+            columns: ["codigo_repuesto"]
+            isOneToOne: false
+            referencedRelation: "repuestos"
+            referencedColumns: ["codigo"]
+          },
+          {
+            foreignKeyName: "repuestos_solicitud_detalle_solicitud_id_fkey"
+            columns: ["solicitud_id"]
+            isOneToOne: false
+            referencedRelation: "solicitudes_repuestos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "repuestos_solicitud_detalle_verificado_por_fkey"
+            columns: ["verificado_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       roles: {
         Row: {
           descripcion: string | null
@@ -1868,6 +3207,452 @@ export type Database = {
           slug?: string
         }
         Relationships: []
+      }
+      solicitudes_repuestos: {
+        Row: {
+          asignado_a: number | null
+          created_at: string | null
+          entregado_por: number | null
+          estado: string | null
+          fecha_asignacion: string | null
+          fecha_despacho: string | null
+          fecha_entrega: string | null
+          id: number
+          incidente_id: number
+          notas: string | null
+          presupuesto_aprobado: boolean | null
+          repuestos: Json
+          tecnico_solicitante_id: number
+          tipo_despacho: string | null
+          tipo_resolucion: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          asignado_a?: number | null
+          created_at?: string | null
+          entregado_por?: number | null
+          estado?: string | null
+          fecha_asignacion?: string | null
+          fecha_despacho?: string | null
+          fecha_entrega?: string | null
+          id?: number
+          incidente_id: number
+          notas?: string | null
+          presupuesto_aprobado?: boolean | null
+          repuestos: Json
+          tecnico_solicitante_id: number
+          tipo_despacho?: string | null
+          tipo_resolucion?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          asignado_a?: number | null
+          created_at?: string | null
+          entregado_por?: number | null
+          estado?: string | null
+          fecha_asignacion?: string | null
+          fecha_despacho?: string | null
+          fecha_entrega?: string | null
+          id?: number
+          incidente_id?: number
+          notas?: string | null
+          presupuesto_aprobado?: boolean | null
+          repuestos?: Json
+          tecnico_solicitante_id?: number
+          tipo_despacho?: string | null
+          tipo_resolucion?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "solicitudes_repuestos_asignado_a_fkey"
+            columns: ["asignado_a"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitudes_repuestos_entregado_por_fkey"
+            columns: ["entregado_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitudes_repuestos_incidente_id_fkey"
+            columns: ["incidente_id"]
+            isOneToOne: false
+            referencedRelation: "incidentes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitudes_repuestos_tecnico_solicitante_id_fkey"
+            columns: ["tecnico_solicitante_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      solicitudes_transferencia_maquinas: {
+        Row: {
+          aprobado_por: number | null
+          centro_destino_id: number
+          centro_origen_id: number
+          created_at: string | null
+          estado: string | null
+          fecha_aprobacion: string | null
+          id: number
+          incidente_id: number
+          motivo: string
+          notas_aprobacion: string | null
+          solicitado_por: number
+          updated_at: string | null
+        }
+        Insert: {
+          aprobado_por?: number | null
+          centro_destino_id: number
+          centro_origen_id: number
+          created_at?: string | null
+          estado?: string | null
+          fecha_aprobacion?: string | null
+          id?: number
+          incidente_id: number
+          motivo: string
+          notas_aprobacion?: string | null
+          solicitado_por: number
+          updated_at?: string | null
+        }
+        Update: {
+          aprobado_por?: number | null
+          centro_destino_id?: number
+          centro_origen_id?: number
+          created_at?: string | null
+          estado?: string | null
+          fecha_aprobacion?: string | null
+          id?: number
+          incidente_id?: number
+          motivo?: string
+          notas_aprobacion?: string | null
+          solicitado_por?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "solicitudes_transferencia_maquinas_aprobado_por_fkey"
+            columns: ["aprobado_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitudes_transferencia_maquinas_centro_destino_id_fkey"
+            columns: ["centro_destino_id"]
+            isOneToOne: false
+            referencedRelation: "centros_de_servicio"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitudes_transferencia_maquinas_centro_origen_id_fkey"
+            columns: ["centro_origen_id"]
+            isOneToOne: false
+            referencedRelation: "centros_de_servicio"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitudes_transferencia_maquinas_incidente_id_fkey"
+            columns: ["incidente_id"]
+            isOneToOne: false
+            referencedRelation: "incidentes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitudes_transferencia_maquinas_solicitado_por_fkey"
+            columns: ["solicitado_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sugeridos_mexico: {
+        Row: {
+          created_at: string
+          estado: string
+          fecha_importacion: string
+          id: number
+          importado_por: number | null
+          nombre_archivo: string
+          notas: string | null
+          total_items: number
+          updated_at: string
+          valor_total_aprobado: number
+          valor_total_sugerido: number
+        }
+        Insert: {
+          created_at?: string
+          estado: string
+          fecha_importacion?: string
+          id?: number
+          importado_por?: number | null
+          nombre_archivo: string
+          notas?: string | null
+          total_items: number
+          updated_at?: string
+          valor_total_aprobado: number
+          valor_total_sugerido: number
+        }
+        Update: {
+          created_at?: string
+          estado?: string
+          fecha_importacion?: string
+          id?: number
+          importado_por?: number | null
+          nombre_archivo?: string
+          notas?: string | null
+          total_items?: number
+          updated_at?: string
+          valor_total_aprobado?: number
+          valor_total_sugerido?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sugeridos_mexico_importado_por_fkey"
+            columns: ["importado_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sugeridos_mexico_items: {
+        Row: {
+          cantidad_aprobada: number
+          cantidad_sugerida: number
+          clasificacion_abc: string | null
+          clasificacion_xyz: string | null
+          codigo_repuesto: string
+          created_at: string
+          decision: string
+          descripcion: string | null
+          dias_inventario: number
+          id: number
+          notas: string | null
+          precio_unitario: number
+          stock_actual_zona5: number
+          sugerido_id: number
+          updated_at: string
+        }
+        Insert: {
+          cantidad_aprobada: number
+          cantidad_sugerida: number
+          clasificacion_abc?: string | null
+          clasificacion_xyz?: string | null
+          codigo_repuesto: string
+          created_at?: string
+          decision: string
+          descripcion?: string | null
+          dias_inventario: number
+          id?: number
+          notas?: string | null
+          precio_unitario: number
+          stock_actual_zona5: number
+          sugerido_id: number
+          updated_at?: string
+        }
+        Update: {
+          cantidad_aprobada?: number
+          cantidad_sugerida?: number
+          clasificacion_abc?: string | null
+          clasificacion_xyz?: string | null
+          codigo_repuesto?: string
+          created_at?: string
+          decision?: string
+          descripcion?: string | null
+          dias_inventario?: number
+          id?: number
+          notas?: string | null
+          precio_unitario?: number
+          stock_actual_zona5?: number
+          sugerido_id?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sugeridos_mexico_items_sugerido_id_fkey"
+            columns: ["sugerido_id"]
+            isOneToOne: false
+            referencedRelation: "sugeridos_mexico"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tecnicos_familias: {
+        Row: {
+          activo: boolean | null
+          centro_servicio_id: number | null
+          created_at: string | null
+          familia_abuelo_id: number | null
+          id: number
+          updated_at: string | null
+          user_id: number
+        }
+        Insert: {
+          activo?: boolean | null
+          centro_servicio_id?: number | null
+          created_at?: string | null
+          familia_abuelo_id?: number | null
+          id?: number
+          updated_at?: string | null
+          user_id: number
+        }
+        Update: {
+          activo?: boolean | null
+          centro_servicio_id?: number | null
+          created_at?: string | null
+          familia_abuelo_id?: number | null
+          id?: number
+          updated_at?: string | null
+          user_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tecnicos_familias_centro_servicio_id_fkey"
+            columns: ["centro_servicio_id"]
+            isOneToOne: false
+            referencedRelation: "centros_de_servicio"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tecnicos_familias_familia_abuelo_id_fkey"
+            columns: ["familia_abuelo_id"]
+            isOneToOne: false
+            referencedRelation: "familias_producto"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tecnicos_familias_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      transitos_bodega: {
+        Row: {
+          centro_destino_id: number
+          centro_origen_id: number
+          created_at: string
+          enviado_por: number | null
+          estado: string | null
+          fecha_envio: string
+          fecha_recepcion: string | null
+          id: number
+          notas: string | null
+          numero_transito: string
+          recibido_por: number | null
+        }
+        Insert: {
+          centro_destino_id: number
+          centro_origen_id: number
+          created_at?: string
+          enviado_por?: number | null
+          estado?: string | null
+          fecha_envio?: string
+          fecha_recepcion?: string | null
+          id?: number
+          notas?: string | null
+          numero_transito: string
+          recibido_por?: number | null
+        }
+        Update: {
+          centro_destino_id?: number
+          centro_origen_id?: number
+          created_at?: string
+          enviado_por?: number | null
+          estado?: string | null
+          fecha_envio?: string
+          fecha_recepcion?: string | null
+          id?: number
+          notas?: string | null
+          numero_transito?: string
+          recibido_por?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transitos_bodega_centro_destino_id_fkey"
+            columns: ["centro_destino_id"]
+            isOneToOne: false
+            referencedRelation: "centros_de_servicio"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transitos_bodega_centro_origen_id_fkey"
+            columns: ["centro_origen_id"]
+            isOneToOne: false
+            referencedRelation: "centros_de_servicio"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transitos_bodega_enviado_por_fkey"
+            columns: ["enviado_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transitos_bodega_recibido_por_fkey"
+            columns: ["recibido_por"]
+            isOneToOne: false
+            referencedRelation: "usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      transitos_detalle: {
+        Row: {
+          cantidad_enviada: number
+          cantidad_recibida: number | null
+          codigo_repuesto: string
+          created_at: string
+          descripcion: string
+          id: number
+          transito_id: number
+          ubicacion_destino: string | null
+          verificado: boolean | null
+        }
+        Insert: {
+          cantidad_enviada: number
+          cantidad_recibida?: number | null
+          codigo_repuesto: string
+          created_at?: string
+          descripcion: string
+          id?: number
+          transito_id: number
+          ubicacion_destino?: string | null
+          verificado?: boolean | null
+        }
+        Update: {
+          cantidad_enviada?: number
+          cantidad_recibida?: number | null
+          codigo_repuesto?: string
+          created_at?: string
+          descripcion?: string
+          id?: number
+          transito_id?: number
+          ubicacion_destino?: string | null
+          verificado?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transitos_detalle_transito_id_fkey"
+            columns: ["transito_id"]
+            isOneToOne: false
+            referencedRelation: "transitos_bodega"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       ubicaciones: {
         Row: {
