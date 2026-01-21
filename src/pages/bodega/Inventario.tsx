@@ -35,14 +35,14 @@ import { InventarioDetailSheet } from "@/components/bodega/InventarioDetailSheet
 import { cn } from "@/lib/utils";
 
 type InventarioItem = {
-  id: string;
+  id: number;
   codigo_repuesto: string;
   descripcion: string | null;
   cantidad: number;
   ubicacion_legacy: string;
   bodega: string | null;
   costo_unitario: number | null;
-  centro_servicio_id: string;
+  centro_servicio_id: number;
   centro_nombre?: string;
 };
 
@@ -62,14 +62,14 @@ type StockAlert = {
 };
 
 type Movimiento = {
-  id: string;
-  tipo_movimiento: "entrada" | "salida";
+  id: number;
+  tipo_movimiento: "ENTRADA" | "SALIDA" | "AJUSTE";
   cantidad: number;
   motivo?: string | null;
   created_at: string;
   stock_anterior?: number | null;
   stock_nuevo?: number | null;
-  codigo_repuesto: string;
+  repuesto_id: number;
 };
 
 const CHART_COLORS = [
@@ -78,7 +78,7 @@ const CHART_COLORS = [
 ];
 
 type CentroServicio = {
-  id: string;
+  id: number;
   nombre: string;
 };
 
@@ -98,8 +98,8 @@ export default function Inventario() {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<Stats>({ totalItems: 0, stockBajo: 0, stockTotal: 0, valorTotal: 0, movimientosHoy: 0 });
   const [stockAlerts, setStockAlerts] = useState<StockAlert[]>([]);
-  const [movimientosRecientes, setMovimientosRecientes] = useState<Movimiento[]>([]);
-  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set());
+  const [movimientosRecientes, setMovimientosRecientes] = useState<any[]>([]);
+  const [selectedItems, setSelectedItems] = useState<Set<number>>(new Set());
   
   // Charts data
   const [chartPorCentro, setChartPorCentro] = useState<{ name: string; value: number }[]>([]);
@@ -144,8 +144,8 @@ export default function Inventario() {
 
   const fetchCentrosServicio = async () => {
     try {
-      const { data } = await supabase
-        .from("centros_servicio")
+      const { data } = await (supabase as any)
+        .from("centros_de_servicio")
         .select("id, nombre")
         .eq("activo", true)
         .order("nombre");
@@ -165,10 +165,10 @@ export default function Inventario() {
   const fetchStats = async () => {
     try {
       // Use the selected centro or null for all
-      const centroId = filterCentroId && filterCentroId !== "todos" ? filterCentroId : null;
+      const centroId = filterCentroId && filterCentroId !== "todos" ? Number(filterCentroId) : null;
       
       // Use the optimized database function for totals
-      const { data: totalesData, error: totalesError } = await supabase
+      const { data: totalesData, error: totalesError } = await (supabase as any)
         .rpc("inventario_totales", { 
           p_centro_servicio_id: centroId, 
           p_search: "" 
@@ -271,8 +271,8 @@ export default function Inventario() {
     
     try {
       // Stock por centro - fetch all 14 centers
-      const { data: centrosData } = await supabase
-        .from("centros_servicio")
+      const { data: centrosData } = await (supabase as any)
+        .from("centros_de_servicio")
         .select("id, nombre")
         .eq("activo", true)
         .order("nombre");
@@ -280,8 +280,8 @@ export default function Inventario() {
       const porCentro: { name: string; value: number }[] = [];
       
       // Get counts for ALL centers (14 total)
-      const promises = (centrosData || []).map(async (centro) => {
-        const { data: stockData } = await supabase
+      const promises = (centrosData || []).map(async (centro: any) => {
+        const { data: stockData } = await (supabase as any)
           .rpc("inventario_totales", { 
             p_centro_servicio_id: centro.id, 
             p_search: "" 
@@ -353,16 +353,16 @@ export default function Inventario() {
       const start = (currentPage - 1) * itemsPerPage;
       const end = start + itemsPerPage - 1;
 
-      let query = supabase
+      let query = (supabase as any)
         .from("inventario")
         .select(`
           *,
-          centros_servicio(nombre)
+          centros_de_servicio(nombre)
         `, { count: "exact" });
 
       // Apply centro filter
       if (filterCentroId && filterCentroId !== "todos") {
-        query = query.eq("centro_servicio_id", filterCentroId);
+        query = query.eq("centro_servicio_id", Number(filterCentroId));
       }
 
       // Apply search filter
@@ -381,7 +381,7 @@ export default function Inventario() {
 
       if (error) throw error;
 
-      const formateado = (data || []).map(item => ({
+      const formateado = (data || []).map((item: any) => ({
         id: item.id,
         codigo_repuesto: item.codigo_repuesto,
         descripcion: item.descripcion,
@@ -390,7 +390,7 @@ export default function Inventario() {
         bodega: item.bodega,
         costo_unitario: item.costo_unitario,
         centro_servicio_id: item.centro_servicio_id,
-        centro_nombre: (item.centros_servicio as any)?.nombre || "Sin centro"
+        centro_nombre: item.centros_de_servicio?.nombre || "Sin centro"
       }));
 
       setInventario(formateado);
@@ -479,16 +479,17 @@ export default function Inventario() {
 
       if (updateError) throw updateError;
 
-      const { error: movError } = await supabase
+      const { error: movError } = await (supabase as any)
         .from("movimientos_inventario")
         .insert({
-          codigo_repuesto: selectedItem.codigo_repuesto,
-          tipo_movimiento: tipoMovimiento,
+          repuesto_id: selectedItem.id,
+          tipo_movimiento: tipoMovimiento === "entrada" ? "ENTRADA" : "SALIDA",
           cantidad: cantidadNum,
           motivo: motivo || null,
           centro_servicio_id: selectedItem.centro_servicio_id,
           stock_anterior: selectedItem.cantidad,
           stock_nuevo: nuevoStock,
+          created_by_id: 1
         });
 
       if (movError) {

@@ -42,7 +42,7 @@ interface InventarioItem {
 }
 
 interface CentroServicio {
-  id: string;
+  id: number;
   nombre: string;
 }
 
@@ -85,29 +85,29 @@ export default function GestionUbicaciones() {
   useEffect(() => { fetchKPIs(); fetchTopUbicaciones(); }, [selectedBodega, selectedPasillo, selectedRack, selectedNivel, selectedCaja]);
 
   const fetchCentrosServicio = async () => {
-    const { data } = await supabase.from('centros_servicio').select('id, nombre').eq('activo', true).order('nombre');
+    const { data } = await (supabase as any).from('centros_de_servicio').select('id, nombre').eq('activo', true).order('nombre');
     if (data) setCentrosServicio(data);
   };
 
   const fetchBodegas = async () => {
-    let query = supabase.from('Bodegas_CDS').select('id, cds_id, nombre, codigo, centro_servicio_id').eq('activo', true);
+    let query = (supabase as any).from('bodegas').select('id, uuid_id, nombre, codigo, centro_servicio_id').eq('activo', true);
     if (selectedCentro !== "all") {
       query = query.eq('centro_servicio_id', selectedCentro);
     }
     const { data } = await query.order('nombre');
-    if (data) setBodegas(data);
+    if (data) setBodegas(data.map((b: any) => ({ ...b, cds_id: b.uuid_id })));
     // Reset bodega selection when centro changes
     if (selectedCentro !== "all" && selectedBodega !== "all") {
-      const bodegaExists = data?.some(b => b.cds_id === selectedBodega);
+      const bodegaExists = data?.some((b: any) => b.uuid_id === selectedBodega);
       if (!bodegaExists) setSelectedBodega("all");
     }
   };
 
   const fetchUbicacionOptions = async () => {
-    let query = supabase.from('Ubicación_CDS').select('pasillo');
+    let query = (supabase as any).from('ubicaciones').select('pasillo');
     if (selectedBodega !== "all") query = query.eq('bodega_id', selectedBodega);
     const { data } = await query;
-    const pasillos = [...new Set((data || []).map(u => u.pasillo).filter(Boolean) as string[])].sort();
+    const pasillos = [...new Set((data || []).map((u: any) => u.pasillo).filter(Boolean) as string[])].sort();
     setPasillosDisponibles(pasillos);
     setSelectedPasillo("all");
     setRacksDisponibles([]);
@@ -128,10 +128,10 @@ export default function GestionUbicaciones() {
       setSelectedCaja("all");
       return;
     }
-    let query = supabase.from('Ubicación_CDS').select('rack').eq('pasillo', selectedPasillo);
+    let query = (supabase as any).from('ubicaciones').select('rack').eq('pasillo', selectedPasillo);
     if (selectedBodega !== "all") query = query.eq('bodega_id', selectedBodega);
     const { data } = await query;
-    const racks = [...new Set((data || []).map(u => u.rack).filter(Boolean) as string[])].sort();
+    const racks = [...new Set((data || []).map((u: any) => u.rack).filter(Boolean) as string[])].sort();
     setRacksDisponibles(racks);
     setSelectedRack("all");
     setNivelesDisponibles([]);
@@ -148,10 +148,10 @@ export default function GestionUbicaciones() {
       setSelectedCaja("all");
       return;
     }
-    let query = supabase.from('Ubicación_CDS').select('nivel').eq('pasillo', selectedPasillo).eq('rack', selectedRack);
+    let query = (supabase as any).from('ubicaciones').select('nivel').eq('pasillo', selectedPasillo).eq('rack', selectedRack);
     if (selectedBodega !== "all") query = query.eq('bodega_id', selectedBodega);
     const { data } = await query;
-    const niveles = [...new Set((data || []).map(u => u.nivel).filter(Boolean) as string[])].sort();
+    const niveles = [...new Set((data || []).map((u: any) => u.nivel).filter(Boolean) as string[])].sort();
     setNivelesDisponibles(niveles);
     setSelectedNivel("all");
     setCajasDisponibles([]);
@@ -164,16 +164,16 @@ export default function GestionUbicaciones() {
       setSelectedCaja("all");
       return;
     }
-    let query = supabase.from('Ubicación_CDS').select('caja').eq('pasillo', selectedPasillo).eq('rack', selectedRack).eq('nivel', selectedNivel);
+    let query = (supabase as any).from('ubicaciones').select('caja').eq('pasillo', selectedPasillo).eq('rack', selectedRack).eq('nivel', selectedNivel);
     if (selectedBodega !== "all") query = query.eq('bodega_id', selectedBodega);
     const { data } = await query;
-    const cajas = [...new Set((data || []).map(u => u.caja).filter(Boolean) as string[])].sort();
+    const cajas = [...new Set((data || []).map((u: any) => u.caja).filter(Boolean) as string[])].sort();
     setCajasDisponibles(cajas);
     setSelectedCaja("all");
   };
 
   const fetchKPIs = async () => {
-    let query = supabase.from('Ubicación_CDS').select('id', { count: 'exact', head: true });
+    let query = (supabase as any).from('ubicaciones').select('id', { count: 'exact', head: true });
     if (selectedBodega !== "all") query = query.eq('bodega_id', selectedBodega);
     if (selectedPasillo !== "all") query = query.eq('pasillo', selectedPasillo);
     if (selectedRack !== "all") query = query.eq('rack', selectedRack);
@@ -202,7 +202,7 @@ export default function GestionUbicaciones() {
     });
     const topIds = Array.from(statsMap.entries()).sort((a, b) => b[1].count - a[1].count).slice(0, 10).map(([id]) => id);
     if (topIds.length === 0) { setTopUbicaciones([]); return; }
-    const { data: ubicacionesData } = await supabase.from('Ubicación_CDS').select('*, bodega:Bodegas_CDS(nombre, codigo)').in('id', topIds);
+    const { data: ubicacionesData } = await (supabase as any).from('ubicaciones').select('*, bodega:bodegas(nombre, codigo)').in('id', topIds);
     const result: UbicacionConStats[] = (ubicacionesData || []).map(ub => {
       const stats = statsMap.get(ub.id) || { count: 0, stock: 0, valor: 0 };
       return {
@@ -232,7 +232,7 @@ export default function GestionUbicaciones() {
         statsMap.set(item.ubicacion_id, { count: c.count + 1, stock: c.stock + item.cantidad, valor: c.valor + (item.cantidad * (item.costo_unitario || 0)) });
       }
     });
-    let query = supabase.from('Ubicación_CDS').select('*, bodega:Bodegas_CDS(nombre, codigo)', { count: 'exact' });
+    let query = (supabase as any).from('ubicaciones').select('*, bodega:bodegas(nombre, codigo)', { count: 'exact' });
     if (selectedBodega !== "all") query = query.eq('bodega_id', selectedBodega);
     if (selectedPasillo !== "all") query = query.eq('pasillo', selectedPasillo);
     if (selectedRack !== "all") query = query.eq('rack', selectedRack);
@@ -286,9 +286,9 @@ export default function GestionUbicaciones() {
     if (!bodega_id || !pasillo || !rack || !nivel) { toast.error("Complete bodega, pasillo, rack y nivel"); return; }
     const codigo = getPreviewCode();
     setCreando(true);
-    const { data: existente } = await supabase.from('Ubicación_CDS').select('id').eq('codigo', codigo).eq('bodega_id', bodega_id).maybeSingle();
+    const { data: existente } = await (supabase as any).from('ubicaciones').select('id').eq('codigo', codigo).eq('bodega_id', bodega_id).maybeSingle();
     if (existente) { toast.error("Ya existe esta ubicación"); setCreando(false); return; }
-    const { error } = await supabase.from('Ubicación_CDS').insert({ bodega_id, codigo, pasillo: pasillo.toUpperCase(), rack, nivel, caja: caja || null });
+    const { error } = await (supabase as any).from('ubicaciones').insert({ bodega_id, codigo, pasillo: pasillo.toUpperCase(), rack, nivel, caja: caja || null });
     if (error) toast.error("Error al crear"); else { toast.success(`Ubicación ${codigo} creada`); setNuevaUbicacion({ bodega_id: "", pasillo: "", rack: "", nivel: "", caja: "" }); fetchUbicacionesConStats(); fetchKPIs(); }
     setCreando(false);
   };
@@ -374,7 +374,7 @@ export default function GestionUbicaciones() {
               <SelectContent>
                 <SelectItem value="all">Todos los centros</SelectItem>
                 {centrosServicio.map(c => (
-                  <SelectItem key={c.id} value={c.id}>{c.nombre}</SelectItem>
+                  <SelectItem key={c.id} value={String(c.id)}>{c.nombre}</SelectItem>
                 ))}
               </SelectContent>
             </Select>

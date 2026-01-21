@@ -502,11 +502,11 @@ export default function GestionRelacionesRepuestos() {
 
   const buscarPadreParaAsignar = async () => {
     try {
-      const { data } = await supabase
+      const { data } = await (supabase as any)
         .from('repuestos_relaciones')
         .select('*')
-        .is('Padre', null)
-        .or(`Código.ilike.%${buscandoPadre}%,Descripción.ilike.%${buscandoPadre}%`)
+        .is('padre_id', null)
+        .or(`codigo.ilike.%${buscandoPadre}%,descripcion.ilike.%${buscandoPadre}%`)
         .limit(10);
       
       setResultadosBusquedaPadre(data || []);
@@ -516,20 +516,20 @@ export default function GestionRelacionesRepuestos() {
   };
 
   const seleccionarPadre = async (padre: RepuestoRelacion | PadreConHijos) => {
-    const padreData: RepuestoRelacion = 'Código' in padre 
+    const padreData: RepuestoRelacion = 'codigo' in padre && typeof (padre as any).padre_id !== 'undefined'
       ? padre as RepuestoRelacion
-      : { id: padre.id, Código: padre.codigo, Descripción: padre.descripcion, Padre: null };
+      : { id: (padre as any).id, codigo: (padre as any).codigo, descripcion: (padre as any).descripcion, padre_id: null };
     
     setSelectedPadre(padreData);
     setLoadingHijos(true);
     setFiltroHijos("");
 
     try {
-      const { data } = await supabase
+      const { data } = await (supabase as any)
         .from('repuestos_relaciones')
         .select('*')
-        .eq('Padre', padreData.id)
-        .order('Código');
+        .eq('padre_id', padreData.id)
+        .order('codigo');
       
       setHijosDelPadre(data || []);
     } catch (error) {
@@ -540,15 +540,15 @@ export default function GestionRelacionesRepuestos() {
   };
 
   const navegarAPadreDesdeHijo = async (hijo: RepuestoRelacion) => {
-    if (!hijo.Padre) {
+    if (!hijo.padre_id) {
       seleccionarPadre(hijo);
       return;
     }
 
-    const { data } = await supabase
+    const { data } = await (supabase as any)
       .from('repuestos_relaciones')
       .select('*')
-      .eq('id', hijo.Padre)
+      .eq('id', hijo.padre_id)
       .single();
 
     if (data) {
@@ -558,9 +558,9 @@ export default function GestionRelacionesRepuestos() {
 
   const quitarHijo = async (hijoId: number) => {
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('repuestos_relaciones')
-        .update({ Padre: null })
+        .update({ padre_id: null })
         .eq('id', hijoId);
 
       if (error) throw error;
@@ -580,10 +580,10 @@ export default function GestionRelacionesRepuestos() {
 
     setBuscandoHijo(true);
     try {
-      const { data: hijo } = await supabase
+      const { data: hijo } = await (supabase as any)
         .from('repuestos_relaciones')
         .select('*')
-        .eq('Código', nuevoHijoCodigo.trim())
+        .eq('codigo', nuevoHijoCodigo.trim())
         .single();
 
       if (!hijo) {
@@ -596,19 +596,19 @@ export default function GestionRelacionesRepuestos() {
         return;
       }
 
-      if (hijo.Padre === selectedPadre.id) {
+      if (hijo.padre_id === selectedPadre.id) {
         toast.error("Este código ya es hijo de este padre");
         return;
       }
 
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('repuestos_relaciones')
-        .update({ Padre: selectedPadre.id })
+        .update({ padre_id: selectedPadre.id })
         .eq('id', hijo.id);
 
       if (error) throw error;
 
-      setHijosDelPadre(prev => [...prev, { ...hijo, Padre: selectedPadre.id }]);
+      setHijosDelPadre(prev => [...prev, { ...hijo, padre_id: selectedPadre.id }]);
       setNuevoHijoCodigo("");
       toast.success("Hijo agregado correctamente");
       fetchKPIs();
@@ -634,10 +634,10 @@ export default function GestionRelacionesRepuestos() {
 
     setCreando(true);
     try {
-      const { data: existe } = await supabase
+      const { data: existe } = await (supabase as any)
         .from('repuestos_relaciones')
         .select('id')
-        .eq('Código', nuevoCodigo.trim())
+        .eq('codigo', nuevoCodigo.trim())
         .single();
 
       if (existe) {
@@ -645,7 +645,7 @@ export default function GestionRelacionesRepuestos() {
         return;
       }
 
-      const { data: maxIdData } = await supabase
+      const { data: maxIdData } = await (supabase as any)
         .from('repuestos_relaciones')
         .select('id')
         .order('id', { ascending: false })
@@ -653,13 +653,13 @@ export default function GestionRelacionesRepuestos() {
 
       const nextId = (maxIdData?.[0]?.id || 0) + 1;
 
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from('repuestos_relaciones')
         .insert({
           id: nextId,
-          Código: nuevoCodigo.trim(),
-          Descripción: nuevaDescripcion.trim(),
-          Padre: tipoNuevo === "hijo" ? padreSeleccionadoParaHijo?.id : null
+          codigo: nuevoCodigo.trim(),
+          descripcion: nuevaDescripcion.trim(),
+          padre_id: tipoNuevo === "hijo" ? padreSeleccionadoParaHijo?.id : null
         });
 
       if (error) throw error;
@@ -686,8 +686,8 @@ export default function GestionRelacionesRepuestos() {
   const hijosFiltrados = useMemo(() => {
     if (!filtroHijos) return hijosDelPadre;
     return hijosDelPadre.filter(h => 
-      h.Código.toLowerCase().includes(filtroHijos.toLowerCase()) ||
-      h.Descripción.toLowerCase().includes(filtroHijos.toLowerCase())
+      h.codigo.toLowerCase().includes(filtroHijos.toLowerCase()) ||
+      h.descripcion.toLowerCase().includes(filtroHijos.toLowerCase())
     );
   }, [hijosDelPadre, filtroHijos]);
 
@@ -809,11 +809,11 @@ export default function GestionRelacionesRepuestos() {
                       onClick={() => navegarAPadreDesdeHijo(r)}
                     >
                       <div>
-                        <span className="font-mono font-medium">{r.Código}</span>
-                        <span className="text-muted-foreground ml-2 text-sm">{r.Descripción}</span>
+                      <span className="font-mono font-medium">{r.codigo}</span>
+                        <span className="text-muted-foreground ml-2 text-sm">{r.descripcion}</span>
                       </div>
-                      <Badge variant={r.Padre ? "secondary" : "default"}>
-                        {r.Padre ? "Hijo" : "Padre"}
+                      <Badge variant={r.padre_id ? "secondary" : "default"}>
+                        {r.padre_id ? "Hijo" : "Padre"}
                       </Badge>
                     </div>
                   ))}
@@ -886,8 +886,8 @@ export default function GestionRelacionesRepuestos() {
                 {selectedPadre ? (
                   <div className="space-y-4">
                     <div className="p-3 bg-primary/5 rounded-lg border border-primary/20">
-                      <p className="font-mono font-bold text-lg">{selectedPadre.Código}</p>
-                      <p className="text-sm text-muted-foreground">{selectedPadre.Descripción}</p>
+                      <p className="font-mono font-bold text-lg">{selectedPadre.codigo}</p>
+                      <p className="text-sm text-muted-foreground">{selectedPadre.descripcion}</p>
                     </div>
 
                     <div className="relative">
@@ -922,9 +922,9 @@ export default function GestionRelacionesRepuestos() {
                                 className="p-2 flex items-center justify-between hover:bg-muted/50 group"
                               >
                                 <div className="min-w-0 flex-1">
-                                  <p className="font-mono text-sm">{hijo.Código}</p>
+                                  <p className="font-mono text-sm">{hijo.codigo}</p>
                                   <p className="text-xs text-muted-foreground truncate">
-                                    {hijo.Descripción}
+                                    {hijo.descripcion}
                                   </p>
                                 </div>
                                 <Button
@@ -1033,11 +1033,11 @@ export default function GestionRelacionesRepuestos() {
                     {padreSeleccionadoParaHijo ? (
                       <div className="p-2 bg-muted rounded-lg flex items-center justify-between">
                         <div>
-                          <p className="font-mono text-sm font-medium">
-                            {padreSeleccionadoParaHijo.Código}
+                        <p className="font-mono text-sm font-medium">
+                            {padreSeleccionadoParaHijo.codigo}
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            {padreSeleccionadoParaHijo.Descripción}
+                            {padreSeleccionadoParaHijo.descripcion}
                           </p>
                         </div>
                         <Button
@@ -1071,8 +1071,8 @@ export default function GestionRelacionesRepuestos() {
                                   setResultadosBusquedaPadre([]);
                                 }}
                               >
-                                <span className="font-mono font-medium">{p.Código}</span>
-                                <span className="text-muted-foreground ml-2">{p.Descripción}</span>
+                                <span className="font-mono font-medium">{p.codigo}</span>
+                                <span className="text-muted-foreground ml-2">{p.descripcion}</span>
                               </div>
                             ))}
                           </div>
@@ -1089,7 +1089,7 @@ export default function GestionRelacionesRepuestos() {
                     <p className="text-sm text-muted-foreground">{nuevaDescripcion || "(descripción)"}</p>
                     {tipoNuevo === "hijo" && padreSeleccionadoParaHijo && (
                       <p className="text-xs mt-1">
-                        → Padre: <span className="font-mono">{padreSeleccionadoParaHijo.Código}</span>
+                        → Padre: <span className="font-mono">{padreSeleccionadoParaHijo.codigo}</span>
                       </p>
                     )}
                   </div>
@@ -1223,8 +1223,8 @@ export default function GestionRelacionesRepuestos() {
                 {selectedPadreEquiv ? (
                   <div className="space-y-4">
                     <div className="p-3 bg-cyan-50 dark:bg-cyan-950/20 rounded-lg border border-cyan-200">
-                      <p className="font-mono font-bold text-lg">{selectedPadreEquiv.Código}</p>
-                      <p className="text-sm text-muted-foreground">{selectedPadreEquiv.Descripción}</p>
+                      <p className="font-mono font-bold text-lg">{selectedPadreEquiv.codigo}</p>
+                      <p className="text-sm text-muted-foreground">{selectedPadreEquiv.descripcion}</p>
                     </div>
 
                     <div>
@@ -1249,9 +1249,9 @@ export default function GestionRelacionesRepuestos() {
                                 className="p-2 flex items-center justify-between hover:bg-muted/50 group"
                               >
                                 <div className="min-w-0 flex-1">
-                                  <p className="font-mono text-sm font-medium">{equiv.Código}</p>
+                                  <p className="font-mono text-sm font-medium">{equiv.codigo}</p>
                                   <p className="text-xs text-muted-foreground truncate">
-                                    {equiv.Descripción}
+                                    {equiv.descripcion}
                                   </p>
                                 </div>
                                 <Button
@@ -1299,10 +1299,10 @@ export default function GestionRelacionesRepuestos() {
                     <div className="p-2 bg-cyan-50 dark:bg-cyan-950/20 rounded-lg flex items-center justify-between border border-cyan-200">
                       <div>
                         <p className="font-mono text-sm font-medium">
-                          {padre1Seleccionado.Código}
+                          {padre1Seleccionado.codigo}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {padre1Seleccionado.Descripción}
+                          {padre1Seleccionado.descripcion}
                         </p>
                       </div>
                       <Button
@@ -1336,8 +1336,8 @@ export default function GestionRelacionesRepuestos() {
                                 setResultadosBusquedaEquiv1([]);
                               }}
                             >
-                              <span className="font-mono font-medium">{p.Código}</span>
-                              <span className="text-muted-foreground ml-2">{p.Descripción}</span>
+                              <span className="font-mono font-medium">{p.codigo}</span>
+                              <span className="text-muted-foreground ml-2">{p.descripcion}</span>
                             </div>
                           ))}
                         </div>
@@ -1360,10 +1360,10 @@ export default function GestionRelacionesRepuestos() {
                     <div className="p-2 bg-cyan-50 dark:bg-cyan-950/20 rounded-lg flex items-center justify-between border border-cyan-200">
                       <div>
                         <p className="font-mono text-sm font-medium">
-                          {padre2Seleccionado.Código}
+                          {padre2Seleccionado.codigo}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {padre2Seleccionado.Descripción}
+                          {padre2Seleccionado.descripcion}
                         </p>
                       </div>
                       <Button
@@ -1397,8 +1397,8 @@ export default function GestionRelacionesRepuestos() {
                                 setResultadosBusquedaEquiv2([]);
                               }}
                             >
-                              <span className="font-mono font-medium">{p.Código}</span>
-                              <span className="text-muted-foreground ml-2">{p.Descripción}</span>
+                              <span className="font-mono font-medium">{p.codigo}</span>
+                              <span className="text-muted-foreground ml-2">{p.descripcion}</span>
                             </div>
                           ))}
                         </div>
@@ -1422,9 +1422,9 @@ export default function GestionRelacionesRepuestos() {
                   <div className="p-3 border rounded-lg bg-muted/30">
                     <p className="text-xs text-muted-foreground mb-2">Vista previa:</p>
                     <div className="flex items-center gap-2 text-sm">
-                      <span className="font-mono font-medium">{padre1Seleccionado.Código}</span>
+                      <span className="font-mono font-medium">{padre1Seleccionado.codigo}</span>
                       <ArrowLeftRight className="h-4 w-4 text-muted-foreground" />
-                      <span className="font-mono font-medium">{padre2Seleccionado.Código}</span>
+                      <span className="font-mono font-medium">{padre2Seleccionado.codigo}</span>
                     </div>
                   </div>
                 )}
