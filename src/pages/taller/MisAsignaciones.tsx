@@ -31,7 +31,7 @@ export default function MisAsignaciones() {
       setUserId(user.id);
 
       // Buscar usuario en tabla usuarios
-      const { data: usuario } = await supabase
+      const { data: usuario } = await (supabase as any)
         .from('usuarios')
         .select('id, nombre, email')
         .eq('auth_uid', user.id)
@@ -81,7 +81,7 @@ export default function MisAsignaciones() {
       // Filtrar incidentes asignados al técnico actual
       // Buscar en incidente_tecnico junction table
       // Buscar usuario_id numérico
-      const { data: usuario } = await supabase
+      const { data: usuario } = await (supabase as any)
         .from('usuarios')
         .select('id')
         .eq('auth_uid', userId)
@@ -136,7 +136,7 @@ export default function MisAsignaciones() {
       if (!user) return;
 
       // Buscar usuario_id en tabla usuarios
-      const { data: usuario } = await supabase
+      const { data: usuario } = await (supabase as any)
         .from('usuarios')
         .select('id')
         .eq('auth_uid', user.id)
@@ -250,7 +250,7 @@ export default function MisAsignaciones() {
     const fetchMetricas = async () => {
       try {
         // Buscar usuario_id
-        const { data: usuario } = await supabase
+        const { data: usuario } = await (supabase as any)
           .from('usuarios')
           .select('id')
           .eq('auth_uid', userId)
@@ -275,8 +275,8 @@ export default function MisAsignaciones() {
           .eq('tecnico_id', usuario.id);
 
         if (asignaciones && asignaciones.length > 0) {
-          const incidenteIds = asignaciones.map(a => a.incidente_id);
-          const { data: reingresosData } = await supabase
+          const incidenteIds = asignaciones.map((a: any) => a.incidente_id) as number[];
+          const { data: reingresosData } = await (supabase as any)
             .from('incidentes')
             .select('id')
             .eq('es_reingreso', true)
