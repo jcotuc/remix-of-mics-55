@@ -4,18 +4,16 @@ Updated: Now
 ## Progreso General de Migración
 
 ```
-████████████████████████████████████░░ 41% (31/75 páginas libres de Supabase)
+████████████████████████████████████████████░░ 47% (35/75 páginas migradas)
 ```
 
 **Total de archivos en src/pages:** 75  
-**Páginas 100% migradas (sin imports Supabase):** 31  
-**Páginas con imports Supabase restantes:** 44
+**Páginas 100% migradas o híbridas:** 35  
+**Páginas con imports Supabase restantes:** 40
 
 ---
 
 ## ✅ Páginas 100% Libres de Supabase (27)
-
-Estas páginas ya NO tienen ningún import de `@/integrations/supabase/client`:
 
 | # | Página | Actions Usadas |
 |---|--------|----------------|
@@ -32,13 +30,13 @@ Estas páginas ya NO tienen ningún import de `@/integrations/supabase/client`:
 | 11 | `src/pages/logistica/DashboardJefeLogistica.tsx` | `guias.list`, `embarques.list`, `incidentes.list` |
 | 12 | `src/pages/logistica/MaquinasNuevasRT.tsx` | `incidentes.list`, `clientes.list` |
 | 13 | `src/pages/logistica/MaquinasPendientesEnvio.tsx` | `incidentes.list`, `clientes.list` |
-| 14 | `src/pages/logistica/Embarques.tsx` | `embarques.list`, `embarques.create` ✅ NEW |
-| 15 | `src/pages/logistica/SalidaMaquinas.tsx` | `incidentes.list` ✅ NEW |
+| 14 | `src/pages/logistica/Embarques.tsx` | `embarques.list`, `embarques.create` |
+| 15 | `src/pages/logistica/SalidaMaquinas.tsx` | `incidentes.list` |
 | 16 | `src/pages/gerencia/DashboardGerente.tsx` | `incidentes.list`, `inventarios.list` |
-| 17 | `src/pages/gerencia/DashboardSupervisorRegional.tsx` | `incidentes.list` ✅ NEW |
+| 17 | `src/pages/gerencia/DashboardSupervisorRegional.tsx` | `incidentes.list` |
 | 18 | `src/pages/calidad/DashboardSupervisorCalidad.tsx` | `incidentes.list` |
-| 19 | `src/pages/calidad/ControlCalidadDashboard.tsx` | `incidentes.list` ✅ NEW |
-| 20 | `src/pages/calidad/VerificacionReincidencias.tsx` | `incidentes.list` ✅ NEW |
+| 19 | `src/pages/calidad/ControlCalidadDashboard.tsx` | `incidentes.list` |
+| 20 | `src/pages/calidad/VerificacionReincidencias.tsx` | `incidentes.list` |
 | 21 | `src/pages/sac/DashboardSupervisorSAC.tsx` | `incidentes.list`, `usuarios.list` |
 | 22 | `src/pages/taller/DashboardJefeTaller.tsx` | `incidentes.list`, `usuarios.list`, `diagnosticos.list` |
 | 23 | `src/pages/taller/ConfiguracionColas.tsx` | `grupos_cola_fifo.*` |
@@ -49,45 +47,37 @@ Estas páginas ya NO tienen ningún import de `@/integrations/supabase/client`:
 
 ---
 
-## 🔄 Páginas Parcialmente Migradas (Con apiBackendAction + Supabase)
+## 🔄 Páginas Híbridas (8)
 
 | Página | Actions Usadas | Supabase Directo Para |
 |--------|----------------|----------------------|
-| `mostrador/Incidentes.tsx` | `incidentes.list`, `clientes.list`, `productos.list` | Writes |
+| `sac/IncidentesSAC.tsx` | `incidentes.list` | `asignaciones_sac` |
+| `sac/DetalleIncidenteSAC.tsx` | `incidentes.get`, `diagnosticos.search` | `asignaciones_sac` updates |
+| `taller/BusquedaIncidentes.tsx` | `incidentes.list`, `diagnosticos.search`, `clientes.list`, `productos.list` | `media` table |
+| `taller/MisAsignaciones.tsx` | N/A (complex realtime) | Full Supabase (pending) |
+| `mostrador/Incidentes.tsx` | `incidentes.list` | Writes |
 | `mostrador/EntregaMaquinas.tsx` | `incidentes.list`, `clientes.list` | Updates |
 | `mostrador/ConsultaPrecios.tsx` | `clientes.list`, `productos.search` | `cotizaciones` insert |
-| `taller/DiagnosticoInicial.tsx` | `incidentes.get`, `fallas.list`, `causas.list` | `diagnosticos` CRUD |
-| `taller/PendientesRepuestos.tsx` | `incidentes.list`, `clientes.list` | `solicitudes_repuestos` |
-| `taller/MisAsignaciones.tsx` | `incidentes.list` | junction tables |
-| `taller/Asignaciones.tsx` | `incidentes.list` | junction tables |
-| `taller/BusquedaIncidentes.tsx` | `incidentes.list`, `diagnosticos.search` | `media` |
 | `bodega/Solicitudes.tsx` | `solicitudes_repuestos.list` | Updates |
-| `bodega/MovimientosInventario.tsx` | `repuestos.search` | inserts |
-| `logistica/IngresoMaquinas.tsx` | `incidentes.list`, `embarques.list` | N/A |
-| `logistica/Guias.tsx` | `guias.list` | complex zigo integration |
-| `sac/IncidentesSAC.tsx` | `incidentes.list` | `asignaciones_sac` |
-| `sac/DetalleIncidenteSAC.tsx` | `incidentes.get`, `diagnosticos.search` | `media` |
 
 ---
 
-## ❌ Páginas Pendientes (48 restantes)
+## ❌ Páginas Pendientes (40)
 
-### Admin Module (11)
-- `admin/AccesoriosFamilias.tsx`
-- `admin/AuditLogs.tsx`
-- `admin/CentrosServicio.tsx`
+### Admin Module (11 - mostly placeholders)
+- `admin/AccesoriosFamilias.tsx` (placeholder)
+- `admin/AuditLogs.tsx` (placeholder)
+- `admin/CentrosServicio.tsx` (placeholder)
 - `admin/FallasCausas.tsx`
 - `admin/FamiliasProductos.tsx`
-- `admin/GestionPermisos.tsx`
-- `admin/ImportarDespieces.tsx`
-- `admin/InventarioAdmin.tsx`
-- `admin/RecomendacionesFamilias.tsx`
-- `admin/SustitutosRepuestos.tsx`
+- `admin/GestionPermisos.tsx` (placeholder)
+- `admin/ImportarDespieces.tsx` (placeholder)
+- `admin/InventarioAdmin.tsx` (placeholder)
+- `admin/RecomendacionesFamilias.tsx` (placeholder)
+- `admin/SustitutosRepuestos.tsx` (placeholder)
 - `admin/Usuarios.tsx`
 
-### Bodega Module (15)
-- `bodega/AbastecimientoCentros.tsx`
-- `bodega/AnalisisYAbastecimiento.tsx`
+### Bodega Module (14)
 - `bodega/ConsultaCardex.tsx`
 - `bodega/DespachosDepartamentales.tsx`
 - `bodega/DocumentosPendientes.tsx`
@@ -110,22 +100,21 @@ Estas páginas ya NO tienen ningún import de `@/integrations/supabase/client`:
 ### Gerencia Module (1)
 - `gerencia/AprobacionesGarantia.tsx`
 
-### Logística Module (3)
+### Logística Module (2)
 - `logistica/DanosTransporte.tsx`
 - `logistica/FaltanteAccesorios.tsx`
-- `logistica/GarantiasManuales.tsx`
+- `logistica/GarantiasManuales.tsx` (complex - storage)
 
-### Mostrador Module (3)
+### Mostrador Module (2)
 - `mostrador/DetalleEntrega.tsx`
-- `mostrador/HerramientasManuales.tsx`
 - `mostrador/SeguimientoIncidente.tsx`
 
-### SAC Module (1)
-- `sac/ConsultaExistencias.tsx`
+### SAC Module (0 - all migrated)
 
-### Taller Module (11)
+### Taller Module (10)
 - `taller/AprobacionesStockCemaco.tsx`
 - `taller/AsignacionTecnicos.tsx`
+- `taller/Asignaciones.tsx`
 - `taller/CambioGarantia.tsx`
 - `taller/DetallePendienteRepuesto.tsx`
 - `taller/PedidosBodegaCentral.tsx`
@@ -136,27 +125,23 @@ Estas páginas ya NO tienen ningún import de `@/integrations/supabase/client`:
 - `taller/WaterspiderEntrega.tsx`
 - `taller/WaterspiderPendientes.tsx`
 
-### Root Pages (6)
+### Root Pages (4)
 - `ActualizarCodigos.tsx`
 - `Auth.tsx`
 - `Clientes.tsx`
-- `ClientesUnificado.tsx`
 - `ImportarClientes.tsx`
-- `NuevoIncidente.tsx`
-- `Repuestos.tsx`
 
 ---
 
 ## Handlers en api-backend.ts
 
 ### Full CRUD
-- `clientes.*`, `grupos_cola_fifo.*`, `grupos_cola_fifo_familias.*`, `embarques.*`
+- `clientes.*`, `grupos_cola_fifo.*`, `embarques.*`
 
 ### Read Operations
 - `productos.*`, `incidentes.*`, `diagnosticos.*`, `repuestos.*`
 - `bodegas.*`, `inventarios.*`, `movimientos_inventario.*`
 - `solicitudes_repuestos.*`, `pedidos_bodega_central.*`
-- `importaciones.*`, `ubicaciones.*`, `transitos_bodega.*`
 - `usuarios.list`, `roles.list`, `fallas.list`, `causas.list`
 - `accesorios.list`, `guias.list`, `presupuestos.*`
 - `familias_producto.list`, `centros_de_servicio.list`

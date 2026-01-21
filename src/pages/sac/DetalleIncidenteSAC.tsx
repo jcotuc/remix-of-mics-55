@@ -1,16 +1,15 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { apiBackendAction } from "@/lib/api-backend";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, Send, Phone, Mail, MessageCircle, FileText, Package, MapPin, User, DollarSign, Percent, AlertTriangle, Clock, Printer, CheckCircle, XCircle } from "lucide-react";
+import { ArrowLeft, Phone, Mail, MessageCircle, Package, User, AlertTriangle, Clock, CheckCircle, XCircle, FileText } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { StatusBadge } from "@/components/shared";
-import { OutlinedSelect, OutlinedTextarea } from "@/components/ui/outlined-input";
 import { differenceInDays } from "date-fns";
 import type { Database } from "@/integrations/supabase/types";
 
