@@ -27,17 +27,17 @@ export default function DashboardJefeLogistica() {
       setLoading(true);
 
       // Guías por estado
-      const { data: guiasPendientes } = await supabase
-        .from('guias_envio')
+      const { data: guiasPendientes } = await (supabase as any)
+        .from('guias')
         .select('*')
-        .in('estado', ['pendiente', 'en_transito']);
+        .in('estado', ['PENDIENTE', 'EN_TRANSITO']);
 
       // Guías retrasadas (sin entrega después de fecha promesa)
       const hoy = new Date().toISOString();
-      const { data: guiasRetrasadas } = await supabase
-        .from('guias_envio')
+      const { data: guiasRetrasadas } = await (supabase as any)
+        .from('guias')
         .select('*')
-        .eq('estado', 'en_transito')
+        .eq('estado', 'EN_TRANSITO')
         .lt('fecha_promesa_entrega', hoy)
         .is('fecha_entrega', null);
 
@@ -53,13 +53,13 @@ export default function DashboardJefeLogistica() {
         .eq('estatus', 'pendiente_resolucion');
 
       // Tasa de entrega
-      const { data: guiasEntregadas } = await supabase
-        .from('guias_envio')
+      const { data: guiasEntregadas } = await (supabase as any)
+        .from('guias')
         .select('*')
-        .eq('estado', 'entregado');
+        .eq('estado', 'ENTREGADA');
 
-      const { data: todasGuias } = await supabase
-        .from('guias_envio')
+      const { data: todasGuias } = await (supabase as any)
+        .from('guias')
         .select('*');
 
       const tasaEntrega = todasGuias && todasGuias.length > 0
@@ -67,16 +67,16 @@ export default function DashboardJefeLogistica() {
         : 0;
 
       // Costo promedio
-      const guiasConTarifa = todasGuias?.filter(g => g.tarifa) || [];
+      const guiasConTarifa = (todasGuias || []).filter((g: any) => g.tarifa) || [];
       const costoPromedio = guiasConTarifa.length > 0
-        ? guiasConTarifa.reduce((sum, g) => sum + (g.tarifa || 0), 0) / guiasConTarifa.length
+        ? guiasConTarifa.reduce((sum: number, g: any) => sum + (g.tarifa || 0), 0) / guiasConTarifa.length
         : 0;
 
       // Máquinas en ruta
       const { data: maquinasEnRuta } = await supabase
         .from('incidentes')
         .select('*')
-        .eq('status', 'En ruta');
+        .eq('estado', 'EN_ENTREGA');
 
       setStats({
         guiasPendientes: guiasPendientes?.length || 0,
