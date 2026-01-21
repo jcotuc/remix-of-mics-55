@@ -8,10 +8,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Truck, Plus, Package, Clock, Sparkles } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { apiBackendAction } from "@/lib/api";
-import type { Embarque } from "@/generated/actions.d";
+import type { Embarque, ClienteSchema, IncidenteSchema } from "@/generated/actions.d";
 
 export default function Embarques() {
   const navigate = useNavigate();
@@ -31,8 +30,9 @@ export default function Embarques() {
     try {
       setLoading(true);
       const response = await apiBackendAction("embarques.list", { limit: 200 });
+      const data = response.data || [];
       // Sort by fecha_llegada descending
-      const sorted = [...response.data].sort((a, b) => 
+      const sorted = [...data].sort((a, b) => 
         new Date(b.fecha_llegada || 0).getTime() - new Date(a.fecha_llegada || 0).getTime()
       );
       setEmbarques(sorted);
@@ -48,15 +48,12 @@ export default function Embarques() {
     e.preventDefault();
     
     try {
-      const { error } = await supabase
-        .from('embarques')
-        .insert({
-          numero_embarque: numeroEmbarque,
-          transportista,
-          notas,
-        });
-
-      if (error) throw error;
+      await apiBackendAction("embarques.create", {
+        numero_embarque: numeroEmbarque,
+        transportista,
+        notas,
+        fecha_llegada: new Date().toISOString(),
+      });
 
       toast.success('Embarque creado');
       setDialogOpen(false);
@@ -73,89 +70,15 @@ export default function Embarques() {
   const createTestEmbarque = async () => {
     setCreatingTest(true);
     try {
-      // Productos disponibles
-      const productos = ['16441', '15679', '12909', '12908', '12671', '14013'];
-      
-      // Clientes disponibles
-      const clientes = ['HPCN001930', 'HPCN001933', 'HPC-000001', 'HPC009166', 'HPC000019', 'HPC011470'];
-
       // 1. Crear embarque
-      const { data: embarque, error: embarqueError } = await supabase
-        .from('embarques')
-        .insert({
-          numero_embarque: 'EMB-2024-001',
-          transportista: 'Transportes Guatemala Express',
-          notas: 'Embarque de prueba con máquinas desde zonas'
-        })
-        .select()
-        .single();
-
-      if (embarqueError) throw embarqueError;
-
-      // 2. Generar códigos de incidente
-      const { data: lastIncidente } = await supabase
-        .from('incidentes')
-        .select('codigo')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
-
-      let nextNumber = 1;
-      if (lastIncidente?.codigo) {
-        const match = lastIncidente.codigo.match(/INC-(\d+)/);
-        if (match) {
-          nextNumber = parseInt(match[1]) + 1;
-        }
-      }
-
-      // 3. Buscar IDs de clientes existentes
-      const { data: clientesData } = await supabase
-        .from('clientes')
-        .select('id, codigo')
-        .in('codigo', clientes)
-        .limit(6);
-
-      const clienteIds = clientesData?.map(c => c.id) || [];
-      if (clienteIds.length === 0) {
-        // Si no hay clientes, usar el primer cliente disponible
-        const { data: anyCliente } = await supabase
-          .from('clientes')
-          .select('id')
-          .limit(1)
-          .single();
-        if (anyCliente) clienteIds.push(anyCliente.id);
-      }
-
-      // 4. Crear 6 incidentes ficticios con campos correctos del schema
-      const incidentesData = [];
-      for (let i = 0; i < 6; i++) {
-        const codigo = `INC-${String(nextNumber + i).padStart(6, '0')}`;
-        const incidente = {
-          codigo,
-          cliente_id: clienteIds[i % clienteIds.length],
-          centro_de_servicio_id: 1,
-          descripcion_problema: `Máquina requiere revisión general - Ingreso vía logística`,
-          estado: 'EN_ENTREGA' as const,
-          tipologia: 'REPARACION' as const,
-          aplica_garantia: Math.random() > 0.5,
-          observaciones: `SKU: SKU-${productos[i]}-${Math.floor(Math.random() * 1000)}`,
-          fecha_ingreso: new Date().toISOString(),
-          tracking_token: crypto.randomUUID()
-        };
-        incidentesData.push(incidente);
-      }
-
-      const { data: incidentesCreados, error: incidentesError } = await supabase
-        .from('incidentes')
-        .insert(incidentesData)
-        .select();
-
-      if (incidentesError) throw incidentesError;
-      
-      toast.success(`Embarque creado con ${incidentesCreados?.length} incidentes en ruta`, {
-        description: `Códigos: ${incidentesCreados?.map(inc => inc.codigo).join(', ')}`
+      await apiBackendAction("embarques.create", {
+        numero_embarque: 'EMB-2024-001',
+        transportista: 'Transportes Guatemala Express',
+        notas: 'Embarque de prueba con máquinas desde zonas',
+        fecha_llegada: new Date().toISOString(),
       });
       
+      toast.success(`Embarque de prueba creado`);
       fetchEmbarques();
     } catch (error) {
       console.error('Error:', error);

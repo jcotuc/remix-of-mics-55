@@ -7,14 +7,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Search, Send, TruckIcon } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import type { Database } from "@/integrations/supabase/types";
+import { apiBackendAction } from "@/lib/api";
+import type { IncidenteSchema } from "@/generated/actions.d";
 
-type Incidente = Database['public']['Tables']['incidentes']['Row'];
-type Cliente = Database['public']['Tables']['clientes']['Row'];
-
-type IncidenteConCliente = Incidente & { cliente: Cliente };
+type IncidenteConCliente = IncidenteSchema;
 
 export default function SalidaMaquinas() {
   const navigate = useNavigate();
@@ -33,52 +30,30 @@ export default function SalidaMaquinas() {
     try {
       setLoading(true);
 
+      // Fetch all incidentes
+      const incidentesRes = await apiBackendAction("incidentes.list", { limit: 2000 });
+      const incidentes = incidentesRes.results || [];
+
       // Máquinas reparadas que requieren envío
-      const { data: reparadasData } = await supabase
-        .from('incidentes')
-        .select('*, clientes!inner(*)')
-        .eq('estado', 'REPARADO')
-        .eq('quiere_envio', true)
-        .order('updated_at', { ascending: false });
+      const reparadasData = incidentes.filter(inc => 
+        inc.estado === 'REPARADO' && inc.quiere_envio
+      );
 
       // Máquinas rechazadas por cliente
-      const { data: rechazadasData } = await supabase
-        .from('incidentes')
-        .select('*, clientes!inner(*)')
-        .eq('estado', 'RECHAZADO')
-        .order('updated_at', { ascending: false });
-
-      // Máquinas con exceso de días (3+ notificaciones sin respuesta)
-      const { data: notificacionesData } = await (supabase as any)
-        .from('notificaciones_cliente')
-        .select('incidente_id, numero_notificacion')
-        .gte('numero_notificacion', 3)
-        .eq('respondido', false);
-
-      const incidentesExceso = (notificacionesData || []).map((n: any) => n.incidente_id) || [];
-      
-      let excesoDiasData: any[] = [];
-      if (incidentesExceso.length > 0) {
-        const { data } = await supabase
-          .from('incidentes')
-          .select('*, clientes!inner(*)')
-          .in('id', incidentesExceso)
-          .order('updated_at', { ascending: false });
-        excesoDiasData = data || [];
-      }
+      const rechazadasData = incidentes.filter(inc => 
+        inc.estado === 'RECHAZADO'
+      );
 
       // Cambios por garantía que necesitan envío
-      const { data: cambiosData } = await supabase
-        .from('incidentes')
-        .select('*, clientes!inner(*)')
-        .eq('estado', 'CAMBIO_POR_GARANTIA')
-        .eq('quiere_envio', true)
-        .order('updated_at', { ascending: false });
+      const cambiosData = incidentes.filter(inc => 
+        inc.estado === 'CAMBIO_POR_GARANTIA' && inc.quiere_envio
+      );
 
-      setReparadas((reparadasData || []).map((i: any) => ({ ...i, cliente: i.clientes })));
-      setRechazadas((rechazadasData || []).map((i: any) => ({ ...i, cliente: i.clientes })));
-      setExcesoDias(excesoDiasData.map((i: any) => ({ ...i, cliente: i.clientes })));
-      setCambios((cambiosData || []).map((i: any) => ({ ...i, cliente: i.clientes })));
+      // Note: excesoDias requires notificaciones_cliente which isn't in registry yet
+      setReparadas(reparadasData);
+      setRechazadas(rechazadasData);
+      setExcesoDias([]);
+      setCambios(cambiosData);
 
     } catch (error) {
       console.error('Error:', error);
@@ -91,8 +66,8 @@ export default function SalidaMaquinas() {
   const renderTable = (data: IncidenteConCliente[], tipo: string) => {
     const filtered = data.filter(inc =>
       inc.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      String(inc.producto_id || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      inc.cliente.nombre.toLowerCase().includes(searchTerm.toLowerCase())
+      (inc.producto?.descripcion || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (inc.cliente?.nombre || '').toLowerCase().includes(searchTerm.toLowerCase())
     );
 
     if (filtered.length === 0) {
@@ -121,9 +96,9 @@ export default function SalidaMaquinas() {
           {filtered.map((incidente) => (
             <TableRow key={incidente.id}>
               <TableCell className="font-medium">{incidente.codigo}</TableCell>
-              <TableCell>{incidente.producto_id || '-'}</TableCell>
-              <TableCell>{incidente.cliente.nombre}</TableCell>
-              <TableCell>{incidente.cliente.municipio || '-'}</TableCell>
+              <TableCell>{incidente.producto?.descripcion || '-'}</TableCell>
+              <TableCell>{incidente.cliente?.nombre || '-'}</TableCell>
+              <TableCell>{incidente.cliente?.municipio || '-'}</TableCell>
               <TableCell>
                 <Badge variant="outline">{tipo}</Badge>
               </TableCell>
