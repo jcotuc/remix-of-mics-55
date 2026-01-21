@@ -9,27 +9,20 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { formatFechaLarga, formatFechaHora } from "@/utils/dateFormatters";
+import { formatFechaLarga } from "@/utils/dateFormatters";
 import { format } from "date-fns";
-import { es } from "date-fns/locale";
 import { useAuth } from "@/contexts/AuthContext";
+import type { Database } from "@/integrations/supabase/types";
 
-interface Incidente {
-  id: string;
-  codigo: string;
-  codigo_cliente: string;
-  codigo_producto: string;
-  ingresado_en_mostrador: boolean | null;
-  updated_at: string;
-  descripcion_problema: string;
-  status: string;
-}
+type IncidenteDB = Database['public']['Tables']['incidentes']['Row'];
 
-interface Cliente {
-  nombre: string;
-  celular: string;
-  telefono_principal: string | null;
-  direccion: string | null;
+interface Incidente extends IncidenteDB {
+  cliente?: {
+    nombre: string;
+    celular: string | null;
+    telefono_principal: string | null;
+    direccion: string | null;
+  } | null;
 }
 
 export default function WaterspiderEntrega() {
@@ -40,7 +33,6 @@ export default function WaterspiderEntrega() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [incidente, setIncidente] = useState<Incidente | null>(null);
-  const [cliente, setCliente] = useState<Cliente | null>(null);
   const [observaciones, setObservaciones] = useState("");
 
   useEffect(() => {
@@ -51,8 +43,11 @@ export default function WaterspiderEntrega() {
         // Fetch incident
         const { data: incData, error: incError } = await supabase
           .from("incidentes")
-          .select("id, codigo, codigo_cliente, codigo_producto, ingresado_en_mostrador, updated_at, descripcion_problema, status")
-          .eq("id", incidenteId)
+          .select(`
+            *,
+            clientes:cliente_id(nombre, celular, telefono_principal, direccion)
+          `)
+          .eq("id", parseInt(incidenteId))
           .single();
 
         if (incError) throw incError;
@@ -63,22 +58,18 @@ export default function WaterspiderEntrega() {
           return;
         }
 
-        if (incData.status !== "Reparado") {
-          toast.error("Este incidente ya no está en estado Reparado");
+        if (incData.estado !== "EN_REPARACION" && incData.estado !== "REPARADO") {
+          toast.error("Este incidente no está en estado válido para entrega");
           navigate("/taller/waterspider");
           return;
         }
 
-        setIncidente(incData);
+        const formattedIncidente: Incidente = {
+          ...incData,
+          cliente: (incData as any).clientes as Incidente['cliente'],
+        };
 
-        // Fetch client
-        const { data: clienteData } = await supabase
-          .from("clientes")
-          .select("nombre, celular, telefono_principal, direccion")
-          .eq("codigo", incData.codigo_cliente)
-          .single();
-
-        setCliente(clienteData);
+        setIncidente(formattedIncidente);
       } catch (error) {
         console.error("Error fetching data:", error);
         toast.error("Error al cargar los datos");
@@ -95,46 +86,31 @@ export default function WaterspiderEntrega() {
 
     setSubmitting(true);
     try {
-      // Determine new status based on origin
-      const nuevoStatus = incidente.ingresado_en_mostrador === true 
-        ? "Pendiente entrega" 
-        : "Logistica envio";
+      // Determine new status based on quiere_envio
+      const nuevoEstado = incidente.quiere_envio 
+        ? "EN_ENTREGA" 
+        : "LISTO_PARA_ENTREGA";
 
-      // Update incident status - registrar fecha_reparacion si aún no existe
+      // Update incident estado
       const fechaActual = new Date().toISOString();
+      const logEntry = `[${format(new Date(), "dd/MM/yyyy HH:mm")}] Waterspider: Entregado a ${incidente.quiere_envio ? 'Logística' : 'Mostrador'}${observaciones ? ` - ${observaciones}` : ''}`;
+      
+      const currentObs = incidente.observaciones || "";
+      const newObs = currentObs ? `${currentObs}\n${logEntry}` : logEntry;
+
       const { error } = await supabase
         .from("incidentes")
         .update({ 
-          status: nuevoStatus,
+          estado: nuevoEstado,
+          observaciones: newObs,
           updated_at: fechaActual,
-          // Solo establecer fecha_reparacion si no existe (no sobrescribir)
-          ...(nuevoStatus === "Pendiente entrega" || nuevoStatus === "Logistica envio" 
-            ? {} // No modificar fecha_reparacion aquí, ya se estableció en diagnóstico
-            : {})
         })
         .eq("id", incidente.id);
 
       if (error) throw error;
 
-      // Log the action in observaciones - fetch current log first, then append
-      const { data: currentInc } = await supabase
-        .from("incidentes")
-        .select("log_observaciones")
-        .eq("id", incidente.id)
-        .single();
-
-      const logEntry = `[${format(new Date(), "dd/MM/yyyy HH:mm")}] Waterspider: Entregado a ${incidente.ingresado_en_mostrador ? 'Mostrador' : 'Logística'}${observaciones ? ` - ${observaciones}` : ''}`;
-      const newLog = currentInc?.log_observaciones 
-        ? `${currentInc.log_observaciones}\n${logEntry}` 
-        : logEntry;
-      
-      await supabase
-        .from("incidentes")
-        .update({ log_observaciones: newLog })
-        .eq("id", incidente.id);
-
       toast.success(
-        `Incidente ${incidente.codigo} entregado a ${incidente.ingresado_en_mostrador ? 'Mostrador' : 'Logística'}`,
+        `Incidente ${incidente.codigo} entregado a ${incidente.quiere_envio ? 'Logística' : 'Mostrador'}`,
         { duration: 4000 }
       );
       
@@ -160,8 +136,8 @@ export default function WaterspiderEntrega() {
 
   if (!incidente) return null;
 
-  const destino = incidente.ingresado_en_mostrador === true ? "Mostrador" : "Logística";
-  const colorDestino = incidente.ingresado_en_mostrador === true ? "blue" : "orange";
+  const destino = incidente.quiere_envio ? "Logística" : "Mostrador";
+  const colorDestino = incidente.quiere_envio ? "orange" : "blue";
 
   return (
     <div className="container mx-auto p-4 space-y-6 max-w-4xl">
@@ -219,19 +195,19 @@ export default function WaterspiderEntrega() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Producto</p>
-                <p className="font-medium">{incidente.codigo_producto}</p>
+                <p className="font-medium">#{incidente.producto_id}</p>
               </div>
             </div>
             <Separator />
             <div>
               <p className="text-sm text-muted-foreground">Descripción del Problema</p>
-              <p className="text-sm mt-1">{incidente.descripcion_problema}</p>
+              <p className="text-sm mt-1">{incidente.descripcion_problema || "Sin descripción"}</p>
             </div>
             <Separator />
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Clock className="h-4 w-4" />
               <span>
-                Reparado el {formatFechaLarga(incidente.updated_at)} a las {format(new Date(incidente.updated_at), "HH:mm")}
+                Actualizado el {incidente.updated_at ? formatFechaLarga(incidente.updated_at) : "N/A"}
               </span>
             </div>
           </CardContent>
@@ -248,30 +224,29 @@ export default function WaterspiderEntrega() {
           <CardContent className="space-y-4">
             <div>
               <p className="text-sm text-muted-foreground">Cliente</p>
-              <p className="font-medium">{cliente?.nombre || incidente.codigo_cliente}</p>
-              <p className="text-xs text-muted-foreground">{incidente.codigo_cliente}</p>
+              <p className="font-medium">{incidente.cliente?.nombre || `Cliente #${incidente.cliente_id}`}</p>
             </div>
             <Separator />
             <div className="space-y-2">
-              {cliente?.celular && (
+              {incidente.cliente?.celular && (
                 <div className="flex items-center gap-2">
                   <Phone className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">{cliente.celular}</span>
+                  <span className="text-sm">{incidente.cliente.celular}</span>
                 </div>
               )}
-              {cliente?.telefono_principal && (
+              {incidente.cliente?.telefono_principal && (
                 <div className="flex items-center gap-2">
                   <Phone className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm">{cliente.telefono_principal}</span>
+                  <span className="text-sm">{incidente.cliente.telefono_principal}</span>
                 </div>
               )}
             </div>
-            {cliente?.direccion && (
+            {incidente.cliente?.direccion && (
               <>
                 <Separator />
                 <div className="flex items-start gap-2">
                   <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
-                  <span className="text-sm">{cliente.direccion}</span>
+                  <span className="text-sm">{incidente.cliente.direccion}</span>
                 </div>
               </>
             )}

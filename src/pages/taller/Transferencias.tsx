@@ -12,34 +12,28 @@ import { Loader2, Truck, Plus, Search, CheckCircle2, XCircle, Clock } from "luci
 import { formatFechaCorta } from "@/utils/dateFormatters";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import type { Database } from "@/integrations/supabase/types";
 
-interface Transferencia {
-  id: string;
-  incidente_id: string;
-  centro_origen_id: string;
-  centro_destino_id: string;
-  motivo: string;
-  estado: string;
-  solicitado_por: string;
-  aprobado_por: string | null;
-  fecha_aprobacion: string | null;
-  notas_aprobacion: string | null;
-  created_at: string;
-  incidente?: { codigo: string; codigo_producto: string };
-  centro_origen?: { nombre: string };
-  centro_destino?: { nombre: string };
+type TransferenciaDB = Database['public']['Tables']['solicitudes_transferencia_maquinas']['Row'];
+type CentroServicioDB = Database['public']['Tables']['centros_de_servicio']['Row'];
+type IncidenteDB = Database['public']['Tables']['incidentes']['Row'];
+
+interface Transferencia extends TransferenciaDB {
+  incidente?: { codigo: string; producto_id: number | null } | null;
+  centro_origen?: { nombre: string } | null;
+  centro_destino?: { nombre: string } | null;
 }
 
 interface CentroServicio {
-  id: string;
+  id: number;
   nombre: string;
 }
 
 interface Incidente {
-  id: string;
+  id: number;
   codigo: string;
-  codigo_producto: string;
-  status: string;
+  producto_id: number | null;
+  estado: string;
 }
 
 export default function Transferencias() {
@@ -64,37 +58,43 @@ export default function Transferencias() {
   const fetchData = async () => {
     try {
       // Fetch transferencias
-      const { data: transferenciasData } = await supabase
+      const { data: transferenciasData, error: transferenciasError } = await supabase
         .from("solicitudes_transferencia_maquinas")
         .select(`
           *,
-          incidentes!solicitudes_transferencia_maquinas_incidente_id_fkey(codigo, codigo_producto)
+          incidentes:incidente_id(codigo, producto_id)
         `)
         .order("created_at", { ascending: false });
 
+      if (transferenciasError) throw transferenciasError;
+
       // Fetch centros
-      const { data: centrosData } = await supabase
-        .from("centros_servicio")
+      const { data: centrosData, error: centrosError } = await supabase
+        .from("centros_de_servicio")
         .select("id, nombre")
         .eq("activo", true)
         .order("nombre");
 
+      if (centrosError) throw centrosError;
+
       // Fetch incidentes elegibles (en diagnóstico o pendientes)
-      const { data: incidentesData } = await supabase
+      const { data: incidentesData, error: incidentesError } = await supabase
         .from("incidentes")
-        .select("id, codigo, codigo_producto, status")
-        .in("status", ["En diagnostico", "Pendiente por repuestos", "Pendiente de diagnostico"])
+        .select("id, codigo, producto_id, estado")
+        .in("estado", ["EN_DIAGNOSTICO", "ESPERA_REPUESTOS", "REGISTRADO"])
         .order("codigo");
 
+      if (incidentesError) throw incidentesError;
+
       // Process transferencias with centro names
-      const processedTransferencias = (transferenciasData || []).map((t) => {
+      const processedTransferencias: Transferencia[] = (transferenciasData || []).map((t) => {
         const centroOrigen = centrosData?.find((c) => c.id === t.centro_origen_id);
         const centroDestino = centrosData?.find((c) => c.id === t.centro_destino_id);
         return {
           ...t,
-          incidente: t.incidentes,
-          centro_origen: centroOrigen ? { nombre: centroOrigen.nombre } : undefined,
-          centro_destino: centroDestino ? { nombre: centroDestino.nombre } : undefined,
+          incidente: (t as any).incidentes as { codigo: string; producto_id: number | null } | null,
+          centro_origen: centroOrigen ? { nombre: centroOrigen.nombre } : null,
+          centro_destino: centroDestino ? { nombre: centroDestino.nombre } : null,
         };
       });
 
@@ -122,16 +122,22 @@ export default function Transferencias() {
 
     setSubmitting(true);
     try {
-      // Get the first centro as origen (should be user's centro in real app)
-      const centroOrigenId = centros[0]?.id;
+      // Get user's info
+      const { data: usuario } = await supabase
+        .from("usuarios")
+        .select("id, centro_de_servicio_id")
+        .eq("auth_uid", user.id)
+        .maybeSingle();
+
+      const centroOrigenId = usuario?.centro_de_servicio_id || centros[0]?.id;
 
       const { error } = await supabase.from("solicitudes_transferencia_maquinas").insert({
-        incidente_id: selectedIncidente,
+        incidente_id: parseInt(selectedIncidente),
         centro_origen_id: centroOrigenId,
-        centro_destino_id: selectedCentroDestino,
+        centro_destino_id: parseInt(selectedCentroDestino),
         motivo: motivo.trim(),
-        solicitado_por: user.id,
-        estado: "pendiente",
+        solicitado_por: usuario?.id || 0,
+        estado: "PENDIENTE",
       });
 
       if (error) throw error;
@@ -155,16 +161,16 @@ export default function Transferencias() {
   };
 
   const getStatusBadge = (estado: string) => {
-    switch (estado) {
-      case "pendiente":
+    switch (estado?.toUpperCase()) {
+      case "PENDIENTE":
         return <Badge variant="secondary"><Clock className="h-3 w-3 mr-1" />Pendiente</Badge>;
-      case "aprobada":
+      case "APROBADA":
         return <Badge className="bg-green-500"><CheckCircle2 className="h-3 w-3 mr-1" />Aprobada</Badge>;
-      case "rechazada":
+      case "RECHAZADA":
         return <Badge variant="destructive"><XCircle className="h-3 w-3 mr-1" />Rechazada</Badge>;
-      case "en_transito":
+      case "EN_TRANSITO":
         return <Badge className="bg-blue-500"><Truck className="h-3 w-3 mr-1" />En Tránsito</Badge>;
-      case "completada":
+      case "COMPLETADA":
         return <Badge className="bg-primary"><CheckCircle2 className="h-3 w-3 mr-1" />Completada</Badge>;
       default:
         return <Badge variant="outline">{estado}</Badge>;
@@ -213,8 +219,8 @@ export default function Transferencias() {
                   </SelectTrigger>
                   <SelectContent>
                     {incidentes.map((inc) => (
-                      <SelectItem key={inc.id} value={inc.id}>
-                        {inc.codigo} - {inc.codigo_producto}
+                      <SelectItem key={inc.id} value={inc.id.toString()}>
+                        {inc.codigo} - Producto #{inc.producto_id}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -229,7 +235,7 @@ export default function Transferencias() {
                   </SelectTrigger>
                   <SelectContent>
                     {centros.map((centro) => (
-                      <SelectItem key={centro.id} value={centro.id}>
+                      <SelectItem key={centro.id} value={centro.id.toString()}>
                         {centro.nombre}
                       </SelectItem>
                     ))}
@@ -280,7 +286,7 @@ export default function Transferencias() {
           <CardContent className="pt-6">
             <div className="text-center">
               <p className="text-2xl font-bold text-yellow-600">
-                {transferencias.filter((t) => t.estado === "pendiente").length}
+                {transferencias.filter((t) => t.estado === "PENDIENTE").length}
               </p>
               <p className="text-sm text-muted-foreground">Pendientes</p>
             </div>
@@ -290,7 +296,7 @@ export default function Transferencias() {
           <CardContent className="pt-6">
             <div className="text-center">
               <p className="text-2xl font-bold text-blue-600">
-                {transferencias.filter((t) => t.estado === "en_transito").length}
+                {transferencias.filter((t) => t.estado === "EN_TRANSITO").length}
               </p>
               <p className="text-sm text-muted-foreground">En Tránsito</p>
             </div>
@@ -300,7 +306,7 @@ export default function Transferencias() {
           <CardContent className="pt-6">
             <div className="text-center">
               <p className="text-2xl font-bold text-green-600">
-                {transferencias.filter((t) => t.estado === "completada").length}
+                {transferencias.filter((t) => t.estado === "COMPLETADA").length}
               </p>
               <p className="text-sm text-muted-foreground">Completadas</p>
             </div>
@@ -343,15 +349,15 @@ export default function Transferencias() {
                     <TableCell>
                       <div>
                         <p className="font-medium">{t.incidente?.codigo}</p>
-                        <p className="text-xs text-muted-foreground">{t.incidente?.codigo_producto}</p>
+                        <p className="text-xs text-muted-foreground">Producto #{t.incidente?.producto_id}</p>
                       </div>
                     </TableCell>
                     <TableCell>{t.centro_origen?.nombre || "N/A"}</TableCell>
                     <TableCell>{t.centro_destino?.nombre || "N/A"}</TableCell>
                     <TableCell className="max-w-[200px] truncate">{t.motivo}</TableCell>
-                    <TableCell>{getStatusBadge(t.estado)}</TableCell>
+                    <TableCell>{getStatusBadge(t.estado || "")}</TableCell>
                     <TableCell>
-                      {formatFechaCorta(t.created_at)}
+                      {formatFechaCorta(t.created_at || "")}
                     </TableCell>
                   </TableRow>
                 ))}

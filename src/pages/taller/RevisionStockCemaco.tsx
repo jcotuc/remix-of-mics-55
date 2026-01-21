@@ -5,25 +5,22 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { AlertCircle, ArrowLeft, CheckCircle2, XCircle } from "lucide-react";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { WhatsAppStyleMediaCapture, MediaFile } from "@/components/features/media";
 import { uploadMediaToStorage } from "@/lib/uploadMedia";
+import type { Database } from "@/integrations/supabase/types";
 
-interface IncidenteStockCemaco {
-  id: string;
-  codigo: string;
-  fecha_ingreso: string;
-  codigo_cliente: string;
-  codigo_producto: string;
-  descripcion_problema: string;
+type IncidenteDB = Database['public']['Tables']['incidentes']['Row'];
+
+interface IncidenteStockCemaco extends IncidenteDB {
   cliente?: {
     nombre: string;
-    celular: string;
-  };
+    celular: string | null;
+  } | null;
   producto?: {
     descripcion: string;
-  };
+  } | null;
 }
 
 export default function RevisionStockCemaco() {
@@ -42,43 +39,30 @@ export default function RevisionStockCemaco() {
 
   const fetchIncidentes = async () => {
     try {
+      // Filter by tipologia - use existing enum values
       const { data, error } = await supabase
         .from("incidentes")
         .select(`
-          id,
-          codigo,
-          fecha_ingreso,
-          codigo_cliente,
-          codigo_producto,
-          descripcion_problema,
-          clientes:codigo_cliente (nombre, celular),
-          productos:codigo_producto (descripcion)
+          *,
+          clientes:cliente_id(nombre, celular),
+          productos:producto_id(descripcion)
         `)
-        .eq("es_stock_cemaco", true)
-        .eq("status", "Ingresado")
+        .eq("tipologia", "REPARACION")
+        .eq("estado", "REGISTRADO")
         .order("fecha_ingreso", { ascending: true });
 
       if (error) throw error;
 
-      const formatted = data?.map(inc => ({
-        id: inc.id,
-        codigo: inc.codigo,
-        fecha_ingreso: inc.fecha_ingreso,
-        codigo_cliente: inc.codigo_cliente,
-        codigo_producto: inc.codigo_producto,
-        descripcion_problema: inc.descripcion_problema,
-        cliente: Array.isArray(inc.clientes) ? inc.clientes[0] : inc.clientes,
-        producto: Array.isArray(inc.productos) ? inc.productos[0] : inc.productos,
-      })) || [];
+      const formatted: IncidenteStockCemaco[] = (data || []).map(inc => ({
+        ...inc,
+        cliente: (inc as any).clientes as { nombre: string; celular: string | null } | null,
+        producto: (inc as any).productos as { descripcion: string } | null,
+      }));
 
       setIncidentes(formatted);
     } catch (error: any) {
       console.error("Error:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "No se pudieron cargar los incidentes",
-      });
+      toast.error("No se pudieron cargar los incidentes");
     } finally {
       setLoading(false);
     }
@@ -88,20 +72,12 @@ export default function RevisionStockCemaco() {
     if (!selectedIncidente) return;
     
     if (justificacion.length < 20) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "La justificación debe tener al menos 20 caracteres",
-      });
+      toast.error("La justificación debe tener al menos 20 caracteres");
       return;
     }
 
     if (mediaFiles.length === 0) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Debe agregar al menos 1 foto como evidencia",
-      });
+      toast.error("Debe agregar al menos 1 foto como evidencia");
       return;
     }
 
@@ -109,38 +85,51 @@ export default function RevisionStockCemaco() {
 
     try {
       // Upload fotos
-      const uploadedMedia = await uploadMediaToStorage(mediaFiles, selectedIncidente.id);
+      const uploadedMedia = await uploadMediaToStorage(mediaFiles, selectedIncidente.id.toString());
       const uploadedUrls = uploadedMedia.map(m => m.url);
 
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuario no autenticado");
 
-      // Crear revisión
-      const { error: revisionError } = await supabase
-        .from("revisiones_stock_cemaco")
-        .insert({
-          incidente_id: selectedIncidente.id,
-          revisor_id: user.id,
-          observaciones,
-          fotos_urls: uploadedUrls,
-          decision,
-          justificacion,
-        });
+      // Get usuario_id
+      const { data: usuario } = await supabase
+        .from("usuarios")
+        .select("id")
+        .eq("auth_uid", user.id)
+        .maybeSingle();
 
-      if (revisionError) throw revisionError;
+      // Add observaciones with revision info
+      const revisionLog = `[${new Date().toISOString()}] Revisión Stock Cemaco - Decisión: ${decision}. Justificación: ${justificacion}`;
+      const currentObs = selectedIncidente.observaciones || "";
+      const newObs = currentObs ? `${currentObs}\n${revisionLog}` : revisionLog;
 
-      // Actualizar status del incidente
+      // Actualizar estado del incidente
       const { error: updateError } = await supabase
         .from("incidentes")
-        .update({ status: "Pendiente de aprobación NC" as any })
+        .update({ 
+          estado: "EN_DIAGNOSTICO",
+          observaciones: newObs,
+          updated_at: new Date().toISOString()
+        })
         .eq("id", selectedIncidente.id);
 
       if (updateError) throw updateError;
 
-      toast({
-        title: "Éxito",
-        description: "Revisión enviada para aprobación del jefe de taller",
-      });
+      // Upload photos to incidente_fotos
+      if (uploadedUrls.length > 0 && usuario) {
+        const fotosToInsert = uploadedUrls.map((url, idx) => ({
+          incidente_id: selectedIncidente.id,
+          url,
+          storage_path: url,
+          tipo: "revision_stock",
+          orden: idx,
+          created_by: usuario.id,
+        }));
+
+        await supabase.from("incidente_fotos").insert(fotosToInsert);
+      }
+
+      toast.success("Revisión enviada para aprobación del jefe de taller");
 
       setSelectedIncidente(null);
       setObservaciones("");
@@ -149,11 +138,7 @@ export default function RevisionStockCemaco() {
       fetchIncidentes();
     } catch (error: any) {
       console.error("Error:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message || "No se pudo guardar la revisión",
-      });
+      toast.error(error.message || "No se pudo guardar la revisión");
     } finally {
       setSubmitting(false);
     }
@@ -187,13 +172,13 @@ export default function RevisionStockCemaco() {
           </CardHeader>
           <CardContent className="space-y-3">
             <div>
-              <span className="font-semibold">Cliente:</span> {selectedIncidente.cliente?.nombre}
+              <span className="font-semibold">Cliente:</span> {selectedIncidente.cliente?.nombre || "N/A"}
             </div>
             <div>
-              <span className="font-semibold">Producto:</span> {selectedIncidente.producto?.descripcion}
+              <span className="font-semibold">Producto:</span> {selectedIncidente.producto?.descripcion || `#${selectedIncidente.producto_id}`}
             </div>
             <div>
-              <span className="font-semibold">Problema:</span> {selectedIncidente.descripcion_problema}
+              <span className="font-semibold">Problema:</span> {selectedIncidente.descripcion_problema || "Sin descripción"}
             </div>
           </CardContent>
         </Card>
@@ -308,11 +293,11 @@ export default function RevisionStockCemaco() {
                   <div className="space-y-1">
                     <h3 className="font-semibold text-lg">{incidente.codigo}</h3>
                     <p className="text-sm text-muted-foreground">
-                      {incidente.cliente?.nombre} - {incidente.producto?.descripcion}
+                      {incidente.cliente?.nombre || "Sin cliente"} - {incidente.producto?.descripcion || `Producto #${incidente.producto_id}`}
                     </p>
-                    <p className="text-sm">{incidente.descripcion_problema}</p>
+                    <p className="text-sm">{incidente.descripcion_problema || "Sin descripción"}</p>
                     <p className="text-xs text-muted-foreground">
-                      Ingreso: {new Date(incidente.fecha_ingreso).toLocaleDateString()}
+                      Ingreso: {incidente.fecha_ingreso ? new Date(incidente.fecha_ingreso).toLocaleDateString() : "N/A"}
                     </p>
                   </div>
                   <Button size="sm">
