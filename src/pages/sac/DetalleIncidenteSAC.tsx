@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { apiBackendAction } from "@/lib/api-backend";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -96,37 +97,58 @@ export default function DetalleIncidenteSAC() {
     try {
       setLoading(true);
 
-      // Fetch incident
-      const { data: incidenteData, error: incidenteError } = await supabase
-        .from("incidentes")
-        .select("*")
-        .eq("id", Number(id))
-        .single();
-
-      if (incidenteError) throw incidenteError;
+      // Fetch incident using apiBackendAction
+      const incidenteResult = await apiBackendAction("incidentes.get", { id: Number(id) });
+      const incData = incidenteResult.result;
+      
+      if (!incData) {
+        toast.error("Incidente no encontrado");
+        return;
+      }
+      
+      // Map schema to local types - schema uses nested cliente/producto objects
+      const incidenteData = {
+        id: incData.id,
+        codigo: incData.codigo,
+        estado: incData.estado,
+        descripcion_problema: incData.descripcion_problema || null,
+        observaciones: incData.observaciones || null,
+        created_at: incData.created_at || new Date().toISOString(),
+        updated_at: incData.updated_at || null,
+        cliente_id: incData.cliente?.id || 0,
+        producto_id: incData.producto?.id || null,
+        centro_de_servicio_id: incData.centro_de_servicio_id || 0,
+        fecha_ingreso: incData.created_at || null,
+        quiere_envio: incData.quiere_envio || null,
+        tipologia: incData.tipologia || null,
+        aplica_garantia: incData.aplica_garantia || false,
+        deleted_at: null,
+        direccion_entrega_id: null,
+        empresa_id: null,
+        fecha_promesa_entrega: null,
+        numero_serie: null,
+        presupuesto_aprobado: null,
+        sku_maquina: incData.producto?.codigo || null,
+        fecha_entrega: null,
+        incidente_origen_id: null,
+        propietario_id: null,
+        tipo_resolucion: null,
+        tracking_token: null,
+      } as unknown as IncidenteDB;
+      
       setIncidente(incidenteData);
 
-      // Fetch client
-      const { data: clienteData } = await supabase
-        .from("clientes")
-        .select("*")
-        .eq("id", incidenteData.cliente_id)
-        .maybeSingle();
-
-      setCliente(clienteData);
-
-      // Fetch product
-      if (incidenteData.producto_id) {
-        const { data: productoData } = await supabase
-          .from("productos")
-          .select("*")
-          .eq("id", incidenteData.producto_id)
-          .maybeSingle();
-
-        setProducto(productoData);
+      // Set cliente from nested object
+      if (incData.cliente) {
+        setCliente(incData.cliente as unknown as ClienteDB);
       }
 
-      // Fetch diagnosis
+      // Set producto from nested object
+      if (incData.producto) {
+        setProducto(incData.producto as unknown as ProductoDB);
+      }
+
+      // Fetch diagnosis (still direct Supabase - not in registry)
       const { data: diagnosticoData } = await supabase
         .from("diagnosticos")
         .select("*")
@@ -139,13 +161,9 @@ export default function DetalleIncidenteSAC() {
 
       // Fetch tecnico info if diagnostico exists
       if (diagnosticoData?.tecnico_id) {
-        const { data: tecnicoData } = await supabase
-          .from("usuarios")
-          .select("*")
-          .eq("id", diagnosticoData.tecnico_id)
-          .maybeSingle();
-        
-        setTecnico(tecnicoData);
+        const usuariosResult = await apiBackendAction("usuarios.list", {});
+        const tecnicoData = usuariosResult.results.find(u => u.id === diagnosticoData.tecnico_id);
+        setTecnico(tecnicoData as unknown as UsuarioDB || null);
       }
 
     } catch (error: any) {
