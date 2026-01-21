@@ -4,16 +4,16 @@ Updated: Now
 ## Progreso General de Migración
 
 ```
-██████████████████████████████░░░░░░ 31% (23/75 páginas libres de Supabase)
+████████████████████████████████░░░░ 36% (27/75 páginas libres de Supabase)
 ```
 
 **Total de archivos en src/pages:** 75  
-**Páginas 100% migradas (sin imports Supabase):** 23  
-**Páginas con imports Supabase restantes:** 52
+**Páginas 100% migradas (sin imports Supabase):** 27  
+**Páginas con imports Supabase restantes:** 48
 
 ---
 
-## ✅ Páginas 100% Libres de Supabase (23)
+## ✅ Páginas 100% Libres de Supabase (27)
 
 Estas páginas ya NO tienen ningún import de `@/integrations/supabase/client`:
 
@@ -30,18 +30,22 @@ Estas páginas ya NO tienen ningún import de `@/integrations/supabase/client`:
 | 9 | `src/pages/logistica/ConsultaUbicaciones.tsx` | Datos mock |
 | 10 | `src/pages/logistica/Clientes.tsx` | `clientes.list` |
 | 11 | `src/pages/logistica/DashboardJefeLogistica.tsx` | `guias.list`, `embarques.list`, `incidentes.list` |
-| 12 | `src/pages/logistica/MaquinasNuevasRT.tsx` | `incidentes.list`, `clientes.list` ✅ NEW |
-| 13 | `src/pages/logistica/MaquinasPendientesEnvio.tsx` | `incidentes.list`, `clientes.list` ✅ NEW |
-| 14 | `src/pages/gerencia/DashboardGerente.tsx` | `incidentes.list`, `inventarios.list` |
-| 15 | `src/pages/calidad/DashboardSupervisorCalidad.tsx` | `incidentes.list` |
-| 16 | `src/pages/sac/DashboardSupervisorSAC.tsx` | `incidentes.list`, `usuarios.list` ✅ NEW |
-| 17 | `src/pages/taller/DashboardJefeTaller.tsx` | `incidentes.list`, `usuarios.list`, `diagnosticos.list` ✅ NEW |
-| 18 | `src/pages/taller/ConfiguracionColas.tsx` | `grupos_cola_fifo.*` |
-| 19 | `src/pages/bodega/Despieces.tsx` | N/A |
-| 20 | `src/pages/bodega/DetalleSolicitud.tsx` | N/A |
-| 21 | `src/pages/bodega/DashboardJefeBodega.tsx` | N/A |
-| 22 | `src/pages/bodega/DashboardSupervisorBodega.tsx` | N/A |
-| 23 | `src/pages/bodega/ListadoPicking.tsx` | N/A |
+| 12 | `src/pages/logistica/MaquinasNuevasRT.tsx` | `incidentes.list`, `clientes.list` |
+| 13 | `src/pages/logistica/MaquinasPendientesEnvio.tsx` | `incidentes.list`, `clientes.list` |
+| 14 | `src/pages/logistica/Embarques.tsx` | `embarques.list`, `embarques.create` ✅ NEW |
+| 15 | `src/pages/logistica/SalidaMaquinas.tsx` | `incidentes.list` ✅ NEW |
+| 16 | `src/pages/gerencia/DashboardGerente.tsx` | `incidentes.list`, `inventarios.list` |
+| 17 | `src/pages/gerencia/DashboardSupervisorRegional.tsx` | `incidentes.list` ✅ NEW |
+| 18 | `src/pages/calidad/DashboardSupervisorCalidad.tsx` | `incidentes.list` |
+| 19 | `src/pages/calidad/ControlCalidadDashboard.tsx` | `incidentes.list` ✅ NEW |
+| 20 | `src/pages/calidad/VerificacionReincidencias.tsx` | `incidentes.list` ✅ NEW |
+| 21 | `src/pages/sac/DashboardSupervisorSAC.tsx` | `incidentes.list`, `usuarios.list` |
+| 22 | `src/pages/taller/DashboardJefeTaller.tsx` | `incidentes.list`, `usuarios.list`, `diagnosticos.list` |
+| 23 | `src/pages/taller/ConfiguracionColas.tsx` | `grupos_cola_fifo.*` |
+| 24 | `src/pages/bodega/Despieces.tsx` | N/A |
+| 25 | `src/pages/bodega/DetalleSolicitud.tsx` | N/A |
+| 26 | `src/pages/bodega/DashboardJefeBodega.tsx` | N/A |
+| 27 | `src/pages/bodega/DashboardSupervisorBodega.tsx` | N/A |
 
 ---
 
@@ -59,14 +63,14 @@ Estas páginas ya NO tienen ningún import de `@/integrations/supabase/client`:
 | `taller/BusquedaIncidentes.tsx` | `incidentes.list`, `diagnosticos.search` | `media` |
 | `bodega/Solicitudes.tsx` | `solicitudes_repuestos.list` | Updates |
 | `bodega/MovimientosInventario.tsx` | `repuestos.search` | inserts |
-| `logistica/Embarques.tsx` | `embarques.list` | inserts |
 | `logistica/IngresoMaquinas.tsx` | `incidentes.list`, `embarques.list` | N/A |
+| `logistica/Guias.tsx` | `guias.list` | complex zigo integration |
 | `sac/IncidentesSAC.tsx` | `incidentes.list` | `asignaciones_sac` |
 | `sac/DetalleIncidenteSAC.tsx` | `incidentes.get`, `diagnosticos.search` | `media` |
 
 ---
 
-## ❌ Páginas Pendientes (52 restantes)
+## ❌ Páginas Pendientes (48 restantes)
 
 ### Admin Module (11)
 - `admin/AccesoriosFamilias.tsx`
@@ -81,7 +85,7 @@ Estas páginas ya NO tienen ningún import de `@/integrations/supabase/client`:
 - `admin/SustitutosRepuestos.tsx`
 - `admin/Usuarios.tsx`
 
-### Bodega Module (13)
+### Bodega Module (15)
 - `bodega/AbastecimientoCentros.tsx`
 - `bodega/AnalisisYAbastecimiento.tsx`
 - `bodega/ConsultaCardex.tsx`
@@ -94,25 +98,22 @@ Estas páginas ya NO tienen ningún import de `@/integrations/supabase/client`:
 - `bodega/Inventario.tsx`
 - `bodega/InventarioCiclico.tsx`
 - `bodega/InventarioNuevo.tsx`
+- `bodega/ListadoPicking.tsx`
 - `bodega/RecepcionImportacion.tsx`
 - `bodega/ReubicacionRepuestos.tsx`
 - `bodega/StockDepartamento.tsx`
 
-### Calidad Module (4)
+### Calidad Module (2)
 - `calidad/AnalisisDefectos.tsx`
 - `calidad/AuditoriasCalidad.tsx`
-- `calidad/ControlCalidadDashboard.tsx`
-- `calidad/VerificacionReincidencias.tsx`
 
 ### Gerencia Module (1)
 - `gerencia/AprobacionesGarantia.tsx`
 
-### Logística Module (5)
+### Logística Module (3)
 - `logistica/DanosTransporte.tsx`
 - `logistica/FaltanteAccesorios.tsx`
 - `logistica/GarantiasManuales.tsx`
-- `logistica/Guias.tsx`
-- `logistica/SalidaMaquinas.tsx`
 
 ### Mostrador Module (3)
 - `mostrador/DetalleEntrega.tsx`
@@ -122,7 +123,7 @@ Estas páginas ya NO tienen ningún import de `@/integrations/supabase/client`:
 ### SAC Module (1)
 - `sac/ConsultaExistencias.tsx`
 
-### Taller Module (10)
+### Taller Module (11)
 - `taller/AprobacionesStockCemaco.tsx`
 - `taller/AsignacionTecnicos.tsx`
 - `taller/CambioGarantia.tsx`
@@ -149,13 +150,13 @@ Estas páginas ya NO tienen ningún import de `@/integrations/supabase/client`:
 ## Handlers en api-backend.ts
 
 ### Full CRUD
-- `clientes.*`, `grupos_cola_fifo.*`, `grupos_cola_fifo_familias.*`
+- `clientes.*`, `grupos_cola_fifo.*`, `grupos_cola_fifo_familias.*`, `embarques.*`
 
 ### Read Operations
 - `productos.*`, `incidentes.*`, `diagnosticos.*`, `repuestos.*`
 - `bodegas.*`, `inventarios.*`, `movimientos_inventario.*`
 - `solicitudes_repuestos.*`, `pedidos_bodega_central.*`
-- `embarques.*`, `importaciones.*`, `ubicaciones.*`, `transitos_bodega.*`
+- `importaciones.*`, `ubicaciones.*`, `transitos_bodega.*`
 - `usuarios.list`, `roles.list`, `fallas.list`, `causas.list`
 - `accesorios.list`, `guias.list`, `presupuestos.*`
 - `familias_producto.list`, `centros_de_servicio.list`
