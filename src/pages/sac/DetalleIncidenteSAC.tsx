@@ -55,16 +55,25 @@ export default function DetalleIncidenteSAC() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      // Get user profile
+      const { data: userProfile } = await supabase
+        .from('usuarios')
+        .select('id')
+        .eq('auth_uid', user.id)
+        .single();
+
+      if (!userProfile) return;
+
       // Check if already assigned to someone
       const { data: existingAssignment } = await supabase
         .from("asignaciones_sac")
         .select("*")
-        .eq("incidente_id", id)
+        .eq("incidente_id", Number(id))
         .eq("activo", true)
         .single();
 
       if (existingAssignment) {
-        if (existingAssignment.user_id !== user.id) {
+        if (existingAssignment.user_id !== userProfile.id) {
           toast.error("Este incidente está siendo atendido por otro agente");
           navigate("/sac/incidentes");
           return;
@@ -75,8 +84,8 @@ export default function DetalleIncidenteSAC() {
         const { data: newAssignment, error } = await supabase
           .from("asignaciones_sac")
           .insert({
-            incidente_id: id,
-            user_id: user.id,
+            incidente_id: Number(id),
+            user_id: userProfile.id,
             activo: true
           })
           .select()
@@ -100,7 +109,7 @@ export default function DetalleIncidenteSAC() {
       const { data: incidenteData, error: incidenteError } = await supabase
         .from("incidentes")
         .select("*")
-        .eq("id", id)
+        .eq("id", Number(id))
         .single();
 
       if (incidenteError) throw incidenteError;
@@ -110,27 +119,27 @@ export default function DetalleIncidenteSAC() {
       const { data: clienteData, error: clienteError } = await supabase
         .from("clientes")
         .select("*")
-        .eq("codigo", incidenteData.codigo_cliente)
+        .eq("id", incidenteData.cliente_id)
         .single();
 
-      if (clienteError) throw clienteError;
-      setCliente(clienteData);
+      if (!clienteError) setCliente(clienteData);
 
       // Fetch product
-      const { data: productoData, error: productoError } = await supabase
-        .from("productos")
-        .select("*")
-        .eq("codigo", incidenteData.codigo_producto)
-        .single();
+      if (incidenteData.producto_id) {
+        const { data: productoData, error: productoError } = await supabase
+          .from("productos")
+          .select("*")
+          .eq("id", incidenteData.producto_id)
+          .single();
 
-      if (productoError) throw productoError;
-      setProducto(productoData);
+        if (!productoError) setProducto(productoData);
+      }
 
       // Fetch diagnosis
       const { data: diagnosticoData, error: diagnosticoError } = await supabase
         .from("diagnosticos")
         .select("*")
-        .eq("incidente_id", id)
+        .eq("incidente_id", Number(id))
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -142,10 +151,10 @@ export default function DetalleIncidenteSAC() {
       setDiagnostico(diagnosticoData);
 
       // Fetch solicitud de repuestos
-      const { data: solicitudData, error: solicitudError } = await supabase
+      const { data: solicitudData, error: solicitudError } = await (supabase as any)
         .from("solicitudes_repuestos")
         .select("*")
-        .eq("incidente_id", id)
+        .eq("incidente_id", Number(id))
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -160,19 +169,32 @@ export default function DetalleIncidenteSAC() {
       const codigosRepuestos: string[] = [];
       const repuestosTemp: RepuestoConPrecio[] = [];
 
-      // From diagnostico repuestos_utilizados
-      if (diagnosticoData?.repuestos_utilizados && Array.isArray(diagnosticoData.repuestos_utilizados)) {
-        (diagnosticoData.repuestos_utilizados as any[]).forEach((r: any) => {
-          if (r.codigo) codigosRepuestos.push(r.codigo);
-          repuestosTemp.push({
-            codigo: r.codigo || 'N/A',
-            descripcion: r.descripcion || 'Sin descripción',
-            cantidad: r.cantidad || 1,
-            precio_unitario: 0,
-            subtotal: 0,
-            origen: 'diagnostico'
+      // From diagnostico_repuestos table
+      if (diagnosticoData) {
+        const { data: diagRepuestos } = await supabase
+          .from("diagnostico_repuestos")
+          .select("repuesto_id")
+          .eq("diagnostico_id", diagnosticoData.id);
+
+        if (diagRepuestos && diagRepuestos.length > 0) {
+          const repuestoIds = diagRepuestos.map(dr => dr.repuesto_id);
+          const { data: repuestosData } = await supabase
+            .from("repuestos")
+            .select("*")
+            .in("id", repuestoIds);
+
+          repuestosData?.forEach(r => {
+            codigosRepuestos.push(r.codigo);
+            repuestosTemp.push({
+              codigo: r.codigo,
+              descripcion: r.descripcion || 'Sin descripción',
+              cantidad: 1,
+              precio_unitario: 0,
+              subtotal: 0,
+              origen: 'diagnostico'
+            });
           });
-        });
+        }
       }
 
       // Fetch detalle de repuestos si existe solicitud

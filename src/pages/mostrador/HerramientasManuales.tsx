@@ -14,17 +14,11 @@ import { Plus, Search, Wrench, CheckCircle, XCircle, Clock, Package } from "luci
 import { PhotoGalleryWithDescriptions, type PhotoWithDescription } from "@/components/shared";
 import { uploadMediaToStorage } from "@/lib/uploadMedia";
 import type { MediaFile } from "@/components/features/media";
+import type { Database } from "@/integrations/supabase/types";
 
-type IncidenteHerramienta = {
-  id: string;
-  codigo: string;
-  codigo_cliente: string;
-  codigo_producto: string;
-  descripcion_problema: string;
-  status: string;
-  estado_fisico_recepcion: string | null;
-  observaciones_recepcion: string | null;
-  created_at: string;
+type IncidenteDB = Database["public"]["Tables"]["incidentes"]["Row"];
+
+type IncidenteHerramienta = IncidenteDB & {
   cliente?: { nombre: string };
 };
 
@@ -46,8 +40,8 @@ export default function HerramientasManuales() {
 
   // Form state para nueva recepción
   const [formData, setFormData] = useState({
-    codigo_cliente: "",
-    codigo_producto: "",
+    cliente_id: "",
+    producto_id: "",
     descripcion_problema: "",
     estado_fisico: "bueno",
     observaciones: ""
@@ -71,12 +65,11 @@ export default function HerramientasManuales() {
           *,
           cliente:clientes(nombre)
         `)
-        .eq("es_herramienta_manual", true)
-        .eq("ingresado_en_mostrador", true)
+        .eq("tipologia", "REPARACION")
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setIncidentes(data || []);
+      setIncidentes((data as IncidenteHerramienta[]) || []);
     } catch (error) {
       console.error("Error fetching incidentes:", error);
       toast.error("Error al cargar herramientas manuales");
@@ -86,7 +79,7 @@ export default function HerramientasManuales() {
   };
 
   const handleCreateIncidente = async () => {
-    if (!formData.codigo_cliente || !formData.codigo_producto || !formData.descripcion_problema) {
+    if (!formData.cliente_id || !formData.producto_id || !formData.descripcion_problema) {
       toast.error("Por favor complete todos los campos requeridos");
       return;
     }
@@ -97,8 +90,35 @@ export default function HerramientasManuales() {
     }
 
     try {
+      // Obtener cliente_id numérico
+      const { data: clienteData, error: clienteError } = await supabase
+        .from("clientes")
+        .select("id")
+        .eq("codigo", formData.cliente_id)
+        .single();
+
+      if (clienteError || !clienteData) {
+        toast.error("Cliente no encontrado");
+        return;
+      }
+
+      // Obtener producto_id numérico
+      const { data: productoData, error: productoError } = await supabase
+        .from("productos")
+        .select("id")
+        .eq("codigo", formData.producto_id)
+        .single();
+
+      if (productoError || !productoData) {
+        toast.error("Producto no encontrado");
+        return;
+      }
+
+      // Obtener centro_de_servicio_id del usuario (default 1)
+      const centroServicioId = 1;
+
       // Generar código de incidente
-      const { data: codigoData, error: codigoError } = await supabase
+      const { data: codigoData, error: codigoError } = await (supabase as any)
         .rpc("generar_codigo_incidente");
       
       if (codigoError) throw codigoError;
@@ -116,34 +136,31 @@ export default function HerramientasManuales() {
       // Crear incidente
       const { data: incidenteData, error: incidenteError } = await supabase
         .from("incidentes")
-        .insert({
+        .insert([{
           codigo: nuevoCodigoIncidente,
-          codigo_cliente: formData.codigo_cliente,
-          codigo_producto: formData.codigo_producto,
+          cliente_id: clienteData.id,
+          producto_id: productoData.id,
+          centro_de_servicio_id: centroServicioId,
           descripcion_problema: formData.descripcion_problema,
-          status: "Ingresado",
-          es_herramienta_manual: true,
-          ingresado_en_mostrador: true,
-          estado_fisico_recepcion: formData.estado_fisico,
-          observaciones_recepcion: formData.observaciones,
-          cobertura_garantia: false,
-          created_by: user?.id
-        })
+          estado: "EN_DIAGNOSTICO" as const,
+          tipologia: "REPARACION" as const,
+          observaciones: formData.observaciones,
+          aplica_garantia: false
+        }])
         .select()
         .single();
 
       if (incidenteError) throw incidenteError;
 
       // Subir fotos asociadas al incidente
-      const uploadedMedia = await uploadMediaToStorage(mediaFiles, incidenteData.id);
+      const uploadedMedia = await uploadMediaToStorage(mediaFiles, String(incidenteData.id));
       
       // Guardar referencias de fotos
       const fotosInserts = uploadedMedia.map(media => ({
         incidente_id: incidenteData.id,
         tipo: "ingreso",
         url: media.url,
-        storage_path: media.storage_path,
-        created_by: user?.id
+        storage_path: media.storage_path
       }));
 
       const { error: fotosError } = await supabase
@@ -174,14 +191,14 @@ export default function HerramientasManuales() {
     }
 
     try {
-      const nuevoStatus = aplicaGarantia ? "Cambio por garantia" : "Porcentaje";
+      const nuevoEstado = aplicaGarantia ? "CAMBIO_POR_GARANTIA" : "ESPERA_APROBACION";
       
       const { error } = await supabase
         .from("incidentes")
         .update({
-          status: nuevoStatus,
-          cobertura_garantia: aplicaGarantia,
-          log_observaciones: justificacion
+          estado: nuevoEstado as any,
+          aplica_garantia: aplicaGarantia,
+          observaciones: justificacion
         })
         .eq("id", selectedIncidente.id);
 
@@ -199,14 +216,14 @@ export default function HerramientasManuales() {
       fetchIncidentes();
     } catch (error) {
       console.error("Error updating incidente:", error);
-      toast.error("Error al evaluar garantía");
+      toast.error("Error al evaluar herramienta");
     }
   };
 
   const resetForm = () => {
     setFormData({
-      codigo_cliente: "",
-      codigo_producto: "",
+      cliente_id: "",
+      producto_id: "",
       descripcion_problema: "",
       estado_fisico: "bueno",
       observaciones: ""
@@ -219,102 +236,97 @@ export default function HerramientasManuales() {
     setJustificacion("");
   };
 
-  const getStatusBadge = (status: string) => {
-    const variants: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; icon: any }> = {
-      "Ingresado": { variant: "secondary", icon: Clock },
-      "Cambio por garantia": { variant: "default", icon: CheckCircle },
-      "Porcentaje": { variant: "outline", icon: Package },
-      "Entregado": { variant: "default", icon: CheckCircle },
-      "Rechazado": { variant: "destructive", icon: XCircle }
-    };
-    
-    const config = variants[status] || { variant: "secondary", icon: Clock };
-    const Icon = config.icon;
-    
-    return (
-      <Badge variant={config.variant}>
-        <Icon className="h-3 w-3 mr-1" />
-        {status}
-      </Badge>
-    );
+  const getStatusBadge = (estado: string) => {
+    switch (estado) {
+      case "EN_DIAGNOSTICO":
+        return <Badge variant="outline" className="gap-1"><Clock className="h-3 w-3" /> Ingresado</Badge>;
+      case "CAMBIO_POR_GARANTIA":
+        return <Badge className="bg-green-600 gap-1"><CheckCircle className="h-3 w-3" /> Garantía</Badge>;
+      case "ESPERA_APROBACION":
+        return <Badge className="bg-amber-600 gap-1"><Package className="h-3 w-3" /> Porcentaje</Badge>;
+      default:
+        return <Badge variant="secondary">{estado}</Badge>;
+    }
+  };
+      default:
+        return <Badge variant="secondary">{estado}</Badge>;
+    }
   };
 
-  const incidentesPorEstado = {
-    pendiente: incidentes.filter(i => i.status === "Ingresado").length,
-    cambio: incidentes.filter(i => i.status === "Cambio por garantia").length,
-    canje: incidentes.filter(i => i.status === "Porcentaje").length,
-    entregado: incidentes.filter(i => i.status === "Entregado").length,
-    rechazado: incidentes.filter(i => i.status === "Rechazado").length
-  };
-
-  const incidentesFiltrados = incidentes.filter(i =>
-    i.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    i.codigo_cliente.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    i.codigo_producto.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    i.cliente?.nombre.toLowerCase().includes(searchTerm.toLowerCase())
+  const incidentesFiltrados = incidentes.filter(inc => 
+    inc.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    inc.cliente?.nombre?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  if (loading) {
-    return <div className="flex items-center justify-center h-64">Cargando...</div>;
-  }
+  const contadores = {
+    ingresado: incidentes.filter(i => i.estado === "EN_DIAGNOSTICO").length,
+    garantia: incidentes.filter(i => i.estado === "CAMBIO_POR_GARANTIA").length,
+    porcentaje: incidentes.filter(i => i.estado === "ESPERA_APROBACION").length
+  };
+  };
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">Herramientas Manuales</h1>
-          <p className="text-muted-foreground">Gestión de garantías de herramientas manuales</p>
+          <p className="text-muted-foreground">Recepción y evaluación de herramientas manuales</p>
         </div>
         <Dialog open={showNewDialog} onOpenChange={setShowNewDialog}>
           <DialogTrigger asChild>
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
+            <Button className="gap-2">
+              <Plus className="h-4 w-4" />
               Recibir Herramienta
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Recepción Física de Herramienta</DialogTitle>
+              <DialogTitle className="flex items-center gap-2">
+                <Wrench className="h-5 w-5" />
+                Recibir Nueva Herramienta Manual
+              </DialogTitle>
               <DialogDescription>
-                Complete la información de la herramienta recibida
+                Complete los datos de la herramienta para ingresarla al sistema
               </DialogDescription>
             </DialogHeader>
+
             <div className="space-y-4">
-              <div>
-                <Label htmlFor="codigo_cliente">Código de Cliente *</Label>
-                <Input
-                  id="codigo_cliente"
-                  value={formData.codigo_cliente}
-                  onChange={(e) => setFormData({ ...formData, codigo_cliente: e.target.value })}
-                  placeholder="Ej: HPC-000123"
-                />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Código Cliente *</Label>
+                  <Input
+                    placeholder="Ej: CLI-00001"
+                    value={formData.cliente_id}
+                    onChange={(e) => setFormData({ ...formData, cliente_id: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>SKU Herramienta *</Label>
+                  <Input
+                    placeholder="Ej: HM-12345"
+                    value={formData.producto_id}
+                    onChange={(e) => setFormData({ ...formData, producto_id: e.target.value })}
+                  />
+                </div>
               </div>
-              <div>
-                <Label htmlFor="codigo_producto">SKU de la Herramienta *</Label>
-                <Input
-                  id="codigo_producto"
-                  value={formData.codigo_producto}
-                  onChange={(e) => setFormData({ ...formData, codigo_producto: e.target.value })}
-                  placeholder="Código del producto"
-                />
-              </div>
-              <div>
-                <Label htmlFor="descripcion_problema">Descripción del Problema *</Label>
+
+              <div className="space-y-2">
+                <Label>Descripción del Problema *</Label>
                 <Textarea
-                  id="descripcion_problema"
+                  placeholder="Describa el problema reportado por el cliente..."
                   value={formData.descripcion_problema}
                   onChange={(e) => setFormData({ ...formData, descripcion_problema: e.target.value })}
-                  placeholder="Describa el problema reportado"
                   rows={3}
                 />
               </div>
-              <div>
-                <Label htmlFor="estado_fisico">Estado Físico *</Label>
+
+              <div className="space-y-2">
+                <Label>Estado Físico de Recepción</Label>
                 <Select 
                   value={formData.estado_fisico}
-                  onValueChange={(value) => setFormData({ ...formData, estado_fisico: value })}
+                  onValueChange={(v) => setFormData({ ...formData, estado_fisico: v })}
                 >
-                  <SelectTrigger id="estado_fisico">
+                  <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -326,24 +338,26 @@ export default function HerramientasManuales() {
                   </SelectContent>
                 </Select>
               </div>
-              <div>
-                <Label htmlFor="observaciones">Observaciones de Recepción</Label>
+
+              <div className="space-y-2">
+                <Label>Observaciones de Recepción</Label>
                 <Textarea
-                  id="observaciones"
+                  placeholder="Observaciones adicionales..."
                   value={formData.observaciones}
                   onChange={(e) => setFormData({ ...formData, observaciones: e.target.value })}
-                  placeholder="Daños visibles, accesorios faltantes, etc."
                   rows={2}
                 />
               </div>
-              <div>
-                <Label>Fotos de la Herramienta * (mínimo 1, máximo 10)</Label>
+
+              <div className="space-y-2">
+                <Label>Fotos de la Herramienta * (mínimo 1)</Label>
                 <PhotoGalleryWithDescriptions
                   photos={fotos}
                   onPhotosChange={setFotos}
-                  maxPhotos={10}
+                  maxPhotos={5}
                 />
               </div>
+
               <div className="flex justify-end gap-2 pt-4">
                 <Button variant="outline" onClick={() => setShowNewDialog(false)}>
                   Cancelar
@@ -357,202 +371,164 @@ export default function HerramientasManuales() {
         </Dialog>
       </div>
 
-      {/* Dashboard */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+      {/* Contadores */}
+      <div className="grid grid-cols-3 gap-4">
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Pendiente Evaluación</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{incidentesPorEstado.pendiente}</div>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Ingresadas</p>
+                <p className="text-3xl font-bold">{contadores.ingresado}</p>
+              </div>
+              <Clock className="h-8 w-8 text-muted-foreground" />
+            </div>
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Cambio por Garantía</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{incidentesPorEstado.cambio}</div>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Garantía Aplicada</p>
+                <p className="text-3xl font-bold text-green-600">{contadores.garantia}</p>
+              </div>
+              <CheckCircle className="h-8 w-8 text-green-600" />
+            </div>
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Canje Pendiente</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{incidentesPorEstado.canje}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Entregado</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{incidentesPorEstado.entregado}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Rechazado</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{incidentesPorEstado.rechazado}</div>
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Porcentaje Ofrecido</p>
+                <p className="text-3xl font-bold text-amber-600">{contadores.porcentaje}</p>
+              </div>
+              <Package className="h-8 w-8 text-amber-600" />
+            </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Search */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Buscar</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="relative">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar por código, cliente o SKU..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-8"
-            />
-          </div>
-        </CardContent>
-      </Card>
+      {/* Búsqueda */}
+      <div className="flex gap-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar por código o cliente..."
+            className="pl-10"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+      </div>
 
-      {/* Lista de Herramientas */}
+      {/* Lista de herramientas */}
       <Card>
         <CardHeader>
-          <CardTitle>Herramientas Manuales</CardTitle>
+          <CardTitle>Herramientas Recibidas</CardTitle>
           <CardDescription>
-            Mostrando {incidentesFiltrados.length} de {incidentes.length} herramientas
+            {incidentesFiltrados.length} herramientas encontradas
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            {incidentesFiltrados.map((incidente) => (
-              <Card key={incidente.id} className="hover:bg-muted/50 transition-colors">
-                <CardContent className="pt-6">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1 space-y-2">
-                      <div className="flex items-center gap-3">
-                        <span className="font-mono font-bold text-lg">{incidente.codigo}</span>
-                        {getStatusBadge(incidente.status)}
-                      </div>
-                      <div className="grid grid-cols-2 gap-2 text-sm">
+          {loading ? (
+            <div className="text-center py-8 text-muted-foreground">
+              Cargando...
+            </div>
+          ) : incidentesFiltrados.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              No hay herramientas manuales registradas
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {incidentesFiltrados.map((inc) => (
+                <Card key={inc.id} className="cursor-pointer hover:shadow-md transition-shadow">
+                  <CardContent className="pt-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <Wrench className="h-10 w-10 text-muted-foreground" />
                         <div>
-                          <span className="text-muted-foreground">Cliente:</span>{" "}
-                          <span className="font-medium">{incidente.cliente?.nombre || incidente.codigo_cliente}</span>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground">SKU:</span>{" "}
-                          <span className="font-mono">{incidente.codigo_producto}</span>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground">Estado Físico:</span>{" "}
-                          <span className="font-medium capitalize">{incidente.estado_fisico_recepcion || "N/A"}</span>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground">Fecha:</span>{" "}
-                          <span>{new Date(incidente.created_at).toLocaleDateString()}</span>
+                          <p className="font-semibold">{inc.codigo}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {inc.cliente?.nombre || "Cliente desconocido"}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(inc.created_at || "").toLocaleDateString()}
+                          </p>
                         </div>
                       </div>
-                      <div>
-                        <span className="text-muted-foreground text-sm">Problema:</span>{" "}
-                        <span className="text-sm">{incidente.descripcion_problema}</span>
+                      <div className="flex items-center gap-4">
+                        {getStatusBadge(inc.estado)}
+                        {inc.estado === "EN_DIAGNOSTICO" && (
+                          <Button 
+                            size="sm"
+                            onClick={() => {
+                              setSelectedIncidente(inc);
+                              setShowEvaluacionDialog(true);
+                            }}
+                          >
+                            Evaluar
+                          </Button>
+                        )}
                       </div>
                     </div>
-                    <div className="ml-4">
-                      {incidente.status === "Ingresado" && (
-                        <Button
-                          onClick={() => {
-                            setSelectedIncidente(incidente);
-                            setShowEvaluacionDialog(true);
-                          }}
-                        >
-                          <Wrench className="h-4 w-4 mr-2" />
-                          Evaluar
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-            {incidentesFiltrados.length === 0 && (
-              <div className="text-center py-8 text-muted-foreground">
-                No se encontraron herramientas
-              </div>
-            )}
-          </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 
       {/* Dialog de Evaluación */}
       <Dialog open={showEvaluacionDialog} onOpenChange={setShowEvaluacionDialog}>
-        <DialogContent className="max-w-xl">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>Evaluar Garantía</DialogTitle>
             <DialogDescription>
-              Determine si aplica garantía para esta herramienta
+              Determine si la herramienta aplica para garantía o canje con descuento
             </DialogDescription>
           </DialogHeader>
+
           {selectedIncidente && (
             <div className="space-y-4">
-              <div className="bg-muted p-4 rounded-lg space-y-2">
-                <div>
-                  <span className="text-muted-foreground">Código:</span>{" "}
-                  <span className="font-mono font-bold">{selectedIncidente.codigo}</span>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Cliente:</span>{" "}
-                  <span className="font-medium">{selectedIncidente.cliente?.nombre}</span>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">SKU:</span>{" "}
-                  <span className="font-mono">{selectedIncidente.codigo_producto}</span>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Estado Físico:</span>{" "}
-                  <span className="capitalize">{selectedIncidente.estado_fisico_recepcion}</span>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Problema:</span>{" "}
-                  <span>{selectedIncidente.descripcion_problema}</span>
-                </div>
+              <div className="p-4 bg-muted rounded-lg">
+                <p className="font-semibold">{selectedIncidente.codigo}</p>
+                <p className="text-sm text-muted-foreground">
+                  {selectedIncidente.cliente?.nombre}
+                </p>
               </div>
-              
-              <div className="space-y-3">
-                <Label>¿Aplica Garantía? *</Label>
+
+              <div className="space-y-2">
+                <Label>¿Aplica garantía?</Label>
                 <div className="flex gap-4">
                   <Button
                     variant={aplicaGarantia === true ? "default" : "outline"}
-                    className="flex-1"
+                    className="flex-1 gap-2"
                     onClick={() => setAplicaGarantia(true)}
                   >
-                    <CheckCircle className="h-4 w-4 mr-2" />
-                    Sí, aplica (Cambio)
+                    <CheckCircle className="h-4 w-4" />
+                    Sí, Garantía
                   </Button>
                   <Button
                     variant={aplicaGarantia === false ? "default" : "outline"}
-                    className="flex-1"
+                    className="flex-1 gap-2"
                     onClick={() => setAplicaGarantia(false)}
                   >
-                    <XCircle className="h-4 w-4 mr-2" />
-                    No aplica (Canje 40%)
+                    <XCircle className="h-4 w-4" />
+                    No, 40% Canje
                   </Button>
                 </div>
               </div>
 
-              <div>
-                <Label htmlFor="justificacion">Justificación * (mínimo 20 caracteres)</Label>
+              <div className="space-y-2">
+                <Label>Justificación * (mínimo 20 caracteres)</Label>
                 <Textarea
-                  id="justificacion"
+                  placeholder="Explique por qué aplica o no aplica garantía..."
                   value={justificacion}
                   onChange={(e) => setJustificacion(e.target.value)}
-                  placeholder="Explique la razón de la decisión"
                   rows={4}
                 />
-                <p className="text-xs text-muted-foreground mt-1">
+                <p className="text-xs text-muted-foreground">
                   {justificacion.length}/20 caracteres mínimo
                 </p>
               </div>

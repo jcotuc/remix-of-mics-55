@@ -44,31 +44,30 @@ export default function DashboardSupervisorSAC() {
       const { data: pendientesNotif, error: e2 } = await supabase
         .from('incidentes')
         .select('*')
-        .eq('status', 'Reparado');
+        .eq('estado', 'REPARADO');
 
       // Presupuestos y Canjes
       const { data: presupuestos, error: e3 } = await supabase
         .from('incidentes')
         .select('*')
-        .eq('status', 'Presupuesto');
+        .eq('estado', 'ESPERA_APROBACION');
 
       const { data: canjes, error: e4 } = await supabase
         .from('incidentes')
         .select('*')
-        .eq('status', 'Porcentaje');
+        .eq('estado', 'PENDIENTE_APROBACION');
 
-      // Notificaciones por tier
-      const { data: notificaciones, error: e5 } = await supabase
-        .from('notificaciones_cliente')
-        .select('incidente_id, numero_notificacion, respondido');
+      // Notificaciones por tier (use notificaciones table)
+      const { data: notificaciones, error: e5 } = await (supabase as any)
+        .from('notificaciones')
+        .select('incidente_id, tipo, enviada');
 
-      // Contar por tiers
-      const notifMap = new Map();
-      notificaciones?.forEach(n => {
-        const current = notifMap.get(n.incidente_id) || { max: 0, respondido: false };
+      // Contar por tiers (simplified)
+      const notifMap = new Map<number, { count: number }>();
+      (notificaciones || []).forEach((n: any) => {
+        const current = notifMap.get(n.incidente_id) || { count: 0 };
         notifMap.set(n.incidente_id, {
-          max: Math.max(current.max, n.numero_notificacion),
-          respondido: current.respondido || n.respondido
+          count: current.count + 1
         });
       });
 
@@ -76,9 +75,9 @@ export default function DashboardSupervisorSAC() {
       pendientesNotif?.forEach(inc => {
         const notif = notifMap.get(inc.id);
         if (!notif) sin++;
-        else if (notif.max === 1) una++;
-        else if (notif.max === 2) dos++;
-        else if (notif.max >= 3) tres++;
+        else if (notif.count === 1) una++;
+        else if (notif.count === 2) dos++;
+        else if (notif.count >= 3) tres++;
       });
 
       // Equipo SAC
@@ -87,33 +86,33 @@ export default function DashboardSupervisorSAC() {
         .select('user_id, incidente_id')
         .eq('activo', true);
 
-      const { data: profiles, error: e7 } = await supabase
-        .from('profiles')
-        .select('user_id, nombre, apellido');
+      const { data: usuarios, error: e7 } = await supabase
+        .from('usuarios')
+        .select('id, nombre, apellido');
 
-      const equipoMap = new Map();
+      const equipoMap = new Map<number, number>();
       asignaciones?.forEach(a => {
         equipoMap.set(a.user_id, (equipoMap.get(a.user_id) || 0) + 1);
       });
 
       const equipoSAC = Array.from(equipoMap.entries()).map(([userId, count]) => {
-        const profile = profiles?.find(p => p.user_id === userId);
+        const usuario = usuarios?.find(u => u.id === userId);
         return {
-          nombre: profile ? `${profile.nombre} ${profile.apellido}` : 'Desconocido',
-          incidentes: count as number
+          nombre: usuario ? `${usuario.nombre} ${usuario.apellido}` : 'Desconocido',
+          incidentes: count
         };
       });
 
-      // Tasa de respuesta
-      const totalNotifs = notificaciones?.length || 0;
-      const respondidas = notificaciones?.filter(n => n.respondido).length || 0;
+      // Tasa de respuesta (simplified)
+      const totalNotifs = (notificaciones || []).length;
+      const respondidas = (notificaciones || []).filter((n: any) => n.enviada).length;
       const tasaRespuesta = totalNotifs > 0 ? (respondidas / totalNotifs) * 100 : 0;
 
       // Presupuestos aceptados/rechazados (simulado basado en status final)
       const { data: entregados, error: e8 } = await supabase
         .from('incidentes')
         .select('*')
-        .in('status', ['Pendiente entrega', 'Logistica envio']);
+        .in('estado', ['REPARADO', 'EN_ENTREGA']);
 
       const { data: rechazados, error: e9 } = await supabase
         .from('incidentes')

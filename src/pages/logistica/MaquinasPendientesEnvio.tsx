@@ -30,7 +30,7 @@ export default function MaquinasPendientesEnvio() {
       const { data, error } = await supabase
         .from("incidentes")
         .select("*, clientes!inner(*)")
-        .eq("estado", "PENDIENTE_ENVIO")
+        .eq("estado", "EN_ENTREGA")
         .order("updated_at", { ascending: true });
 
       if (error) throw error;

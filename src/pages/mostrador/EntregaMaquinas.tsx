@@ -10,8 +10,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { StatusBadge } from "@/components/shared";
 import type { Database } from "@/integrations/supabase/types";
-
-type StatusIncidente = Database["public"]["Enums"]["status_incidente"];
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { es } from "date-fns/locale";
@@ -19,14 +17,20 @@ import { formatFechaCorta } from "@/utils/dateFormatters";
 
 type IncidenteDB = Database['public']['Tables']['incidentes']['Row'];
 type ClienteDB = Database['public']['Tables']['clientes']['Row'];
+type ProductoDB = Database['public']['Tables']['productos']['Row'];
+type EstadoIncidente = Database["public"]["Enums"]["estadoincidente"];
+
+type IncidenteConRelaciones = IncidenteDB & {
+  cliente?: ClienteDB;
+  producto?: ProductoDB;
+};
 
 export default function EntregaMaquinas() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [searching, setSearching] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [incidentesReparados, setIncidentesReparados] = useState<IncidenteDB[]>([]);
-  const [clientesMap, setClientesMap] = useState<Map<string, ClienteDB>>(new Map());
+  const [incidentesReparados, setIncidentesReparados] = useState<IncidenteConRelaciones[]>([]);
   
   // Filtros
   const [filtroTexto, setFiltroTexto] = useState("");
@@ -43,28 +47,47 @@ export default function EntregaMaquinas() {
       const { data: incidentesData, error: incidentesError } = await supabase
         .from('incidentes')
         .select('*')
-        .eq('status', 'Pendiente entrega')
+        .eq('estado', 'REPARADO')
         .order('fecha_ingreso', { ascending: false });
 
       if (incidentesError) throw incidentesError;
-      setIncidentesReparados(incidentesData || []);
-
+      
       // Obtener todos los clientes únicos
-      const codigosClientes = [...new Set(incidentesData?.map(i => i.codigo_cliente) || [])];
-      if (codigosClientes.length > 0) {
-        const { data: clientesData, error: clientesError } = await supabase
+      const clienteIds = [...new Set(incidentesData?.map(i => i.cliente_id) || [])];
+      const productoIds = [...new Set(incidentesData?.map(i => i.producto_id).filter(Boolean) || [])];
+      
+      let clientesMap = new Map<number, ClienteDB>();
+      let productosMap = new Map<number, ProductoDB>();
+      
+      if (clienteIds.length > 0) {
+        const { data: clientesData } = await supabase
           .from('clientes')
           .select('*')
-          .in('codigo', codigosClientes);
+          .in('id', clienteIds);
         
-        if (clientesError) throw clientesError;
-        
-        const newClientesMap = new Map<string, ClienteDB>();
         clientesData?.forEach(cliente => {
-          newClientesMap.set(cliente.codigo, cliente);
+          clientesMap.set(cliente.id, cliente);
         });
-        setClientesMap(newClientesMap);
       }
+      
+      if (productoIds.length > 0) {
+        const { data: productosData } = await supabase
+          .from('productos')
+          .select('*')
+          .in('id', productoIds as number[]);
+        
+        productosData?.forEach(producto => {
+          productosMap.set(producto.id, producto);
+        });
+      }
+
+      const incidentesConRelaciones = (incidentesData || []).map(inc => ({
+        ...inc,
+        cliente: clientesMap.get(inc.cliente_id),
+        producto: inc.producto_id ? productosMap.get(inc.producto_id) : undefined
+      }));
+      
+      setIncidentesReparados(incidentesConRelaciones);
     } catch (error) {
       console.error('Error al cargar incidentes:', error);
       toast.error("Error al cargar las máquinas listas para entrega");
@@ -76,16 +99,14 @@ export default function EntregaMaquinas() {
   // Incidentes filtrados
   const incidentesFiltrados = useMemo(() => {
     return incidentesReparados.filter(inc => {
-      const cliente = clientesMap.get(inc.codigo_cliente);
-      
       // Filtro de texto (código incidente o nombre cliente)
       const matchTexto = !filtroTexto || 
         inc.codigo.toLowerCase().includes(filtroTexto.toLowerCase()) ||
-        cliente?.nombre?.toLowerCase().includes(filtroTexto.toLowerCase()) ||
-        inc.codigo_producto.toLowerCase().includes(filtroTexto.toLowerCase());
+        inc.cliente?.nombre?.toLowerCase().includes(filtroTexto.toLowerCase()) ||
+        inc.producto?.codigo?.toLowerCase().includes(filtroTexto.toLowerCase());
       
       // Filtro fecha desde
-      const fechaIngreso = new Date(inc.fecha_ingreso);
+      const fechaIngreso = new Date(inc.fecha_ingreso || inc.created_at || "");
       const matchFechaDesde = !fechaDesde || fechaIngreso >= fechaDesde;
       
       // Filtro fecha hasta
@@ -93,7 +114,7 @@ export default function EntregaMaquinas() {
       
       return matchTexto && matchFechaDesde && matchFechaHasta;
     });
-  }, [incidentesReparados, clientesMap, filtroTexto, fechaDesde, fechaHasta]);
+  }, [incidentesReparados, filtroTexto, fechaDesde, fechaHasta]);
 
   const handleSearch = async () => {
     if (!searchTerm.trim()) {
@@ -116,8 +137,8 @@ export default function EntregaMaquinas() {
         return;
       }
 
-      if (incidenteData.status !== 'Pendiente entrega') {
-        toast.error("Este incidente no está en estado 'Pendiente entrega' y listo para entrega");
+      if (incidenteData.estado !== 'REPARADO') {
+        toast.error("Este incidente no está en estado 'Reparado' y listo para entrega");
         return;
       }
 
@@ -131,7 +152,7 @@ export default function EntregaMaquinas() {
     }
   };
 
-  const handleEntregar = (incidenteId: string) => {
+  const handleEntregar = (incidenteId: number) => {
     navigate(`/mostrador/entrega-maquinas/${incidenteId}`);
   };
 
@@ -339,14 +360,14 @@ export default function EntregaMaquinas() {
                     <TableRow key={inc.id}>
                       <TableCell className="font-medium">{inc.codigo}</TableCell>
                       <TableCell>
-                        {clientesMap.get(inc.codigo_cliente)?.nombre || "Desconocido"}
+                        {inc.cliente?.nombre || "Desconocido"}
                       </TableCell>
-                      <TableCell>{inc.codigo_producto}</TableCell>
+                      <TableCell>{inc.producto?.codigo || "-"}</TableCell>
                       <TableCell>
-                        {new Date(inc.fecha_ingreso).toLocaleDateString()}
+                        {new Date(inc.fecha_ingreso || inc.created_at || "").toLocaleDateString()}
                       </TableCell>
                       <TableCell>
-                        <StatusBadge status={inc.status as StatusIncidente} />
+                        <StatusBadge status={inc.estado as EstadoIncidente} />
                       </TableCell>
                       <TableCell className="text-right">
                         <Button size="sm" onClick={() => handleEntregar(inc.id)}>

@@ -198,12 +198,12 @@ export default function IngresoMaquinas() {
       // 1. Subir fotos a storage
       const fotosSubidas = await uploadMediaToStorage(
         fotosIngreso,
-        selectedIncidenteForIngreso.id
+        String(selectedIncidenteForIngreso.id)
       );
 
       // 2. Guardar referencias en incidente_fotos
       await saveIncidentePhotos(
-        selectedIncidenteForIngreso.id,
+        String(selectedIncidenteForIngreso.id),
         fotosSubidas,
         'ingreso'
       );
