@@ -9,53 +9,30 @@ import { toast } from "sonner";
 import { StatusBadge, TablePagination } from "@/components/shared";
 import { OutlinedInput, OutlinedSelect } from "@/components/ui/outlined-input";
 import { differenceInDays } from "date-fns";
+import type { Database } from "@/integrations/supabase/types";
 
-type IncidenteDB = {
-  id: string;
-  codigo: string;
-  status: string;
-  codigo_producto: string;
-  codigo_cliente: string;
-  codigo_tecnico: string | null;
-  descripcion_problema: string;
-  fecha_ingreso: string;
-  familia_padre_id: number | null;
-  cobertura_garantia: boolean;
-};
+type IncidenteDB = Database["public"]["Tables"]["incidentes"]["Row"];
+type ClienteDB = Database["public"]["Tables"]["clientes"]["Row"];
 
-type ClienteDB = {
-  codigo: string;
-  nombre: string;
+type IncidenteConCliente = IncidenteDB & {
+  cliente?: ClienteDB | null;
 };
 
 type AsignacionSAC = {
-  id: string;
-  incidente_id: string;
-  user_id: string;
+  id: number;
+  incidente_id: number;
+  user_id: number;
   activo: boolean;
-};
-
-type NotificacionCount = {
-  incidente_id: string;
-  count: number;
-};
-
-type DiagnosticoInfo = {
-  incidente_id: string;
-  costo_estimado: number | null;
 };
 
 export default function IncidentesSAC() {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("todos");
-  const [incidentesList, setIncidentesList] = useState<IncidenteDB[]>([]);
-  const [clientes, setClientes] = useState<ClienteDB[]>([]);
+  const [incidentesList, setIncidentesList] = useState<IncidenteConCliente[]>([]);
   const [asignaciones, setAsignaciones] = useState<AsignacionSAC[]>([]);
-  const [notificacionesCount, setNotificacionesCount] = useState<NotificacionCount[]>([]);
-  const [diagnosticos, setDiagnosticos] = useState<DiagnosticoInfo[]>([]);
   const [loading, setLoading] = useState(true);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(50);
 
@@ -74,22 +51,26 @@ export default function IncidentesSAC() {
       
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        setCurrentUserId(user.id);
+      const { data: perfil } = await supabase
+        .from("usuarios")
+        .select("id")
+        .eq("auth_uid", user.id)
+        .maybeSingle();
+      if (perfil) {
+        setCurrentUserId(perfil.id);
+      }
       }
 
       const { data: incidentesData, error: incidentesError } = await supabase
         .from("incidentes")
-        .select("*")
-        .in("status", ["Presupuesto", "Porcentaje"])
-        .order("fecha_ingreso", { ascending: false });
+        .select(`
+          *,
+          cliente:clientes(*)
+        `)
+        .in("estado", ["ESPERA_APROBACION", "REPARADO"])
+        .order("created_at", { ascending: false });
 
       if (incidentesError) throw incidentesError;
-
-      const { data: clientesData, error: clientesError } = await supabase
-        .from("clientes")
-        .select("codigo, nombre");
-
-      if (clientesError) throw clientesError;
 
       const { data: asignacionesData, error: asignacionesError } = await supabase
         .from("asignaciones_sac")
@@ -98,44 +79,8 @@ export default function IncidentesSAC() {
 
       if (asignacionesError) throw asignacionesError;
 
-      const { data: notificacionesData, error: notificacionesError } = await supabase
-        .from("notificaciones_cliente")
-        .select("incidente_id, numero_notificacion");
-
-      if (notificacionesError) throw notificacionesError;
-
-      // Fetch diagnosticos for cost info
-      const incidenteIds = incidentesData?.map(i => i.id) || [];
-      const { data: diagnosticosData, error: diagnosticosError } = await supabase
-        .from("diagnosticos")
-        .select("incidente_id, costo_estimado")
-        .in("incidente_id", incidenteIds);
-
-      if (diagnosticosError) {
-        console.error("Error fetching diagnosticos:", diagnosticosError);
-      }
-
-      setDiagnosticos(diagnosticosData || []);
-
-      const notifCounts: NotificacionCount[] = [];
-      if (notificacionesData) {
-        const grouped = notificacionesData.reduce((acc, notif) => {
-          if (!acc[notif.incidente_id]) {
-            acc[notif.incidente_id] = 0;
-          }
-          acc[notif.incidente_id] = Math.max(acc[notif.incidente_id], notif.numero_notificacion);
-          return acc;
-        }, {} as Record<string, number>);
-
-        Object.entries(grouped).forEach(([incidente_id, count]) => {
-          notifCounts.push({ incidente_id, count });
-        });
-      }
-
-      setIncidentesList(incidentesData || []);
-      setClientes(clientesData || []);
+      setIncidentesList((incidentesData as IncidenteConCliente[]) || []);
       setAsignaciones(asignacionesData || []);
-      setNotificacionesCount(notifCounts);
     } catch (error: any) {
       console.error("Error fetching data:", error);
       toast.error("Error al cargar los datos");
@@ -144,40 +89,26 @@ export default function IncidentesSAC() {
     }
   };
 
-  const getClienteName = (codigoCliente: string) => {
-    const cliente = clientes.find((c) => c.codigo === codigoCliente);
-    return cliente ? cliente.nombre : codigoCliente;
-  };
-
-  const isAssignedToMe = (incidenteId: string) => {
+  const isAssignedToMe = (incidenteId: number) => {
     if (!currentUserId) return false;
     return asignaciones.some(
       (a) => a.incidente_id === incidenteId && a.user_id === currentUserId && a.activo
     );
   };
 
-  const isAssignedToOther = (incidenteId: string) => {
+  const isAssignedToOther = (incidenteId: number) => {
     if (!currentUserId) return false;
     return asignaciones.some(
       (a) => a.incidente_id === incidenteId && a.user_id !== currentUserId && a.activo
     );
   };
 
-  const getNotificacionCount = (incidenteId: string) => {
-    const notif = notificacionesCount.find((n) => n.incidente_id === incidenteId);
-    return notif ? notif.count : 0;
-  };
-
-  const getCostoEstimado = (incidenteId: string) => {
-    const diag = diagnosticos.find((d) => d.incidente_id === incidenteId);
-    return diag?.costo_estimado || null;
-  };
-
-  const getDiasDesdeIngreso = (fechaIngreso: string) => {
+  const getDiasDesdeIngreso = (fechaIngreso: string | null) => {
+    if (!fechaIngreso) return 0;
     return differenceInDays(new Date(), new Date(fechaIngreso));
   };
 
-  const handleRowClick = (incidente: IncidenteDB) => {
+  const handleRowClick = (incidente: IncidenteConCliente) => {
     if (isAssignedToOther(incidente.id)) {
       toast.error("Este incidente está siendo atendido por otro agente");
       return;
@@ -189,13 +120,13 @@ export default function IncidentesSAC() {
     return incidentesList.filter((incidente) => {
       const matchesSearch =
         incidente.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        getClienteName(incidente.codigo_cliente).toLowerCase().includes(searchTerm.toLowerCase());
+        incidente.cliente?.nombre?.toLowerCase().includes(searchTerm.toLowerCase());
 
-      const matchesStatus = statusFilter === "todos" || incidente.status === statusFilter;
+      const matchesStatus = statusFilter === "todos" || incidente.estado === statusFilter;
 
       return matchesSearch && matchesStatus;
     });
-  }, [incidentesList, searchTerm, statusFilter, clientes]);
+  }, [incidentesList, searchTerm, statusFilter]);
 
   // Pagination
   const totalPages = Math.max(1, Math.ceil(filteredIncidentes.length / itemsPerPage));
@@ -204,8 +135,8 @@ export default function IncidentesSAC() {
 
   const statusOptions = [
     { value: "todos", label: "Todos los estados" },
-    { value: "Presupuesto", label: "Presupuesto" },
-    { value: "Porcentaje", label: "Porcentaje" }
+    { value: "ESPERA_APROBACION", label: "Espera Aprobación" },
+    { value: "REPARADO", label: "Reparado" }
   ];
 
   if (loading) {
@@ -221,7 +152,7 @@ export default function IncidentesSAC() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">Pendientes por Notificar</h1>
-          <p className="text-muted-foreground">Gestión de Presupuestos y Porcentajes</p>
+          <p className="text-muted-foreground">Gestión de Presupuestos y Notificaciones</p>
         </div>
       </div>
 
@@ -231,29 +162,29 @@ export default function IncidentesSAC() {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
               <FileText className="h-4 w-4" />
-              Presupuestos
+              Espera Aprobación
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-orange-600">
-              {incidentesList.filter((i) => i.status === "Presupuesto").length}
+              {incidentesList.filter((i) => i.estado === "ESPERA_APROBACION").length}
             </div>
             <p className="text-xs text-muted-foreground mt-1">Pendientes de aprobación cliente</p>
           </CardContent>
         </Card>
 
-        <Card className="border-l-4 border-l-purple-500">
+        <Card className="border-l-4 border-l-green-500">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
               <Percent className="h-4 w-4" />
-              Porcentajes
+              Reparados
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-purple-600">
-              {incidentesList.filter((i) => i.status === "Porcentaje").length}
+            <div className="text-3xl font-bold text-green-600">
+              {incidentesList.filter((i) => i.estado === "REPARADO").length}
             </div>
-            <p className="text-xs text-muted-foreground mt-1">Con descuento aplicado</p>
+            <p className="text-xs text-muted-foreground mt-1">Listos para entregar</p>
           </CardContent>
         </Card>
       </div>
@@ -295,23 +226,20 @@ export default function IncidentesSAC() {
                   <TableHead>Código</TableHead>
                   <TableHead>Cliente</TableHead>
                   <TableHead>Estado</TableHead>
-                  <TableHead className="text-right">Costo Est.</TableHead>
                   <TableHead className="text-center">Días</TableHead>
-                  <TableHead className="text-center">Notif.</TableHead>
                   <TableHead>Asignación</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {paginatedIncidentes.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center text-muted-foreground">
+                    <TableCell colSpan={5} className="text-center text-muted-foreground">
                       No hay incidentes para mostrar
                     </TableCell>
                   </TableRow>
                 ) : (
                   paginatedIncidentes.map((incidente) => {
                     const dias = getDiasDesdeIngreso(incidente.fecha_ingreso);
-                    const costo = getCostoEstimado(incidente.id);
                     
                     return (
                       <TableRow
@@ -323,19 +251,10 @@ export default function IncidentesSAC() {
                       >
                         <TableCell className="font-medium">{incidente.codigo}</TableCell>
                         <TableCell className="max-w-[200px] truncate">
-                          {getClienteName(incidente.codigo_cliente)}
+                          {incidente.cliente?.nombre || "Desconocido"}
                         </TableCell>
                         <TableCell>
-                          <StatusBadge status={incidente.status as any} />
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {costo ? (
-                            <span className="font-semibold text-primary">
-                              Q {Number(costo).toFixed(2)}
-                            </span>
-                          ) : (
-                            <span className="text-muted-foreground">-</span>
-                          )}
+                          <StatusBadge status={incidente.estado} />
                         </TableCell>
                         <TableCell className="text-center">
                           <Badge 
@@ -344,14 +263,6 @@ export default function IncidentesSAC() {
                           >
                             <Clock className="h-3 w-3" />
                             {dias}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Badge 
-                            variant={getNotificacionCount(incidente.id) >= 3 ? "destructive" : "outline"} 
-                            className="font-semibold"
-                          >
-                            {getNotificacionCount(incidente.id)}/3
                           </Badge>
                         </TableCell>
                         <TableCell>

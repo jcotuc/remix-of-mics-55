@@ -4,42 +4,29 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { AlertCircle, CheckCircle2, XCircle, Image as ImageIcon } from "lucide-react";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import type { Database } from "@/integrations/supabase/types";
 
-interface Revision {
-  id: string;
-  incidente_id: string;
-  fecha_revision: string;
+type IncidenteDB = Database["public"]["Tables"]["incidentes"]["Row"];
+
+interface RevisionDisplay {
+  id: number;
+  incidente_id: number;
+  fecha: string;
   observaciones: string;
-  fotos_urls: string[];
-  decision: "aprobado" | "rechazado";
-  justificacion: string;
-  revisor_id: string;
-  incidente: {
-    codigo: string;
-    descripcion_problema: string;
-    cliente: {
-      nombre: string;
-    };
-    producto: {
-      descripcion: string;
-    };
-  };
-  revisor: {
-    nombre: string;
-    apellido: string;
-  };
+  incidente_codigo: string;
+  cliente_nombre: string;
+  producto_descripcion: string;
 }
 
 export default function AprobacionesStockCemaco() {
-  const [revisiones, setRevisiones] = useState<Revision[]>([]);
-  const [selectedRevision, setSelectedRevision] = useState<Revision | null>(null);
+  const [revisiones, setRevisiones] = useState<RevisionDisplay[]>([]);
+  const [selectedRevision, setSelectedRevision] = useState<RevisionDisplay | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [observacionesRechazo, setObservacionesRechazo] = useState("");
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   useEffect(() => {
     fetchRevisiones();
@@ -47,57 +34,37 @@ export default function AprobacionesStockCemaco() {
 
   const fetchRevisiones = async () => {
     try {
+      // Fetch incidentes en estado de espera de aprobación
       const { data, error } = await supabase
-        .from("revisiones_stock_cemaco")
+        .from("incidentes")
         .select(`
           id,
-          incidente_id,
-          fecha_revision,
+          codigo,
+          descripcion_problema,
           observaciones,
-          fotos_urls,
-          decision,
-          justificacion,
-          revisor_id,
-          incidentes!inner (
-            codigo,
-            descripcion_problema,
-            status,
-            clientes:codigo_cliente (nombre),
-            productos:codigo_producto (descripcion)
-          ),
-          profiles:revisor_id (nombre, apellido)
+          created_at,
+          cliente:clientes(nombre),
+          producto:productos(descripcion)
         `)
-        .is("aprobado_por", null)
-        .order("fecha_revision", { ascending: true });
+        .eq("estado", "ESPERA_APROBACION")
+        .order("created_at", { ascending: true });
 
       if (error) throw error;
 
-      const formatted = data?.map(rev => ({
-        id: rev.id,
-        incidente_id: rev.incidente_id,
-        fecha_revision: rev.fecha_revision,
-        observaciones: rev.observaciones,
-        fotos_urls: rev.fotos_urls || [],
-        decision: rev.decision as "aprobado" | "rechazado",
-        justificacion: rev.justificacion,
-        revisor_id: rev.revisor_id,
-        incidente: {
-          codigo: Array.isArray(rev.incidentes) ? rev.incidentes[0]?.codigo : rev.incidentes?.codigo,
-          descripcion_problema: Array.isArray(rev.incidentes) ? rev.incidentes[0]?.descripcion_problema : rev.incidentes?.descripcion_problema,
-          cliente: Array.isArray(rev.incidentes) ? rev.incidentes[0]?.clientes?.[0] : rev.incidentes?.clientes?.[0],
-          producto: Array.isArray(rev.incidentes) ? rev.incidentes[0]?.productos?.[0] : rev.incidentes?.productos?.[0],
-        },
-        revisor: Array.isArray(rev.profiles) ? rev.profiles[0] : rev.profiles,
-      })) || [];
+      const formatted: RevisionDisplay[] = (data || []).map((inc: any) => ({
+        id: inc.id,
+        incidente_id: inc.id,
+        fecha: inc.created_at,
+        observaciones: inc.observaciones || "",
+        incidente_codigo: inc.codigo,
+        cliente_nombre: inc.cliente?.nombre || "Desconocido",
+        producto_descripcion: inc.producto?.descripcion || "Sin producto",
+      }));
 
       setRevisiones(formatted);
     } catch (error: any) {
       console.error("Error:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "No se pudieron cargar las revisiones pendientes",
-      });
+      toast.error("No se pudieron cargar las revisiones pendientes");
     } finally {
       setLoading(false);
     }
@@ -109,44 +76,24 @@ export default function AprobacionesStockCemaco() {
     setSubmitting(true);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Usuario no autenticado");
-
-      // Actualizar revisión
-      const { error: revisionError } = await supabase
-        .from("revisiones_stock_cemaco")
-        .update({
-          aprobado_por: user.id,
-          fecha_aprobacion: new Date().toISOString(),
-        })
-        .eq("id", selectedRevision.id);
-
-      if (revisionError) throw revisionError;
-
-      // Actualizar status del incidente según decisión
-      const nuevoStatus = selectedRevision.decision === "aprobado" ? "Nota de credito" : "Rechazado";
-      
+      // Actualizar status del incidente
       const { error: updateError } = await supabase
         .from("incidentes")
-        .update({ status: nuevoStatus as any })
+        .update({ 
+          estado: "EN_REPARACION" as const,
+          updated_at: new Date().toISOString()
+        })
         .eq("id", selectedRevision.incidente_id);
 
       if (updateError) throw updateError;
 
-      toast({
-        title: "Éxito",
-        description: `Revisión aprobada. Incidente ${selectedRevision.incidente.codigo} actualizado a ${nuevoStatus}`,
-      });
+      toast.success(`Incidente ${selectedRevision.incidente_codigo} aprobado`);
 
       setSelectedRevision(null);
       fetchRevisiones();
     } catch (error: any) {
       console.error("Error:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message || "No se pudo aprobar la revisión",
-      });
+      toast.error(error.message || "No se pudo aprobar la revisión");
     } finally {
       setSubmitting(false);
     }
@@ -156,54 +103,33 @@ export default function AprobacionesStockCemaco() {
     if (!selectedRevision) return;
 
     if (!observacionesRechazo.trim()) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "Debe agregar observaciones para rechazar la propuesta",
-      });
+      toast.error("Debe agregar observaciones para rechazar");
       return;
     }
 
     setSubmitting(true);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Usuario no autenticado");
-
-      // Eliminar revisión rechazada
-      const { error: deleteError } = await supabase
-        .from("revisiones_stock_cemaco")
-        .delete()
-        .eq("id", selectedRevision.id);
-
-      if (deleteError) throw deleteError;
-
-      // Devolver incidente a Ingresado
+      // Devolver incidente a diagnóstico
       const { error: updateError } = await supabase
         .from("incidentes")
         .update({ 
-          status: "Ingresado" as any,
-          log_observaciones: observacionesRechazo 
+          estado: "EN_DIAGNOSTICO" as const,
+          observaciones: observacionesRechazo,
+          updated_at: new Date().toISOString()
         })
         .eq("id", selectedRevision.incidente_id);
 
       if (updateError) throw updateError;
 
-      toast({
-        title: "Propuesta Rechazada",
-        description: `El incidente ${selectedRevision.incidente.codigo} fue devuelto para nueva revisión`,
-      });
+      toast.success(`El incidente ${selectedRevision.incidente_codigo} fue devuelto para revisión`);
 
       setSelectedRevision(null);
       setObservacionesRechazo("");
       fetchRevisiones();
     } catch (error: any) {
       console.error("Error:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message || "No se pudo rechazar la propuesta",
-      });
+      toast.error(error.message || "No se pudo rechazar");
     } finally {
       setSubmitting(false);
     }
@@ -236,69 +162,28 @@ export default function AprobacionesStockCemaco() {
             <Card key={revision.id}>
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
-                  <span>{revision.incidente.codigo}</span>
-                  <span className={`text-sm px-3 py-1 rounded-full ${
-                    revision.decision === "aprobado" 
-                      ? "bg-green-100 text-green-800" 
-                      : "bg-red-100 text-red-800"
-                  }`}>
-                    {revision.decision === "aprobado" ? "Autorizar NC" : "Rechazar NC"}
-                  </span>
+                  <span>{revision.incidente_codigo}</span>
                 </CardTitle>
                 <CardDescription>
-                  Revisado por: {revision.revisor?.nombre} {revision.revisor?.apellido} el{" "}
-                  {new Date(revision.fecha_revision).toLocaleString()}
+                  {new Date(revision.fecha).toLocaleString()}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
                     <Label className="text-muted-foreground">Cliente</Label>
-                    <p className="font-medium">{revision.incidente.cliente?.nombre}</p>
+                    <p className="font-medium">{revision.cliente_nombre}</p>
                   </div>
                   <div>
                     <Label className="text-muted-foreground">Producto</Label>
-                    <p className="font-medium">{revision.incidente.producto?.descripcion}</p>
+                    <p className="font-medium">{revision.producto_descripcion}</p>
                   </div>
-                </div>
-
-                <div>
-                  <Label className="text-muted-foreground">Problema Reportado</Label>
-                  <p>{revision.incidente.descripcion_problema}</p>
-                </div>
-
-                <div>
-                  <Label className="text-muted-foreground">Justificación del Revisor</Label>
-                  <p className="bg-muted p-3 rounded-md">{revision.justificacion}</p>
                 </div>
 
                 {revision.observaciones && (
                   <div>
                     <Label className="text-muted-foreground">Observaciones</Label>
-                    <p>{revision.observaciones}</p>
-                  </div>
-                )}
-
-                {revision.fotos_urls.length > 0 && (
-                  <div>
-                    <Label className="text-muted-foreground mb-2 block">
-                      Evidencia Fotográfica ({revision.fotos_urls.length})
-                    </Label>
-                    <div className="grid grid-cols-4 gap-2">
-                      {revision.fotos_urls.map((url, idx) => (
-                        <div
-                          key={idx}
-                          className="aspect-square rounded-md overflow-hidden cursor-pointer hover:opacity-80 transition-opacity border"
-                          onClick={() => setSelectedImage(url)}
-                        >
-                          <img
-                            src={url}
-                            alt={`Evidencia ${idx + 1}`}
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                      ))}
-                    </div>
+                    <p className="bg-muted p-3 rounded-md">{revision.observaciones}</p>
                   </div>
                 )}
 
@@ -306,13 +191,13 @@ export default function AprobacionesStockCemaco() {
                   <div className="space-y-4 pt-4 border-t">
                     <div className="space-y-2">
                       <Label htmlFor="observaciones-rechazo">
-                        Observaciones para Rechazar Propuesta
+                        Observaciones para Rechazar
                       </Label>
                       <Textarea
                         id="observaciones-rechazo"
                         value={observacionesRechazo}
                         onChange={(e) => setObservacionesRechazo(e.target.value)}
-                        placeholder="Indique por qué rechaza esta propuesta..."
+                        placeholder="Indique por qué rechaza esta solicitud..."
                         rows={3}
                       />
                     </div>
@@ -323,7 +208,7 @@ export default function AprobacionesStockCemaco() {
                         className="flex-1"
                       >
                         <CheckCircle2 className="h-4 w-4 mr-2" />
-                        Aprobar Decisión
+                        Aprobar
                       </Button>
                       <Button
                         variant="destructive"
@@ -332,7 +217,7 @@ export default function AprobacionesStockCemaco() {
                         className="flex-1"
                       >
                         <XCircle className="h-4 w-4 mr-2" />
-                        Rechazar Propuesta
+                        Rechazar
                       </Button>
                       <Button
                         variant="outline"
@@ -351,7 +236,7 @@ export default function AprobacionesStockCemaco() {
                     onClick={() => setSelectedRevision(revision)}
                     className="w-full"
                   >
-                    Evaluar Propuesta
+                    Evaluar
                   </Button>
                 )}
               </CardContent>
@@ -359,21 +244,6 @@ export default function AprobacionesStockCemaco() {
           ))}
         </div>
       )}
-
-      <Dialog open={!!selectedImage} onOpenChange={() => setSelectedImage(null)}>
-        <DialogContent className="max-w-4xl">
-          <DialogHeader>
-            <DialogTitle>Evidencia Fotográfica</DialogTitle>
-          </DialogHeader>
-          {selectedImage && (
-            <img
-              src={selectedImage}
-              alt="Evidencia ampliada"
-              className="w-full h-auto rounded-md"
-            />
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

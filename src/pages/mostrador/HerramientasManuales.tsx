@@ -145,7 +145,9 @@ export default function HerramientasManuales() {
           estado: "EN_DIAGNOSTICO" as const,
           tipologia: "REPARACION" as const,
           observaciones: formData.observaciones,
-          aplica_garantia: false
+          aplica_garantia: false,
+          tracking_token: crypto.randomUUID(),
+          quiere_envio: false
         }])
         .select()
         .single();
@@ -248,10 +250,6 @@ export default function HerramientasManuales() {
         return <Badge variant="secondary">{estado}</Badge>;
     }
   };
-      default:
-        return <Badge variant="secondary">{estado}</Badge>;
-    }
-  };
 
   const incidentesFiltrados = incidentes.filter(inc => 
     inc.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -262,7 +260,6 @@ export default function HerramientasManuales() {
     ingresado: incidentes.filter(i => i.estado === "EN_DIAGNOSTICO").length,
     garantia: incidentes.filter(i => i.estado === "CAMBIO_POR_GARANTIA").length,
     porcentaje: incidentes.filter(i => i.estado === "ESPERA_APROBACION").length
-  };
   };
 
   return (
