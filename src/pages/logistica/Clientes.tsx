@@ -3,24 +3,14 @@ import { useNavigate } from "react-router-dom";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { supabase } from "@/integrations/supabase/client";
+import { apiBackendAction } from "@/lib/api";
+import type { ClienteSchema } from "@/generated/actions.d";
 import { Search } from "lucide-react";
 import { TablePagination } from "@/components/shared";
 
-interface Cliente {
-  id: number;
-  codigo: string;
-  nombre: string;
-  nit: string;
-  celular: string;
-  direccion?: string;
-  correo?: string;
-  telefono_principal?: string;
-}
-
 export default function ClientesLogistica() {
   const navigate = useNavigate();
-  const [clientes, setClientes] = useState<Cliente[]>([]);
+  const [clientes, setClientes] = useState<ClienteSchema[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
@@ -37,18 +27,14 @@ export default function ClientesLogistica() {
 
   const fetchClientes = async () => {
     try {
-      const { data, error } = await supabase
-        .from("clientes")
-        .select("*")
-        .order("nombre");
-
-      if (error) throw error;
+      const response = await apiBackendAction("clientes.list", { limit: 5000 });
       
-      const clientesExcel = (data || []).filter(c => 
+      // Filter to only show Excel clients (HPC without dash)
+      const clientesExcel = response.results.filter(c => 
         c.codigo.startsWith('HPC') && !c.codigo.includes('-')
       );
       
-      console.log(`Total clientes en DB: ${data?.length}, Clientes Excel: ${clientesExcel.length}`);
+      console.log(`Total clientes: ${response.results.length}, Clientes Excel: ${clientesExcel.length}`);
       
       setClientes(clientesExcel);
     } catch (error) {
