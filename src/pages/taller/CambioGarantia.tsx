@@ -5,19 +5,16 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import type { Database } from "@/integrations/supabase/types";
 
-interface Producto {
-  codigo: string;
-  descripcion: string;
-  clave: string;
-  familia_padre_id: number | null;
-}
+type IncidenteDB = Database["public"]["Tables"]["incidentes"]["Row"];
+type ProductoDB = Database["public"]["Tables"]["productos"]["Row"];
+type ClienteDB = Database["public"]["Tables"]["clientes"]["Row"];
 
 interface StockInfo {
-  centro_servicio_id: string;
+  centro_servicio_id: number;
   centro_nombre: string;
   cantidad: number;
 }
@@ -30,16 +27,17 @@ export default function CambioGarantia() {
   
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [incidente, setIncidente] = useState<any>(null);
-  const [productoOriginal, setProductoOriginal] = useState<Producto | null>(null);
+  const [incidente, setIncidente] = useState<IncidenteDB | null>(null);
+  const [cliente, setCliente] = useState<ClienteDB | null>(null);
+  const [productoOriginal, setProductoOriginal] = useState<ProductoDB | null>(null);
   const [stockDisponible, setStockDisponible] = useState<StockInfo[]>([]);
   const [hayStock, setHayStock] = useState(false);
   
   // Para seleccionar producto alternativo
   const [mostrarAlternativos, setMostrarAlternativos] = useState(false);
-  const [productosAlternativos, setProductosAlternativos] = useState<(Producto & { esSugerido?: boolean })[]>([]);
+  const [productosAlternativos, setProductosAlternativos] = useState<(ProductoDB & { esSugerido?: boolean })[]>([]);
   const [searchProducto, setSearchProducto] = useState("");
-  const [productoSeleccionado, setProductoSeleccionado] = useState<Producto | null>(null);
+  const [productoSeleccionado, setProductoSeleccionado] = useState<ProductoDB | null>(null);
   
   // Stock del producto alternativo seleccionado
   const [verificandoStockAlternativo, setVerificandoStockAlternativo] = useState(false);
@@ -58,25 +56,36 @@ export default function CambioGarantia() {
       // Obtener incidente
       const { data: incData, error: incError } = await supabase
         .from("incidentes")
-        .select("*, cliente:clientes!incidentes_codigo_cliente_fkey(*)")
-        .eq("id", id)
+        .select("*")
+        .eq("id", Number(id))
         .single();
 
       if (incError) throw incError;
       setIncidente(incData);
 
+      // Obtener cliente
+      const { data: clienteData } = await supabase
+        .from("clientes")
+        .select("*")
+        .eq("id", incData.cliente_id)
+        .maybeSingle();
+      
+      setCliente(clienteData);
+
       // Obtener producto original
-      const { data: prodData, error: prodError } = await supabase
-        .from("productos")
-        .select("codigo, descripcion, clave, familia_padre_id")
-        .eq("codigo", incData.codigo_producto)
-        .single();
+      if (incData.producto_id) {
+        const { data: prodData, error: prodError } = await supabase
+          .from("productos")
+          .select("*")
+          .eq("id", incData.producto_id)
+          .single();
 
-      if (prodError) throw prodError;
-      setProductoOriginal(prodData);
-
-      // Verificar stock disponible del producto original
-      await verificarStock(prodData.codigo, incData.centro_servicio);
+        if (!prodError && prodData) {
+          setProductoOriginal(prodData);
+          // Verificar stock disponible del producto original
+          await verificarStock(prodData.codigo, incData.centro_de_servicio_id);
+        }
+      }
 
     } catch (error) {
       console.error("Error cargando datos:", error);
@@ -86,24 +95,32 @@ export default function CambioGarantia() {
     }
   };
 
-  const verificarStock = async (codigoProducto: string, centroActual: string) => {
+  const verificarStock = async (codigoProducto: string, centroActual: number) => {
     try {
       // Buscar en inventario el código del producto
       const { data: stockData, error } = await supabase
         .from("inventario")
         .select(`
           centro_servicio_id,
-          cantidad,
-          centro:centros_servicio!inventario_centro_servicio_id_fkey(nombre)
+          cantidad
         `)
         .eq("codigo_repuesto", codigoProducto)
         .gt("cantidad", 0);
 
       if (error) throw error;
 
-      const stockInfo: StockInfo[] = (stockData || []).map((s: any) => ({
+      // Get centro names
+      const centroIds = (stockData || []).map(s => s.centro_servicio_id);
+      const { data: centrosData } = await supabase
+        .from("centros_de_servicio")
+        .select("id, nombre")
+        .in("id", centroIds);
+
+      const centrosMap = new Map((centrosData || []).map(c => [c.id, c.nombre]));
+
+      const stockInfo: StockInfo[] = (stockData || []).map((s) => ({
         centro_servicio_id: s.centro_servicio_id,
-        centro_nombre: s.centro?.nombre || "Desconocido",
+        centro_nombre: centrosMap.get(s.centro_servicio_id) || "Desconocido",
         cantidad: s.cantidad
       }));
 
@@ -125,14 +142,14 @@ export default function CambioGarantia() {
     try {
       const { data, error } = await supabase
         .from("productos")
-        .select("codigo, descripcion, clave, familia_padre_id")
-        .eq("descontinuado", false)
+        .select("*")
+        .eq("activo", true)
         .neq("familia_padre_id", FAMILIA_HERRAMIENTA_MANUAL)
         .order("descripcion");
 
       if (error) throw error;
 
-      const familiaOriginal = incidente?.familia_padre_id || productoOriginal?.familia_padre_id;
+      const familiaOriginal = productoOriginal?.familia_padre_id;
 
       const productosOrdenados = (data || []).map(p => {
         const esSugerido = familiaOriginal && p.familia_padre_id === familiaOriginal;
@@ -140,7 +157,7 @@ export default function CambioGarantia() {
       }).sort((a, b) => {
         if (a.esSugerido && !b.esSugerido) return -1;
         if (!a.esSugerido && b.esSugerido) return 1;
-        return a.descripcion.localeCompare(b.descripcion);
+        return (a.descripcion || "").localeCompare(b.descripcion || "");
       });
 
       setProductosAlternativos(productosOrdenados);
@@ -157,19 +174,23 @@ export default function CambioGarantia() {
     try {
       const { data: stockData, error } = await supabase
         .from("inventario")
-        .select(`
-          centro_servicio_id,
-          cantidad,
-          centro:centros_servicio!inventario_centro_servicio_id_fkey(nombre)
-        `)
+        .select("centro_servicio_id, cantidad")
         .eq("codigo_repuesto", codigoProducto)
         .gt("cantidad", 0);
 
       if (error) throw error;
 
-      const stockInfo: StockInfo[] = (stockData || []).map((s: any) => ({
+      const centroIds = (stockData || []).map(s => s.centro_servicio_id);
+      const { data: centrosData } = await supabase
+        .from("centros_de_servicio")
+        .select("id, nombre")
+        .in("id", centroIds);
+
+      const centrosMap = new Map((centrosData || []).map(c => [c.id, c.nombre]));
+
+      const stockInfo: StockInfo[] = (stockData || []).map((s) => ({
         centro_servicio_id: s.centro_servicio_id,
-        centro_nombre: s.centro?.nombre || "Desconocido",
+        centro_nombre: centrosMap.get(s.centro_servicio_id) || "Desconocido",
         cantidad: s.cantidad
       }));
 
@@ -184,7 +205,7 @@ export default function CambioGarantia() {
     }
   };
 
-  const handleSeleccionarProducto = async (producto: Producto) => {
+  const handleSeleccionarProducto = async (producto: ProductoDB) => {
     setProductoSeleccionado(producto);
     await verificarStockAlternativo(producto.codigo);
   };
@@ -196,65 +217,34 @@ export default function CambioGarantia() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuario no autenticado");
 
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("nombre, apellido, centro_servicio_id")
-        .eq("user_id", user.id)
+      const { data: profile } = await (supabase as any)
+        .from("usuarios")
+        .select("id, nombre, apellido, centro_de_servicio_id")
+        .eq("auth_uid", user.id)
         .maybeSingle();
 
       const tecnicoNombre = profile ? `${profile.nombre} ${profile.apellido}` : user.email || "Técnico";
 
-      // Crear solicitud de cambio para aprobación
-      const { data: solicitud, error: solicitudError } = await supabase
-        .from("solicitudes_cambio")
+      // Crear solicitud de cambio para aprobación usando la tabla correcta
+      const { error: solicitudError } = await (supabase as any)
+        .from("pedidos_bodega_central")
         .insert({
-          incidente_id: id,
-          tipo_cambio: "cambio_garantia",
-          justificacion: `Cambio por garantía solicitado. Producto: ${codigoProducto}${codigoProducto !== productoOriginal?.codigo ? ` (alternativo a ${productoOriginal?.codigo})` : ""}`,
-          tecnico_solicitante: tecnicoNombre,
-          estado: "pendiente",
-          fotos_urls: [],
-        })
-        .select()
-        .single();
+          incidente_id: Number(id),
+          solicitado_por_id: profile?.id || 0,
+          centro_servicio_id: incidente?.centro_de_servicio_id || profile?.centro_de_servicio_id || 0,
+          estado: "pendiente_jt"
+        });
 
       if (solicitudError) throw solicitudError;
-
-      // Obtener supervisores asignados al centro de servicio
-      const centroId = incidente?.centro_servicio || profile?.centro_servicio_id;
-      if (centroId) {
-        const { data: supervisores } = await supabase
-          .from("centros_supervisor")
-          .select("supervisor_id")
-          .eq("centro_servicio_id", centroId);
-
-        // Crear notificación para cada supervisor
-        if (supervisores && supervisores.length > 0) {
-          const notificaciones = supervisores.map(s => ({
-            user_id: s.supervisor_id,
-            tipo: "aprobacion_cxg",
-            mensaje: `Nueva solicitud de Cambio por Garantía - Incidente ${incidente?.codigo}`,
-            incidente_id: id,
-            metadata: { 
-              solicitud_id: solicitud.id, 
-              tipo_cambio: "cambio_garantia",
-              producto: codigoProducto 
-            }
-          }));
-
-          await supabase.from("notificaciones").insert(notificaciones);
-        }
-      }
 
       // Actualizar incidente a estado pendiente de aprobación
       const { error } = await supabase
         .from("incidentes")
         .update({
-          status: "Cambio por garantia",
-          producto_sugerido_alternativo: codigoProducto !== productoOriginal?.codigo ? codigoProducto : null,
+          estado: "CAMBIO_POR_GARANTIA" as const,
           updated_at: new Date().toISOString()
         })
-        .eq("id", id);
+        .eq("id", Number(id));
 
       if (error) throw error;
 
@@ -270,9 +260,8 @@ export default function CambioGarantia() {
   };
 
   const productosFiltrados = productosAlternativos.filter(p =>
-    p.descripcion.toLowerCase().includes(searchProducto.toLowerCase()) ||
-    p.codigo.toLowerCase().includes(searchProducto.toLowerCase()) ||
-    p.clave.toLowerCase().includes(searchProducto.toLowerCase())
+    (p.descripcion || "").toLowerCase().includes(searchProducto.toLowerCase()) ||
+    p.codigo.toLowerCase().includes(searchProducto.toLowerCase())
   );
 
   if (loading) {
@@ -294,6 +283,9 @@ export default function CambioGarantia() {
   return (
     <div className="container mx-auto p-6 max-w-4xl pb-24">
       <div className="flex items-center gap-2 mb-6">
+        <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
         <h1 className="text-2xl font-bold">Cambio por Garantía</h1>
       </div>
 
@@ -302,7 +294,7 @@ export default function CambioGarantia() {
         <CardHeader className="pb-3">
           <CardTitle className="text-lg">Incidente {incidente?.codigo}</CardTitle>
           <CardDescription>
-            Cliente: {incidente?.cliente?.nombre} ({incidente?.codigo_cliente})
+            Cliente: {cliente?.nombre} ({cliente?.codigo})
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -311,7 +303,7 @@ export default function CambioGarantia() {
             <div>
               <p className="font-medium">{productoOriginal?.descripcion}</p>
               <p className="text-sm text-muted-foreground">
-                Código: {productoOriginal?.codigo} | SKU: {incidente?.sku_maquina || "N/A"}
+                Código: {productoOriginal?.codigo}
               </p>
             </div>
           </div>
@@ -390,7 +382,7 @@ export default function CambioGarantia() {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Buscar por código, descripción o clave..."
+                placeholder="Buscar por código o descripción..."
                 value={searchProducto}
                 onChange={(e) => setSearchProducto(e.target.value)}
                 className="pl-9"
@@ -400,10 +392,10 @@ export default function CambioGarantia() {
             <div className="max-h-60 overflow-y-auto space-y-2 border rounded-lg p-2">
               {productosFiltrados.slice(0, 50).map((producto) => (
                 <div
-                  key={producto.codigo}
+                  key={producto.id}
                   onClick={() => handleSeleccionarProducto(producto)}
                   className={`p-3 rounded-lg cursor-pointer transition-colors ${
-                    productoSeleccionado?.codigo === producto.codigo
+                    productoSeleccionado?.id === producto.id
                       ? "bg-primary text-primary-foreground"
                       : producto.esSugerido
                         ? "bg-green-50 hover:bg-green-100 border border-green-200"
@@ -412,14 +404,14 @@ export default function CambioGarantia() {
                 >
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className={`font-medium ${productoSeleccionado?.codigo === producto.codigo ? "text-primary-foreground" : ""}`}>
+                      <p className={`font-medium ${productoSeleccionado?.id === producto.id ? "text-primary-foreground" : ""}`}>
                         {producto.descripcion}
                       </p>
-                      <p className={`text-sm ${productoSeleccionado?.codigo === producto.codigo ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
-                        {producto.codigo} | {producto.clave}
+                      <p className={`text-sm ${productoSeleccionado?.id === producto.id ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
+                        {producto.codigo}
                       </p>
                     </div>
-                    {producto.esSugerido && productoSeleccionado?.codigo !== producto.codigo && (
+                    {producto.esSugerido && productoSeleccionado?.id !== producto.id && (
                       <Badge variant="secondary" className="bg-green-100 text-green-800">
                         Misma familia
                       </Badge>
@@ -459,26 +451,19 @@ export default function CambioGarantia() {
                         <CheckCircle2 className="h-5 w-5" />
                         <span className="font-medium">¡Hay stock disponible!</span>
                       </div>
-                      <div className="space-y-2">
-                        {stockAlternativo.map((stock, idx) => (
-                          <div key={idx} className="flex justify-between items-center p-2 bg-green-50 rounded-lg border border-green-200">
-                            <span className="text-sm">{stock.centro_nombre}</span>
-                            <Badge variant="secondary" className="bg-green-100 text-green-800">
-                              {stock.cantidad} unidad{stock.cantidad !== 1 ? "es" : ""}
-                            </Badge>
-                          </div>
-                        ))}
-                      </div>
+                      {stockAlternativo.map((stock, idx) => (
+                        <div key={idx} className="flex justify-between items-center p-3 bg-green-50 rounded-lg border border-green-200">
+                          <span className="font-medium">{stock.centro_nombre}</span>
+                          <Badge variant="secondary" className="bg-green-100 text-green-800">
+                            {stock.cantidad} unidad{stock.cantidad !== 1 ? "es" : ""}
+                          </Badge>
+                        </div>
+                      ))}
                     </div>
                   ) : hayStockAlternativo === false ? (
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-2 text-amber-600">
-                        <AlertTriangle className="h-5 w-5" />
-                        <span className="font-medium">Sin stock disponible</span>
-                      </div>
-                      <p className="text-sm text-muted-foreground">
-                        Este producto no tiene unidades disponibles. Selecciona otro producto.
-                      </p>
+                    <div className="flex items-center gap-2 text-amber-600">
+                      <AlertTriangle className="h-5 w-5" />
+                      <span>Sin stock disponible de este producto</span>
                     </div>
                   ) : null}
                 </CardContent>
@@ -488,28 +473,28 @@ export default function CambioGarantia() {
         </Card>
       )}
 
-      {/* Botones fijos en la parte inferior */}
-      <div className="fixed bottom-0 left-0 right-0 bg-background border-t p-4 flex justify-between gap-4 z-50">
-        <Button 
-          variant="outline" 
-          onClick={() => navigate(-1)}
-          className="flex-1"
-        >
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          Regresar
-        </Button>
-        <Button 
-          className="flex-1"
-          disabled={!puedeConfirmar || saving}
-          onClick={() => productoParaCambio && handleConfirmarCambio(productoParaCambio)}
-        >
-          {saving ? (
-            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-          ) : (
-            <CheckCircle2 className="h-4 w-4 mr-2" />
-          )}
-          Continuar
-        </Button>
+      {/* Botón de confirmación */}
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-background border-t">
+        <div className="container mx-auto max-w-4xl">
+          <Button
+            className="w-full"
+            size="lg"
+            disabled={!puedeConfirmar || saving}
+            onClick={() => productoParaCambio && handleConfirmarCambio(productoParaCambio)}
+          >
+            {saving ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Procesando...
+              </>
+            ) : (
+              <>
+                <CheckCircle2 className="h-4 w-4 mr-2" />
+                Confirmar Cambio por Garantía
+              </>
+            )}
+          </Button>
+        </div>
       </div>
     </div>
   );
