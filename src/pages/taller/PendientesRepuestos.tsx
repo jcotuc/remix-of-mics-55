@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { apiBackendAction } from "@/lib/api-backend";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,13 +15,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import type { Database } from "@/integrations/supabase/types";
+import type { IncidenteSchema } from "@/generated/actions.d";
 
-type IncidenteDB = Database['public']['Tables']['incidentes']['Row'];
 type SolicitudRepuestoDB = Database['public']['Tables']['solicitudes_repuestos']['Row'];
 
-interface IncidentePendiente extends IncidenteDB {
+interface IncidentePendiente {
+  id: number;
+  codigo: string;
+  estado: string;
+  aplica_garantia?: boolean | null;
+  updated_at: string | null;
   cliente?: { nombre: string } | null;
-  producto?: { descripcion: string } | null;
+  producto?: { descripcion: string; id?: number } | null;
   tecnico?: { nombre: string; apellido: string | null } | null;
   solicitudes_repuestos?: SolicitudRepuestoDB[];
   pedido_bodega?: {
@@ -50,21 +56,26 @@ export default function PendientesRepuestos() {
 
   const fetchIncidentes = async () => {
     try {
-      const { data, error } = await supabase
-        .from("incidentes")
-        .select(`
-          *,
-          clientes:cliente_id(nombre),
-          productos:producto_id(descripcion)
-        `)
-        .eq("estado", "ESPERA_REPUESTOS")
-        .order("updated_at", { ascending: true });
+      // Fetch incidentes using apiBackendAction
+      const { results: allIncidentes } = await apiBackendAction("incidentes.list", { limit: 1000 });
+      
+      // Filter only ESPERA_REPUESTOS
+      const data = allIncidentes
+        .filter(i => i.estado === "ESPERA_REPUESTOS")
+        .sort((a, b) => new Date(a.updated_at || "").getTime() - new Date(b.updated_at || "").getTime());
 
-      if (error) throw error;
+      const incidenteIds = data.map(i => i.id);
+
+      // Fetch clientes and productos
+      const [clientesResult, productosResult] = await Promise.all([
+        apiBackendAction("clientes.list", { limit: 5000 }),
+        apiBackendAction("productos.list", { limit: 2000 }),
+      ]);
+
+      const clientesMap = new Map(clientesResult.results.map(c => [c.id, c]));
+      const productosMap = new Map(productosResult.results.map(p => [p.id, p]));
 
       // Fetch existing pedidos for these incidentes
-      const incidenteIds = (data || []).map(i => i.id);
-      
       const { data: pedidosData } = await supabase
         .from("pedidos_bodega_central")
         .select("id, incidente_id, estado, created_at")
@@ -74,7 +85,7 @@ export default function PendientesRepuestos() {
         (pedidosData || []).map(p => [p.incidente_id, { id: p.id, estado: p.estado, created_at: p.created_at }])
       );
 
-      // Fetch solicitudes_repuestos separately
+      // Fetch solicitudes_repuestos
       const { data: solicitudesData } = await supabase
         .from("solicitudes_repuestos")
         .select("*")
@@ -113,12 +124,18 @@ export default function PendientesRepuestos() {
         (asignaciones || []).map(a => [a.incidente_id, a.tecnico_id])
       );
 
-      const formattedData: IncidentePendiente[] = (data || []).map(item => {
+      const formattedData: IncidentePendiente[] = data.map(item => {
         const tecnicoId = asignacionesMap.get(item.id);
+        const cliente = item.cliente ? item.cliente : undefined;
+        const producto = item.producto ? item.producto : undefined;
         return {
-          ...item,
-          cliente: (item as any).clientes as { nombre: string } | null,
-          producto: (item as any).productos as { descripcion: string } | null,
+          id: item.id,
+          codigo: item.codigo,
+          estado: item.estado,
+          aplica_garantia: item.aplica_garantia,
+          updated_at: item.updated_at,
+          cliente: cliente ? { nombre: cliente.nombre || "" } : null,
+          producto: producto ? { descripcion: producto.descripcion || "", id: producto.id } : null,
           tecnico: tecnicoId ? tecnicosMap.get(tecnicoId) || null : null,
           solicitudes_repuestos: solicitudesMap.get(item.id) || [],
           pedido_bodega: pedidosMap.get(item.id) || null,
@@ -258,7 +275,7 @@ export default function PendientesRepuestos() {
             <div className="min-w-0">
               <CardTitle className="text-base truncate">{inc.codigo}</CardTitle>
               <CardDescription className="truncate">
-                {inc.producto?.descripcion || `Producto #${inc.producto_id}`}
+                {inc.producto?.descripcion || `Producto #${inc.producto?.id || "N/A"}`}
               </CardDescription>
             </div>
             <div className="flex flex-col items-end gap-1">
