@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { apiBackendAction } from "@/lib/api-backend";
+import type { IncidenteSchema } from "@/generated/actions.d";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -35,6 +37,7 @@ interface SolicitudCambio {
 export default function AprobacionesGarantia() {
   const { user } = useAuth();
   const [solicitudes, setSolicitudes] = useState<SolicitudCambio[]>([]);
+  const [incidentesMap, setIncidentesMap] = useState<Record<number, IncidenteSchema>>({});
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState("pendientes");
@@ -51,46 +54,49 @@ export default function AprobacionesGarantia() {
 
   const fetchSolicitudes = async () => {
     try {
-      // Obtener centros asignados al supervisor actual
-      let centroIds: number[] = [];
-      if (user) {
-        const { data: centrosAsignados } = await supabase
-          .from("centros_supervisor")
-          .select("centro_servicio_id")
-          .eq("supervisor_id", Number(user.id));
-        
-        centroIds = centrosAsignados?.map(c => c.centro_servicio_id) || [];
-      }
+      // Fetch incidentes via API, rest via Supabase (no handlers for these tables yet)
+      const [solicitudesRes, incidentesRes, centrosSupervisorRes] = await Promise.all([
+        (supabase as any).from("solicitudes_cambio").select("*").order("created_at", { ascending: false }),
+        apiBackendAction("incidentes.list", { limit: 2000 }),
+        supabase.from("centros_supervisor").select("centro_servicio_id, supervisor_id"),
+      ]);
 
-      // Usar casting para tabla no tipada
-      const { data, error } = await (supabase as any)
-        .from("solicitudes_cambio")
-        .select("*")
-        .order("created_at", { ascending: false });
+      const incidentes = incidentesRes.results || [];
+      const centrosSupervisor = centrosSupervisorRes.data || [];
+      
+      // Build incidentes map
+      const iMap: Record<number, IncidenteSchema> = {};
+      incidentes.forEach((i: IncidenteSchema) => {
+        iMap[i.id] = i;
+      });
+      setIncidentesMap(iMap);
 
-      if (error) throw error;
+      // Get supervisor's assigned centers
+      const centroIds = user 
+        ? centrosSupervisor
+            .filter((cs) => cs.supervisor_id === Number(user.id))
+            .map((cs) => cs.centro_servicio_id)
+        : [];
 
-      // Fetch incidente details separately
-      const solicitudesConIncidente = await Promise.all(
-        (data || []).map(async (s: any) => {
-          const { data: incidente } = await supabase
-            .from("incidentes")
-            .select("id, codigo, producto_id, centro_de_servicio_id")
-            .eq("id", s.incidente_id)
-            .single();
-          return { ...s, incidente };
-        })
-      );
+      // Map solicitudes with incidente data
+      let solicitudesData = (solicitudesRes.data || []).map((s: any) => ({
+        ...s,
+        incidente: iMap[s.incidente_id] ? {
+          id: iMap[s.incidente_id].id,
+          codigo: iMap[s.incidente_id].codigo,
+          producto_id: iMap[s.incidente_id].producto?.id || null,
+          centro_de_servicio_id: iMap[s.incidente_id].centro_de_servicio_id,
+        } : undefined,
+      }));
 
-      // Filtrar por centros asignados si el supervisor tiene centros
-      let filtered = solicitudesConIncidente;
+      // Filter by assigned centers if supervisor has any
       if (centroIds.length > 0) {
-        filtered = filtered.filter((s: any) => 
+        solicitudesData = solicitudesData.filter((s: SolicitudCambio) =>
           s.incidente?.centro_de_servicio_id && centroIds.includes(s.incidente.centro_de_servicio_id)
         );
       }
 
-      setSolicitudes(filtered as SolicitudCambio[]);
+      setSolicitudes(solicitudesData);
     } catch (error) {
       console.error("Error:", error);
       toast.error("Error al cargar solicitudes");
@@ -108,7 +114,6 @@ export default function AprobacionesGarantia() {
   const handleDecision = async (aprobado: boolean) => {
     if (!selectedSolicitud || !user) return;
 
-    // Observaciones obligatorias al rechazar
     if (!aprobado && !observaciones.trim()) {
       toast.error("Debes indicar el motivo del rechazo");
       return;
@@ -116,7 +121,8 @@ export default function AprobacionesGarantia() {
 
     setSubmitting(true);
     try {
-      const { error } = await (supabase as any)
+      // Update solicitud via Supabase
+      const { error: solError } = await (supabase as any)
         .from("solicitudes_cambio")
         .update({
           estado: aprobado ? "aprobada" : "rechazada",
@@ -126,21 +132,19 @@ export default function AprobacionesGarantia() {
         })
         .eq("id", selectedSolicitud.id);
 
-      if (error) throw error;
+      if (solError) throw solError;
 
-      // Determinar nuevo status según tipo y decisión
+      // Determine new incident status
       let nuevoEstado: string;
       if (aprobado) {
-        if (selectedSolicitud.tipo_cambio === "nota_credito") {
-          nuevoEstado = "nc_autorizada";
-        } else {
-          nuevoEstado = "bodega_pedido";
-        }
+        nuevoEstado = selectedSolicitud.tipo_cambio === "nota_credito" 
+          ? "NC_AUTORIZADA" 
+          : "BODEGA_PEDIDO";
       } else {
-        nuevoEstado = "en_diagnostico";
+        nuevoEstado = "EN_DIAGNOSTICO";
       }
 
-      // Actualizar estado del incidente
+      // Update incident status via Supabase
       if (selectedSolicitud.incidente_id) {
         await supabase
           .from("incidentes")
@@ -460,18 +464,18 @@ export default function AprobacionesGarantia() {
                   {getTipoBadge(selectedSolicitud.tipo_cambio)}
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Técnico Solicitante</p>
+                  <p className="text-sm text-muted-foreground">Técnico</p>
                   <p className="font-medium">{selectedSolicitud.tecnico_solicitante}</p>
                 </div>
               </div>
 
-              {/* Justificación */}
+              {/* Justification */}
               <div>
                 <p className="text-sm text-muted-foreground mb-1">Justificación del Técnico</p>
                 <p className="p-3 bg-muted rounded-lg">{selectedSolicitud.justificacion}</p>
               </div>
 
-              {/* Fotos */}
+              {/* Photos */}
               {selectedSolicitud.fotos_urls && selectedSolicitud.fotos_urls.length > 0 && (
                 <div>
                   <p className="text-sm text-muted-foreground mb-2">Evidencia Fotográfica</p>
@@ -489,22 +493,22 @@ export default function AprobacionesGarantia() {
                 </div>
               )}
 
-              {/* Observaciones */}
+              {/* Observations */}
               <div>
                 <p className="text-sm text-muted-foreground mb-1">
-                  Observaciones (requerido para rechazar)
+                  Observaciones {selectedSolicitud.estado === "pendiente" && "(obligatorio al rechazar)"}
                 </p>
                 <Textarea
                   value={observaciones}
                   onChange={(e) => setObservaciones(e.target.value)}
-                  placeholder="Ingrese observaciones..."
+                  placeholder="Escribe las observaciones o motivo de rechazo..."
                   rows={3}
                 />
               </div>
             </div>
           )}
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setIsDialogOpen(false)} disabled={submitting}>
+            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
               Cancelar
             </Button>
             <Button

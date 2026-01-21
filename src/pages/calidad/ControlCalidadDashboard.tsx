@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { apiBackendAction } from "@/lib/api-backend";
+import type { IncidenteSchema } from "@/generated/actions.d";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, XCircle, AlertCircle, TrendingUp, Package } from "lucide-react";
@@ -21,29 +23,33 @@ export default function ControlCalidadDashboard() {
 
   const fetchStats = async () => {
     try {
-      const { data: auditorias } = await supabase.from("auditorias_calidad").select("resultado");
-      const { data: defectos } = await supabase.from("defectos_calidad").select("gravedad");
+      // Use Supabase for auditorias and defectos (no handler yet), API for incidentes
+      const [auditoriasRes, defectosRes, incidentesRes] = await Promise.all([
+        supabase.from("auditorias_calidad").select("resultado"),
+        supabase.from("defectos_calidad").select("gravedad"),
+        apiBackendAction("incidentes.list", { limit: 2000 }),
+      ]);
 
-      const aprobadas = auditorias?.filter((a) => a.resultado === "aprobado").length || 0;
-      const rechazadas = auditorias?.filter((a) => a.resultado === "rechazado").length || 0;
-      const reingresos = auditorias?.filter((a) => a.resultado === "reingreso").length || 0;
-      const defectosCriticos = defectos?.filter((d) => d.gravedad === "critica").length || 0;
+      const auditorias = auditoriasRes.data || [];
+      const defectos = defectosRes.data || [];
+      const incidentes = incidentesRes.results || [];
 
-      // Contar reincidencias pendientes - simplificado sin tabla verificaciones_reincidencia
-      const { data: incidentesPendientes } = await supabase
-        .from("incidentes")
-        .select("id")
-        .in("estado", ["EN_DIAGNOSTICO", "EN_REPARACION"]);
+      const aprobadas = auditorias.filter((a) => a.resultado === "aprobado").length;
+      const rechazadas = auditorias.filter((a) => a.resultado === "rechazado").length;
+      const reingresos = auditorias.filter((a) => a.resultado === "reingreso").length;
+      const defectosCriticos = defectos.filter((d) => d.gravedad === "critica").length;
 
-      // Por ahora contamos incidentes pendientes como aproximación
-      const reincidenciasPendientes = incidentesPendientes?.length || 0;
+      // Count pending incidents as approximation
+      const reincidenciasPendientes = incidentes.filter((i: IncidenteSchema) => 
+        ["EN_DIAGNOSTICO", "EN_REPARACION"].includes(i.estado)
+      ).length;
 
       setStats({
-        totalAuditorias: auditorias?.length || 0,
+        totalAuditorias: auditorias.length,
         aprobadas,
         rechazadas,
         reingresos,
-        defectosTotal: defectos?.length || 0,
+        defectosTotal: defectos.length,
         defectosCriticos,
         reincidenciasPendientes,
       });
@@ -112,7 +118,6 @@ export default function ControlCalidadDashboard() {
         </Card>
       </div>
 
-      {/* Nueva Card: Reincidencias Pendientes */}
       {stats.reincidenciasPendientes > 0 && (
         <Card className="border-yellow-200 bg-yellow-50">
           <CardHeader>
