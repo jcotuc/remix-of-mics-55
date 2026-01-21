@@ -13,10 +13,12 @@ import type { Database } from "@/integrations/supabase/types";
 type Incidente = Database['public']['Tables']['incidentes']['Row'];
 type Cliente = Database['public']['Tables']['clientes']['Row'];
 
+type IncidenteConCliente = Incidente & { cliente: Cliente };
+
 export default function MaquinasNuevasRT() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [cambios, setCambios] = useState<(Incidente & { cliente: Cliente })[]>([]);
-  const [autoconsumos, setAutoconsumos] = useState<(Incidente & { cliente: Cliente })[]>([]);
+  const [cambios, setCambios] = useState<IncidenteConCliente[]>([]);
+  const [autoconsumos, setAutoconsumos] = useState<IncidenteConCliente[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -31,18 +33,16 @@ export default function MaquinasNuevasRT() {
       const { data: cambiosData, error: cambiosError } = await supabase
         .from('incidentes')
         .select('*, clientes!inner(*)')
-        .eq('status', 'Cambio por garantia')
+        .eq('estado', 'CAMBIO_POR_GARANTIA')
         .order('updated_at', { ascending: false });
 
       if (cambiosError) throw cambiosError;
 
-      // Autoconsumos (productos nuevos como cintas, Truper, etc)
-      // Estos podrían venir de una tabla específica de autoconsumos
-      // Por ahora usamos incidentes marcados como herramienta_manual
+      // Autoconsumos - usando tipología de mantenimiento como proxy
       const { data: autoconsumosData, error: autoconsumosError } = await supabase
         .from('incidentes')
         .select('*, clientes!inner(*)')
-        .eq('es_herramienta_manual', true)
+        .eq('tipologia', 'MANTENIMIENTO')
         .order('updated_at', { ascending: false });
 
       if (autoconsumosError) throw autoconsumosError;
@@ -58,10 +58,10 @@ export default function MaquinasNuevasRT() {
     }
   };
 
-  const renderTable = (data: (Incidente & { cliente: Cliente })[], tipo: string) => {
+  const renderTable = (data: IncidenteConCliente[], tipo: string) => {
     const filtered = data.filter(item =>
-      (item.sku_maquina?.toLowerCase().includes(searchTerm.toLowerCase()) || false) ||
-      item.codigo_producto.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      String(item.producto_id || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       item.cliente.nombre.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
@@ -79,8 +79,7 @@ export default function MaquinasNuevasRT() {
         <TableHeader>
           <TableRow>
             <TableHead>Código</TableHead>
-            <TableHead>SKU</TableHead>
-            <TableHead>Producto</TableHead>
+            <TableHead>Producto ID</TableHead>
             <TableHead>Cliente</TableHead>
             <TableHead>Fecha Ingreso</TableHead>
             <TableHead>Tipo</TableHead>
@@ -92,8 +91,7 @@ export default function MaquinasNuevasRT() {
           {filtered.map((item) => (
             <TableRow key={item.id}>
               <TableCell className="font-medium">{item.codigo}</TableCell>
-              <TableCell>{item.sku_maquina || '-'}</TableCell>
-              <TableCell>{item.codigo_producto}</TableCell>
+              <TableCell>{item.producto_id || '-'}</TableCell>
               <TableCell>{item.cliente.nombre}</TableCell>
               <TableCell>
                 {new Date(item.fecha_ingreso).toLocaleDateString('es-GT')}
@@ -102,8 +100,8 @@ export default function MaquinasNuevasRT() {
                 <Badge variant="outline">{tipo}</Badge>
               </TableCell>
               <TableCell>
-                <Badge variant={item.status === 'Cambio por garantia' ? "default" : "secondary"}>
-                  {item.status}
+                <Badge variant={item.estado === 'CAMBIO_POR_GARANTIA' ? "default" : "secondary"}>
+                  {item.estado}
                 </Badge>
               </TableCell>
               <TableCell>
@@ -141,7 +139,7 @@ export default function MaquinasNuevasRT() {
             <div className="relative w-96">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
               <Input
-                placeholder="Buscar por SKU, producto o cliente..."
+                placeholder="Buscar por código, producto o cliente..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"

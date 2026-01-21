@@ -10,21 +10,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { SignatureCanvasComponent, SignatureCanvasRef, StatusBadge } from "@/components/shared";
 import { SidebarMediaCapture, SidebarPhoto } from "@/components/features/media";
-import { DiagnosticoPrintSheet, DiagnosticoPrintData } from "@/components/features/diagnostico";
-import { createRoot } from 'react-dom/client';
 import type { Database } from "@/integrations/supabase/types";
-
-type StatusIncidente = Database["public"]["Enums"]["status_incidente"];
 
 type IncidenteDB = Database['public']['Tables']['incidentes']['Row'];
 type ClienteDB = Database['public']['Tables']['clientes']['Row'];
 type DiagnosticoDB = Database['public']['Tables']['diagnosticos']['Row'];
+
 export default function DetalleEntrega() {
-  const {
-    incidenteId
-  } = useParams<{
-    incidenteId: string;
-  }>();
+  const { incidenteId } = useParams<{ incidenteId: string }>();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [delivering, setDelivering] = useState(false);
@@ -45,37 +38,44 @@ export default function DetalleEntrega() {
       fetchData();
     }
   }, [incidenteId]);
+
   useEffect(() => {
     // Cargar nombre del técnico cuando tengamos el diagnóstico
     const loadTecnicoNombre = async () => {
-      if (diagnostico?.tecnico_codigo) {
-        const {
-          data
-        } = await supabase.from('profiles').select('nombre, apellido').eq('codigo_empleado', diagnostico.tecnico_codigo).maybeSingle();
+      if (diagnostico?.tecnico_id) {
+        const { data } = await (supabase as any)
+          .from('usuarios')
+          .select('nombre')
+          .eq('id', diagnostico.tecnico_id)
+          .maybeSingle();
         if (data) {
-          setTecnicoNombre(`${data.nombre} ${data.apellido}`);
+          setTecnicoNombre(data.nombre);
         }
       }
     };
     loadTecnicoNombre();
   }, [diagnostico]);
+
   const fetchData = async () => {
     setLoading(true);
     try {
       // Cargar incidente
-      const {
-        data: incidenteData,
-        error: incidenteError
-      } = await supabase.from('incidentes').select('*').eq('id', incidenteId).single();
+      const { data: incidenteData, error: incidenteError } = await supabase
+        .from('incidentes')
+        .select('*')
+        .eq('id', Number(incidenteId))
+        .single();
+      
       if (incidenteError) throw incidenteError;
       if (!incidenteData) {
         toast.error("Incidente no encontrado");
         navigate('/mostrador/entrega-maquinas');
         return;
       }
+      
       // Validar que el incidente esté en un estado válido para entrega
-      const estadosValidosEntrega = ['Reparado', 'Pendiente entrega'];
-      if (!estadosValidosEntrega.includes(incidenteData.status)) {
+      const estadosValidosEntrega = ['REPARADO', 'PENDIENTE_ENTREGA'];
+      if (!estadosValidosEntrega.includes(incidenteData.estado)) {
         toast.error("Este incidente no está listo para entrega");
         navigate('/mostrador/entrega-maquinas');
         return;
@@ -84,22 +84,24 @@ export default function DetalleEntrega() {
 
       // Cargar cliente, diagnóstico, producto, centro de servicio y solicitudes de repuestos en paralelo
       const [clienteRes, diagRes, productoRes, centroRes, solicitudesRes] = await Promise.all([
-        supabase.from('clientes').select('*').eq('codigo', incidenteData.codigo_cliente).single(),
+        supabase.from('clientes').select('*').eq('id', incidenteData.cliente_id).single(),
         supabase
           .from('diagnosticos')
           .select('*')
-          .eq('incidente_id', incidenteId)
-          .eq('estado', 'finalizado')
+          .eq('incidente_id', Number(incidenteId))
+          .eq('estado', 'COMPLETADO')
           .order('created_at', { ascending: false })
           .limit(1),
-        supabase.from('productos').select('descripcion').eq('codigo', incidenteData.codigo_producto).maybeSingle(),
-        incidenteData.centro_servicio 
-          ? supabase.from('centros_servicio').select('nombre').eq('nombre', incidenteData.centro_servicio).maybeSingle()
+        incidenteData.producto_id 
+          ? supabase.from('productos').select('descripcion').eq('id', incidenteData.producto_id).maybeSingle()
           : Promise.resolve({ data: null, error: null }),
-        supabase
+        incidenteData.centro_de_servicio_id 
+          ? supabase.from('centros_de_servicio').select('nombre').eq('id', incidenteData.centro_de_servicio_id).maybeSingle()
+          : Promise.resolve({ data: null, error: null }),
+        (supabase as any)
           .from('solicitudes_repuestos')
           .select('repuestos, estado, created_at')
-          .eq('incidente_id', incidenteId)
+          .eq('incidente_id', Number(incidenteId))
           .order('created_at', { ascending: false })
           .limit(20)
       ]);
@@ -115,12 +117,10 @@ export default function DetalleEntrega() {
         setCentroServicio(centroRes.data.nombre);
       }
 
-      // Cargar repuestos utilizados (preferir diagnostico.repuestos_utilizados; si no existe, tomar de solicitudes_repuestos)
+      // Cargar repuestos utilizados (preferir diagnostico; si no existe, tomar de solicitudes_repuestos)
       let repuestosUtilizados: any[] = [];
 
-      if (Array.isArray(diagData?.repuestos_utilizados) && diagData?.repuestos_utilizados?.length > 0) {
-        repuestosUtilizados = diagData.repuestos_utilizados as any[];
-      } else if (Array.isArray(solicitudesRes.data) && solicitudesRes.data.length > 0) {
+      if (Array.isArray(solicitudesRes.data) && solicitudesRes.data.length > 0) {
         const entregadas = solicitudesRes.data.filter((s: any) => (s.estado || '').toLowerCase().includes('entreg'));
         const fuente = entregadas.length > 0 ? entregadas : solicitudesRes.data;
         repuestosUtilizados = fuente.flatMap((s: any) => (Array.isArray(s.repuestos) ? s.repuestos : []));
@@ -185,6 +185,7 @@ export default function DetalleEntrega() {
       setLoading(false);
     }
   };
+
   const handleDeliver = async () => {
     if (!incidente) {
       toast.error("No hay incidente seleccionado");
@@ -206,19 +207,20 @@ export default function DetalleEntrega() {
     try {
       const firmaBase64 = signatureRef.current?.toDataURL();
       const fechaEntregaActual = new Date().toISOString();
-      const {
-        error: updateError
-      } = await supabase.from('incidentes').update({
-        status: 'Entregado' as any,
-        fecha_entrega: fechaEntregaActual,
-        confirmacion_cliente: {
+      const { error: updateError } = await supabase
+        .from('incidentes')
+        .update({
+          estado: 'ENTREGADO' as any,
           fecha_entrega: fechaEntregaActual,
-          nombre_recibe: nombreRecibe,
-          dpi_recibe: dpiRecibe,
-          firma_base64: firmaBase64,
-          fotos_salida: fotosSalida.map(f => f.comment || 'Sin comentario')
-        }
-      }).eq('id', incidente.id);
+          confirmacion_cliente: {
+            fecha_entrega: fechaEntregaActual,
+            nombre_recibe: nombreRecibe,
+            dpi_recibe: dpiRecibe,
+            firma_base64: firmaBase64,
+            fotos_salida: fotosSalida.map(f => f.comment || 'Sin comentario')
+          }
+        })
+        .eq('id', incidente.id);
       if (updateError) throw updateError;
       toast.success("Entrega registrada exitosamente");
       navigate('/mostrador/entrega-maquinas');
@@ -229,25 +231,17 @@ export default function DetalleEntrega() {
       setDelivering(false);
     }
   };
+
   const handlePrintDiagnostico = () => {
     if (!diagnostico || !incidente || !cliente) return;
 
     // Obtener el nombre del técnico (usar el estado o un fallback)
-    const tecnicoDisplay = tecnicoNombre || diagnostico.tecnico_codigo || 'Sin asignar';
+    const tecnicoDisplay = tecnicoNombre || `Técnico ${diagnostico.tecnico_id}`;
 
     // Parsear resolución del diagnóstico
-    let resolucionData: any = {};
-    try {
-      resolucionData = typeof diagnostico.resolucion === 'string' 
-        ? JSON.parse(diagnostico.resolucion) 
-        : diagnostico.resolucion || {};
-    } catch {
-      resolucionData = {};
-    }
-
-    const tipoResolucion = resolucionData.tipoResolucion || 'Reparar en Garantía';
-    const aplicaGarantia = resolucionData.aplicaGarantia ?? incidente.cobertura_garantia ?? false;
-    const accesorios = incidente.accesorios || 'Ninguno';
+    const tipoResolucion = diagnostico.tipo_resolucion || 'Reparar en Garantía';
+    const aplicaGarantia = diagnostico.aplica_garantia ?? incidente.aplica_garantia ?? false;
+    const accesorios = 'Ninguno';
     
     // Calcular costos
     const subtotalRepuestos = repuestosConPrecios.reduce((sum, r) => sum + (r.cantidad * r.precioUnitario), 0);
@@ -256,12 +250,11 @@ export default function DetalleEntrega() {
     const subtotalGeneral = subtotalRepuestos + costoManoObra + costoEnvio;
     
     let descuento = 0;
-    let porcentajeDesc = 0;
-    if (tipoResolucion === 'Reparar en Garantía' && aplicaGarantia) {
+    let porcentajeDesc = diagnostico.descuento_porcentaje || 0;
+    if (tipoResolucion === 'REPARAR_EN_GARANTIA' && aplicaGarantia) {
       descuento = subtotalGeneral;
       porcentajeDesc = 100;
-    } else if (tipoResolucion === 'Canje' && resolucionData.porcentajeDescuento) {
-      porcentajeDesc = resolucionData.porcentajeDescuento;
+    } else if (porcentajeDesc > 0) {
       descuento = subtotalGeneral * (porcentajeDesc / 100);
     }
     const totalFinal = subtotalGeneral - descuento;
@@ -293,8 +286,7 @@ export default function DetalleEntrega() {
             <p class="text-xs"><span class="text-gray-500">Teléfono:</span> ${cliente.celular}</p>
           </div>
           <div class="border rounded p-2"><h3 class="font-bold text-xs mb-1 border-b pb-1">Equipo</h3>
-            <p class="text-xs"><span class="text-gray-500">Código:</span> ${incidente.codigo_producto}</p>
-            <p class="text-xs"><span class="text-gray-500">SKU:</span> ${incidente.sku_maquina || 'N/A'}</p>
+            <p class="text-xs"><span class="text-gray-500">Producto ID:</span> ${incidente.producto_id || 'N/A'}</p>
             <p class="text-xs"><span class="text-gray-500">Accesorios:</span> ${accesorios}</p>
           </div>
         </div>
@@ -303,12 +295,12 @@ export default function DetalleEntrega() {
           <div class="p-2">
             <div class="grid grid-cols-2 gap-2">
               <div>
-                <p class="font-semibold text-gray-600 text-xs">Fallas:</p>
-                <ul class="list-disc list-inside text-xs">${(diagnostico.fallas || []).map((f: string) => `<li>${f}</li>`).join('')}</ul>
+                <p class="font-semibold text-gray-600 text-xs">Resolución:</p>
+                <p class="text-xs">${tipoResolucion}</p>
               </div>
               <div>
-                <p class="font-semibold text-gray-600 text-xs">Causas:</p>
-                <ul class="list-disc list-inside text-xs">${(diagnostico.causas || []).map((c: string) => `<li>${c}</li>`).join('')}</ul>
+                <p class="font-semibold text-gray-600 text-xs">Aplica Garantía:</p>
+                <p class="text-xs">${aplicaGarantia ? 'Sí' : 'No'}</p>
               </div>
             </div>
             ${diagnostico.recomendaciones ? `<p class="font-semibold text-gray-600 text-xs mt-1">Recomendaciones:</p><p class="bg-gray-50 p-1 rounded text-xs">${diagnostico.recomendaciones}</p>` : ''}
@@ -328,7 +320,7 @@ export default function DetalleEntrega() {
               <tr class="bg-orange-100"><td colspan="3" class="border px-2 py-1 text-right font-bold">TOTAL</td><td class="border px-2 py-1 text-right font-bold text-orange-700">Q ${totalFinal.toFixed(2)}</td></tr>
             </tbody>
           </table>
-          ${aplicaGarantia && tipoResolucion === 'Reparar en Garantía' ? '<div class="mt-1 p-1 bg-green-50 border border-green-200 rounded text-xs text-green-700"><strong>✓ Reparación cubierta por garantía.</strong></div>' : ''}
+          ${aplicaGarantia && tipoResolucion === 'REPARAR_EN_GARANTIA' ? '<div class="mt-1 p-1 bg-green-50 border border-green-200 rounded text-xs text-green-700"><strong>✓ Reparación cubierta por garantía.</strong></div>' : ''}
         </div>` : ''}
       </div>
       <div class="no-print fixed bottom-4 right-4 flex gap-2">
@@ -338,15 +330,21 @@ export default function DetalleEntrega() {
     </body></html>`);
     printWindow.document.close();
   };
+
   if (loading) {
-    return <div className="flex items-center justify-center min-h-[400px]">
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
         <p className="text-muted-foreground">Cargando información...</p>
-      </div>;
+      </div>
+    );
   }
+
   if (!incidente || !cliente) {
     return null;
   }
-  return <div className="space-y-6">
+
+  return (
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" onClick={() => navigate('/mostrador/entrega-maquinas')}>
@@ -358,200 +356,167 @@ export default function DetalleEntrega() {
         </div>
       </div>
 
-      {/* Información del Incidente y Cliente en paralelo */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Card Información del Incidente */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <PackageCheck className="h-5 w-5 text-primary" />
-              Información del Incidente
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label className="text-xs text-muted-foreground">Código Incidente</Label>
-                <p className="font-semibold">{incidente.codigo}</p>
-              </div>
-              <div>
-                <Label className="text-xs text-muted-foreground">Estado</Label>
-                <div className="mt-0.5">
-                  <StatusBadge status={incidente.status as StatusIncidente} />
-                </div>
-              </div>
-              <div>
-                <Label className="text-xs text-muted-foreground">Código Producto</Label>
-                <p className="font-medium">{incidente.codigo_producto}</p>
-              </div>
-              <div>
-                <Label className="text-xs text-muted-foreground">Fecha Ingreso</Label>
-                <div className="flex items-center gap-1.5">
-                  <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-                  <p className="text-sm">{new Date(incidente.fecha_ingreso).toLocaleDateString()}</p>
-                </div>
-              </div>
-            </div>
-            <Separator />
-            <div>
-              <Label className="text-xs text-muted-foreground">Descripción del Problema</Label>
-              <p className="text-sm mt-1">{incidente.descripcion_problema}</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Card Información del Cliente */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <User className="h-5 w-5 text-primary" />
-              Información del Cliente
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label className="text-xs text-muted-foreground">Nombre</Label>
-                <p className="font-semibold">{cliente.nombre}</p>
-              </div>
-              <div>
-                <Label className="text-xs text-muted-foreground">NIT</Label>
-                <p className="font-medium">{cliente.nit}</p>
-              </div>
-              <div>
-                <Label className="text-xs text-muted-foreground">Teléfono</Label>
-                <p className="text-sm">{cliente.celular}</p>
-              </div>
-              <div>
-                <Label className="text-xs text-muted-foreground">Correo</Label>
-                <p className="text-sm">{cliente.correo || "No registrado"}</p>
-              </div>
-              {cliente.direccion && <div className="col-span-2">
-                  <Label className="text-xs text-muted-foreground">Dirección</Label>
-                  <p className="text-sm">{cliente.direccion}</p>
-                </div>}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Diagnóstico Técnico - Simplificado */}
-      {diagnostico && <Card className="border-2 border-primary/20">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <FileCheck className="h-5 w-5 text-primary" />
-                Diagnóstico Técnico
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left Column - Info */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Incidente Info Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <PackageCheck className="h-5 w-5" />
+                Información del Incidente
               </CardTitle>
-              <Button variant="outline" size="sm" onClick={handlePrintDiagnostico}>
-                <Printer className="h-4 w-4 mr-2" />
-                Imprimir
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {diagnostico.fallas && diagnostico.fallas.length > 0 && <div>
-                  <p className="text-sm text-muted-foreground mb-2 font-medium">Fallas Detectadas</p>
-                  <ul className="list-disc list-inside space-y-1 bg-muted p-3 rounded-md">
-                    {diagnostico.fallas.map((falla, idx) => <li key={idx} className="text-sm">{falla}</li>)}
-                  </ul>
-                </div>}
-
-              {diagnostico.causas && diagnostico.causas.length > 0 && <div>
-                  <p className="text-sm text-muted-foreground mb-2 font-medium">Causas Identificadas</p>
-                  <ul className="list-disc list-inside space-y-1 bg-muted p-3 rounded-md">
-                    {diagnostico.causas.map((causa, idx) => <li key={idx} className="text-sm">{causa}</li>)}
-                  </ul>
-                </div>}
-            </div>
-
-            {/* Resolución - Solo mostrar "Reparar en Garantía" */}
-            {diagnostico.resolucion && <div>
-                <p className="text-sm text-muted-foreground mb-2 font-medium">Resolución</p>
-                {(() => {
-            try {
-              const resolucionData = typeof diagnostico.resolucion === 'string' ? JSON.parse(diagnostico.resolucion) : diagnostico.resolucion;
-              return <div className="bg-muted p-4 rounded-md flex items-center gap-4 flex-wrap">
-                        {resolucionData.aplicaGarantia !== undefined && <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium">Reparado en Garantía:</span>
-                            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${resolucionData.aplicaGarantia ? 'bg-green-500/20 text-green-700 dark:text-green-400' : 'bg-red-500/20 text-red-700 dark:text-red-400'}`}>
-                              {resolucionData.aplicaGarantia ? 'Sí' : 'No'}
-                            </span>
-                          </div>}
-                      </div>;
-            } catch {
-              return <p className="text-sm bg-muted p-3 rounded-md">{diagnostico.resolucion}</p>;
-            }
-          })()}
-              </div>}
-
-            {diagnostico.recomendaciones && <div>
-                <p className="text-sm text-muted-foreground mb-2 font-medium">Recomendaciones</p>
-                <p className="text-sm bg-muted p-3 rounded-md">{diagnostico.recomendaciones}</p>
-              </div>}
-
-            <Separator />
-
-            {/* Info del técnico y costo - Sin tiempo estimado */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {diagnostico.costo_estimado && <div>
-                  <p className="text-sm text-muted-foreground">Costo Estimado</p>
-                  <p className="text-xl font-bold text-primary">
-                    Q {Number(diagnostico.costo_estimado).toFixed(2)}
-                  </p>
-                </div>}
-
-              <div>
-                <p className="text-sm text-muted-foreground">Técnico que revisó</p>
-                <div className="flex items-center gap-2">
-                  <Wrench className="h-4 w-4 text-muted-foreground" />
-                  <p className="font-medium">{tecnicoNombre || diagnostico.tecnico_codigo}</p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-muted-foreground text-sm">Código Incidente</Label>
+                  <p className="font-mono font-bold">{incidente.codigo}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground text-sm">Estado</Label>
+                  <div><StatusBadge status={incidente.estado} /></div>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground text-sm">Producto</Label>
+                  <p>{productoInfo?.descripcion || `ID: ${incidente.producto_id || 'N/A'}`}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground text-sm">Centro de Servicio</Label>
+                  <p>{centroServicio}</p>
                 </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>}
+            </CardContent>
+          </Card>
 
-      {/* Formulario de Entrega */}
-      <Card className="border-2 border-primary/20">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FileSignature className="h-5 w-5 text-primary" />
-            Registro de Entrega
-          </CardTitle>
-          
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <OutlinedInput 
-              label="Nombre Completo de Quien Recibe" 
-              value={nombreRecibe} 
-              onChange={e => setNombreRecibe(e.target.value)} 
-              required 
-            />
-            <OutlinedInput 
-              label="DPI / Identificación" 
-              value={dpiRecibe} 
-              onChange={e => setDpiRecibe(e.target.value)} 
-              required 
-            />
-          </div>
+          {/* Cliente Info Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <User className="h-5 w-5" />
+                Información del Cliente
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-muted-foreground text-sm">Nombre</Label>
+                  <p className="font-medium">{cliente.nombre}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground text-sm">Código</Label>
+                  <p className="font-mono">{cliente.codigo}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground text-sm">Teléfono</Label>
+                  <p>{cliente.celular || cliente.telefono_principal || 'N/A'}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground text-sm">Correo</Label>
+                  <p>{cliente.correo || 'N/A'}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
-          <SignatureCanvasComponent ref={signatureRef} />
+          {/* Diagnóstico Summary */}
+          {diagnostico && (
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <Wrench className="h-5 w-5" />
+                  Resumen del Diagnóstico
+                </CardTitle>
+                <Button variant="outline" size="sm" onClick={handlePrintDiagnostico}>
+                  <Printer className="h-4 w-4 mr-2" />
+                  Imprimir Diagnóstico
+                </Button>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-muted-foreground text-sm">Tipo Resolución</Label>
+                    <p className="font-medium">{diagnostico.tipo_resolucion || 'N/A'}</p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground text-sm">Aplica Garantía</Label>
+                    <p>{diagnostico.aplica_garantia ? 'Sí' : 'No'}</p>
+                  </div>
+                  <div>
+                    <Label className="text-muted-foreground text-sm">Técnico</Label>
+                    <p>{tecnicoNombre || `ID: ${diagnostico.tecnico_id}`}</p>
+                  </div>
+                </div>
+                {diagnostico.recomendaciones && (
+                  <div>
+                    <Label className="text-muted-foreground text-sm">Recomendaciones</Label>
+                    <p className="text-sm bg-muted p-2 rounded mt-1">{diagnostico.recomendaciones}</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+        </div>
 
-          <div className="flex justify-end gap-4">
-            <Button variant="outline" onClick={() => navigate('/mostrador/entrega-maquinas')}>
-              Cancelar
-            </Button>
-            <Button onClick={handleDeliver} disabled={delivering} className="min-w-32">
-              {delivering ? "Registrando..." : "Confirmar Entrega"}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+        {/* Right Column - Delivery Form */}
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileSignature className="h-5 w-5" />
+                Confirmación de Entrega
+              </CardTitle>
+              <CardDescription>
+                Complete los datos de quien recibe la máquina
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <OutlinedInput
+                label="Nombre de quien recibe *"
+                value={nombreRecibe}
+                onChange={(e) => setNombreRecibe(e.target.value)}
+                placeholder="Nombre completo"
+              />
+              
+              <OutlinedInput
+                label="DPI / Identificación *"
+                value={dpiRecibe}
+                onChange={(e) => setDpiRecibe(e.target.value)}
+                placeholder="Número de DPI o identificación"
+              />
 
-      {/* Widget de fotos en sidebar */}
-      <SidebarMediaCapture photos={fotosSalida} onPhotosChange={setFotosSalida} tipo="salida" maxPhotos={10} commentRequired />
-    </div>;
+              <Separator />
+
+              <div>
+                <Label className="text-sm font-medium mb-2 block">Firma del Cliente *</Label>
+                <SignatureCanvasComponent ref={signatureRef} />
+              </div>
+
+              <Separator />
+
+              <div>
+                <Label className="text-sm font-medium mb-2 block">Fotos de Salida (Opcional)</Label>
+                <SidebarMediaCapture
+                  tipo="salida"
+                  photos={fotosSalida}
+                  onPhotosChange={setFotosSalida}
+                  maxPhotos={5}
+                />
+              </div>
+
+              <Button 
+                className="w-full" 
+                size="lg"
+                onClick={handleDeliver}
+                disabled={delivering}
+              >
+                <FileCheck className="h-5 w-5 mr-2" />
+                {delivering ? "Registrando..." : "Confirmar Entrega"}
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
 }

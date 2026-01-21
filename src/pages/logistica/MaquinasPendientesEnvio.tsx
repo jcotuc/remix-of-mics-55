@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Truck, Search, Filter, Clock, Package, User, Calendar, RefreshCw, Send } from "lucide-react";
+import { Truck, Search, Filter, Clock, Package, RefreshCw, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,26 +9,19 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { formatFechaRelativa } from "@/utils/dateFormatters";
+import type { Database } from "@/integrations/supabase/types";
 
-interface IncidenteEnvio {
-  id: string;
-  codigo: string;
-  codigo_cliente: string;
-  codigo_producto: string;
-  updated_at: string;
-  descripcion_problema: string;
-  quiere_envio: boolean | null;
-}
+type Incidente = Database['public']['Tables']['incidentes']['Row'];
+type Cliente = Database['public']['Tables']['clientes']['Row'];
 
-interface ClienteMap {
-  [codigo: string]: { nombre: string; celular: string; direccion: string | null };
+interface IncidenteEnvio extends Incidente {
+  cliente: Cliente;
 }
 
 export default function MaquinasPendientesEnvio() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [incidentes, setIncidentes] = useState<IncidenteEnvio[]>([]);
-  const [clientes, setClientes] = useState<ClienteMap>({});
   const [filtroTexto, setFiltroTexto] = useState("");
 
   const fetchIncidentes = async () => {
@@ -36,28 +29,18 @@ export default function MaquinasPendientesEnvio() {
     try {
       const { data, error } = await supabase
         .from("incidentes")
-        .select("id, codigo, codigo_cliente, codigo_producto, updated_at, descripcion_problema, quiere_envio")
-        .eq("status", "Logistica envio")
+        .select("*, clientes!inner(*)")
+        .eq("estado", "PENDIENTE_ENVIO")
         .order("updated_at", { ascending: true });
 
       if (error) throw error;
 
-      setIncidentes(data || []);
+      const incidentesWithClients = (data || []).map((inc: any) => ({
+        ...inc,
+        cliente: inc.clientes
+      }));
 
-      // Fetch client data
-      const codigosClientes = [...new Set((data || []).map(i => i.codigo_cliente))];
-      if (codigosClientes.length > 0) {
-        const { data: clientesData } = await supabase
-          .from("clientes")
-          .select("codigo, nombre, celular, direccion")
-          .in("codigo", codigosClientes);
-
-        const clientesMap: ClienteMap = {};
-        (clientesData || []).forEach(c => {
-          clientesMap[c.codigo] = { nombre: c.nombre, celular: c.celular, direccion: c.direccion };
-        });
-        setClientes(clientesMap);
-      }
+      setIncidentes(incidentesWithClients);
     } catch (error) {
       console.error("Error fetching incidentes:", error);
       toast.error("Error al cargar incidentes pendientes de envío");
@@ -76,18 +59,18 @@ export default function MaquinasPendientesEnvio() {
       const texto = filtroTexto.toLowerCase();
       return (
         inc.codigo.toLowerCase().includes(texto) ||
-        inc.codigo_cliente.toLowerCase().includes(texto) ||
-        inc.codigo_producto.toLowerCase().includes(texto) ||
-        clientes[inc.codigo_cliente]?.nombre?.toLowerCase().includes(texto)
+        String(inc.cliente_id).includes(texto) ||
+        String(inc.producto_id || '').includes(texto) ||
+        inc.cliente?.nombre?.toLowerCase().includes(texto)
       );
     });
-  }, [incidentes, filtroTexto, clientes]);
+  }, [incidentes, filtroTexto]);
 
   const getTiempoEspera = (updatedAt: string) => {
     return formatFechaRelativa(updatedAt).replace(/^hace /, "");
   };
 
-  const handleVerDetalle = (incidenteId: string) => {
+  const handleVerDetalle = (incidenteId: number) => {
     navigate(`/logistica/salida-maquinas?incidente=${incidenteId}`);
   };
 
@@ -183,14 +166,14 @@ export default function MaquinasPendientesEnvio() {
                       <TableCell className="font-medium">{inc.codigo}</TableCell>
                       <TableCell>
                         <div>
-                          <p className="font-medium">{clientes[inc.codigo_cliente]?.nombre || inc.codigo_cliente}</p>
-                          <p className="text-xs text-muted-foreground">{clientes[inc.codigo_cliente]?.celular}</p>
+                          <p className="font-medium">{inc.cliente?.nombre || `Cliente ${inc.cliente_id}`}</p>
+                          <p className="text-xs text-muted-foreground">{inc.cliente?.celular}</p>
                         </div>
                       </TableCell>
-                      <TableCell>{inc.codigo_producto}</TableCell>
+                      <TableCell>{inc.producto_id || '-'}</TableCell>
                       <TableCell>
                         <p className="text-sm max-w-[200px] truncate">
-                          {clientes[inc.codigo_cliente]?.direccion || "Sin dirección"}
+                          {inc.cliente?.direccion || "Sin dirección"}
                         </p>
                       </TableCell>
                       <TableCell>

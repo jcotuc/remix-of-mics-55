@@ -37,7 +37,7 @@ export default function SalidaMaquinas() {
       const { data: reparadasData } = await supabase
         .from('incidentes')
         .select('*, clientes!inner(*)')
-        .eq('status', 'Reparado')
+        .eq('estado', 'REPARADO')
         .eq('quiere_envio', true)
         .order('updated_at', { ascending: false });
 
@@ -45,17 +45,17 @@ export default function SalidaMaquinas() {
       const { data: rechazadasData } = await supabase
         .from('incidentes')
         .select('*, clientes!inner(*)')
-        .eq('status', 'Rechazado')
+        .eq('estado', 'RECHAZADO')
         .order('updated_at', { ascending: false });
 
       // Máquinas con exceso de días (3+ notificaciones sin respuesta)
-      const { data: notificacionesData } = await supabase
+      const { data: notificacionesData } = await (supabase as any)
         .from('notificaciones_cliente')
         .select('incidente_id, numero_notificacion')
         .gte('numero_notificacion', 3)
         .eq('respondido', false);
 
-      const incidentesExceso = notificacionesData?.map(n => n.incidente_id) || [];
+      const incidentesExceso = (notificacionesData || []).map((n: any) => n.incidente_id) || [];
       
       let excesoDiasData: any[] = [];
       if (incidentesExceso.length > 0) {
@@ -71,7 +71,7 @@ export default function SalidaMaquinas() {
       const { data: cambiosData } = await supabase
         .from('incidentes')
         .select('*, clientes!inner(*)')
-        .eq('status', 'Cambio por garantia')
+        .eq('estado', 'CAMBIO_POR_GARANTIA')
         .eq('quiere_envio', true)
         .order('updated_at', { ascending: false });
 
@@ -91,7 +91,7 @@ export default function SalidaMaquinas() {
   const renderTable = (data: IncidenteConCliente[], tipo: string) => {
     const filtered = data.filter(inc =>
       inc.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      inc.codigo_producto.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      String(inc.producto_id || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       inc.cliente.nombre.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
@@ -121,7 +121,7 @@ export default function SalidaMaquinas() {
           {filtered.map((incidente) => (
             <TableRow key={incidente.id}>
               <TableCell className="font-medium">{incidente.codigo}</TableCell>
-              <TableCell>{incidente.codigo_producto}</TableCell>
+              <TableCell>{incidente.producto_id || '-'}</TableCell>
               <TableCell>{incidente.cliente.nombre}</TableCell>
               <TableCell>{incidente.cliente.municipio || '-'}</TableCell>
               <TableCell>

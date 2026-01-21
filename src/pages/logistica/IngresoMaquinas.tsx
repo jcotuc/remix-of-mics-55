@@ -20,10 +20,12 @@ type Incidente = Database['public']['Tables']['incidentes']['Row'];
 type Cliente = Database['public']['Tables']['clientes']['Row'];
 type Producto = Database['public']['Tables']['productos']['Row'];
 
+type IncidenteConCliente = Incidente & { cliente: Cliente };
+
 export default function IngresoMaquinas() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedEmbarque, setSelectedEmbarque] = useState<string>("all");
-  const [incidentes, setIncidentes] = useState<(Incidente & { cliente: Cliente })[]>([]);
+  const [incidentes, setIncidentes] = useState<IncidenteConCliente[]>([]);
   const [embarques, setEmbarques] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   
@@ -39,7 +41,7 @@ export default function IngresoMaquinas() {
   const [creatingIncidente, setCreatingIncidente] = useState(false);
 
   // Estados para formalización de ingreso
-  const [selectedIncidenteForIngreso, setSelectedIncidenteForIngreso] = useState<(Incidente & { cliente: Cliente }) | null>(null);
+  const [selectedIncidenteForIngreso, setSelectedIncidenteForIngreso] = useState<IncidenteConCliente | null>(null);
   const [showFormalizarDialog, setShowFormalizarDialog] = useState(false);
   const [skuVerificado, setSkuVerificado] = useState("");
   const [fotosIngreso, setFotosIngreso] = useState<MediaFile[]>([]);
@@ -126,20 +128,6 @@ export default function IngresoMaquinas() {
 
     setCreatingIncidente(true);
     try {
-      // Buscar el producto por SKU
-      const { data: productoData, error: productoError } = await supabase
-        .from('productos')
-        .select('codigo')
-        .or(`codigo.ilike.%${manualIncidente.sku_maquina}%,clave.ilike.%${manualIncidente.sku_maquina}%`)
-        .limit(1)
-        .single();
-
-      if (productoError || !productoData) {
-        toast.error('No se encontró el producto con ese SKU');
-        setCreatingIncidente(false);
-        return;
-      }
-
       // Generar código de incidente
       const { data: codigoData, error: codigoError } = await (supabase as any)
         .rpc('generar_codigo_incidente');
@@ -166,10 +154,11 @@ export default function IngresoMaquinas() {
         producto_id: null,
         descripcion_problema: manualIncidente.descripcion_problema,
         estado: 'EN_DIAGNOSTICO' as const,
-        tipologia: 'GARANTIA' as const,
+        tipologia: 'REPARACION' as const,
         aplica_garantia: false,
         fecha_ingreso: new Date().toISOString(),
-        tracking_token: crypto.randomUUID()
+        tracking_token: crypto.randomUUID(),
+        observaciones: `SKU Maquina: ${manualIncidente.sku_maquina}`
       };
 
       const { error } = await supabase
@@ -219,30 +208,15 @@ export default function IngresoMaquinas() {
         'ingreso'
       );
 
-      // 3. Crear registro de auditoría en ingresos_logistica
-      const { error: ingresoError } = await supabase
-        .from('ingresos_logistica')
-        .insert({
-          incidente_id: selectedIncidenteForIngreso.id,
-          recibido_por: user.id,
-          sku_original: selectedIncidenteForIngreso.sku_maquina || "",
-          sku_corregido: skuVerificado !== selectedIncidenteForIngreso.sku_maquina ? 
-            skuVerificado : null,
-          fotos_urls: fotosSubidas.map(f => f.url),
-          observaciones: observacionesIngreso || null
-        });
-
-      if (ingresoError) throw ingresoError;
-
-      // 4. Actualizar incidente: status + SKU si fue corregido
+      // 3. Actualizar incidente: status + observaciones si SKU fue corregido
       const updateData: any = {
         estado: 'EN_DIAGNOSTICO'
       };
 
       // Store SKU in observaciones if different
-
-      if (skuVerificado && skuVerificado !== (selectedIncidenteForIngreso as any).sku_maquina) {
-        updateData.observaciones = `SKU Verificado: ${skuVerificado}. ${observacionesIngreso || ''}`;
+      const existingObservaciones = selectedIncidenteForIngreso.observaciones || '';
+      if (skuVerificado) {
+        updateData.observaciones = `SKU Verificado: ${skuVerificado}. ${observacionesIngreso || ''} ${existingObservaciones}`.trim();
       }
 
       const { error: updateError } = await supabase
@@ -254,7 +228,7 @@ export default function IngresoMaquinas() {
 
       toast.success("Ingreso formalizado correctamente");
 
-      // 5. Cerrar modal y refrescar datos
+      // 4. Cerrar modal y refrescar datos
       setShowFormalizarDialog(false);
       setFotosIngreso([]);
       setObservacionesIngreso("");
@@ -281,6 +255,13 @@ export default function IngresoMaquinas() {
 
     return matchesSearch && matchesEmbarque;
   });
+
+  // Helper to get SKU from observaciones
+  const getSkuFromObservaciones = (observaciones: string | null): string => {
+    if (!observaciones) return '';
+    const match = observaciones.match(/SKU.*?:\s*(\S+)/i);
+    return match ? match[1] : '';
+  };
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -356,7 +337,7 @@ export default function IngresoMaquinas() {
                     <TableCell className="font-medium">{incidente.codigo}</TableCell>
                     <TableCell>{incidente.producto_id || '-'}</TableCell>
                     <TableCell>{incidente.cliente.nombre}</TableCell>
-                    <TableCell>{(incidente as any).sku_maquina || '-'}</TableCell>
+                    <TableCell>{getSkuFromObservaciones(incidente.observaciones) || '-'}</TableCell>
                     <TableCell>
                       {new Date(incidente.fecha_ingreso).toLocaleDateString('es-GT')}
                     </TableCell>
@@ -369,7 +350,7 @@ export default function IngresoMaquinas() {
                         size="sm"
                         onClick={() => {
                           setSelectedIncidenteForIngreso(incidente);
-                          setSkuVerificado((incidente as any).sku_maquina || "");
+                          setSkuVerificado(getSkuFromObservaciones(incidente.observaciones) || "");
                           setFotosIngreso([]);
                           setObservacionesIngreso("");
                           setShowFormalizarDialog(true);
@@ -403,7 +384,7 @@ export default function IngresoMaquinas() {
             <div className="space-y-2">
               <Label>SKU Registrado en Sistema</Label>
               <Input 
-                value={(selectedIncidenteForIngreso as any)?.sku_maquina || "N/A"} 
+                value={getSkuFromObservaciones(selectedIncidenteForIngreso?.observaciones || null) || "N/A"} 
                 disabled 
                 className="bg-muted"
               />
@@ -415,10 +396,10 @@ export default function IngresoMaquinas() {
                 value={skuVerificado}
                 onChange={(e) => setSkuVerificado(e.target.value)}
                 placeholder="Ingrese el SKU que ve en la máquina física"
-                className={skuVerificado !== (selectedIncidenteForIngreso as any)?.sku_maquina ? 
+                className={skuVerificado !== getSkuFromObservaciones(selectedIncidenteForIngreso?.observaciones || null) ? 
                   "border-yellow-500" : ""}
               />
-              {skuVerificado && skuVerificado !== (selectedIncidenteForIngreso as any)?.sku_maquina && (
+              {skuVerificado && skuVerificado !== getSkuFromObservaciones(selectedIncidenteForIngreso?.observaciones || null) && (
                 <p className="text-sm text-yellow-600 flex items-center gap-1">
                   <AlertCircle className="h-4 w-4" />
                   El SKU físico difiere del registrado. Se actualizará automáticamente.
@@ -477,62 +458,47 @@ export default function IngresoMaquinas() {
 
       {/* Dialog para crear incidente manual */}
       <Dialog open={showManualDialog} onOpenChange={setShowManualDialog}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Crear Incidente Manual - Clientes SAP</DialogTitle>
+            <DialogTitle>Crear Incidente Manual</DialogTitle>
             <DialogDescription>
-              Registre un incidente manualmente para clientes SAP
+              Crear un nuevo incidente para máquinas que llegan sin registro previo
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="cliente">Cliente SAP *</Label>
-              <Select 
-                value={manualIncidente.codigo_cliente} 
-                onValueChange={(value) => setManualIncidente({ ...manualIncidente, codigo_cliente: value })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccione un cliente SAP" />
-                </SelectTrigger>
-                <SelectContent>
-                  {clientesSAP.map((cliente) => (
-                    <SelectItem key={cliente.codigo} value={cliente.codigo}>
-                      {cliente.nombre} - SAP: {cliente.codigo_sap}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="space-y-4 py-4">
+            <OutlinedInput
+              label="Código de Cliente *"
+              value={manualIncidente.codigo_cliente}
+              onChange={(e) => setManualIncidente({...manualIncidente, codigo_cliente: e.target.value})}
+              placeholder="Ej: HPC-000001"
+            />
+            
+            <OutlinedInput
+              label="SKU de la Máquina *"
+              value={manualIncidente.sku_maquina}
+              onChange={(e) => setManualIncidente({...manualIncidente, sku_maquina: e.target.value})}
+              placeholder="Ej: ABC123456"
+            />
 
-            <div className="space-y-2">
-              <Label htmlFor="sku">SKU Máquina *</Label>
-              <Input
-                id="sku"
-                value={manualIncidente.sku_maquina}
-                onChange={(e) => setManualIncidente({ ...manualIncidente, sku_maquina: e.target.value })}
-                placeholder="Código o clave del producto"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="descripcion">Descripción del Problema *</Label>
-              <Textarea
-                id="descripcion"
-                value={manualIncidente.descripcion_problema}
-                onChange={(e) => setManualIncidente({ ...manualIncidente, descripcion_problema: e.target.value })}
-                placeholder="Describa el problema reportado..."
-                rows={4}
-              />
-            </div>
+            <OutlinedTextarea
+              label="Descripción del Problema *"
+              value={manualIncidente.descripcion_problema}
+              onChange={(e) => setManualIncidente({...manualIncidente, descripcion_problema: e.target.value})}
+              placeholder="Describa el problema reportado..."
+              rows={3}
+            />
           </div>
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowManualDialog(false)}>
               Cancelar
             </Button>
-            <Button onClick={handleCreateManualIncidente} disabled={creatingIncidente}>
-              {creatingIncidente ? 'Creando...' : 'Crear Incidente'}
+            <Button 
+              onClick={handleCreateManualIncidente}
+              disabled={creatingIncidente}
+            >
+              {creatingIncidente ? "Creando..." : "Crear Incidente"}
             </Button>
           </DialogFooter>
         </DialogContent>
