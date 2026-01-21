@@ -1,13 +1,12 @@
 import { useState, useEffect } from "react";
 import { Package, Search } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { supabase } from "@/integrations/supabase/client";
+import { apiBackendAction } from "@/lib/api-backend";
 import { toast } from "sonner";
 
 type InventarioItem = {
@@ -36,16 +35,12 @@ export default function InventarioNuevo() {
 
   const fetchCentrosServicio = async () => {
     try {
-      const { data, error } = await (supabase as any)
-        .from("centros_de_servicio")
-        .select("*")
-        .eq("activo", true);
-
-      if (error) throw error;
-      setCentrosServicio(data || []);
+      const result = await apiBackendAction("centros_de_servicio.list", {});
+      const data = ((result as any).results || (result as any).data || []).filter((c: any) => c.activo);
+      setCentrosServicio(data);
       
       // Seleccionar primer centro por defecto
-      if (data && data.length > 0) {
+      if (data.length > 0) {
         setCentroSeleccionado(String(data[0].id));
       }
     } catch (error) {
@@ -56,14 +51,17 @@ export default function InventarioNuevo() {
   const fetchInventario = async (centroId: string) => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from("inventario")
-        .select("codigo_repuesto, descripcion, cantidad, ubicacion_legacy")
-        .eq("centro_servicio_id", Number(centroId))
-        .order("codigo_repuesto");
-
-      if (error) throw error;
-      setInventario(data || []);
+      const result = await apiBackendAction("inventarios.list", { 
+        centro_servicio_id: Number(centroId),
+        limit: 5000 
+      });
+      const data = (result.data || []).map((item: any) => ({
+        codigo_repuesto: item.codigo_repuesto,
+        descripcion: item.descripcion || null,
+        cantidad: item.cantidad,
+        ubicacion_legacy: item.ubicacion_legacy || item.bodega || null
+      }));
+      setInventario(data);
     } catch (error) {
       console.error("Error:", error);
       toast.error("Error al cargar inventario");
