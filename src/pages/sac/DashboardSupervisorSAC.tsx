@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Users, Bell, FileText, TrendingUp, AlertCircle, CheckCircle, Clock } from "lucide-react";
-import { Progress } from "@/components/ui/progress";
+import { Loader2, Users, Bell, FileText, TrendingUp } from "lucide-react";
+import { apiBackendAction } from "@/lib/api-backend";
 
 interface DashboardStats {
   incidentesHoy: number;
@@ -24,60 +23,57 @@ export default function DashboardSupervisorSAC() {
     try {
       setLoading(true);
 
-      // Incidentes de hoy
+      // Fetch data in parallel using apiBackendAction
+      const [incidentesResponse, usuariosResponse] = await Promise.all([
+        apiBackendAction("incidentes.list", { limit: 5000 }),
+        apiBackendAction("usuarios.list", {})
+      ]);
+
+      const incidentes = incidentesResponse.results || [];
+      const usuarios = usuariosResponse.results || [];
+
+      // Calculate stats from fetched data
       const hoy = new Date().toISOString().split('T')[0];
-      const { data: incidentesHoy } = await supabase
-        .from('incidentes')
-        .select('id')
-        .gte('created_at', hoy);
+      const incidentesHoy = incidentes.filter((i: any) => 
+        i.created_at?.startsWith(hoy)
+      ).length;
 
-      // Pendientes de notificación (Reparado)
-      const { data: pendientesNotif } = await supabase
-        .from('incidentes')
-        .select('id')
-        .eq('estado', 'REPARADO');
+      const pendientesNotificacion = incidentes.filter((i: any) => 
+        i.estado === 'REPARADO'
+      ).length;
 
-      // Presupuestos pendientes
-      const { data: presupuestos } = await supabase
-        .from('incidentes')
-        .select('id')
-        .eq('estado', 'ESPERA_APROBACION');
+      const presupuestosPendientes = incidentes.filter((i: any) => 
+        i.estado === 'ESPERA_APROBACION'
+      ).length;
 
-      // Canjes (cambio por garantía)
-      const { data: canjes } = await supabase
-        .from('incidentes')
-        .select('id')
-        .eq('estado', 'CAMBIO_POR_GARANTIA');
+      const canjesEnProceso = incidentes.filter((i: any) => 
+        i.estado === 'CAMBIO_POR_GARANTIA'
+      ).length;
 
-      // Equipo SAC
-      const { data: asignaciones } = await supabase
-        .from('asignaciones_sac')
-        .select('user_id, incidente_id')
-        .eq('activo', true);
-
-      const { data: usuarios } = await supabase
-        .from('usuarios')
-        .select('id, nombre, apellido');
-
+      // For equipo SAC, group by propietario_id as proxy (asignaciones_sac not in registry)
       const equipoMap = new Map<number, number>();
-      asignaciones?.forEach(a => {
-        equipoMap.set(a.user_id, (equipoMap.get(a.user_id) || 0) + 1);
+      incidentes.forEach((i: any) => {
+        if (i.propietario_id) {
+          equipoMap.set(i.propietario_id, (equipoMap.get(i.propietario_id) || 0) + 1);
+        }
       });
 
       const equipoSAC = Array.from(equipoMap.entries()).map(([userId, count]) => {
-        const usuario = usuarios?.find(u => u.id === userId);
+        const usuario = usuarios.find((u: any) => u.id === userId);
         return {
-          nombre: usuario ? `${usuario.nombre} ${usuario.apellido}` : 'Desconocido',
+          nombre: usuario ? `${usuario.nombre || ''} ${usuario.apellido || ''}`.trim() : 'Desconocido',
           incidentes: count
         };
-      });
+      })
+        .sort((a, b) => b.incidentes - a.incidentes)
+        .slice(0, 5);
 
       setStats({
-        incidentesHoy: incidentesHoy?.length || 0,
-        pendientesNotificacion: pendientesNotif?.length || 0,
-        presupuestosPendientes: presupuestos?.length || 0,
-        canjesEnProceso: canjes?.length || 0,
-        equipoSAC: equipoSAC.sort((a, b) => b.incidentes - a.incidentes).slice(0, 5)
+        incidentesHoy,
+        pendientesNotificacion,
+        presupuestosPendientes,
+        canjesEnProceso,
+        equipoSAC
       });
 
     } catch (error) {
