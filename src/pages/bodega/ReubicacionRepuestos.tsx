@@ -26,9 +26,9 @@ import { TablePagination } from "@/components/shared";
 import { cn } from "@/lib/utils";
 
 type InventarioItem = {
-  id: string;
+  id: number;
   codigo_repuesto: string;
-  centro_servicio_id: string;
+  centro_servicio_id: number;
   cantidad: number;
   ubicacion_legacy: string | null;
   ubicacion_id: number | null;
@@ -40,7 +40,7 @@ type InventarioItem = {
 };
 
 type CentroServicio = {
-  id: string;
+  id: number;
   nombre: string;
 };
 
@@ -157,14 +157,14 @@ export default function ReubicacionRepuestos() {
   // Fetch functions
   const fetchCentrosServicio = async () => {
     try {
-      const { data, error } = await supabase
-        .from("centros_servicio")
+      const { data, error } = await (supabase as any)
+        .from("centros_de_servicio")
         .select("id, nombre")
         .eq("activo", true)
         .order("nombre");
 
       if (error) throw error;
-      setCentrosServicio(data || []);
+      setCentrosServicio((data || []) as CentroServicio[]);
     } catch (error) {
       console.error("Error fetching centros:", error);
       toast.error("Error al cargar centros de servicio");

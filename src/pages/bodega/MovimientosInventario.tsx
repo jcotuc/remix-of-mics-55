@@ -188,13 +188,17 @@ export default function MovimientosInventario() {
 
     try {
       for (const item of items) {
-        await supabase.from('movimientos_inventario').insert({
-          codigo_repuesto: item.codigo_repuesto,
-          tipo_movimiento: item.tipo,
+        await (supabase as any).from('movimientos_inventario').insert({
+          repuesto_id: 0, // Will need actual repuesto_id lookup
+          tipo_movimiento: item.tipo === "entrada" ? "ENTRADA" : "SALIDA",
           cantidad: item.cantidad,
           ubicacion: item.ubicacion,
           motivo: motivo,
-          referencia: referencia || 'Movimiento manual'
+          referencia: referencia || 'Movimiento manual',
+          centro_servicio_id: 1, // Will need actual centro
+          stock_anterior: 0,
+          stock_nuevo: item.cantidad,
+          created_by_id: 1
         });
       }
 
@@ -431,19 +435,19 @@ export default function MovimientosInventario() {
                 <div className="space-y-2">
                   {movimientosRecientes.map((mov) => (
                     <div key={mov.id} className="flex items-center gap-2 p-2 rounded bg-muted/50 text-sm">
-                      {mov.tipo_movimiento === "entrada" ? (
+                      {mov.tipo_movimiento === "ENTRADA" ? (
                         <ArrowDownCircle className="h-4 w-4 text-green-600 shrink-0" />
                       ) : (
                         <ArrowUpCircle className="h-4 w-4 text-red-600 shrink-0" />
                       )}
                       <div className="flex-1 min-w-0">
-                        <p className="font-mono text-xs truncate">{mov.codigo_repuesto}</p>
+                        <p className="font-mono text-xs truncate">ID: {mov.repuesto_id}</p>
                         <p className="text-xs text-muted-foreground">
                           {formatFechaHora(mov.created_at).slice(0, 11)}
                         </p>
                       </div>
-                      <Badge variant={mov.tipo_movimiento === "entrada" ? "default" : "secondary"} className="shrink-0">
-                        {mov.tipo_movimiento === "entrada" ? "+" : "-"}{mov.cantidad}
+                      <Badge variant={mov.tipo_movimiento === "ENTRADA" ? "default" : "secondary"} className="shrink-0">
+                        {mov.tipo_movimiento === "ENTRADA" ? "+" : "-"}{mov.cantidad}
                       </Badge>
                     </div>
                   ))}

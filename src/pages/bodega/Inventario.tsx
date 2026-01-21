@@ -435,7 +435,7 @@ export default function Inventario() {
     setActiveTab("historial");
   };
 
-  const toggleSelectItem = (id: string) => {
+  const toggleSelectItem = (id: number) => {
     setSelectedItems(prev => {
       const newSet = new Set(prev);
       if (newSet.has(id)) {
@@ -681,7 +681,7 @@ export default function Inventario() {
                   <SelectContent>
                     <SelectItem value="todos">Todos los centros</SelectItem>
                     {centrosServicio.map((centro) => (
-                      <SelectItem key={centro.id} value={centro.id}>
+                      <SelectItem key={centro.id} value={String(centro.id)}>
                         {centro.nombre}
                       </SelectItem>
                     ))}
