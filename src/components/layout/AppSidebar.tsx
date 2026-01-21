@@ -1,4 +1,4 @@
-import { Users, Package, Wrench, FileText, Truck, LogOut, Home, ShoppingCart, DollarSign, ClipboardList, BarChart3, ClipboardCheck, FileSpreadsheet, LogIn, LogOut as LogOutIcon, Send, PackageCheck, AlertTriangle, AlertCircle, MapPin, Calendar, Settings, CheckCircle2, Network, RefreshCw, FolderTree, ListChecks, History, FileUp, Shield } from "lucide-react";
+import { Users, Package, Wrench, FileText, Truck, LogOut, Home, ShoppingCart, DollarSign, ClipboardList, BarChart3, ClipboardCheck, FileSpreadsheet, LogIn, Send, PackageCheck, AlertTriangle, AlertCircle, MapPin, Settings, CheckCircle2, RefreshCw } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -62,22 +62,6 @@ const menuAreas = {
     { title: "Reasignaciones", url: "/taller/reasignaciones", icon: RefreshCw },
     { title: "Transferencias", url: "/taller/transferencias", icon: Truck },
   ],
-  bodega: [
-    { title: "Inventario", url: "/bodega/inventario", icon: ClipboardCheck },
-    { title: "Reubicación", url: "/bodega/reubicacion-repuestos", icon: MapPin },
-    { title: "Relaciones Repuestos", url: "/bodega/relaciones-repuestos", icon: Network },
-    { title: "Inventario Cíclico", url: "/bodega/inventario-ciclico", icon: Calendar },
-    { title: "Consulta Cardex", url: "/bodega/consulta-cardex", icon: FileText },
-    { title: "Gestión Ubicaciones", url: "/bodega/ubicaciones", icon: MapPin },
-    { title: "Docs Pendientes", url: "/bodega/documentos-pendientes", icon: AlertCircle },
-    { title: "Docs Ubicación", url: "/bodega/documentos-ubicacion", icon: FileText },
-    { title: "Movimientos", url: "/bodega/movimientos", icon: RefreshCw },
-    { title: "Despieces", url: "/bodega/despieces", icon: Wrench },
-    { title: "Solicitudes", url: "/bodega/solicitudes", icon: ShoppingCart },
-    { title: "Despachos Dpto", url: "/bodega/despachos", icon: Truck },
-    { title: "Importación", url: "/bodega/importacion", icon: Package },
-    { title: "Abastecimiento", url: "/bodega/abastecimiento", icon: Truck },
-  ],
   sac: [
     { title: "Incidentes", url: "/sac/incidentes", icon: FileText },
     { title: "Consulta Existencias", url: "/sac/consulta-existencias", icon: Package },
@@ -87,20 +71,6 @@ const menuAreas = {
     { title: "Reincidencias", url: "/calidad/reincidencias", icon: RefreshCw },
     { title: "Auditorías", url: "/calidad/auditorias", icon: ClipboardCheck },
     { title: "Análisis de Defectos", url: "/calidad/defectos", icon: AlertCircle },
-  ],
-  admin: [
-    { title: "Gestión de Usuarios", url: "/admin/usuarios", icon: Settings },
-    { title: "Gestión de Productos", url: "/admin/productos", icon: Package },
-    { title: "Familias Productos", url: "/admin/familias-productos", icon: FolderTree },
-    { title: "Fallas y Causas", url: "/admin/fallas-causas", icon: ListChecks },
-    { title: "Accesorios Familias", url: "/admin/accesorios-familias", icon: Package },
-    { title: "Sustitutos Repuestos", url: "/admin/sustitutos-repuestos", icon: Network },
-    { title: "Importar Despieces", url: "/admin/importar-despieces", icon: FileUp },
-    { title: "Inventario Admin", url: "/admin/inventario", icon: ClipboardCheck },
-    { title: "Centros de Servicio", url: "/admin/centros-servicio", icon: MapPin },
-    { title: "Recomendaciones", url: "/admin/recomendaciones-familias", icon: FileText },
-    { title: "Gestión de Permisos", url: "/admin/permisos", icon: Shield },
-    { title: "Historial de Cambios", url: "/admin/audit-logs", icon: History },
   ],
   asesor: [
     { title: "Mis Garantías", url: "/mis-garantias", icon: Wrench },
@@ -114,8 +84,6 @@ const menuAreas = {
     { title: "Supervisor SAC", url: "/sac/dashboard-supervisor", icon: BarChart3 },
     { title: "Jefe Taller", url: "/taller/dashboard-jefe", icon: BarChart3 },
     { title: "Jefe Logística", url: "/logistica/dashboard-jefe", icon: BarChart3 },
-    { title: "Jefe Bodega", url: "/bodega/dashboard-jefe", icon: BarChart3 },
-    { title: "Supervisor Bodega", url: "/bodega/dashboard-supervisor", icon: BarChart3 },
     { title: "Supervisor Calidad", url: "/calidad/dashboard-supervisor", icon: BarChart3 },
   ]
 };
@@ -190,17 +158,14 @@ export function AppSidebar() {
                     {userRole === 'mostrador' && 'Mostrador'}
                     {userRole === 'logistica' && 'Logística'}
                     {userRole === 'taller' && 'Taller'}
-                    {userRole === 'bodega' && 'Bodega'}
                     {userRole === 'sac' && 'SAC'}
                     {userRole === 'control_calidad' && 'Control de Calidad'}
                     {userRole === 'asesor' && 'Asesor'}
                     {userRole === 'admin' && 'Administrador'}
                     {userRole === 'tecnico' && 'Técnico'}
                     {userRole === 'jefe_taller' && 'Jefe Taller'}
-                    {userRole === 'jefe_bodega' && 'Jefe Bodega'}
                     {userRole === 'jefe_logistica' && 'Jefe Logística'}
                     {userRole === 'supervisor_sac' && 'Supervisor SAC'}
-                    {userRole === 'supervisor_bodega' && 'Supervisor Bodega'}
                     {userRole === 'supervisor_calidad' && 'Supervisor Calidad'}
                     {userRole === 'gerente_centro' && 'Gerente Centro'}
                     {userRole === 'supervisor_regional' && 'Supervisor Regional'}
@@ -224,13 +189,11 @@ export function AppSidebar() {
           {renderMenuSection("Logística", menuAreas.logistica)}
           {renderMenuSection("Taller", menuAreas.taller)}
           {renderMenuSection("Jefe Taller", menuAreas.jefeTaller)}
-          {renderMenuSection("Bodega", menuAreas.bodega)}
           {renderMenuSection("SAC", menuAreas.sac)}
           {renderMenuSection("Calidad", menuAreas.calidad)}
           {userRole === "asesor" && renderMenuSection("Asesor", menuAreas.asesor)}
           {renderMenuSection("Gerencia", menuAreas.gerencia)}
           {renderMenuSection("Supervisores", menuAreas.supervisores)}
-          {userRole === "admin" && renderMenuSection("Administración", menuAreas.admin)}
         </div>
 
         <div className="mt-auto p-2 sm:p-3 border-t border-border bg-muted/50">

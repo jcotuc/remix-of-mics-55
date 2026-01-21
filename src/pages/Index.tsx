@@ -10,7 +10,6 @@ import { useAuth } from "@/contexts/AuthContext";
 import { MostradorDashboard } from "@/components/dashboard/MostradorDashboard";
 import { TallerDashboard } from "@/components/dashboard/TallerDashboard";
 import { LogisticaDashboard } from "@/components/dashboard/LogisticaDashboard";
-import { BodegaDashboard } from "@/components/dashboard/BodegaDashboard";
 import { SACDashboard } from "@/components/dashboard/SACDashboard";
 import { apiBackendAction } from "@/lib/api";
 import type { IncidenteSchema } from "@/generated/actions.d";
@@ -153,12 +152,11 @@ const Index = () => {
 
       {/* Dashboards por área */}
       <Tabs defaultValue={getDefaultTab()} className="space-y-4 sm:space-y-6">
-        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-1">
+        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 gap-1">
           <TabsTrigger value="mostrador" className="text-xs sm:text-sm">Mostrador</TabsTrigger>
           <TabsTrigger value="taller" className="text-xs sm:text-sm">Taller</TabsTrigger>
           <TabsTrigger value="logistica" className="text-xs sm:text-sm">Logística</TabsTrigger>
-          <TabsTrigger value="bodega" className="text-xs sm:text-sm">Bodega</TabsTrigger>
-          <TabsTrigger value="sac" className="text-xs sm:text-sm col-span-2 sm:col-span-1">SAC</TabsTrigger>
+          <TabsTrigger value="sac" className="text-xs sm:text-sm">SAC</TabsTrigger>
         </TabsList>
 
         <TabsContent value="mostrador" className="space-y-4">
@@ -195,10 +193,6 @@ const Index = () => {
           ) : (
             <LogisticaDashboard incidentes={incidentes} />
           )}
-        </TabsContent>
-
-        <TabsContent value="bodega" className="space-y-4">
-          <BodegaDashboard />
         </TabsContent>
 
         <TabsContent value="sac" className="space-y-4">
