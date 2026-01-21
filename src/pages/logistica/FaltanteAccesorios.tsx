@@ -6,13 +6,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Search, AlertTriangle, Package } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import type { Database } from "@/integrations/supabase/types";
-import { OutlinedInput } from "@/components/ui/outlined-input";
-
-type Incidente = Database['public']['Tables']['incidentes']['Row'];
-type Cliente = Database['public']['Tables']['clientes']['Row'];
+import { apiBackendAction } from "@/lib/api";
+import type { IncidenteSchema } from "@/generated/actions.d";
 
 type RepuestoConStock = {
   id: number;
@@ -25,7 +21,7 @@ type RepuestoConStock = {
 export default function FaltanteAccesorios() {
   const [searchTerm, setSearchTerm] = useState("");
   const [repuestoSearch, setRepuestoSearch] = useState("");
-  const [incidentes, setIncidentes] = useState<(Incidente & { cliente: Cliente })[]>([]);
+  const [incidentes, setIncidentes] = useState<IncidenteSchema[]>([]);
   const [repuestos, setRepuestos] = useState<RepuestoConStock[]>([]);
   const [loading, setLoading] = useState(true);
   const [consultaOpen, setConsultaOpen] = useState(false);
@@ -38,20 +34,12 @@ export default function FaltanteAccesorios() {
     try {
       setLoading(true);
       
-      const { data, error } = await supabase
-        .from('incidentes')
-        .select('*, clientes!inner(*)')
-        .eq('estado', 'REPARADO')
-        .order('updated_at', { ascending: false });
+      const response = await apiBackendAction("incidentes.list", { limit: 2000 });
+      const incidentesData = (response.results || []).filter(
+        inc => inc.estado === 'REPARADO'
+      );
 
-      if (error) throw error;
-
-      const incidentesWithClients = (data || []).map((inc: any) => ({
-        ...inc,
-        cliente: inc.clientes
-      }));
-
-      setIncidentes(incidentesWithClients);
+      setIncidentes(incidentesData);
 
     } catch (error) {
       console.error('Error:', error);
@@ -68,31 +56,26 @@ export default function FaltanteAccesorios() {
     }
 
     try {
-      // Buscar repuestos
-      const { data: repuestosData, error: repError } = await supabase
-        .from('repuestos')
-        .select('id, codigo, descripcion')
-        .or(`codigo.ilike.%${repuestoSearch}%,descripcion.ilike.%${repuestoSearch}%`)
-        .limit(20);
+      // Search repuestos via API
+      const response = await apiBackendAction("repuestos.search", { 
+        search: repuestoSearch, 
+        limit: 20 
+      });
+      const repuestosData = response.results || [];
 
-      if (repError) throw repError;
+      // Get inventory data
+      const inventarioResponse = await apiBackendAction("inventarios.list", { limit: 5000 });
+      const inventarioData = inventarioResponse.data || [];
 
-      // Buscar stock en inventario
-      const codigos = repuestosData?.map(r => r.codigo) || [];
-      const { data: inventarioData } = await supabase
-        .from('inventario')
-        .select('codigo_repuesto, cantidad, ubicacion_legacy')
-        .in('codigo_repuesto', codigos);
-
-      // Combinar datos
-      const repuestosConStock: RepuestoConStock[] = (repuestosData || []).map(rep => {
-        const inv = inventarioData?.find(i => i.codigo_repuesto === rep.codigo);
+      // Combine data
+      const repuestosConStock: RepuestoConStock[] = repuestosData.map(rep => {
+        const inv = inventarioData.find(i => i.codigo_repuesto === rep.codigo);
         return {
           id: rep.id,
           codigo: rep.codigo,
-          descripcion: rep.descripcion,
+          descripcion: rep.descripcion || '',
           stock: inv?.cantidad || 0,
-          ubicacion: inv?.ubicacion_legacy || null
+          ubicacion: inv?.bodega || null
         };
       });
 
@@ -104,15 +87,15 @@ export default function FaltanteAccesorios() {
   };
 
   useEffect(() => {
-    if (consultaOpen) {
+    if (consultaOpen && repuestoSearch) {
       fetchRepuestos();
     }
   }, [repuestoSearch, consultaOpen]);
 
   const filteredIncidentes = incidentes.filter(inc =>
     inc.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    String(inc.producto_id || '').includes(searchTerm.toLowerCase()) ||
-    inc.cliente.nombre.toLowerCase().includes(searchTerm.toLowerCase())
+    (inc.producto?.descripcion || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (inc.cliente?.nombre || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -180,8 +163,8 @@ export default function FaltanteAccesorios() {
                 {filteredIncidentes.map((incidente) => (
                   <TableRow key={incidente.id}>
                     <TableCell className="font-medium">{incidente.codigo}</TableCell>
-                    <TableCell>{incidente.producto_id || '-'}</TableCell>
-                    <TableCell>{incidente.cliente.nombre}</TableCell>
+                    <TableCell>{incidente.producto?.descripcion || '-'}</TableCell>
+                    <TableCell>{incidente.cliente?.nombre || '-'}</TableCell>
                     <TableCell>{incidente.observaciones || '-'}</TableCell>
                     <TableCell>
                       {new Date(incidente.updated_at || '').toLocaleDateString('es-GT')}

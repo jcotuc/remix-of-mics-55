@@ -6,19 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Search, AlertCircle, Calculator, DollarSign } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import type { Database } from "@/integrations/supabase/types";
-
-type Incidente = Database['public']['Tables']['incidentes']['Row'];
-type Cliente = Database['public']['Tables']['clientes']['Row'];
-type Repuesto = Database['public']['Tables']['repuestos']['Row'];
+import { apiBackendAction } from "@/lib/api";
+import type { IncidenteSchema } from "@/generated/actions.d";
 
 interface DanoTransporte {
-  incidente: Incidente & { cliente: Cliente };
+  incidente: IncidenteSchema;
   costo_estimado?: number;
   estado_cotizacion?: 'pendiente' | 'aceptado' | 'rechazado';
 }
@@ -29,7 +24,6 @@ export default function DanosTransporte() {
   const [loading, setLoading] = useState(true);
   const [cotizadorOpen, setCotizadorOpen] = useState(false);
   const [selectedDano, setSelectedDano] = useState<DanoTransporte | null>(null);
-  const [repuestos, setRepuestos] = useState<Repuesto[]>([]);
   const [costoManoObra, setCostoManoObra] = useState(0);
   const [costoRepuestos, setCostoRepuestos] = useState(0);
 
@@ -41,21 +35,19 @@ export default function DanosTransporte() {
     try {
       setLoading(true);
 
-      // Fetch incidents that might have transport damage
-      // We'll need to create a specific field or status for this
-      const { data, error } = await supabase
-        .from('incidentes')
-        .select('*, clientes!inner(*)')
-        .ilike('descripcion_problema', '%transporte%')
-        .order('updated_at', { ascending: false });
+      const response = await apiBackendAction("incidentes.list", { limit: 2000 });
+      const incidentes = response.results || [];
 
-      if (error) throw error;
-
-      const danosData = (data || []).map((inc: any) => ({
-        incidente: { ...inc, cliente: inc.clientes },
-        costo_estimado: 0,
-        estado_cotizacion: 'pendiente' as const
-      }));
+      // Filter incidents that might have transport damage
+      const danosData = incidentes
+        .filter(inc => 
+          inc.descripcion_problema?.toLowerCase().includes('transporte')
+        )
+        .map((inc) => ({
+          incidente: inc,
+          costo_estimado: 0,
+          estado_cotizacion: 'pendiente' as const
+        }));
 
       setDanos(danosData);
 
@@ -70,19 +62,6 @@ export default function DanosTransporte() {
   const openCotizador = async (dano: DanoTransporte) => {
     setSelectedDano(dano);
     setCotizadorOpen(true);
-    
-    // Fetch available parts for quotation
-    const productoId = dano.incidente.producto_id;
-    if (productoId) {
-      const { data: repuestosData } = await supabase
-        .from('repuestos')
-        .select('*')
-        .limit(10);
-      
-      setRepuestos((repuestosData || []) as Repuesto[]);
-    } else {
-      setRepuestos([]);
-    }
   };
 
   const calcularTotal = () => {
@@ -91,8 +70,8 @@ export default function DanosTransporte() {
 
   const filteredDanos = danos.filter(d =>
     d.incidente.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    String(d.incidente.producto_id || '').includes(searchTerm.toLowerCase()) ||
-    d.incidente.cliente.nombre.toLowerCase().includes(searchTerm.toLowerCase())
+    (d.incidente.producto?.descripcion || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (d.incidente.cliente?.nombre || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const danosAceptados = filteredDanos.filter(d => d.estado_cotizacion === 'aceptado');
@@ -127,13 +106,13 @@ export default function DanosTransporte() {
           {data.map((dano) => (
             <TableRow key={dano.incidente.id}>
               <TableCell className="font-medium">{dano.incidente.codigo}</TableCell>
-              <TableCell>{dano.incidente.producto_id || '-'}</TableCell>
-              <TableCell>{dano.incidente.cliente.nombre}</TableCell>
+              <TableCell>{dano.incidente.producto?.descripcion || '-'}</TableCell>
+              <TableCell>{dano.incidente.cliente?.nombre || '-'}</TableCell>
               <TableCell className="max-w-xs truncate">
                 {dano.incidente.descripcion_problema}
               </TableCell>
               <TableCell>
-                {new Date(dano.incidente.fecha_ingreso).toLocaleDateString('es-GT')}
+                {new Date(dano.incidente.created_at || '').toLocaleDateString('es-GT')}
               </TableCell>
               <TableCell>
                 {dano.costo_estimado ? (
@@ -269,11 +248,11 @@ export default function DanosTransporte() {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Producto</p>
-                  <p className="font-medium">{selectedDano.incidente.producto_id || '-'}</p>
+                  <p className="font-medium">{selectedDano.incidente.producto?.descripcion || '-'}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Cliente</p>
-                  <p className="font-medium">{selectedDano.incidente.cliente.nombre}</p>
+                  <p className="font-medium">{selectedDano.incidente.cliente?.nombre || '-'}</p>
                 </div>
               </div>
 
