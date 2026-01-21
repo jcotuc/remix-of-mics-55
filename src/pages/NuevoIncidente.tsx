@@ -442,6 +442,7 @@ const MUNICIPIOS: Record<string, string[]> = {
   ],
 };
 interface Cliente {
+  id: number;
   codigo: string;
   nombre: string;
   nit: string;
@@ -681,10 +682,11 @@ export default function NuevoIncidente() {
     const fetchDirecciones = async () => {
       if (!clienteSeleccionado) return;
       try {
-        const { data: direccionesData, error: direccionesError } = await (supabase as any)
-          .from("direcciones_envio")
+        const { data: direccionesData, error: direccionesError } = await supabase
+          .from("direcciones")
           .select("*")
-          .eq("codigo_cliente", clienteSeleccionado.codigo)
+          .eq("cliente_id", clienteSeleccionado.id)
+          .is("deleted_at", null)
           .order("es_principal", {
             ascending: false,
           });
@@ -699,10 +701,9 @@ export default function NuevoIncidente() {
           if (clienteSeleccionado.direccion) {
             const tempDireccion = {
               id: "temp-" + clienteSeleccionado.codigo,
-              codigo_cliente: clienteSeleccionado.codigo,
+              cliente_id: clienteSeleccionado.id,
               direccion: clienteSeleccionado.direccion,
               es_principal: true,
-              nombre_referencia: "Dirección Principal",
               created_at: new Date().toISOString(),
               updated_at: new Date().toISOString(),
             };
