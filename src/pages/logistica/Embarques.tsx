@@ -10,9 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { Truck, Plus, Package, Clock, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import type { Database } from "@/integrations/supabase/types";
-
-type Embarque = Database['public']['Tables']['embarques']['Row'];
+import { apiBackendAction } from "@/lib/api";
+import type { Embarque } from "@/generated/actions.d";
 
 export default function Embarques() {
   const navigate = useNavigate();
@@ -31,13 +30,12 @@ export default function Embarques() {
   const fetchEmbarques = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('embarques')
-        .select('*')
-        .order('fecha_llegada', { ascending: false });
-
-      if (error) throw error;
-      setEmbarques(data || []);
+      const response = await apiBackendAction("embarques.list", { limit: 200 });
+      // Sort by fecha_llegada descending
+      const sorted = [...response.data].sort((a, b) => 
+        new Date(b.fecha_llegada || 0).getTime() - new Date(a.fecha_llegada || 0).getTime()
+      );
+      setEmbarques(sorted);
     } catch (error) {
       console.error('Error:', error);
       toast.error('Error al cargar embarques');

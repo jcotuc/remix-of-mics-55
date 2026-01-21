@@ -11,16 +11,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Search, CheckCircle, Package, Plus, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import type { Database } from "@/integrations/supabase/types";
+import { apiBackendAction } from "@/lib/api";
+import type { IncidenteSchema, ClienteSchema, ProductoSchema, Embarque } from "@/generated/actions.d";
 import { WhatsAppStyleMediaCapture, MediaFile } from "@/components/features/media";
 import { uploadMediaToStorage, saveIncidentePhotos } from "@/lib/uploadMedia";
 import { OutlinedInput, OutlinedTextarea, OutlinedSelect } from "@/components/ui/outlined-input";
 
-type Incidente = Database['public']['Tables']['incidentes']['Row'];
-type Cliente = Database['public']['Tables']['clientes']['Row'];
-type Producto = Database['public']['Tables']['productos']['Row'];
-
-type IncidenteConCliente = Incidente & { cliente: Cliente };
+type IncidenteConCliente = IncidenteSchema & { cliente?: ClienteSchema };
 
 export default function IngresoMaquinas() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -31,8 +28,8 @@ export default function IngresoMaquinas() {
   
   // Estado para crear incidente manual
   const [showManualDialog, setShowManualDialog] = useState(false);
-  const [clientesSAP, setClientesSAP] = useState<Cliente[]>([]);
-  const [productos, setProductos] = useState<Producto[]>([]);
+  const [clientesSAP, setClientesSAP] = useState<ClienteSchema[]>([]);
+  const [productos, setProductos] = useState<ProductoSchema[]>([]);
   const [manualIncidente, setManualIncidente] = useState({
     codigo_cliente: "",
     sku_maquina: "",
@@ -58,29 +55,25 @@ export default function IngresoMaquinas() {
     try {
       setLoading(true);
       
-      // Fetch incidents with estado "EN_ENTREGA"
-      const { data: incidentesData, error: incidentesError } = await supabase
-        .from('incidentes')
-        .select('*, clientes!inner(*)')
-        .eq('estado', 'EN_ENTREGA')
-        .order('fecha_ingreso', { ascending: false });
+      // Use apiBackendAction for incidents and embarques
+      const [incidentesResponse, embarquesResponse] = await Promise.all([
+        apiBackendAction("incidentes.list", { limit: 1000 }),
+        apiBackendAction("embarques.list", { limit: 200 })
+      ]);
 
-      if (incidentesError) throw incidentesError;
+      // Filter by status and sort by created_at
+      const filtered = incidentesResponse.results
+        .filter(inc => inc.estado === "EN_ENTREGA")
+        .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
 
-      const incidentesWithClients = (incidentesData || []).map((inc: any) => ({
+      // Map to include cliente property for compatibility
+      const incidentesWithClients: IncidenteConCliente[] = filtered.map(inc => ({
         ...inc,
-        cliente: inc.clientes
+        cliente: inc.cliente || undefined
       }));
 
       setIncidentes(incidentesWithClients);
-
-      // Get unique embarque numbers
-      const { data: embarquesData } = await supabase
-        .from('embarques')
-        .select('numero_embarque')
-        .order('fecha_llegada', { ascending: false });
-
-      setEmbarques(embarquesData?.map(e => e.numero_embarque) || []);
+      setEmbarques(embarquesResponse.data.map((e: Embarque) => e.numero_embarque));
 
     } catch (error) {
       console.error('Error:', error);
@@ -92,14 +85,15 @@ export default function IngresoMaquinas() {
 
   const fetchClientesSAP = async () => {
     try {
+      // Use direct Supabase for codigo_sap filter (not in schema)
       const { data, error } = await supabase
         .from('clientes')
         .select('*')
         .not('codigo_sap', 'is', null)
         .order('nombre');
-
+      
       if (error) throw error;
-      setClientesSAP(data || []);
+      setClientesSAP((data || []) as any);
     } catch (error) {
       console.error('Error fetching clientes SAP:', error);
     }
@@ -107,13 +101,8 @@ export default function IngresoMaquinas() {
 
   const fetchProductos = async () => {
     try {
-      const { data, error } = await supabase
-        .from('productos')
-        .select('*')
-        .order('descripcion');
-
-      if (error) throw error;
-      setProductos(data || []);
+      const response = await apiBackendAction("productos.list", { limit: 2000 });
+      setProductos(response.results);
     } catch (error) {
       console.error('Error fetching productos:', error);
     }
@@ -246,10 +235,12 @@ export default function IngresoMaquinas() {
 
 
   const filteredIncidentes = incidentes.filter(inc => {
+    const clienteName = inc.cliente?.nombre || "";
+    const productoCodigo = inc.producto?.codigo || "";
     const matchesSearch = 
       inc.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      String(inc.producto_id || '').includes(searchTerm.toLowerCase()) ||
-      inc.cliente.nombre.toLowerCase().includes(searchTerm.toLowerCase());
+      productoCodigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      clienteName.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesEmbarque = selectedEmbarque === "all";
 
@@ -335,11 +326,11 @@ export default function IngresoMaquinas() {
                 {filteredIncidentes.map((incidente) => (
                   <TableRow key={incidente.id}>
                     <TableCell className="font-medium">{incidente.codigo}</TableCell>
-                    <TableCell>{incidente.producto_id || '-'}</TableCell>
-                    <TableCell>{incidente.cliente.nombre}</TableCell>
+                    <TableCell>{incidente.producto?.codigo || '-'}</TableCell>
+                    <TableCell>{incidente.cliente?.nombre || "N/A"}</TableCell>
                     <TableCell>{getSkuFromObservaciones(incidente.observaciones) || '-'}</TableCell>
                     <TableCell>
-                      {new Date(incidente.fecha_ingreso).toLocaleDateString('es-GT')}
+                      {new Date(incidente.created_at || '').toLocaleDateString('es-GT')}
                     </TableCell>
                     <TableCell>
                       <Badge variant="secondary">Pendiente Ingreso</Badge>

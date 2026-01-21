@@ -10,11 +10,16 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useActiveIncidents, MAX_ASSIGNMENTS } from "@/contexts/ActiveIncidentsContext";
-import type { Database } from "@/integrations/supabase/types";
+import { apiBackendAction } from "@/lib/api";
+import type { IncidenteSchema } from "@/generated/actions.d";
 
-type IncidenteDB = Database['public']['Tables']['incidentes']['Row'];
-
-interface IncidenteConProducto extends IncidenteDB {
+interface IncidenteConProducto {
+  id: number;
+  codigo: string;
+  estado: string;
+  descripcion_problema: string | null;
+  centro_de_servicio_id: number;
+  created_at?: string | null;
   producto?: {
     familia_padre_id: number | null;
   } | null;
@@ -181,25 +186,26 @@ export default function Asignaciones() {
     try {
       setLoading(true);
 
-      // Fetch incidents for this service center
-      const { data, error } = await (supabase as any)
-        .from('incidentes')
-        .select(`
-          *,
-          producto:productos(familia_padre_id)
-        `)
-        .eq('estado', 'PENDIENTE_ASIGNACION')
-        .eq('centro_de_servicio_id', centroServicioId)
-        .order('fecha_ingreso', { ascending: true });
-
-      if (error) throw error;
+      // Use apiBackendAction for incidents
+      const response = await apiBackendAction("incidentes.list", { limit: 1000 });
+      
+      // Filter by status (REGISTRADO is used for pending assignment) and service center, then sort by created_at
+      const filtered = response.results
+        .filter(inc => 
+          inc.estado === "REGISTRADO" && 
+          inc.centro_de_servicio_id === centroServicioId
+        )
+        .sort((a, b) => new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime());
 
       // Transform the data to match our interface
-      const transformed: IncidenteConProducto[] = (data || []).map(inc => ({
-        ...inc,
-        producto: Array.isArray(inc.producto) && inc.producto.length > 0 
-          ? inc.producto[0] 
-          : inc.producto
+      const transformed: IncidenteConProducto[] = filtered.map(inc => ({
+        id: inc.id,
+        codigo: inc.codigo,
+        estado: inc.estado,
+        descripcion_problema: inc.descripcion_problema,
+        centro_de_servicio_id: inc.centro_de_servicio_id,
+        created_at: inc.created_at,
+        producto: inc.producto ? { familia_padre_id: inc.producto.familia_padre_id || null } : null
       }));
 
       setIncidentes(transformed);
@@ -270,9 +276,9 @@ export default function Asignaciones() {
     });
   };
 
-  const getDiasDesdeIngreso = (fechaIngreso: string | null) => {
-    if (!fechaIngreso) return 0;
-    const dias = Math.floor((Date.now() - new Date(fechaIngreso).getTime()) / (1000 * 60 * 60 * 24));
+  const getDiasDesdeIngreso = (createdAt: string | null | undefined) => {
+    if (!createdAt) return 0;
+    const dias = Math.floor((Date.now() - new Date(createdAt).getTime()) / (1000 * 60 * 60 * 24));
     return dias;
   };
 
@@ -401,7 +407,7 @@ export default function Asignaciones() {
                     ) : (
                       <div className="space-y-2">
                         {filteredIncidentes.map((incidente, index) => {
-                          const dias = getDiasDesdeIngreso(incidente.fecha_ingreso);
+                          const dias = getDiasDesdeIngreso(incidente.created_at);
                           const esPrimero = index === 0;
 
                           return (
