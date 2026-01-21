@@ -21,46 +21,30 @@ import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface ConteoItem {
-  id: string;
-  codigo_repuesto: string;
-  descripcion: string | null;
+  id: number;
+  codigo_repuesto?: string;
+  descripcion?: string | null;
   cantidad_sistema: number;
   cantidad_fisica: number | null;
   diferencia: number | null;
   ajustado: boolean | null;
-  contado_por: string | null;
-  fecha_conteo: string | null;
-  motivo_diferencia: string | null;
-  requiere_aprobacion: boolean | null;
-  aprobado: boolean | null;
   notas: string | null;
 }
 
 interface Conteo {
-  id: string;
+  id: number;
   numero_conteo: string;
-  ubicacion: string;
+  ubicacion: string | null;
   estado: string | null;
   fecha_inicio: string;
   fecha_completado: string | null;
   notas: string | null;
-  centro_servicio_id: string;
-  realizado_por: string | null;
-  supervisor_asignador: string | null;
-  auxiliar_asignado: string | null;
-  fecha_programada: string | null;
-  tipo_conteo: string | null;
-  requiere_reconteo: boolean | null;
-  aprobado_por: string | null;
-  fecha_aprobacion: string | null;
-  total_items: number | null;
-  items_contados: number | null;
+  centro_servicio_id: number;
   centro_servicio?: { nombre: string };
-  auxiliar_profile?: { nombre: string; apellido: string } | null;
 }
 
 interface Auxiliar {
-  user_id: string;
+  id: number;
   nombre: string;
   apellido: string;
 }
@@ -103,8 +87,8 @@ export default function InventarioCiclico() {
   const [fechaProgramada, setFechaProgramada] = useState("");
   
   // Detalle/Revisión
-  const [conteoDetalle, setConteoDetalle] = useState<Conteo | null>(null);
-  const [itemsDetalle, setItemsDetalle] = useState<ConteoItem[]>([]);
+  const [conteoDetalle, setConteoDetalle] = useState<any | null>(null);
+  const [itemsDetalle, setItemsDetalle] = useState<any[]>([]);
   const [modalDetalle, setModalDetalle] = useState(false);
   
   // KPIs
@@ -130,17 +114,17 @@ export default function InventarioCiclico() {
   }, [centroSeleccionado]);
 
   const fetchCentrosServicio = async () => {
-    const { data, error } = await supabase
-      .from("centros_servicio")
+    const { data, error } = await (supabase as any)
+      .from("centros_de_servicio")
       .select("*")
       .eq("activo", true);
     if (!error) setCentrosServicio(data || []);
   };
 
   const fetchAuxiliares = async () => {
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("user_id, nombre, apellido");
+    const { data, error } = await (supabase as any)
+      .from("usuarios")
+      .select("id, nombre, apellido");
     if (!error) setAuxiliares(data || []);
   };
 
@@ -149,38 +133,29 @@ export default function InventarioCiclico() {
       setLoading(true);
       
       // Conteos programados (pendientes de iniciar)
-      const { data: programados } = await supabase
+      const { data: programados } = await (supabase as any)
         .from("inventario_ciclico")
-        .select(`
-          *,
-          centro_servicio:centros_servicio(nombre)
-        `)
-        .eq("estado", "programado")
-        .order("fecha_programada", { ascending: true });
+        .select(`*, centro_servicio:centros_de_servicio(nombre)`)
+        .eq("estado", "PENDIENTE")
+        .order("fecha_inicio", { ascending: true });
       
       // Conteos en proceso
-      const { data: enProceso } = await supabase
+      const { data: enProceso } = await (supabase as any)
         .from("inventario_ciclico")
-        .select(`
-          *,
-          centro_servicio:centros_servicio(nombre)
-        `)
-        .eq("estado", "en_proceso")
+        .select(`*, centro_servicio:centros_de_servicio(nombre)`)
+        .eq("estado", "EN_PROGRESO")
         .order("fecha_inicio", { ascending: false });
       
-      // Conteos pendientes de aprobación
-      const { data: pendientesAprob } = await supabase
+      // Conteos completados
+      const { data: completados } = await (supabase as any)
         .from("inventario_ciclico")
-        .select(`
-          *,
-          centro_servicio:centros_servicio(nombre)
-        `)
-        .eq("estado", "pendiente_aprobacion")
+        .select(`*, centro_servicio:centros_de_servicio(nombre)`)
+        .eq("estado", "COMPLETADO")
         .order("fecha_completado", { ascending: false });
       
       setConteosProgramados(programados || []);
       setConteosEnProceso(enProceso || []);
-      setConteosPendientesAprobacion(pendientesAprob || []);
+      setConteosPendientesAprobacion(completados || []);
       
     } catch (error) {
       console.error("Error:", error);
@@ -192,14 +167,11 @@ export default function InventarioCiclico() {
   const fetchMiConteo = async () => {
     if (!user) return;
     
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from("inventario_ciclico")
-      .select(`
-        *,
-        centro_servicio:centros_servicio(nombre)
-      `)
-      .eq("auxiliar_asignado", user.id)
-      .eq("estado", "en_proceso")
+      .select(`*, centro_servicio:centros_de_servicio(nombre)`)
+      .eq("realizado_por_id", user.id)
+      .eq("estado", "EN_PROGRESO")
       .maybeSingle();
     
     if (!error && data) {
@@ -208,12 +180,11 @@ export default function InventarioCiclico() {
     }
   };
 
-  const fetchItemsConteo = async (conteoId: string) => {
-    const { data, error } = await supabase
+  const fetchItemsConteo = async (conteoId: number) => {
+    const { data, error } = await (supabase as any)
       .from("inventario_ciclico_detalle")
       .select("*")
-      .eq("inventario_id", conteoId)
-      .order("codigo_repuesto", { ascending: true });
+      .eq("inventario_id", conteoId);
     
     if (!error) setItemsConteo(data || []);
   };

@@ -18,7 +18,7 @@ import { formatFechaCorta } from "@/utils/dateFormatters";
 import { es } from "date-fns/locale";
 
 type Importacion = {
-  id: string;
+  id: number;
   numero_embarque: string;
   origen: string;
   fecha_llegada: string;
@@ -29,7 +29,7 @@ type Importacion = {
 };
 
 type DetalleImportacion = {
-  id: string;
+  id: number;
   sku: string;
   descripcion: string;
   cantidad: number;
@@ -119,8 +119,8 @@ export default function Importacion() {
 
     try {
       // Get centro central
-      const { data: centroCentral } = await supabase
-        .from("centros_servicio")
+      const { data: centroCentral } = await (supabase as any)
+        .from("centros_de_servicio")
         .select("id")
         .eq("es_central", true)
         .single();
@@ -150,7 +150,7 @@ export default function Importacion() {
 
         if (rows.length > 0) {
           const detalles: {
-            importacion_id: string;
+            importacion_id: number;
             sku: string;
             descripcion: string;
             cantidad: number;
