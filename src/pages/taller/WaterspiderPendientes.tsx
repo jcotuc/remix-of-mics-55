@@ -21,9 +21,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { formatFechaRelativa, formatLogEntry, formatFechaCorta } from "@/utils/dateFormatters";
-import type { Database } from "@/integrations/supabase/types";
-
-type EstadoIncidente = Database['public']['Enums']['estadoincidente'];
+import { apiBackendAction } from "@/lib/api-backend";
+import type { IncidenteSchema, ClienteSchema } from "@/generated/entities";
 
 interface IncidenteReparado {
   id: number;
@@ -83,97 +82,119 @@ export default function WaterspiderPendientes() {
   const [observaciones, setObservaciones] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  // Fetch recolección data
+  // Fetch recolección data using apiBackendAction
   const fetchIncidentes = async () => {
     try {
-      const { data, error } = await supabase
-        .from("incidentes")
-        .select("id, codigo, cliente_id, producto_id, quiere_envio, updated_at, descripcion_problema")
-        .eq("estado", "REPARADO")
-        .order("updated_at", { ascending: true });
+      const [incidentesRes, clientesRes] = await Promise.all([
+        apiBackendAction("incidentes.list", { limit: 2000 }),
+        apiBackendAction("clientes.list", { limit: 5000 }),
+      ]);
 
-      if (error) throw error;
-      setIncidentes((data || []) as IncidenteReparado[]);
+      const allIncidentes = (incidentesRes.results || []) as IncidenteSchema[];
+      const allClientes = (clientesRes.results || []) as ClienteSchema[];
+
+      // Filter REPARADO and sort by updated_at
+      const reparados = allIncidentes
+        .filter(i => i.estado === "REPARADO")
+        .sort((a, b) => {
+          const dateA = a.updated_at ? new Date(a.updated_at).getTime() : 0;
+          const dateB = b.updated_at ? new Date(b.updated_at).getTime() : 0;
+          return dateA - dateB;
+        });
+
+      const mapped: IncidenteReparado[] = reparados.map(i => {
+        const iAny = i as any;
+        return {
+          id: i.id,
+          codigo: i.codigo,
+          cliente_id: iAny.cliente_id || iAny.cliente?.id || 0,
+          producto_id: iAny.producto_id || iAny.producto?.id || null,
+          quiere_envio: i.quiere_envio ?? null,
+          updated_at: i.updated_at || null,
+          descripcion_problema: i.descripcion_problema || null,
+        };
+      });
+
+      setIncidentes(mapped);
       setSelectedMostrador(new Set());
       setSelectedLogistica(new Set());
 
-      const clienteIds = [...new Set((data || []).map(i => i.cliente_id))];
-      if (clienteIds.length > 0) {
-        const { data: clientesData } = await supabase
-          .from("clientes")
-          .select("id, nombre, celular")
-          .in("id", clienteIds);
-
-        const clientesMap: ClienteMap = {};
-        (clientesData || []).forEach(c => {
-          clientesMap[c.id] = { nombre: c.nombre, celular: c.celular };
-        });
-        setClientes(prev => ({ ...prev, ...clientesMap }));
-      }
+      // Build clientes map
+      const clientesMap: ClienteMap = {};
+      allClientes.forEach(c => {
+        clientesMap[c.id] = { nombre: c.nombre, celular: c.celular || null };
+      });
+      setClientes(prev => ({ ...prev, ...clientesMap }));
     } catch (error) {
       console.error("Error fetching incidentes:", error);
       toast.error("Error al cargar incidentes reparados");
     }
   };
 
-  // Fetch depuración data (NC, Cambio por garantía resueltos)
+  // Fetch depuración data (NC, Cambio por garantía resueltos) using apiBackendAction
   const fetchDepuracion = async () => {
     try {
-      const { data, error } = await supabase
-        .from("incidentes")
-        .select("id, codigo, cliente_id, producto_id, estado, updated_at, descripcion_problema")
-        .in("estado", ["NOTA_DE_CREDITO", "CAMBIO_POR_GARANTIA"])
-        .order("updated_at", { ascending: false });
+      const incidentesRes = await apiBackendAction("incidentes.list", { limit: 2000 });
+      const allIncidentes = (incidentesRes.results || []) as IncidenteSchema[];
 
-      if (error) throw error;
-      setIncidentesDepuracion((data || []) as IncidenteDepuracion[]);
-      setSelectedDepuracion(new Set());
-
-      // Fetch clients
-      const clienteIds = [...new Set((data || []).map(i => i.cliente_id))];
-      if (clienteIds.length > 0) {
-        const { data: clientesData } = await supabase
-          .from("clientes")
-          .select("id, nombre, celular")
-          .in("id", clienteIds);
-
-        const clientesMap: ClienteMap = {};
-        (clientesData || []).forEach(c => {
-          clientesMap[c.id] = { nombre: c.nombre, celular: c.celular };
+      // Filter NC and Cambio por garantía
+      const filtered = allIncidentes
+        .filter(i => i.estado === "NOTA_DE_CREDITO" || i.estado === "CAMBIO_POR_GARANTIA")
+        .sort((a, b) => {
+          const dateA = a.updated_at ? new Date(a.updated_at).getTime() : 0;
+          const dateB = b.updated_at ? new Date(b.updated_at).getTime() : 0;
+          return dateB - dateA; // descending
         });
-        setClientes(prev => ({ ...prev, ...clientesMap }));
-      }
+
+      const mapped: IncidenteDepuracion[] = filtered.map(i => {
+        const iAny = i as any;
+        return {
+          id: i.id,
+          codigo: i.codigo,
+          cliente_id: iAny.cliente_id || iAny.cliente?.id || 0,
+          producto_id: iAny.producto_id || iAny.producto?.id || null,
+          estado: i.estado,
+          updated_at: i.updated_at || null,
+          descripcion_problema: i.descripcion_problema || null,
+        };
+      });
+
+      setIncidentesDepuracion(mapped);
+      setSelectedDepuracion(new Set());
     } catch (error) {
       console.error("Error fetching depuración:", error);
     }
   };
 
-  // Fetch rechazados
+  // Fetch rechazados using apiBackendAction
   const fetchRechazados = async () => {
     try {
-      const { data, error } = await supabase
-        .from("incidentes")
-        .select("id, codigo, cliente_id, producto_id, estado, updated_at, descripcion_problema")
-        .eq("estado", "RECHAZADO")
-        .order("updated_at", { ascending: false });
+      const incidentesRes = await apiBackendAction("incidentes.list", { limit: 2000 });
+      const allIncidentes = (incidentesRes.results || []) as IncidenteSchema[];
 
-      if (error) throw error;
-      setIncidentesRechazados((data || []) as IncidenteDepuracion[]);
-
-      // Fetch clients
-      const clienteIds = [...new Set((data || []).map(i => i.cliente_id))];
-      if (clienteIds.length > 0) {
-        const { data: clientesData } = await supabase
-          .from("clientes")
-          .select("id, nombre, celular")
-          .in("id", clienteIds);
-
-        const clientesMap: ClienteMap = {};
-        (clientesData || []).forEach(c => {
-          clientesMap[c.id] = { nombre: c.nombre, celular: c.celular };
+      // Filter RECHAZADO
+      const filtered = allIncidentes
+        .filter(i => i.estado === "RECHAZADO")
+        .sort((a, b) => {
+          const dateA = a.updated_at ? new Date(a.updated_at).getTime() : 0;
+          const dateB = b.updated_at ? new Date(b.updated_at).getTime() : 0;
+          return dateB - dateA; // descending
         });
-        setClientes(prev => ({ ...prev, ...clientesMap }));
-      }
+
+      const mapped: IncidenteDepuracion[] = filtered.map(i => {
+        const iAny = i as any;
+        return {
+          id: i.id,
+          codigo: i.codigo,
+          cliente_id: iAny.cliente_id || iAny.cliente?.id || 0,
+          producto_id: iAny.producto_id || iAny.producto?.id || null,
+          estado: i.estado,
+          updated_at: i.updated_at || null,
+          descripcion_problema: i.descripcion_problema || null,
+        };
+      });
+
+      setIncidentesRechazados(mapped);
     } catch (error) {
       console.error("Error fetching rechazados:", error);
     }
@@ -352,7 +373,7 @@ export default function WaterspiderPendientes() {
           : Array.from(selectedLogistica);
         
         // Use valid enum values
-        const nuevoEstado: EstadoIncidente = confirmingType === "mostrador" ? "COMPLETADO" : "EN_ENTREGA";
+        const nuevoEstado = confirmingType === "mostrador" ? "COMPLETADO" : "EN_ENTREGA";
         const destinoLabel = confirmingType === "mostrador" ? "Mostrador" : "Logística";
         
         const logEntry = formatLogEntry(`Waterspider: Entregado a ${destinoLabel}${observaciones ? ` - ${observaciones}` : ''}`);

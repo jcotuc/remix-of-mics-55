@@ -9,6 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Search, FileText, Download, Filter } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { apiBackendAction } from "@/lib/api-backend";
+import type { RepuestoSchema } from "@/generated/entities";
 
 interface MovimientoCardex {
   fecha: string;
@@ -46,20 +48,18 @@ export default function ConsultaCardex() {
 
     setLoading(true);
     try {
-      // Obtener información del producto
-      const { data: repuesto, error: repuestoError } = await supabase
-        .from('repuestos')
-        .select('codigo, descripcion')
-        .eq('codigo', codigoRepuesto)
-        .single();
+      // Use apiBackendAction for repuestos.search
+      const repuestosRes = await apiBackendAction("repuestos.search", { search: codigoRepuesto, limit: 1 });
+      const repuestosList = (repuestosRes.results || []) as RepuestoSchema[];
+      const repuesto = repuestosList.find(r => r.codigo === codigoRepuesto);
 
-      if (repuestoError) {
+      if (!repuesto) {
         toast.error("Producto no encontrado");
         setLoading(false);
         return;
       }
 
-      setProductoInfo(repuesto);
+      setProductoInfo({ codigo: repuesto.codigo, descripcion: repuesto.descripcion || '' });
 
       // Obtener movimientos en el rango de fechas - usar casting para columnas no tipadas
       let query = (supabase as any)

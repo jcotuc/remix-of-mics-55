@@ -4,16 +4,16 @@ Updated: Now
 ## Progreso General de Migración
 
 ```
-████████████████████████████████████████████████░░ 55% (41/75 páginas migradas)
+██████████████████████████████████████████████████░░ 59% (44/75 páginas migradas)
 ```
 
 **Total de archivos en src/pages:** 75
-**Páginas 100% migradas o híbridas:** 35  
-**Páginas con imports Supabase restantes:** 40
+**Páginas 100% migradas o híbridas:** 44  
+**Páginas con imports Supabase restantes:** 31
 
 ---
 
-## ✅ Páginas 100% Libres de Supabase (27)
+## ✅ Páginas 100% Libres de Supabase (30)
 
 | # | Página | Actions Usadas |
 |---|--------|----------------|
@@ -39,15 +39,18 @@ Updated: Now
 | 20 | `src/pages/calidad/VerificacionReincidencias.tsx` | `incidentes.list` |
 | 21 | `src/pages/sac/DashboardSupervisorSAC.tsx` | `incidentes.list`, `usuarios.list` |
 | 22 | `src/pages/taller/DashboardJefeTaller.tsx` | `incidentes.list`, `usuarios.list`, `diagnosticos.list` |
-| 23 | `src/pages/taller/ConfiguracionColas.tsx` | `grupos_cola_fifo.*` |
+| 23 | `src/pages/taller/ConfiguracionColas.tsx` | `grupos_cola_fifo.*`, `familias_producto.list`, `centros_de_servicio.list` |
 | 24 | `src/pages/bodega/Despieces.tsx` | N/A |
 | 25 | `src/pages/bodega/DetalleSolicitud.tsx` | N/A |
 | 26 | `src/pages/bodega/DashboardJefeBodega.tsx` | N/A |
 | 27 | `src/pages/bodega/DashboardSupervisorBodega.tsx` | N/A |
+| 28 | `src/pages/bodega/AnalisisYAbastecimiento.tsx` | N/A (tabs only) |
+| 29 | `src/pages/bodega/DocumentosPendientes.tsx` | Mock data |
+| 30 | `src/pages/bodega/DocumentosUbicacion.tsx` | Mock data |
 
 ---
 
-## 🔄 Páginas Híbridas (8)
+## 🔄 Páginas Híbridas (14)
 
 | Página | Actions Usadas | Supabase Directo Para |
 |--------|----------------|----------------------|
@@ -55,14 +58,20 @@ Updated: Now
 | `sac/DetalleIncidenteSAC.tsx` | `incidentes.get`, `diagnosticos.search` | `asignaciones_sac` updates |
 | `taller/BusquedaIncidentes.tsx` | `incidentes.list`, `diagnosticos.search`, `clientes.list`, `productos.list` | `media` table |
 | `taller/MisAsignaciones.tsx` | N/A (complex realtime) | Full Supabase (pending) |
+| `taller/DiagnosticoInicial.tsx` | `incidentes.get`, `diagnosticos.search`, `fallas.list`, `causas.list` | Writes only |
+| `taller/WaterspiderEntrega.tsx` | `incidentes.get`, `clientes.get` | Updates only |
+| `taller/WaterspiderPendientes.tsx` | `incidentes.list`, `clientes.list` | Updates, solicitudes_repuestos |
+| `bodega/ConsultaCardex.tsx` | `repuestos.search` | movimientos_inventario queries |
 | `mostrador/Incidentes.tsx` | `incidentes.list` | Writes |
 | `mostrador/EntregaMaquinas.tsx` | `incidentes.list`, `clientes.list` | Updates |
 | `mostrador/ConsultaPrecios.tsx` | `clientes.list`, `productos.search` | `cotizaciones` insert |
 | `bodega/Solicitudes.tsx` | `solicitudes_repuestos.list` | Updates |
+| `bodega/InventarioNuevo.tsx` | `inventarios.list`, `centros_de_servicio.list` | Complex queries |
+| `taller/Asignaciones.tsx` | `familias_producto.list` | Complex incidente logic |
 
 ---
 
-## ❌ Páginas Pendientes (40)
+## ❌ Páginas Pendientes (31)
 
 ### Admin Module (11 - mostly placeholders)
 - `admin/AccesoriosFamilias.tsx` (placeholder)
@@ -77,17 +86,13 @@ Updated: Now
 - `admin/SustitutosRepuestos.tsx` (placeholder)
 - `admin/Usuarios.tsx`
 
-### Bodega Module (14)
-- `bodega/ConsultaCardex.tsx`
+### Bodega Module (10)
 - `bodega/DespachosDepartamentales.tsx`
-- `bodega/DocumentosPendientes.tsx`
-- `bodega/DocumentosUbicacion.tsx`
 - `bodega/GestionRelacionesRepuestos.tsx`
 - `bodega/GestionUbicaciones.tsx`
 - `bodega/Importacion.tsx`
 - `bodega/Inventario.tsx`
 - `bodega/InventarioCiclico.tsx`
-- `bodega/InventarioNuevo.tsx`
 - `bodega/ListadoPicking.tsx`
 - `bodega/RecepcionImportacion.tsx`
 - `bodega/ReubicacionRepuestos.tsx`
@@ -100,30 +105,20 @@ Updated: Now
 ### Gerencia Module (1)
 - `gerencia/AprobacionesGarantia.tsx`
 
-### Logística Module (2)
+### Logística Module (3)
 - `logistica/DanosTransporte.tsx`
 - `logistica/FaltanteAccesorios.tsx`
-- `logistica/GarantiasManuales.tsx` (complex - storage)
+- `logistica/GarantiasManuales.tsx`
 
 ### Mostrador Module (2)
 - `mostrador/DetalleEntrega.tsx`
 - `mostrador/SeguimientoIncidente.tsx`
 
-### SAC Module (0 - all migrated)
-
-### Taller Module (10)
-- `taller/AprobacionesStockCemaco.tsx`
-- `taller/AsignacionTecnicos.tsx`
-- `taller/Asignaciones.tsx`
+### Taller Module (6)
 - `taller/CambioGarantia.tsx`
 - `taller/DetallePendienteRepuesto.tsx`
 - `taller/PedidosBodegaCentral.tsx`
-- `taller/Reasignaciones.tsx`
 - `taller/RevisionStockCemaco.tsx`
-- `taller/Solicitudes.tsx`
-- `taller/Transferencias.tsx`
-- `taller/WaterspiderEntrega.tsx`
-- `taller/WaterspiderPendientes.tsx`
 
 ### Root Pages (4)
 - `ActualizarCodigos.tsx`

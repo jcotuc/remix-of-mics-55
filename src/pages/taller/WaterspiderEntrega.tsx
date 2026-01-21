@@ -11,11 +11,10 @@ import { toast } from "sonner";
 import { formatFechaLarga } from "@/utils/dateFormatters";
 import { format } from "date-fns";
 import { useAuth } from "@/contexts/AuthContext";
-import type { Database } from "@/integrations/supabase/types";
+import { apiBackendAction } from "@/lib/api-backend";
+import type { IncidenteSchema, ClienteSchema } from "@/generated/entities";
 
-type EstadoIncidente = Database['public']['Enums']['estadoincidente'];
-
-interface Incidente {
+interface IncidenteLocal {
   id: number;
   codigo: string;
   cliente_id: number;
@@ -24,6 +23,7 @@ interface Incidente {
   updated_at: string | null;
   descripcion_problema: string | null;
   observaciones: string | null;
+  estado: string;
   cliente?: {
     nombre: string;
     celular: string | null;
@@ -39,7 +39,7 @@ export default function WaterspiderEntrega() {
   
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [incidente, setIncidente] = useState<Incidente | null>(null);
+  const [incidente, setIncidente] = useState<IncidenteLocal | null>(null);
   const [observaciones, setObservaciones] = useState("");
 
   useEffect(() => {
@@ -47,15 +47,9 @@ export default function WaterspiderEntrega() {
       if (!incidenteId) return;
 
       try {
-        const { data: incData, error: incError } = await supabase
-          .from("incidentes")
-          .select(`
-            id, codigo, cliente_id, producto_id, quiere_envio, updated_at, descripcion_problema, observaciones, estado
-          `)
-          .eq("id", parseInt(incidenteId))
-          .single();
-
-        if (incError) throw incError;
+        // Use apiBackendAction for incidente
+        const incResult = await apiBackendAction("incidentes.get", { id: parseInt(incidenteId) });
+        const incData = incResult.result as IncidenteSchema | null;
         
         if (!incData) {
           toast.error("Incidente no encontrado");
@@ -63,25 +57,48 @@ export default function WaterspiderEntrega() {
           return;
         }
 
-        if ((incData as any).estado !== "EN_REPARACION" && (incData as any).estado !== "REPARADO") {
+        if (incData.estado !== "EN_REPARACION" && incData.estado !== "REPARADO") {
           toast.error("Este incidente no está en estado válido para entrega");
           navigate("/taller/waterspider");
           return;
         }
 
-        // Fetch cliente data separately
-        let clienteData = null;
-        if (incData.cliente_id) {
-          const { data: cliente } = await supabase
-            .from("clientes")
-            .select("nombre, celular, telefono_principal, direccion")
-            .eq("id", incData.cliente_id)
-            .single();
-          clienteData = cliente;
+        // Get cliente from nested object or separate fetch
+        let clienteData: { nombre: string; celular: string | null; telefono_principal: string | null; direccion: string | null } | null = null;
+        const incAny = incData as any;
+        const clienteId = incAny.cliente_id || incAny.cliente?.id;
+        
+        if (incAny.cliente) {
+          // Nested cliente from registry
+          clienteData = {
+            nombre: incAny.cliente.nombre || '',
+            celular: incAny.cliente.celular || null,
+            telefono_principal: incAny.cliente.telefono_principal || null,
+            direccion: incAny.cliente.direccion || null,
+          };
+        } else if (clienteId) {
+          const clienteResult = await apiBackendAction("clientes.get", { id: clienteId });
+          const cliente = clienteResult.result as ClienteSchema | null;
+          if (cliente) {
+            clienteData = {
+              nombre: cliente.nombre,
+              celular: cliente.celular || null,
+              telefono_principal: cliente.telefono_principal || null,
+              direccion: cliente.direccion || null,
+            };
+          }
         }
 
-        const formattedIncidente: Incidente = {
-          ...incData,
+        const formattedIncidente: IncidenteLocal = {
+          id: incData.id,
+          codigo: incData.codigo,
+          cliente_id: clienteId || 0,
+          producto_id: incAny.producto_id || incAny.producto?.id || null,
+          quiere_envio: incData.quiere_envio ?? null,
+          updated_at: incData.updated_at || null,
+          descripcion_problema: incData.descripcion_problema || null,
+          observaciones: incData.observaciones || null,
+          estado: incData.estado,
           cliente: clienteData,
         };
 
@@ -103,7 +120,7 @@ export default function WaterspiderEntrega() {
     setSubmitting(true);
     try {
       // Use valid enum values - EN_ENTREGA for logistics, COMPLETADO for counter pickup
-      const nuevoEstado: EstadoIncidente = incidente.quiere_envio 
+      const nuevoEstado = incidente.quiere_envio 
         ? "EN_ENTREGA" 
         : "COMPLETADO";
 
