@@ -234,22 +234,6 @@ const IncidentePrintSheet = forwardRef<HTMLDivElement, Props>(({ data }, ref) =>
           </div>
         </div>
 
-        {/* Firmas */}
-        <div className="p-2 border-t border-gray-300 bg-gray-50">
-          <p className="text-[8px] text-gray-500 mb-3">Autorizo el diagnóstico/reparación y acepto los términos y condiciones.</p>
-          <div className="flex justify-around">
-            <div className="text-center w-36">
-              <div className="border-b-2 border-black h-6 mb-0.5"></div>
-              <p className="text-[8px] font-bold">ENTREGA EQUIPO</p>
-              <p className="text-[7px] text-gray-500">Firma Cliente</p>
-            </div>
-            <div className="text-center w-36">
-              <div className="border-b-2 border-black h-6 mb-0.5"></div>
-              <p className="text-[8px] font-bold">RECIBE CONFORME</p>
-              <p className="text-[7px] text-gray-500">Firma Cliente (al recoger)</p>
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* Línea de corte */}
