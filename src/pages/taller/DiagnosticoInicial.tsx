@@ -209,6 +209,29 @@ export default function DiagnosticoInicial() {
       await cargarBorradorDiagnostico();
     };
     initDiagnostico();
+
+    // Real-time subscription para solicitudes de repuestos
+    const channel = supabase
+      .channel(`solicitudes-incidente-${id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "solicitudes_repuestos",
+          filter: `incidente_id=eq.${id}`,
+        },
+        (payload) => {
+          console.log("📡 Cambio en solicitud de repuestos:", payload);
+          // Refrescar las solicitudes cuando hay cambios
+          verificarSolicitudRepuestos();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [id]);
 
   // Cargar fallas y causas desde la base de datos
