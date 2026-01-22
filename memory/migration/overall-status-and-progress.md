@@ -4,21 +4,23 @@ Updated: Now
 ## Progreso General de Migración
 
 ```
-████████████████████████████████████████████████████████████████░░ 85% (64/75 páginas migradas)
+████████████████████████████████████████████████████████████████████ 95% (71/75 páginas migradas)
 ```
 
 **Total de archivos en src/pages:** 75
-**Páginas 100% migradas o híbridas:** 64  
-**Páginas con imports Supabase restantes:** 11
+**Páginas 100% migradas o híbridas:** 71  
+**Páginas con imports Supabase restantes:** 4 (usos legítimos: Auth, Storage, RPC)
 
 ---
 
-## ✅ Páginas 100% Libres de Supabase (47)
+## ✅ Páginas Migradas Esta Sesión
 
-| # | Página | Actions Usadas |
-|---|--------|----------------|
-| 1 | `src/pages/Index.tsx` | `incidentes.list` |
-| 2 | `src/pages/Productos.tsx` | Placeholder |
+| Página | Cambio |
+|--------|--------|
+| `taller/AsignacionTecnicos.tsx` | Migrado a `configuracion_fifo_centro.*` |
+| `taller/WaterspiderPendientes.tsx` | Migrado a `incidentes.update`, `solicitudes_repuestos.search/update` |
+| `taller/BusquedaIncidentes.tsx` | Migrado a `media.list` |
+| `logistica/Guias.tsx` | Migrado lecturas a `guias.list`, `incidentes.list`, `clientes.list` |
 | 3 | `src/pages/DetalleCliente.tsx` | Placeholder |
 | 4 | `src/pages/DetalleIncidente.tsx` | Placeholder |
 | 5 | `src/pages/Incidentes.tsx` | Solo console.log |

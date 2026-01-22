@@ -18,7 +18,6 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { formatFechaRelativa, formatLogEntry, formatFechaCorta } from "@/utils/dateFormatters";
 import { apiBackendAction } from "@/lib/api-backend";
@@ -200,39 +199,31 @@ export default function WaterspiderPendientes() {
     }
   };
 
-  // Fetch solicitudes despachadas (repuestos listos para recoger)
+  // Fetch solicitudes despachadas (repuestos listos para recoger) using apiBackendAction
   const fetchSolicitudesDespachadas = async () => {
     try {
-      // Fetch solicitudes first - use only columns that exist in the table
-      const { data: solicitudesData, error: solicitudesError } = await supabase
-        .from("solicitudes_repuestos")
-        .select("id, incidente_id, repuestos, estado, updated_at, solicitante_id")
-        .eq("estado", "DESPACHADO")
-        .order("updated_at", { ascending: true });
-
-      if (solicitudesError) throw solicitudesError;
-
-      // Get unique incidente_ids - cast to avoid TS2589
-      const rawData = (solicitudesData || []) as any[];
+      // Fetch solicitudes using apiBackendAction
+      const solicitudesResult = await apiBackendAction("solicitudes_repuestos.search", { estado: "DESPACHADO" });
+      const rawData = (solicitudesResult.results || []) as any[];
+      
+      // Get unique incidente_ids
       const incidenteIds = [...new Set(rawData.map(s => s.incidente_id as number))];
       
-      // Fetch incidentes data
+      // Fetch incidentes data using apiBackendAction
       let incidentesMap: Record<number, { codigo: string; producto_id: number | null }> = {};
       if (incidenteIds.length > 0) {
-        const { data: incidentesData } = await supabase
-          .from("incidentes")
-          .select("id, codigo, producto_id")
-          .in("id", incidenteIds);
-        
-        (incidentesData || []).forEach(inc => {
-          incidentesMap[inc.id] = { codigo: inc.codigo, producto_id: inc.producto_id };
+        const incidentesResult = await apiBackendAction("incidentes.list", { limit: 2000 });
+        (incidentesResult.results || []).forEach((inc: any) => {
+          if (incidenteIds.includes(inc.id)) {
+            incidentesMap[inc.id] = { codigo: inc.codigo, producto_id: inc.producto?.id || null };
+          }
         });
       }
 
       const formatted: SolicitudDespachada[] = rawData.map(s => ({
         id: s.id,
         incidente_id: s.incidente_id,
-        tecnico_solicitante: null, // Column doesn't exist, use null
+        tecnico_solicitante: null,
         repuestos: s.repuestos,
         estado: s.estado,
         updated_at: s.updated_at,
@@ -361,7 +352,7 @@ export default function WaterspiderPendientes() {
     setSelectedRepuestos(selectedRepuestos.size === solicitudesFiltradas.length ? new Set() : new Set(solicitudesFiltradas.map(i => i.id)));
   };
 
-  // Batch handlers
+  // Batch handlers using apiBackendAction
   const handleBatchDelivery = async () => {
     if (!confirmingType) return;
     
@@ -372,31 +363,26 @@ export default function WaterspiderPendientes() {
           ? Array.from(selectedMostrador) 
           : Array.from(selectedLogistica);
         
-        // Use valid enum values
         const nuevoEstado = confirmingType === "mostrador" ? "COMPLETADO" : "EN_ENTREGA";
         const destinoLabel = confirmingType === "mostrador" ? "Mostrador" : "Logística";
         
         const logEntry = formatLogEntry(`Waterspider: Entregado a ${destinoLabel}${observaciones ? ` - ${observaciones}` : ''}`);
         
         for (const incId of selectedIds) {
-          const { data: currentInc } = await supabase
-            .from("incidentes")
-            .select("observaciones")
-            .eq("id", incId)
-            .single();
-
-          const newObs = currentInc?.observaciones 
-            ? `${currentInc.observaciones}\n${logEntry}` 
-            : logEntry;
+          // Get current observaciones
+          const incResult = await apiBackendAction("incidentes.get", { id: incId });
+          const currentObs = incResult.result?.observaciones || "";
+          const newObs = currentObs ? `${currentObs}\n${logEntry}` : logEntry;
           
-          await supabase
-            .from("incidentes")
-            .update({ 
+          // Cast to any to allow full update - handler supports all fields
+          await (apiBackendAction as any)("incidentes.update", {
+            id: incId,
+            data: { 
               estado: nuevoEstado, 
               observaciones: newObs,
               updated_at: new Date().toISOString() 
-            })
-            .eq("id", incId);
+            }
+          });
         }
 
         toast.success(`${selectedIds.length} incidente(s) entregados a ${destinoLabel}`);
@@ -406,35 +392,29 @@ export default function WaterspiderPendientes() {
         const logEntry = formatLogEntry(`Waterspider: Máquina depurada/descartada${observaciones ? ` - ${observaciones}` : ''}`);
         
         for (const incId of selectedIds) {
-          const { data: currentInc } = await supabase
-            .from("incidentes")
-            .select("observaciones")
-            .eq("id", incId)
-            .single();
-
-          const newObs = currentInc?.observaciones 
-            ? `${currentInc.observaciones}\n${logEntry}` 
-            : logEntry;
+          const incResult = await apiBackendAction("incidentes.get", { id: incId });
+          const currentObs = incResult.result?.observaciones || "";
+          const newObs = currentObs ? `${currentObs}\n${logEntry}` : logEntry;
           
-          await supabase
-            .from("incidentes")
-            .update({ observaciones: newObs })
-            .eq("id", incId);
+          await apiBackendAction("incidentes.update", {
+            id: incId,
+            data: { observaciones: newObs }
+          });
         }
 
         toast.success(`${selectedIds.length} máquina(s) marcadas como depuradas`);
       } else if (confirmingType === "repuestos") {
         const selectedIds = Array.from(selectedRepuestos);
         
-        const { error } = await supabase
-          .from("solicitudes_repuestos")
-          .update({ 
-            estado: "EN_PROCESO",
-            updated_at: new Date().toISOString()
-          })
-          .in("id", selectedIds);
-
-        if (error) throw error;
+        for (const solId of selectedIds) {
+          await (apiBackendAction as any)("solicitudes_repuestos.update", {
+            id: solId,
+            data: { 
+              estado: "EN_PROCESO",
+              updated_at: new Date().toISOString()
+            }
+          });
+        }
 
         toast.success(`${selectedIds.length} solicitud(es) de repuestos recogidas`);
       }
