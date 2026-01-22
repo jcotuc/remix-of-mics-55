@@ -1,7 +1,6 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -14,6 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft, Save, Wrench, AlertCircle, CheckCircle2, Package } from "lucide-react";
 import { toast } from "sonner";
 import { apiBackendAction } from "@/lib/api-backend";
+import { useAuth } from "@/contexts/AuthContext";
 
 type TipoResolucion = "REPARAR_EN_GARANTIA" | "PRESUPUESTO" | "CANJE" | "NOTA_DE_CREDITO";
 type EstadoDiagnostico = "PENDIENTE" | "EN_PROGRESO" | "COMPLETADO";
@@ -59,6 +59,7 @@ export default function DiagnosticoInicial() {
   const { id } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const incidenteId = parseInt(id || "0");
 
   const [formData, setFormData] = useState<DiagnosticoFormData>({
@@ -150,8 +151,7 @@ export default function DiagnosticoInicial() {
   // Save mutation
   const saveMutation = useMutation({
     mutationFn: async () => {
-      // Get current user
-      const { data: { user } } = await supabase.auth.getUser();
+      // Get current user from auth context
       if (!user) throw new Error("No autenticado");
 
       // Get tecnico_id from usuarios via apiBackendAction

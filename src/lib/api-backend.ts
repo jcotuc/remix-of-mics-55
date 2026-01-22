@@ -156,9 +156,22 @@ const simpleHandlers: Record<string, ActionHandler<any>> = {
     if (error) throw error; 
     return { result: data }; 
   },
-  "diagnosticos.create": notImplemented("diagnosticos.create"),
-  "diagnosticos.update": notImplemented("diagnosticos.update"),
-  "diagnosticos.delete": notImplemented("diagnosticos.delete"),
+  "diagnosticos.create": async (input) => {
+    const { data, error } = await supabase.from("diagnosticos").insert(input as any).select().single();
+    if (error) throw error;
+    return { id: data.id, ...data };
+  },
+  "diagnosticos.update": async (input) => {
+    const { id, data: updateData } = input as any;
+    const { data, error } = await supabase.from("diagnosticos").update({ ...updateData, updated_at: new Date().toISOString() }).eq("id", id).select().single();
+    if (error) throw error;
+    return data;
+  },
+  "diagnosticos.delete": async (input) => {
+    const { error } = await supabase.from("diagnosticos").delete().eq("id", input.id);
+    if (error) throw error;
+    return { status: "deleted", id: input.id };
+  },
   "diagnosticos.search": async (input) => { 
     const { incidente_id, tecnico_id, search } = input as any;
     let query = supabase.from("diagnosticos").select("*");
