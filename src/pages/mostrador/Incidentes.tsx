@@ -262,7 +262,7 @@ export default function IncidentesMostrador() {
                       <TableHead>Código</TableHead>
                       <TableHead>Cliente</TableHead>
                       <TableHead>Producto</TableHead>
-                      <TableHead>Garantía</TableHead>
+                      <TableHead>Estado</TableHead>
                       <TableHead>Fecha Ingreso</TableHead>
                       <TableHead className="text-right">Acciones</TableHead>
                     </TableRow>
@@ -307,11 +307,7 @@ export default function IncidentesMostrador() {
                               <span className="text-sm">{getProductDisplayName(incidente)}</span>
                             </TableCell>
                             <TableCell>
-                              {incidente.aplica_garantia ? (
-                                <Badge className="bg-success text-success-foreground">Sí</Badge>
-                              ) : (
-                                <Badge variant="outline">No</Badge>
-                              )}
+                              <Badge variant="outline">{incidente.estado}</Badge>
                             </TableCell>
                             <TableCell>{incidente.created_at ? new Date(incidente.created_at).toLocaleDateString() : "-"}</TableCell>
                             <TableCell className="text-right">
