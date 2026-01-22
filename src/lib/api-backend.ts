@@ -112,10 +112,11 @@ const incidentesHandlers: Record<string, ActionHandler<any>> = {
     return { results };
   },
   "incidentes.get": async (input) => {
-    const { data, error } = await supabase.from("incidentes").select(`*, clientes:cliente_id (*), productos:producto_id (*), centros_de_servicio:centro_de_servicio_id (*)`).eq("id", input.id).maybeSingle();
+    const { data, error } = await supabase.from("incidentes").select(`*, clientes:cliente_id (*), productos:producto_id (*), centros_de_servicio:centro_de_servicio_id (*), propietarios:propietario_id (id, usuarios:usuario_id (id, nombre, email))`).eq("id", input.id).maybeSingle();
     if (error) throw error;
     if (!data) return { result: null };
-    return { result: { id: data.id, codigo: data.codigo, estado: data.estado, tipologia: data.tipologia, descripcion_problema: data.descripcion_problema, centro_de_servicio_id: data.centro_de_servicio_id, centro_de_servicio: data.centros_de_servicio, cliente: data.clientes, propietario: null, producto: data.productos, tracking_token: data.tracking_token, incidente_origen_id: data.incidente_origen_id, quiere_envio: data.quiere_envio, aplica_garantia: data.aplica_garantia, tipo_resolucion: data.tipo_resolucion, observaciones: data.observaciones, created_at: data.created_at, updated_at: data.updated_at } };
+    const propietario = (data as any).propietarios?.usuarios || null;
+    return { result: { id: data.id, codigo: data.codigo, estado: data.estado, tipologia: data.tipologia, descripcion_problema: data.descripcion_problema, centro_de_servicio_id: data.centro_de_servicio_id, centro_de_servicio: data.centros_de_servicio, cliente: data.clientes, propietario, producto: data.productos, tracking_token: data.tracking_token, incidente_origen_id: data.incidente_origen_id, quiere_envio: data.quiere_envio, aplica_garantia: data.aplica_garantia, tipo_resolucion: data.tipo_resolucion, observaciones: data.observaciones, created_at: data.created_at, updated_at: data.updated_at } };
   },
   "incidentes.create": async (input) => {
     const { data, error } = await supabase.from("incidentes").insert(input as any).select().single();
