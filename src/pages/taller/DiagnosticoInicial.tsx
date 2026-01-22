@@ -521,7 +521,7 @@ export default function DiagnosticoInicial() {
   };
   const fetchIncidente = async () => {
     try {
-      const { data, error } = await (supabase as any).from("incidentes").select("*").eq("id", Number(id)).single();
+      const { data, error } = await (supabase as any).from("incidentes").select("*, productos:producto_id(*)").eq("id", Number(id)).single();
       if (error) throw error;
       setIncidente(data);
 
@@ -531,10 +531,9 @@ export default function DiagnosticoInicial() {
         console.log("✅ Timestamp de inicio de diagnóstico registrado");
       }
 
-      // Obtener información del producto
-      if (data?.codigo_producto) {
-        const { result: producto } = await apiBackendAction("productos.getByCodigo", { codigo: data.codigo_producto });
-        if (producto) setProductoInfo(producto);
+      // Obtener información del producto desde la relación
+      if (data?.productos) {
+        setProductoInfo(data.productos);
       }
     } catch (error) {
       console.error("Error:", error);
