@@ -38,6 +38,7 @@ export default function MisAsignaciones() {
   const [notificaciones, setNotificaciones] = useState<NotificacionDB[]>([]);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
   const [codigoEmpleado, setCodigoEmpleado] = useState<string | null>(null);
 
   useEffect(() => {
@@ -46,9 +47,10 @@ export default function MisAsignaciones() {
       if (!user) return;
 
       setUserId(user.id);
+      setUserEmail(user.email || null);
 
       // Buscar usuario en tabla usuarios via apiBackendAction
-      const { results } = await apiBackendAction("usuarios.search", { auth_uid: user.id });
+      const { results } = await apiBackendAction("usuarios.search", { email: user.email });
       const usuario = results?.[0];
 
       if (usuario) {
@@ -93,7 +95,7 @@ export default function MisAsignaciones() {
     try {
       setLoading(true);
       // Buscar usuario_id numérico via apiBackendAction
-      const { results: usuarioResults } = await apiBackendAction("usuarios.search", { auth_uid: userId });
+      const { results: usuarioResults } = await apiBackendAction("usuarios.search", { email: userEmail });
       const usuario = usuarioResults?.[0] as { id: number } | undefined;
 
       if (!usuario) {
@@ -154,7 +156,7 @@ export default function MisAsignaciones() {
       if (!user) return;
 
       // Buscar usuario_id via apiBackendAction
-      const { results: usuarioResults } = await apiBackendAction("usuarios.search", { auth_uid: user.id });
+      const { results: usuarioResults } = await apiBackendAction("usuarios.search", { email: user.email });
       const usuario = usuarioResults?.[0] as { id: number } | undefined;
 
       if (!usuario) return;
@@ -261,7 +263,7 @@ export default function MisAsignaciones() {
     const fetchMetricas = async () => {
       try {
         // Buscar usuario_id via apiBackendAction
-        const { results: usuarioResults } = await apiBackendAction("usuarios.search", { auth_uid: userId });
+        const { results: usuarioResults } = await apiBackendAction("usuarios.search", { email: userEmail });
         const usuario = usuarioResults?.[0] as { id: number } | undefined;
 
         if (!usuario) return;

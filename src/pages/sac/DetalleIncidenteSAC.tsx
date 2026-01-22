@@ -47,7 +47,7 @@ export default function DetalleIncidenteSAC() {
       if (!user) return;
 
       // Get user profile via apiBackendAction
-      const { result: userProfile } = await apiBackendAction("usuarios.getByAuthUid", { auth_uid: user.id });
+      const { result: userProfile } = await apiBackendAction("usuarios.getByEmail", { email: user.email || "" });
 
       if (!userProfile) return;
 

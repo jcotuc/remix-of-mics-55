@@ -70,8 +70,8 @@ export default function Asignaciones() {
         // 2) Obtener centro de servicio del usuario
         let userProfile: any = null;
         try {
-          if (user?.id) {
-            const r = await apiBackendAction("usuarios.getByAuthUid", { auth_uid: user.id } as any);
+          if (user?.email) {
+            const r = await apiBackendAction("usuarios.getByEmail", { email: user.email });
             userProfile = (r as any)?.result ?? null;
           }
         } catch {

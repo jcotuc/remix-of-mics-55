@@ -717,18 +717,18 @@ const diagnosticoAsociacionesHandlers: Record<string, ActionHandler<any>> = {
 // =============================================================================
 const usuariosExtendedHandlers: Record<string, ActionHandler<any>> = {
   "usuarios.search": async (input) => {
-    const { search, rol, auth_uid } = input || {};
+    const { search, rol, email } = input || {};
     let query = (supabase as any).from("usuarios").select("*");
     if (search) query = query.or(`nombre.ilike.%${search}%,apellido.ilike.%${search}%,email.ilike.%${search}%`);
     if (rol) query = query.eq("rol", rol);
-    if (auth_uid) query = query.eq("auth_uid", auth_uid);
+    if (email) query = query.eq("email", email);
     const { data, error } = await query.order("nombre");
     if (error) throw error;
     return { results: data || [] };
   },
-  "usuarios.getByAuthUid": async (input) => {
-    const { auth_uid } = input;
-    const { data, error } = await (supabase as any).from("usuarios").select("*").eq("auth_uid", auth_uid).maybeSingle();
+  "usuarios.getByEmail": async (input) => {
+    const { email } = input;
+    const { data, error } = await (supabase as any).from("usuarios").select("*").eq("email", email).maybeSingle();
     if (error) throw error;
     return { result: data };
   },

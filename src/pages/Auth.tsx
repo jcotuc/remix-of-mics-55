@@ -66,9 +66,9 @@ export default function Auth() {
 
       // Verificar que el usuario exista/mapee en la tabla interna `usuarios`
       // (la app depende de centro_de_servicio_id, permisos, etc.)
-      if (data.user?.id) {
-        const { result: usuario } = await apiBackendAction("usuarios.getByAuthUid", {
-          auth_uid: data.user.id,
+      if (data.user?.email) {
+        const { result: usuario } = await apiBackendAction("usuarios.getByEmail", {
+          email: data.user.email,
         });
 
         if (!usuario) {

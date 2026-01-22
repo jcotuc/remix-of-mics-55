@@ -156,9 +156,9 @@ export default function CambioGarantia() {
   const handleConfirmarCambio = async () => {
     setSaving(true);
     try {
-      // Get current user via apiBackendAction
-      const { result: profile } = await apiBackendAction("usuarios.getByAuthUid", { 
-        auth_uid: "" // Will be resolved by handler using auth context
+      // Get current user via apiBackendAction - will use auth context for email
+      const { result: profile } = await apiBackendAction("usuarios.getByEmail", { 
+        email: "" // Will need to pass user email from context
       }).catch(() => ({ result: null }));
       
       // Create order to central warehouse

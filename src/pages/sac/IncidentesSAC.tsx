@@ -48,7 +48,7 @@ export default function IncidentesSAC() {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         // Get user profile via apiBackendAction
-        const { result: perfil } = await apiBackendAction("usuarios.getByAuthUid", { auth_uid: user.id });
+        const { result: perfil } = await apiBackendAction("usuarios.getByEmail", { email: user.email || "" });
         if (perfil) {
           setCurrentUserId((perfil as any).id);
         }
