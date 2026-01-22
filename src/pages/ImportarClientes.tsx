@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { supabase } from "@/integrations/supabase/client";
+import { apiBackendAction } from "@/lib/api-backend";
 import { showSuccess, showError } from "@/utils/toastHelpers";
 import * as XLSX from 'xlsx';
 import { Upload, CheckCircle2, Loader2 } from "lucide-react";
@@ -12,9 +12,7 @@ export default function ImportarClientes() {
   const [imported, setImported] = useState(0);
   const [autoImporting, setAutoImporting] = useState(false);
 
-
   useEffect(() => {
-    // Auto-importar archivos de SAP al cargar la página
     autoImportSAPClients();
   }, []);
 
@@ -60,11 +58,9 @@ export default function ImportarClientes() {
   };
 
   const processSAPCSV = async (csvText: string): Promise<number> => {
-    // Parsear CSV con delimitador ; (punto y coma)
     const lines = csvText.split('\n');
     if (lines.length < 2) return 0;
     
-    // Remover BOM si existe
     const firstLine = lines[0].replace(/^\uFEFF/, '');
     const headers = firstLine.split(';').map(h => h.trim());
     
@@ -86,7 +82,6 @@ export default function ImportarClientes() {
             row[header] = values[idx] || '';
           });
           
-          // Convertir "NULL" string a null real
           const getValue = (val: string) => {
             if (!val || val === 'NULL' || val === 'null') return null;
             return val;
@@ -100,7 +95,7 @@ export default function ImportarClientes() {
             nit: getValue(row['U_Nit']) || 'CF',
             telefono_principal: getValue(row['Phone1']),
             telefono_secundario: getValue(row['Phone2']),
-            celular: getValue(row['Phone1']) || 'Sin teléfono', // Usar Phone1 como celular o valor por defecto
+            celular: getValue(row['Phone1']) || 'Sin teléfono',
             correo: getValue(row['E_Mail']),
             direccion: getValue(row['Address']),
             direccion_envio: getValue(row['MailAddres']),
@@ -112,109 +107,27 @@ export default function ImportarClientes() {
         })
         .filter(c => c.codigo && c.nombre);
 
-      if (clientesData.length > 0) {
+      // Insert clients one by one via API
+      for (const cliente of clientesData) {
         try {
-          const { error } = await supabase
-            .from('clientes')
-            .upsert(clientesData, {
-              onConflict: 'codigo',
-              ignoreDuplicates: false
-            });
-          
-          if (!error) {
-            count += clientesData.length;
-            console.log(`✅ Batch ${Math.floor((i-1)/batchSize) + 1}: ${clientesData.length} clientes | Total: ${count}`);
+          await apiBackendAction("clientes.create", cliente);
+          count++;
+        } catch (e: any) {
+          // If duplicate, skip - client already exists
+          if (e?.message?.includes('duplicate') || e?.code === '23505') {
+            console.log(`Cliente ${cliente.codigo} ya existe, omitiendo...`);
+            count++; // Count as success since it already exists
           } else {
             errors++;
-            console.error(`❌ Error en batch:`, error.message);
-            
-            // Intentar insertar uno por uno si falla el batch
-            for (const cliente of clientesData) {
-              try {
-                await supabase
-                  .from('clientes')
-                  .upsert(cliente, { onConflict: 'codigo' });
-                count++;
-              } catch (e) {
-                console.error(`Error individual en cliente ${cliente.codigo}`);
-              }
-            }
           }
-        } catch (e) {
-          console.error(`Error general en batch:`, e);
-          errors++;
         }
       }
       
-      // Pequeña pausa para no saturar
+      console.log(`✅ Batch ${Math.floor((i-1)/batchSize) + 1}: ${clientesData.length} clientes | Total: ${count}`);
       await new Promise(resolve => setTimeout(resolve, 100));
     }
     
     console.log(`✨ Importación SAP completa: ${count} exitosos, ${errors} errores`);
-    return count;
-  };
-
-  const processExcelData = async (jsonData: any[]): Promise<number> => {
-    let count = 0;
-    let errors = 0;
-    const batchSize = 50; // Reducir tamaño del batch para mejor control
-    
-    console.log(`📊 Procesando ${jsonData.length} registros en total...`);
-    
-    for (let i = 0; i < jsonData.length; i += batchSize) {
-      const batch = jsonData.slice(i, i + batchSize);
-      const clientesData = batch
-        .map(row => ({
-          codigo: row['CardCode'] || '',
-          nombre: row['CardName'] || '',
-          nit: row['LicTradNum'] || 'CF',
-          celular: row['Cellular'] || row['Phone1'] || '',
-          direccion: row['Address'] || '',
-          correo: row['E_Mail'] || '',
-          telefono_principal: row['Phone1'] || '',
-        }))
-        .filter(c => c.codigo && c.nombre);
-
-      if (clientesData.length > 0) {
-        try {
-          const { data, error } = await supabase
-            .from('clientes')
-            .upsert(clientesData, {
-              onConflict: 'codigo',
-              ignoreDuplicates: false
-            })
-            .select();
-          
-          if (!error) {
-            count += clientesData.length;
-            console.log(`✅ Batch ${Math.floor(i/batchSize) + 1}: ${clientesData.length} clientes | Total: ${count}/${jsonData.length}`);
-          } else {
-            errors++;
-            console.error(`❌ Error en batch ${Math.floor(i/batchSize) + 1}:`, error.message);
-            
-            // Intentar insertar uno por uno si falla el batch
-            for (const cliente of clientesData) {
-              try {
-                await supabase
-                  .from('clientes')
-                  .upsert(cliente, { onConflict: 'codigo' });
-                count++;
-              } catch (e) {
-                console.error(`Error individual en cliente ${cliente.codigo}`);
-              }
-            }
-          }
-        } catch (e) {
-          console.error(`Error general en batch:`, e);
-          errors++;
-        }
-      }
-      
-      // Pequeña pausa para no saturar
-      await new Promise(resolve => setTimeout(resolve, 100));
-    }
-    
-    console.log(`✨ Importación completa: ${count} exitosos, ${errors} errores`);
     return count;
   };
 
@@ -228,7 +141,6 @@ export default function ImportarClientes() {
     try {
       let jsonData: any[] = [];
       
-      // Si es CSV, lo parseamos manualmente
       if (file.name.endsWith('.csv')) {
         const text = await file.text();
         const lines = text.split('\n');
@@ -245,7 +157,6 @@ export default function ImportarClientes() {
             return obj;
           });
       } else {
-        // Si es Excel
         const data = await file.arrayBuffer();
         const workbook = XLSX.read(data);
         const worksheet = workbook.Sheets[workbook.SheetNames[0]];
@@ -266,12 +177,11 @@ export default function ImportarClientes() {
           telefono_principal: row['Phone1'] || row['Telefono'] || row['TELEFONO'] || row['telefono'] || '',
         };
 
-        // Solo insertar si tiene código y nombre
         if (clienteData.codigo && clienteData.nombre) {
-          const { error } = await supabase.from('clientes').insert(clienteData);
-          if (!error) {
+          try {
+            await apiBackendAction("clientes.create", clienteData);
             count++;
-          } else {
+          } catch (error) {
             errors++;
             console.error('Error insertando cliente:', clienteData.codigo, error);
           }

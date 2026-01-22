@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,6 +7,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Wrench } from "lucide-react";
+// Note: Auth functionality is currently disabled (commented out)
+// When re-enabled, import supabase for auth operations only
 
 export default function Auth() {
   const navigate = useNavigate();
@@ -19,13 +20,8 @@ export default function Auth() {
   const [nombre, setNombre] = useState("");
   const [apellido, setApellido] = useState("");
 
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        navigate("/");
-      }
-    });
-  }, [navigate]);
+  // Note: Session check is disabled while auth is commented out
+  // When re-enabling, import supabase and check session
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

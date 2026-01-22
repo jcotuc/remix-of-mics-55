@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { apiBackendAction } from "@/lib/api-backend";
 import type { IncidenteSchema } from "@/generated/actions.d";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -54,15 +53,14 @@ export default function AprobacionesGarantia() {
 
   const fetchSolicitudes = async () => {
     try {
-      // Fetch incidentes via API, rest via Supabase (no handlers for these tables yet)
       const [solicitudesRes, incidentesRes, centrosSupervisorRes] = await Promise.all([
-        (supabase as any).from("solicitudes_cambio").select("*").order("created_at", { ascending: false }),
+        apiBackendAction("solicitudes_cambio.list", { limit: 500 }),
         apiBackendAction("incidentes.list", { limit: 2000 }),
-        supabase.from("centros_supervisor").select("centro_servicio_id, supervisor_id"),
+        apiBackendAction("centros_supervisor.list", {}),
       ]);
 
       const incidentes = incidentesRes.results || [];
-      const centrosSupervisor = centrosSupervisorRes.data || [];
+      const centrosSupervisor = centrosSupervisorRes.results || [];
       
       // Build incidentes map
       const iMap: Record<number, IncidenteSchema> = {};
@@ -74,12 +72,12 @@ export default function AprobacionesGarantia() {
       // Get supervisor's assigned centers
       const centroIds = user 
         ? centrosSupervisor
-            .filter((cs) => cs.supervisor_id === Number(user.id))
-            .map((cs) => cs.centro_servicio_id)
+            .filter((cs: any) => cs.supervisor_id === Number(user.id))
+            .map((cs: any) => cs.centro_servicio_id)
         : [];
 
       // Map solicitudes with incidente data
-      let solicitudesData = (solicitudesRes.data || []).map((s: any) => ({
+      let solicitudesData = ((solicitudesRes as any).results || []).map((s: any) => ({
         ...s,
         incidente: iMap[s.incidente_id] ? {
           id: iMap[s.incidente_id].id,
@@ -121,18 +119,16 @@ export default function AprobacionesGarantia() {
 
     setSubmitting(true);
     try {
-      // Update solicitud via Supabase
-      const { error: solError } = await (supabase as any)
-        .from("solicitudes_cambio")
-        .update({
+      // Update solicitud via API
+      await apiBackendAction("solicitudes_cambio.update", {
+        id: selectedSolicitud.id,
+        data: {
           estado: aprobado ? "aprobada" : "rechazada",
           aprobado_por: Number(user.id),
           fecha_aprobacion: new Date().toISOString(),
           observaciones_aprobacion: observaciones.trim() || null,
-        })
-        .eq("id", selectedSolicitud.id);
-
-      if (solError) throw solError;
+        }
+      });
 
       // Determine new incident status
       let nuevoEstado: string;
@@ -144,15 +140,18 @@ export default function AprobacionesGarantia() {
         nuevoEstado = "EN_DIAGNOSTICO";
       }
 
-      // Update incident status via Supabase
+      // Update incident status via API - use observaciones to log state change
       if (selectedSolicitud.incidente_id) {
-        await supabase
-          .from("incidentes")
-          .update({ 
-            estado: nuevoEstado as any,
-            updated_at: new Date().toISOString()
-          })
-          .eq("id", selectedSolicitud.incidente_id);
+        const existingIncidente = incidentesMap[selectedSolicitud.incidente_id];
+        const logEntry = `[${new Date().toISOString()}] Estado cambiado a ${nuevoEstado} por aprobación/rechazo de garantía`;
+        await apiBackendAction("incidentes.update", {
+          id: selectedSolicitud.incidente_id,
+          data: { 
+            observaciones: existingIncidente?.observaciones 
+              ? `${existingIncidente.observaciones}\n${logEntry}`
+              : logEntry
+          }
+        });
       }
 
       toast.success(
