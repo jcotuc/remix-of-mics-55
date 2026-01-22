@@ -91,25 +91,39 @@ export default function Asignaciones() {
       try {
         setLoadingConfig(true);
         const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
+        if (!user) {
+          console.warn('No hay usuario autenticado');
+          setLoadingConfig(false);
+          return;
+        }
 
         // Obtener centro de servicio del usuario via apiBackendAction
         const { result: userProfile } = await apiBackendAction("usuarios.getByAuthUid", { auth_uid: user.id });
+        console.log('Perfil de usuario:', userProfile);
 
         if (!(userProfile as any)?.centro_de_servicio_id) {
           console.warn('Usuario sin centro de servicio asignado');
           setLoadingConfig(false);
           return;
         }
-        setCentroServicioId((userProfile as any).centro_de_servicio_id);
+        
+        const userCentroId = (userProfile as any).centro_de_servicio_id;
+        console.log('Centro de servicio del usuario:', userCentroId);
+        setCentroServicioId(userCentroId);
 
-        // Cargar grupos activos para este centro via apiBackendAction
-        // Cast input as any since the generated types don't include centro_servicio_id filter
-        const { results: gruposData } = await apiBackendAction("grupos_cola_fifo.list", { 
-          centro_servicio_id: (userProfile as any).centro_de_servicio_id 
-        } as any);
-
-        const gruposActivos = (gruposData || []).filter((g: any) => g.activo);
+        // Cargar TODOS los grupos activos y filtrar por centro en el cliente
+        // (el filtro en servidor puede no estar funcionando)
+        const { results: allGruposData } = await apiBackendAction("grupos_cola_fifo.list", {});
+        console.log('Todos los grupos:', allGruposData);
+        
+        // Filtrar por centro de servicio del usuario
+        const gruposDelCentro = (allGruposData || []).filter(
+          (g: any) => g.centro_servicio_id === userCentroId
+        );
+        console.log('Grupos del centro:', gruposDelCentro);
+        
+        const gruposActivos = gruposDelCentro.filter((g: any) => g.activo);
+        console.log('Grupos activos:', gruposActivos);
 
         if (gruposActivos.length === 0) {
           setGrupos([]);
@@ -118,7 +132,6 @@ export default function Asignaciones() {
         }
 
         // Cargar familias de cada grupo via apiBackendAction
-        // Cast input as any since the generated types don't include grupo_id filter
         const familiasPromises = gruposActivos.map((g: any) => 
           apiBackendAction("grupos_cola_fifo_familias.list", { grupo_id: g.id } as any)
         );
@@ -126,6 +139,7 @@ export default function Asignaciones() {
         const allFamiliasGrupos = familiasResults.flatMap((r, i) => 
           (r.results || []).map((fg: any) => ({ ...fg, grupo_id: gruposActivos[i].id }))
         );
+        console.log('Familias de grupos:', allFamiliasGrupos);
 
         // Construir grupos con sus familias
         const gruposConFamilias: GrupoColaFifo[] = gruposActivos.map((grupo: any) => ({
@@ -136,6 +150,7 @@ export default function Asignaciones() {
           color: grupo.color,
           familias: allFamiliasGrupos.filter((fg: any) => fg.grupo_id === grupo.id).map((fg: any) => fg.familia_abuelo_id) || []
         }));
+        console.log('Grupos con familias:', gruposConFamilias);
         setGrupos(gruposConFamilias);
       } catch (error) {
         console.error('Error cargando configuración:', error);
