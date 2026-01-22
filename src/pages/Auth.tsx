@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { Wrench } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { apiBackendAction } from "@/lib/api-backend";
+import { isDevBypassEnabled } from "@/config/devBypassAuth";
 
 export default function Auth() {
   const navigate = useNavigate();
@@ -22,19 +23,12 @@ export default function Auth() {
 
   useEffect(() => {
     let mounted = true;
-    const autoLogin = async () => {
-      if (!mounted) return;
-      
-      // Auto-login para desarrollo
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: "jcotuc@hpc.com.gt",
-        password: "123456",
-      });
-      
-      if (!error && data.session) {
-        navigate("/");
-      }
-    };
+    if (isDevBypassEnabled()) {
+      navigate("/");
+      return () => {
+        mounted = false;
+      };
+    }
     
     supabase.auth.getSession().then(async ({ data, error }) => {
       if (!mounted) return;
@@ -43,8 +37,6 @@ export default function Auth() {
       }
       if (data.session) {
         navigate("/");
-      } else {
-        autoLogin();
       }
     });
     
