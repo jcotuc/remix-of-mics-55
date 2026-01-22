@@ -1034,95 +1034,135 @@ export default function DiagnosticoInicial() {
     }
     setSaving(true);
     try {
-      // Subir fotos si hay
-      let fotosUrls: string[] = [];
-      if (fotos.length > 0) {
-        fotosUrls = await Promise.all(
-          fotos.map(async (foto) => {
-            const fileName = `${id}/diagnostico/${Date.now()}-${foto.name}`;
-            const { data, error } = await supabase.storage.from("incident-photos").upload(fileName, foto);
-            if (error) throw error;
-            const {
-              data: { publicUrl },
-            } = supabase.storage.from("incident-photos").getPublicUrl(fileName);
-            return publicUrl;
-          }),
-        );
-      }
-      const diagnosticoData = {
-        incidente_id: Number(id),
-        tecnico_codigo: incidente.codigo_tecnico || "TEMP",
-        fallas,
-        causas,
-        recomendaciones: observaciones,
-        fotos_urls: fotosUrls,
-        resolucion: JSON.stringify({
-          aplicaGarantia,
-          tipoResolucion,
-          tipoTrabajo,
-          productoAlternativo: productoSeleccionado
-            ? {
-                codigo: productoSeleccionado.codigo,
-                descripcion: productoSeleccionado.descripcion,
-                precio: clienteEsFerretero 
-                  ? productoSeleccionado.precio_con_descuento 
-                  : (tipoPrecioCanje === "cliente" ? productoSeleccionado.precio_cliente : productoSeleccionado.precio_minimo),
-              }
-            : null,
-          tipoPrecioCanje,
-        }),
-        estado: "finalizado",
-        fecha_fin_diagnostico: new Date().toISOString(),
+      if (!id) throw new Error("Incidente inválido");
+      if (!user?.email) throw new Error("Sesión inválida: falta email");
+
+      const mapTipoResolucionToEnum = (value: string) => {
+        switch (value) {
+          case "Reparar en Garantía":
+            return "REPARAR_EN_GARANTIA";
+          case "Presupuesto":
+            return "PRESUPUESTO";
+          case "Canje":
+            return "CANJE";
+          case "Nota de Crédito":
+            return "NOTA_DE_CREDITO";
+          // En BD no existe este enum; lo mapeamos al más cercano
+          case "Cambio por Garantía":
+            return "CANJE";
+          default:
+            return null;
+        }
       };
 
-      // Actualizar o crear diagnóstico final
-      const { data: existingDraft } = await (supabase as any)
+      const tipoResolucionEnum = mapTipoResolucionToEnum(tipoResolucion);
+
+      // Obtener técnico (id numérico)
+      const { result: usuarioResult } = await apiBackendAction("usuarios.getByEmail", { email: user.email });
+      const usuario = usuarioResult as { id: number } | null;
+      if (!usuario?.id) throw new Error("No se encontró el perfil del técnico");
+
+      // Guardar diagnóstico en columnas reales del esquema
+      const diagnosticoData: any = {
+        incidente_id: Number(id),
+        tecnico_id: usuario.id,
+        recomendaciones: observaciones,
+        es_reparable: esReparable,
+        aplica_garantia: aplicaGarantia,
+        tipo_resolucion: tipoResolucionEnum,
+        tipo_trabajo: tipoTrabajo,
+        producto_alternativo_id: productoSeleccionado?.id ?? null,
+        estado: "COMPLETADO",
+      };
+
+      const { data: existingDiag, error: existingDiagError } = await (supabase as any)
         .from("diagnosticos")
         .select("id")
         .eq("incidente_id", Number(id))
         .maybeSingle();
-      if (existingDraft) {
-        await (supabase as any).from("diagnosticos").update(diagnosticoData).eq("id", existingDraft.id);
+      if (existingDiagError) throw existingDiagError;
+
+      let diagnosticoId: number;
+      if (existingDiag?.id) {
+        const { error } = await (supabase as any)
+          .from("diagnosticos")
+          .update(diagnosticoData)
+          .eq("id", existingDiag.id);
+        if (error) throw error;
+        diagnosticoId = existingDiag.id;
       } else {
-        await (supabase as any).from("diagnosticos").insert(diagnosticoData);
+        const { data, error } = await (supabase as any)
+          .from("diagnosticos")
+          .insert(diagnosticoData)
+          .select("id")
+          .single();
+        if (error) throw error;
+        diagnosticoId = data.id;
+      }
+
+      // Guardar fallas/causas seleccionadas (best-effort)
+      try {
+        const fallaIds = fallas
+          .map((nombre) => fallasDB.find((f) => f.nombre === nombre)?.id)
+          .filter((v): v is number => typeof v === "number");
+        const causaIds = causas
+          .map((nombre) => causasDB.find((c) => c.nombre === nombre)?.id)
+          .filter((v): v is number => typeof v === "number");
+
+        await (supabase as any).from("diagnostico_fallas").delete().eq("diagnostico_id", diagnosticoId);
+        if (fallaIds.length > 0) {
+          const { error } = await (supabase as any)
+            .from("diagnostico_fallas")
+            .insert(fallaIds.map((falla_id) => ({ diagnostico_id: diagnosticoId, falla_id })));
+          if (error) throw error;
+        }
+
+        await (supabase as any).from("diagnostico_causas").delete().eq("diagnostico_id", diagnosticoId);
+        if (causaIds.length > 0) {
+          const { error } = await (supabase as any)
+            .from("diagnostico_causas")
+            .insert(causaIds.map((causa_id) => ({ diagnostico_id: diagnosticoId, causa_id })));
+          if (error) throw error;
+        }
+      } catch (e) {
+        console.warn("No se pudieron guardar fallas/causas (se guardó el diagnóstico):", e);
       }
 
       // Actualizar el incidente - cambiar estado según el tipo de resolución
-      type EstadoIncidente = 
+      type EstadoIncidente =
         | "REGISTRADO"
-        | "EN_DIAGNOSTICO" 
-        | "PENDIENTE_REPUESTOS"
+        | "EN_DIAGNOSTICO"
         | "EN_REPARACION"
+        | "ESPERA_REPUESTOS"
+        | "ESPERA_APROBACION"
         | "REPARADO"
-        | "LISTO_ENTREGA"
+        | "EN_ENTREGA"
         | "ENTREGADO"
         | "CERRADO"
-        | "CANCELADO";
-      
-      let nuevoEstado: EstadoIncidente = "REPARADO";
+        | "CANCELADO"
+        | "NOTA_DE_CREDITO"
+        | "CAMBIO_POR_GARANTIA"
+        | "RECHAZADO"
+        | "COMPLETADO";
 
-      // Determinar el siguiente estado basado en el tipo de resolución
+      let nuevoEstado: EstadoIncidente = "EN_REPARACION";
+
       if (tipoResolucion === "Presupuesto") {
-        nuevoEstado = "EN_REPARACION";
+        nuevoEstado = "ESPERA_APROBACION";
       } else if (tipoResolucion === "Cambio por Garantía") {
-        nuevoEstado = "LISTO_ENTREGA";
+        nuevoEstado = "CAMBIO_POR_GARANTIA";
       } else if (tipoResolucion === "Nota de Crédito") {
-        nuevoEstado = "EN_REPARACION";
+        nuevoEstado = "NOTA_DE_CREDITO";
       } else if (tipoResolucion === "Reparar en Garantía") {
-        nuevoEstado = "REPARADO";
+        nuevoEstado = necesitaRepuestos ? "ESPERA_REPUESTOS" : "EN_REPARACION";
       } else if (tipoResolucion === "Canje") {
-        nuevoEstado = "EN_REPARACION";
+        nuevoEstado = "ESPERA_APROBACION";
       }
-      
+
       const updateData: any = {
         estado: nuevoEstado,
         aplica_garantia: aplicaGarantia,
-        tipo_resolucion: tipoResolucion === "Reparar en Garantía" ? "REPARACION" 
-          : tipoResolucion === "Cambio por Garantía" ? "CAMBIO"
-          : tipoResolucion === "Nota de Crédito" ? "NOTA_CREDITO"
-          : tipoResolucion === "Canje" ? "CANJE"
-          : tipoResolucion === "Presupuesto" ? "PRESUPUESTO"
-          : null,
+        tipo_resolucion: tipoResolucionEnum,
       };
 
       const { error: incidenteError } = await (supabase as any).from("incidentes").update(updateData).eq("id", Number(id));
@@ -1177,9 +1217,9 @@ export default function DiagnosticoInicial() {
       toast.success("Diagnóstico finalizado exitosamente");
       setShowTipoTrabajoDialog(false);
       navigate("/taller/mis-asignaciones");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error:", error);
-      toast.error("Error al finalizar el diagnóstico");
+      toast.error(error?.message ? `Error al finalizar el diagnóstico: ${error.message}` : "Error al finalizar el diagnóstico");
     } finally {
       setSaving(false);
     }
