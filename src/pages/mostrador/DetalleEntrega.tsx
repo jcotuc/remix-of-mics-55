@@ -663,22 +663,22 @@ export default function DetalleEntrega() {
 
                     {/* Códigos QR */}
                     <div className="mt-4 pt-3 border-t-2 border-dashed border-gray-300">
-                      <div className="flex justify-around items-center">
-                        <div className="text-center">
+                      <div className="flex justify-around items-start">
+                        <div className="flex flex-col items-center">
                           <QRCodeSVG 
                             value={`${window.location.origin}/incidente/${incidente.id}/fotos`}
                             size={80}
                             level="M"
                           />
-                          <p className="text-xs mt-1 font-medium text-gray-700">Fotos del Diagnóstico</p>
+                          <p className="text-xs mt-1 font-medium text-gray-700 text-center">Fotos del Diagnóstico</p>
                         </div>
-                        <div className="text-center">
+                        <div className="flex flex-col items-center">
                           <QRCodeSVG 
                             value={`${window.location.origin}/encuesta/${incidente.tracking_token}`}
                             size={80}
                             level="M"
                           />
-                          <p className="text-xs mt-1 font-medium text-gray-700">Encuesta de Satisfacción</p>
+                          <p className="text-xs mt-1 font-medium text-gray-700 text-center">Encuesta de Satisfacción</p>
                         </div>
                       </div>
                     </div>
