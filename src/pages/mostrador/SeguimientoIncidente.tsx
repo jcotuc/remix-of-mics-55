@@ -22,6 +22,7 @@ import {
   UserCheck,
   MessageSquare,
   Truck,
+  ChevronDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -47,7 +48,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { DiagnosticoPrintSheet, type DiagnosticoPrintData } from "@/components/features/diagnostico";
 type IncidenteData = {
   id: number;
   codigo: string;
@@ -123,9 +130,13 @@ export default function SeguimientoIncidente() {
   const [editedProductCode, setEditedProductCode] = useState("");
   const [guiaSeleccionada, setGuiaSeleccionada] = useState<GuiaData | null>(null);
   const [showPrintPreview, setShowPrintPreview] = useState(false);
+  const [showDiagnosticoPrintPreview, setShowDiagnosticoPrintPreview] = useState(false);
   const [filtroEventos, setFiltroEventos] = useState("todos");
   const [ordenEventos, setOrdenEventos] = useState<"reciente" | "antiguo">("reciente");
+  const [diagnosticoData, setDiagnosticoData] = useState<any>(null);
+  const [accesoriosIncidente, setAccesoriosIncidente] = useState<string[]>([]);
   const printRef = useRef<HTMLDivElement>(null);
+  const diagnosticoPrintRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchData();
@@ -252,6 +263,49 @@ export default function SeguimientoIncidente() {
         fecha_guia: g.fecha_guia,
       }));
       setGuiasEnvio(guiasData);
+
+      // Save diagnostico data if exists (for print sheet)
+      const diagData = diagnosticosRes.data?.[0];
+      if (diagData) {
+        // Fetch fallas, causas and repuestos for the diagnostico
+        const [fallasRes, causasRes, repuestosRes] = await Promise.all([
+          supabase
+            .from("diagnostico_fallas")
+            .select("fallas:falla_id(nombre)")
+            .eq("diagnostico_id", diagData.id),
+          supabase
+            .from("diagnostico_causas")
+            .select("causas:causa_id(nombre)")
+            .eq("diagnostico_id", diagData.id),
+          supabase
+            .from("solicitudes_repuestos")
+            .select("*, repuestos:repuesto_id(codigo, descripcion)")
+            .eq("incidente_id", incidenteIdNum),
+        ]);
+
+        setDiagnosticoData({
+          ...diagData,
+          fallas: (fallasRes.data || []).map((f: any) => f.fallas?.nombre).filter(Boolean),
+          causas: (causasRes.data || []).map((c: any) => c.causas?.nombre).filter(Boolean),
+          repuestos: (repuestosRes.data || []).map((r: any) => ({
+            codigo: r.repuestos?.codigo || r.codigo_repuesto,
+            descripcion: r.repuestos?.descripcion || "Repuesto",
+            cantidad: r.cantidad || 1,
+            precioUnitario: r.precio_unitario || 0,
+          })),
+          tecnicoNombre: diagData.usuarios?.nombre || "Técnico",
+        });
+      }
+
+      // Fetch accesorios
+      const accesoriosRes = await supabase
+        .from("incidente_accesorios")
+        .select("accesorios:accesorio_id(nombre)")
+        .eq("incidente_id", incidenteIdNum);
+      
+      setAccesoriosIncidente(
+        (accesoriosRes.data || []).map((a: any) => a.accesorios?.nombre).filter(Boolean)
+      );
 
       // Build eventos from all sources
       const eventosBuilt: EventoHistorial[] = [];
@@ -436,6 +490,14 @@ export default function SeguimientoIncidente() {
     setShowPrintPreview(true);
   };
 
+  const handlePrintDiagnostico = () => {
+    if (!diagnosticoData) {
+      showError("No hay diagnóstico disponible para imprimir");
+      return;
+    }
+    setShowDiagnosticoPrintPreview(true);
+  };
+
   const handlePrintFromPreview = () => {
     if (printRef.current) {
       const printContent = printRef.current.innerHTML;
@@ -457,6 +519,71 @@ export default function SeguimientoIncidente() {
         printWindow.print();
       }
     }
+  };
+
+  const handlePrintDiagnosticoFromPreview = () => {
+    if (diagnosticoPrintRef.current) {
+      const printContent = diagnosticoPrintRef.current.innerHTML;
+      const printWindow = window.open("", "_blank");
+      if (printWindow) {
+        printWindow.document.write(`
+          <html>
+            <head>
+              <title>Hoja de Diagnóstico - ${incidente.codigo}</title>
+              <style>
+                body { font-family: Arial, sans-serif; padding: 20px; }
+                @media print { body { padding: 0; } }
+              </style>
+            </head>
+            <body>${printContent}</body>
+          </html>
+        `);
+        printWindow.document.close();
+        printWindow.print();
+      }
+    }
+  };
+
+  const getDiagnosticoPrintData = (): DiagnosticoPrintData | null => {
+    if (!diagnosticoData || !incidente || !cliente || !producto) return null;
+    
+    const tipoResolucionMap: Record<string, string> = {
+      REPARACION: "Reparar en Garantía",
+      CAMBIO: "Cambio por Garantía",
+      CANJE: "Canje",
+      PRESUPUESTO: "Presupuesto",
+      NOTA_CREDITO: "Nota de Crédito",
+    };
+
+    return {
+      codigo: incidente.codigo,
+      fechaIngreso: new Date(incidente.created_at || new Date()),
+      fechaDiagnostico: new Date(diagnosticoData.created_at || new Date()),
+      centroServicio: centroServicio?.nombre || "Centro de Servicio",
+      codigoCliente: cliente.codigo,
+      nombreCliente: cliente.nombre,
+      telefonoCliente: cliente.telefono_principal || cliente.celular || "",
+      direccionEnvio: cliente.direccion || undefined,
+      codigoProducto: producto.codigo,
+      descripcionProducto: producto.descripcion || "",
+      skuMaquina: producto.clave || producto.codigo,
+      accesorios: accesoriosIncidente,
+      fallas: diagnosticoData.fallas || [],
+      causas: diagnosticoData.causas || [],
+      recomendaciones: diagnosticoData.recomendaciones || "",
+      tecnicoNombre: diagnosticoData.tecnicoNombre || "Técnico",
+      tipoResolucion: tipoResolucionMap[diagnosticoData.tipo_resolucion] || diagnosticoData.tipo_resolucion || "Reparación",
+      aplicaGarantia: diagnosticoData.aplica_garantia || false,
+      tipoTrabajo: diagnosticoData.tipo_trabajo || undefined,
+      repuestos: diagnosticoData.repuestos || [],
+      costoManoObra: 20, // Consumibles fijo
+      costoEnvio: incidente.quiere_envio ? 50 : 0,
+      productoAlternativo: diagnosticoData.producto_alternativo_id ? {
+        codigo: "",
+        descripcion: "Producto alternativo",
+      } : undefined,
+      porcentajeDescuento: diagnosticoData.descuento_porcentaje || undefined,
+    };
   };
 
   const formatFechaLarga = (dateStr: string) => {
@@ -515,10 +642,27 @@ export default function SeguimientoIncidente() {
             </p>
           </div>
         </div>
-        <Button variant="outline" onClick={handlePrintIngreso} className="gap-2">
-          <Printer className="h-4 w-4" />
-          Imprimir Hoja de Ingreso
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" className="gap-2">
+              <Printer className="h-4 w-4" />
+              Imprimir
+              <ChevronDown className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={handlePrintIngreso}>
+              <FileText className="h-4 w-4 mr-2" />
+              Hoja de Ingreso
+            </DropdownMenuItem>
+            {diagnosticoData && (
+              <DropdownMenuItem onClick={handlePrintDiagnostico}>
+                <Wrench className="h-4 w-4 mr-2" />
+                Hoja de Diagnóstico
+              </DropdownMenuItem>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -849,6 +993,30 @@ export default function SeguimientoIncidente() {
               Cerrar
             </Button>
             <Button onClick={handlePrintFromPreview}>
+              <Printer className="h-4 w-4 mr-2" />
+              Imprimir
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Diagnostico Print Preview Dialog */}
+      <Dialog open={showDiagnosticoPrintPreview} onOpenChange={setShowDiagnosticoPrintPreview}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Vista Previa - Hoja de Diagnóstico</DialogTitle>
+            <DialogDescription>Diagnóstico técnico para el incidente {incidente.codigo}</DialogDescription>
+          </DialogHeader>
+          <div ref={diagnosticoPrintRef}>
+            {getDiagnosticoPrintData() && (
+              <DiagnosticoPrintSheet data={getDiagnosticoPrintData()!} />
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDiagnosticoPrintPreview(false)}>
+              Cerrar
+            </Button>
+            <Button onClick={handlePrintDiagnosticoFromPreview}>
               <Printer className="h-4 w-4 mr-2" />
               Imprimir
             </Button>
