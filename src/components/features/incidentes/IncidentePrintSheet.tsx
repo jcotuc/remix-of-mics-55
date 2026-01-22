@@ -113,21 +113,14 @@ const IncidentePrintSheet = forwardRef<HTMLDivElement, Props>(({ data }, ref) =>
           </div>
         </div>
 
-        {/* Badges de estado */}
-        <div className="flex gap-2 p-1.5 border-b border-gray-300 bg-white">
-          <span className={`px-2 py-0.5 rounded-full text-[8px] font-bold ${
-            data.coberturaGarantia 
-              ? 'bg-green-100 text-green-700 border border-green-300' 
-              : 'bg-gray-100 text-gray-600 border border-gray-300'
-          }`}>
-            {data.coberturaGarantia ? '✓ CON GARANTÍA' : 'SIN GARANTÍA'}
-          </span>
-          {data.esReingreso && (
+        {/* Badge de reingreso */}
+        {data.esReingreso && (
+          <div className="flex gap-2 p-1.5 border-b border-gray-300 bg-white">
             <span className="px-2 py-0.5 rounded-full text-[8px] font-bold bg-red-100 text-red-700 border border-red-300">
               ⚠ REINGRESO
             </span>
-          )}
-        </div>
+          </div>
+        )}
 
         {/* Problema reportado */}
         <div className="p-2 border-b border-gray-300">
