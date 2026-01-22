@@ -27,94 +27,92 @@ interface Props {
   data: IncidentePrintData;
 }
 
-// Estilos inline compactos para impresión en UNA sola página
+// Estilos inline para impresión
 const styles = {
   container: {
     backgroundColor: '#ffffff',
     color: '#000000',
-    padding: '8px',
+    padding: '12px',
     width: '100%',
     maxWidth: '8.5in',
     margin: '0 auto',
     fontFamily: 'Arial, Helvetica, sans-serif',
-    fontSize: '8px',
+    fontSize: '10px',
     boxSizing: 'border-box' as const,
   },
   section: {
-    border: '1.5px solid #000000',
-    borderRadius: '3px',
+    border: '2px solid #000000',
+    borderRadius: '4px',
     overflow: 'hidden',
-    marginBottom: '6px',
+    marginBottom: '12px',
   },
   headerOrange: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: '4px 6px',
-    backgroundColor: '#000000',
+    padding: '8px',
+    background: 'linear-gradient(to right, #f97316, #ea580c)',
     color: '#ffffff',
   },
   headerDark: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: '4px 6px',
-    backgroundColor: '#000000',
+    padding: '8px',
+    backgroundColor: '#111827',
     color: '#ffffff',
   },
   logo: {
-    width: '28px',
-    height: '28px',
+    width: '40px',
+    height: '40px',
     backgroundColor: '#ffffff',
-    borderRadius: '3px',
+    borderRadius: '4px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    border: '1px solid #000000',
   },
   logoText: {
-    color: '#000000',
+    color: '#f97316',
     fontWeight: 800,
-    fontSize: '10px',
+    fontSize: '14px',
   },
   grid4: {
     display: 'grid',
     gridTemplateColumns: 'repeat(4, 1fr)',
-    fontSize: '8px',
+    fontSize: '9px',
   },
   grid2: {
     display: 'grid',
     gridTemplateColumns: 'repeat(2, 1fr)',
-    fontSize: '8px',
+    fontSize: '9px',
   },
   cell: {
-    borderRight: '1px solid #000000',
-    borderBottom: '1px solid #000000',
-    padding: '3px 4px',
-    backgroundColor: '#ffffff',
+    borderRight: '1px solid #d1d5db',
+    borderBottom: '1px solid #d1d5db',
+    padding: '6px',
+    backgroundColor: '#f9fafb',
   },
   cellLast: {
-    borderBottom: '1px solid #000000',
-    padding: '3px 4px',
-    backgroundColor: '#ffffff',
+    borderBottom: '1px solid #d1d5db',
+    padding: '6px',
+    backgroundColor: '#f9fafb',
   },
   label: {
-    color: '#000000',
-    fontSize: '7px',
+    color: '#6b7280',
+    fontSize: '8px',
     textTransform: 'uppercase' as const,
-    marginBottom: '1px',
-    fontWeight: 600,
+    marginBottom: '2px',
   },
   value: {
     fontWeight: 600,
   },
   valueBold: {
     fontWeight: 700,
-    fontSize: '8px',
+    fontSize: '10px',
   },
   cutLine: {
-    borderTop: '1.5px dashed #000000',
-    margin: '4px 0',
+    borderTop: '2px dashed #9ca3af',
+    margin: '8px 0',
     position: 'relative' as const,
     textAlign: 'center' as const,
   },
@@ -122,17 +120,17 @@ const styles = {
     position: 'absolute' as const,
     left: '50%',
     transform: 'translateX(-50%)',
-    top: '-6px',
+    top: '-8px',
     backgroundColor: '#ffffff',
-    padding: '0 6px',
-    fontSize: '7px',
-    color: '#000000',
+    padding: '0 8px',
+    fontSize: '9px',
+    color: '#9ca3af',
   },
   barcode: {
     display: 'flex',
     alignItems: 'flex-end',
     justifyContent: 'center',
-    height: '28px',
+    height: '40px',
     gap: '1px',
   },
   barcodeBar: {
@@ -140,13 +138,13 @@ const styles = {
   },
 };
 
-// Componente de código de barras más visible para impresión
+// Componente de código de barras con estilos inline
 const CSSBarcode = ({ value }: { value: string }) => {
   const generatePattern = (str: string): number[] => {
     const pattern: number[] = [];
-    for (let i = 0; i < str.length * 4; i++) {
+    for (let i = 0; i < str.length * 3; i++) {
       const charCode = str.charCodeAt(i % str.length);
-      pattern.push((charCode + i) % 3 + 2);
+      pattern.push((charCode + i) % 4 + 1);
     }
     return pattern;
   };
@@ -154,21 +152,14 @@ const CSSBarcode = ({ value }: { value: string }) => {
   const pattern = generatePattern(value);
 
   return (
-    <div style={{ 
-      display: 'flex', 
-      alignItems: 'flex-end', 
-      justifyContent: 'center', 
-      height: '35px', 
-      gap: '1px',
-      padding: '4px 0'
-    }}>
+    <div style={styles.barcode}>
       {pattern.map((width, index) => (
         <div
           key={index}
           style={{
-            backgroundColor: '#000000',
+            ...styles.barcodeBar,
             width: `${width}px`,
-            height: `${22 + (index % 3) * 4}px`,
+            height: `${24 + (index % 3) * 4}px`,
           }}
         />
       ))}
@@ -176,28 +167,28 @@ const CSSBarcode = ({ value }: { value: string }) => {
   );
 };
 
-// Figuras para identificar máquinas por día de la semana (blanco y negro)
+// Figuras para identificar máquinas por día de la semana
 const DayShape = ({ date }: { date: Date }) => {
   const dayOfWeek = date.getDay();
   
-  const shapes: Record<number, { shape: React.ReactNode; label: string }> = {
-    0: { shape: <circle cx="12" cy="12" r="10" />, label: 'DOM' },
-    1: { shape: <rect x="2" y="2" width="20" height="20" />, label: 'LUN' },
-    2: { shape: <polygon points="12,2 22,22 2,22" />, label: 'MAR' },
-    3: { shape: <polygon points="12,2 22,12 12,22 2,12" />, label: 'MIÉ' },
-    4: { shape: <polygon points="12,2 20,8 18,18 6,18 4,8" />, label: 'JUE' },
-    5: { shape: <polygon points="12,2 24,10 20,24 4,24 0,10" />, label: 'VIE' },
-    6: { shape: <polygon points="12,0 15,8 24,9 17,15 19,24 12,19 5,24 7,15 0,9 9,8" />, label: 'SÁB' },
+  const shapes: Record<number, { shape: React.ReactNode; color: string; label: string }> = {
+    0: { shape: <circle cx="12" cy="12" r="10" />, color: '#DC2626', label: 'DOM' },
+    1: { shape: <rect x="2" y="2" width="20" height="20" />, color: '#2563EB', label: 'LUN' },
+    2: { shape: <polygon points="12,2 22,22 2,22" />, color: '#16A34A', label: 'MAR' },
+    3: { shape: <polygon points="12,2 22,12 12,22 2,12" />, color: '#9333EA', label: 'MIÉ' },
+    4: { shape: <polygon points="12,2 20,8 18,18 6,18 4,8" />, color: '#EA580C', label: 'JUE' },
+    5: { shape: <polygon points="12,2 24,10 20,24 4,24 0,10" />, color: '#0891B2', label: 'VIE' },
+    6: { shape: <polygon points="12,0 15,8 24,9 17,15 19,24 12,19 5,24 7,15 0,9 9,8" />, color: '#CA8A04', label: 'SÁB' },
   };
 
-  const { shape, label } = shapes[dayOfWeek];
+  const { shape, color, label } = shapes[dayOfWeek];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="#000000" stroke="#000000" strokeWidth="1">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill={color} stroke={color} strokeWidth="1">
         {shape}
       </svg>
-      <span style={{ fontSize: '6px', fontWeight: 700, marginTop: '1px', color: '#000000' }}>{label}</span>
+      <span style={{ fontSize: '7px', fontWeight: 700, marginTop: '2px', color }}>{label}</span>
     </div>
   );
 };
@@ -214,18 +205,18 @@ const IncidentePrintSheet = forwardRef<HTMLDivElement, Props>(({ data }, ref) =>
       <div style={styles.section}>
         {/* Header con gradiente */}
         <div style={styles.headerOrange}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <div style={styles.logo}>
               <span style={styles.logoText}>HPC</span>
             </div>
             <div>
-              <p style={{ fontWeight: 700, fontSize: '11px', lineHeight: 1.1, margin: 0 }}>Centro de Servicio</p>
-              <p style={{ fontSize: '8px', opacity: 0.9, margin: 0 }}>{data.centroServicio}</p>
+              <p style={{ fontWeight: 700, fontSize: '14px', lineHeight: 1.2, margin: 0 }}>Centro de Servicio</p>
+              <p style={{ fontSize: '10px', opacity: 0.9, margin: 0 }}>{data.centroServicio}</p>
             </div>
           </div>
           <div style={{ textAlign: 'right' }}>
-            <p style={{ fontWeight: 700, fontSize: '14px', lineHeight: 1, margin: 0 }}>{data.codigo}</p>
-            <p style={{ fontSize: '7px', opacity: 0.8, marginTop: '1px' }}>Copia Taller</p>
+            <p style={{ fontWeight: 700, fontSize: '18px', lineHeight: 1, margin: 0 }}>{data.codigo}</p>
+            <p style={{ fontSize: '9px', opacity: 0.8, marginTop: '2px' }}>Copia Taller</p>
           </div>
         </div>
 
@@ -260,26 +251,26 @@ const IncidentePrintSheet = forwardRef<HTMLDivElement, Props>(({ data }, ref) =>
           </div>
           <div style={styles.cellLast}>
             <p style={styles.label}>SKU Producto</p>
-            <p style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '8px' }}>{data.codigoProducto}</p>
+            <p style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '10px' }}>{data.codigoProducto}</p>
           </div>
         </div>
 
-        <div style={{ borderBottom: '1px solid #000000', padding: '3px 4px' }}>
+        <div style={{ borderBottom: '1px solid #d1d5db', padding: '6px' }}>
           <p style={styles.label}>Descripción Producto</p>
           <p style={styles.value}>{data.descripcionProducto}</p>
         </div>
 
         {/* Badge de reingreso */}
         {data.esReingreso && (
-          <div style={{ padding: '3px 4px', borderBottom: '1px solid #000000', backgroundColor: '#ffffff' }}>
+          <div style={{ padding: '6px', borderBottom: '1px solid #d1d5db', backgroundColor: '#ffffff' }}>
             <span style={{ 
-              padding: '1px 6px', 
+              padding: '2px 8px', 
               borderRadius: '9999px', 
-              fontSize: '7px', 
+              fontSize: '8px', 
               fontWeight: 700, 
-              backgroundColor: '#ffffff', 
-              color: '#000000',
-              border: '1.5px solid #000000'
+              backgroundColor: '#fee2e2', 
+              color: '#b91c1c',
+              border: '1px solid #fca5a5'
             }}>
               ⚠ REINGRESO
             </span>
@@ -287,36 +278,34 @@ const IncidentePrintSheet = forwardRef<HTMLDivElement, Props>(({ data }, ref) =>
         )}
 
         {/* Problema reportado */}
-        <div style={{ padding: '4px', borderBottom: '1px solid #000000' }}>
-          <p style={{ ...styles.label, fontWeight: 700, marginBottom: '2px' }}>Problema Reportado</p>
+        <div style={{ padding: '8px', borderBottom: '1px solid #d1d5db' }}>
+          <p style={{ ...styles.label, fontWeight: 700, marginBottom: '4px' }}>Problema Reportado</p>
           <p style={{ 
-            fontSize: '8px', 
-            lineHeight: 1.2, 
-            backgroundColor: '#ffffff', 
-            padding: '3px', 
-            borderRadius: '2px',
-            border: '1px solid #000000',
-            maxHeight: '28px',
-            overflow: 'hidden'
+            fontSize: '10px', 
+            lineHeight: 1.3, 
+            backgroundColor: '#f9fafb', 
+            padding: '6px', 
+            borderRadius: '4px',
+            border: '1px solid #e5e7eb'
           }}>{data.descripcionProblema}</p>
         </div>
 
         {/* Footer con accesorios e ingresado por */}
         <div style={styles.grid2}>
-          <div style={{ borderRight: '1px solid #000000', padding: '3px 4px' }}>
+          <div style={{ borderRight: '1px solid #d1d5db', padding: '6px' }}>
             <p style={{ ...styles.label, fontWeight: 700 }}>Accesorios</p>
-            <p style={{ marginTop: '1px', fontSize: '7px' }}>{data.accesorios || 'Ninguno especificado'}</p>
+            <p style={{ marginTop: '2px' }}>{data.accesorios || 'Ninguno especificado'}</p>
           </div>
-          <div style={{ padding: '3px 4px' }}>
+          <div style={{ padding: '6px' }}>
             <p style={{ ...styles.label, fontWeight: 700 }}>Ingresado Por</p>
-            <p style={{ marginTop: '1px' }}>{data.personaDejaMaquina || 'N/A'}</p>
+            <p style={{ marginTop: '2px' }}>{data.personaDejaMaquina || 'N/A'}</p>
           </div>
         </div>
       </div>
 
       {/* Línea de corte */}
       <div style={styles.cutLine}>
-        <span style={styles.cutText}>✂ CORTAR</span>
+        <span style={styles.cutText}>✂ CORTAR AQUÍ</span>
       </div>
 
       {/* ═══════════════════════════════════════════════════════════════ */}
@@ -325,97 +314,107 @@ const IncidentePrintSheet = forwardRef<HTMLDivElement, Props>(({ data }, ref) =>
       <div style={styles.section}>
         {/* Header oscuro */}
         <div style={styles.headerDark}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <div style={{ ...styles.logo, backgroundColor: '#ffffff', width: '24px', height: '24px' }}>
-              <span style={{ color: '#000000', fontWeight: 800, fontSize: '8px' }}>HPC</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ ...styles.logo, backgroundColor: '#f97316', width: '32px', height: '32px' }}>
+              <span style={{ color: '#ffffff', fontWeight: 800, fontSize: '10px' }}>HPC</span>
             </div>
             <div>
-              <p style={{ fontWeight: 700, fontSize: '10px', margin: 0 }}>CONTRASEÑA DE SERVICIO</p>
-              <p style={{ fontSize: '7px', color: '#ffffff', margin: 0 }}>Conserve este documento</p>
+              <p style={{ fontWeight: 700, fontSize: '12px', margin: 0 }}>CONTRASEÑA DE SERVICIO</p>
+              <p style={{ fontSize: '9px', color: '#9ca3af', margin: 0 }}>Conserve este documento</p>
             </div>
           </div>
           <div style={{ textAlign: 'right' }}>
-            <p style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '12px', margin: 0 }}>{data.codigo}</p>
+            <p style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '16px', margin: 0 }}>{data.codigo}</p>
           </div>
         </div>
         
         {/* Info del centro */}
         <div style={{ 
-          padding: '3px 6px', 
-          borderBottom: '1px solid #000000', 
-          backgroundColor: '#ffffff', 
-          fontSize: '7px',
+          padding: '8px', 
+          borderBottom: '1px solid #d1d5db', 
+          backgroundColor: '#f9fafb', 
+          fontSize: '9px',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center'
         }}>
           <div>
             <span style={{ fontWeight: 700 }}>{data.centroServicio}</span>
-            <span style={{ margin: '0 4px', color: '#000000' }}>|</span>
+            <span style={{ margin: '0 8px', color: '#9ca3af' }}>|</span>
             <span>27 Calle 41-55 Zona 5, Guatemala</span>
           </div>
           <div style={{ textAlign: 'right' }}>
             <span style={{ fontWeight: 700 }}>Tel: 2499-5000</span>
+            <span style={{ margin: '0 8px', color: '#9ca3af' }}>|</span>
+            <span>L-V 8AM-5PM, S 8AM-12PM</span>
           </div>
         </div>
 
         {/* Datos del cliente y producto en 2 columnas */}
         <div style={styles.grid2}>
-          <div style={{ borderRight: '1px solid #000000', borderBottom: '1px solid #000000', padding: '4px' }}>
-            <p style={{ ...styles.label, marginBottom: '2px' }}>Datos del Cliente</p>
-            <div style={{ lineHeight: 1.3, fontSize: '7px' }}>
-              <p style={{ margin: '1px 0' }}><span style={{ fontWeight: 600 }}>Código:</span> <span style={{ fontWeight: 700 }}>{data.codigoCliente}</span></p>
-              <p style={{ margin: '1px 0' }}><span style={{ fontWeight: 600 }}>Nombre:</span> <span style={{ fontWeight: 600 }}>{data.nombreCliente}</span></p>
+          <div style={{ borderRight: '1px solid #d1d5db', borderBottom: '1px solid #d1d5db', padding: '8px' }}>
+            <p style={{ ...styles.label, marginBottom: '4px' }}>Datos del Cliente</p>
+            <div style={{ lineHeight: 1.5 }}>
+              <p style={{ margin: '2px 0' }}><span style={{ color: '#6b7280' }}>Código:</span> <span style={{ fontWeight: 700 }}>{data.codigoCliente}</span></p>
+              <p style={{ margin: '2px 0' }}><span style={{ color: '#6b7280' }}>Nombre:</span> <span style={{ fontWeight: 600 }}>{data.nombreCliente}</span></p>
               {data.telefonoCliente && (
-                <p style={{ margin: '1px 0' }}><span style={{ fontWeight: 600 }}>Tel:</span> {data.telefonoCliente}</p>
+                <p style={{ margin: '2px 0' }}><span style={{ color: '#6b7280' }}>Tel:</span> {data.telefonoCliente}</p>
+              )}
+              {data.direccionCliente && (
+                <p style={{ margin: '2px 0' }}><span style={{ color: '#6b7280' }}>Dir:</span> {data.direccionCliente}</p>
               )}
             </div>
           </div>
-          <div style={{ borderBottom: '1px solid #000000', padding: '4px' }}>
-            <p style={{ ...styles.label, marginBottom: '2px' }}>Datos del Equipo</p>
-            <div style={{ lineHeight: 1.3, fontSize: '7px' }}>
-              <p style={{ margin: '1px 0' }}><span style={{ fontWeight: 600 }}>SKU:</span> <span style={{ fontFamily: 'monospace', fontWeight: 700 }}>{data.codigoProducto}</span></p>
-              <p style={{ margin: '1px 0' }}><span style={{ fontWeight: 600 }}>Ingreso:</span> <span style={{ fontWeight: 700 }}>{fechaFormateada} {horaFormateada}</span></p>
-              <p style={{ margin: '1px 0' }}><span style={{ fontWeight: 600 }}>Accesorios:</span> {data.accesorios || 'Ninguno'}</p>
+          <div style={{ borderBottom: '1px solid #d1d5db', padding: '8px' }}>
+            <p style={{ ...styles.label, marginBottom: '4px' }}>Datos del Equipo</p>
+            <div style={{ lineHeight: 1.5 }}>
+              <p style={{ margin: '2px 0' }}><span style={{ color: '#6b7280' }}>SKU:</span> <span style={{ fontFamily: 'monospace', fontWeight: 700 }}>{data.codigoProducto}</span></p>
+              <p style={{ margin: '2px 0' }}><span style={{ color: '#6b7280' }}>Desc:</span> {data.descripcionProducto}</p>
+              <p style={{ margin: '2px 0' }}><span style={{ color: '#6b7280' }}>Ingreso:</span> <span style={{ fontWeight: 700 }}>{fechaFormateada} {horaFormateada}</span></p>
+              <p style={{ margin: '2px 0' }}><span style={{ color: '#6b7280' }}>Accesorios:</span> {data.accesorios || 'Ninguno'}</p>
             </div>
           </div>
         </div>
 
         {/* Código de barras */}
-        <div style={{ padding: '4px', borderBottom: '1px solid #000000', backgroundColor: '#ffffff', textAlign: 'center' }}>
+        <div style={{ padding: '8px', borderBottom: '1px solid #d1d5db', backgroundColor: '#ffffff', textAlign: 'center' }}>
           <CSSBarcode value={data.codigo} />
-          <p style={{ textAlign: 'center', fontSize: '8px', color: '#000000', marginTop: '2px', fontFamily: 'monospace', fontWeight: 700 }}>{data.codigo}</p>
+          <p style={{ textAlign: 'center', fontSize: '8px', color: '#6b7280', marginTop: '2px', fontFamily: 'monospace' }}>{data.codigo}</p>
         </div>
 
-        {/* Políticas compactas */}
-        <div style={{ padding: '4px', fontSize: '6px', lineHeight: 1.2 }}>
-          <p style={{ fontWeight: 700, fontSize: '7px', marginBottom: '2px', color: '#000000' }}>TÉRMINOS Y CONDICIONES</p>
-          <div style={{ color: '#000000', columnCount: 2, columnGap: '8px' }}>
-            <p style={{ marginBottom: '1px' }}>• Después de 30 días sin recoger, HPC puede disponer del equipo.</p>
-            <p style={{ marginBottom: '1px' }}>• Se requiere esta contraseña para recoger la herramienta.</p>
-            <p style={{ marginBottom: '1px' }}>• Garantía en mano de obra por 30 días.</p>
-            <p style={{ marginBottom: '1px' }}>• No cubre daños por mal uso o accidentes.</p>
+        {/* Políticas */}
+        <div style={{ padding: '8px', fontSize: '8px', lineHeight: 1.3 }}>
+          <p style={{ fontWeight: 700, fontSize: '9px', marginBottom: '4px', color: '#374151' }}>TÉRMINOS Y CONDICIONES</p>
+          <div style={{ color: '#4b5563', columnCount: 2, columnGap: '12px' }}>
+            <p style={{ marginBottom: '2px' }}>• Después de 30 días sin recoger, HPC puede disponer del equipo.</p>
+            <p style={{ marginBottom: '2px' }}>• Se requiere esta contraseña para recoger la herramienta.</p>
+            <p style={{ marginBottom: '2px' }}>• Garantía en mano de obra por 30 días sobre el problema reportado.</p>
+            <p style={{ marginBottom: '2px' }}>• No cubre daños por mal uso, accidentes o variaciones de voltaje.</p>
+            <p style={{ marginBottom: '2px' }}>• Presupuestos vigentes por 15 días.</p>
+            <p style={{ marginBottom: '2px' }}>• Reporte extravío de contraseña inmediatamente.</p>
           </div>
         </div>
 
-        {/* Firma Digital del Cliente - Compacta */}
-        <div style={{ padding: '4px', borderTop: '1px solid #000000', backgroundColor: '#ffffff' }}>
+        {/* Firma Digital del Cliente */}
+        <div style={{ padding: '8px', borderTop: '1px solid #d1d5db', backgroundColor: '#f9fafb' }}>
+          <p style={{ fontSize: '8px', color: '#6b7280', marginBottom: '8px' }}>Autorizo el diagnóstico/reparación y acepto los términos y condiciones.</p>
           <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'flex-end' }}>
             <div style={{ textAlign: 'center' }}>
               {data.firmaClienteDataUrl ? (
-                <div style={{ border: '1px solid #000000', borderRadius: '2px', backgroundColor: '#ffffff', padding: '2px', marginBottom: '2px' }}>
+                <div style={{ border: '1px solid #d1d5db', borderRadius: '4px', backgroundColor: '#ffffff', padding: '4px', marginBottom: '4px' }}>
                   <img 
                     src={data.firmaClienteDataUrl} 
                     alt="Firma del cliente" 
-                    style={{ height: '32px', width: '100px', objectFit: 'contain' }}
+                    style={{ height: '48px', width: '128px', objectFit: 'contain' }}
                   />
                 </div>
               ) : (
-                <div style={{ borderBottom: '1.5px solid #000000', height: '32px', width: '100px', marginBottom: '2px' }}></div>
+                <div style={{ borderBottom: '2px solid #000000', height: '48px', width: '128px', marginBottom: '4px' }}></div>
               )}
-              <p style={{ fontSize: '6px', fontWeight: 700 }}>FIRMA CLIENTE</p>
+              <p style={{ fontSize: '8px', fontWeight: 700 }}>FIRMA CLIENTE</p>
+              <p style={{ fontSize: '7px', color: '#6b7280' }}>Entrega de equipo</p>
             </div>
-            <div style={{ textAlign: 'center', fontSize: '7px', color: '#000000' }}>
+            <div style={{ textAlign: 'center', fontSize: '8px', color: '#6b7280' }}>
               <p style={{ fontWeight: 700 }}>{fechaFormateada}</p>
               <p>{horaFormateada}</p>
             </div>
@@ -425,48 +424,33 @@ const IncidentePrintSheet = forwardRef<HTMLDivElement, Props>(({ data }, ref) =>
 
       {/* Línea de corte */}
       <div style={styles.cutLine}>
-        <span style={styles.cutText}>✂ CORTAR</span>
+        <span style={styles.cutText}>✂ CORTAR AQUÍ</span>
       </div>
 
       {/* ═══════════════════════════════════════════════════════════════ */}
       {/* SECCIÓN 3: ETIQUETA PARA MÁQUINA */}
       {/* ═══════════════════════════════════════════════════════════════ */}
       <div style={{ display: 'flex', justifyContent: 'center' }}>
-        <div style={{ ...styles.section, width: '220px', marginBottom: 0 }}>
-          {/* Header */}
-          <div style={{ 
-            padding: '4px 6px', 
-            backgroundColor: '#000000', 
-            color: '#ffffff',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <span style={{ fontWeight: 800, fontSize: '10px' }}>HPC</span>
-              <span style={{ fontSize: '7px', opacity: 0.9 }}>Etiqueta Máquina</span>
+        <div style={{ ...styles.section, width: '256px', marginBottom: 0 }}>
+          <div style={{ backgroundColor: '#f97316', color: '#ffffff', padding: '6px', textAlign: 'center' }}>
+            <p style={{ fontWeight: 700, fontSize: '10px', margin: 0 }}>ETIQUETA PARA MÁQUINA</p>
+          </div>
+          <div style={{ padding: '8px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div style={{ textAlign: 'left', flex: 1 }}>
+                <p style={{ fontSize: '8px', color: '#6b7280', textTransform: 'uppercase', margin: 0 }}>Incidente</p>
+                <p style={{ fontFamily: 'monospace', fontWeight: 900, fontSize: '18px', lineHeight: 1, margin: 0 }}>{data.codigo}</p>
+              </div>
+              <DayShape date={data.fechaIngreso} />
             </div>
-            <DayShape date={data.fechaIngreso} />
-          </div>
-
-          {/* Código grande */}
-          <div style={{ padding: '6px', textAlign: 'center', borderBottom: '1px solid #000000' }}>
-            <p style={{ fontFamily: 'monospace', fontWeight: 800, fontSize: '18px', margin: 0 }}>{data.codigo}</p>
-            <p style={{ fontSize: '6px', color: '#000000', marginTop: '2px' }}>{fechaFormateada}</p>
-          </div>
-
-          {/* Info producto */}
-          <div style={{ padding: '4px', fontSize: '7px' }}>
-            <p style={{ margin: '1px 0' }}><span style={{ fontWeight: 600 }}>SKU:</span> <span style={{ fontFamily: 'monospace', fontWeight: 700 }}>{data.codigoProducto}</span></p>
-            <p style={{ margin: '1px 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{data.descripcionProducto}</p>
-          </div>
-
-          {/* Barcode pequeño */}
-          <div style={{ padding: '4px', backgroundColor: '#ffffff', textAlign: 'center', borderTop: '1px solid #000000' }}>
-            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'center', height: '24px', gap: '1px' }}>
-              {[...Array(25)].map((_, i) => (
-                <div key={i} style={{ backgroundColor: '#000000', width: '2px', height: `${14 + (i % 3) * 4}px` }} />
-              ))}
+            <div style={{ marginTop: '8px' }}>
+              <CSSBarcode value={data.codigo} />
+            </div>
+            <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid #e5e7eb', fontSize: '9px', textAlign: 'left' }}>
+              <p style={{ margin: '2px 0' }}><span style={{ color: '#6b7280' }}>SKU:</span> <span style={{ fontFamily: 'monospace', fontWeight: 700 }}>{data.codigoProducto}</span></p>
+              <p style={{ margin: '2px 0' }}><span style={{ color: '#6b7280' }}>Ingreso:</span> <span style={{ fontWeight: 700 }}>{fechaFormateada}</span></p>
+              <p style={{ margin: '2px 0' }}><span style={{ color: '#6b7280' }}>Centro:</span> <span style={{ fontWeight: 700 }}>{data.centroServicio}</span></p>
+              <p style={{ margin: '2px 0' }}><span style={{ color: '#6b7280' }}>Tipo Cliente:</span> <span style={{ fontWeight: 700, textTransform: 'uppercase' }}>{data.tipoCliente || 'Mostrador'}</span></p>
             </div>
           </div>
         </div>
