@@ -597,7 +597,7 @@ export default function DetalleEntrega() {
                             <p className="bg-gray-50 p-1 rounded text-xs">{diagnostico.recomendaciones}</p>
                           </>
                         )}
-                        <p className="text-xs mt-1 pt-1 border-t">Técnico: <strong>{previewData.tecnicoDisplay}</strong></p>
+                        <p className="text-xs mt-1 pt-1 border-t">Centro de Servicio: <strong>{centroServicio}</strong></p>
                       </div>
                     </div>
 
