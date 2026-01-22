@@ -482,7 +482,10 @@ export default function ConfiguracionColas() {
 
   // Save configuration using apiBackendAction
   const handleSave = async () => {
-    if (!selectedCentro || !user) return;
+    if (!selectedCentro) {
+      toast.error("Selecciona un centro de servicio");
+      return;
+    }
 
     setSaving(true);
     try {
