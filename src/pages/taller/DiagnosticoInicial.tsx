@@ -481,43 +481,44 @@ export default function DiagnosticoInicial() {
       const codigosPadre = codigosRepuestos.map((codigo) => newHijoPadreMap.get(codigo)).filter(Boolean) as string[];
       const todosLosCodigos = [...new Set([...codigosRepuestos, ...codigosPadre])];
 
-      // 2.6. Obtener centro_servicio_id del usuario y consultar inventario SOLO para los códigos necesarios
+      // 2.6. Usar centro_de_servicio_id del INCIDENTE para consultar inventario de la bodega correcta
       let stockMap = new Map<string, { cantidad: number; ubicacion: string }>();
 
-      if (user && todosLosCodigos.length > 0) {
-        // Get user's centro_servicio_id from usuarios table
-        const { results: usuarios } = await apiBackendAction("usuarios.search", { email: user.email });
-        const usuario = usuarios?.[0] as any;
+      // Obtener el centro de servicio del incidente (donde se registró la máquina)
+      const centroServicioId = incidente?.centro_de_servicio_id;
 
-        if (usuario?.centro_servicio_id) {
-          const { results: inventarioData } = await apiBackendAction("inventarios.listByCodigos", {
-            centro_servicio_id: usuario.centro_servicio_id,
-            codigos: todosLosCodigos,
-          });
+      if (centroServicioId && todosLosCodigos.length > 0) {
+        const { results: inventarioData } = await apiBackendAction("inventarios.listByCodigos", {
+          centro_servicio_id: centroServicioId,
+          codigos: todosLosCodigos,
+        });
 
-          // Crear mapa de stock (sumando si hay múltiples ubicaciones)
-          (inventarioData || []).forEach((item: any) => {
-            const existing = stockMap.get(item.codigo_repuesto);
-            if (existing) {
-              stockMap.set(item.codigo_repuesto, {
-                cantidad: existing.cantidad + item.cantidad,
-                ubicacion: existing.ubicacion + ", " + item.ubicacion_legacy,
-              });
-            } else {
-              stockMap.set(item.codigo_repuesto, {
-                cantidad: item.cantidad,
-                ubicacion: item.ubicacion_legacy || "",
-              });
-            }
-          });
-          console.log(
-            "Stock cargado para",
-            inventarioData?.length || 0,
-            "repuestos de",
-            todosLosCodigos.length,
-            "códigos buscados",
-          );
-        }
+        // Crear mapa de stock (sumando si hay múltiples ubicaciones)
+        (inventarioData || []).forEach((item: any) => {
+          const existing = stockMap.get(item.codigo_repuesto);
+          if (existing) {
+            stockMap.set(item.codigo_repuesto, {
+              cantidad: existing.cantidad + item.cantidad,
+              ubicacion: existing.ubicacion + ", " + item.ubicacion_legacy,
+            });
+          } else {
+            stockMap.set(item.codigo_repuesto, {
+              cantidad: item.cantidad,
+              ubicacion: item.ubicacion_legacy || "",
+            });
+          }
+        });
+        console.log(
+          "📦 Stock cargado de bodega centro_servicio_id:",
+          centroServicioId,
+          "- Repuestos encontrados:",
+          inventarioData?.length || 0,
+          "de",
+          todosLosCodigos.length,
+          "códigos buscados",
+        );
+      } else {
+        console.warn("⚠️ No se pudo determinar el centro de servicio del incidente para consultar inventario");
       }
 
       // 3. Transformar: reemplazar códigos hijo por padre
