@@ -111,8 +111,17 @@ export default function DiagnosticoInicial() {
   // Paso de Canje (entre paso 1 y 2)
   const [productosAlternativos, setProductosAlternativos] = useState<any[]>([]);
   const [productoSeleccionado, setProductoSeleccionado] = useState<any>(null);
-  const [porcentajeDescuento, setPorcentajeDescuento] = useState<10 | 40 | null>(null);
+  const [tipoPrecioCanje, setTipoPrecioCanje] = useState<"cliente" | "minimo">("cliente");
   const [searchProducto, setSearchProducto] = useState("");
+
+  // Helper para formatear precios en Quetzales
+  const formatQuetzales = (value: number | null | undefined): string => {
+    if (value == null) return "Q 0.00";
+    return `Q ${value.toLocaleString("es-GT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+
+  // Por ahora todos son consumidores finales, despues se define la logica por prefijo de codigo cliente
+  const clienteEsFerretero = false;
 
   // Control de pasos
   const [paso, setPaso] = useState(1);
@@ -296,9 +305,12 @@ export default function DiagnosticoInicial() {
           ? {
               codigo: productoSeleccionado.codigo,
               descripcion: productoSeleccionado.descripcion,
+              precio: clienteEsFerretero 
+                ? productoSeleccionado.precio_con_descuento 
+                : (tipoPrecioCanje === "cliente" ? productoSeleccionado.precio_cliente : productoSeleccionado.precio_minimo),
             }
           : null,
-        porcentajeDescuento,
+        tipoPrecioCanje,
       };
       const borradorData = {
         incidente_id: Number(id),
@@ -620,7 +632,7 @@ export default function DiagnosticoInicial() {
     try {
       const { data, error } = await supabase
         .from("productos")
-        .select("*, familia_padre:CDS_Familias!productos_familia_padre_id_fkey(id, Categoria, Padre)")
+        .select("*")
         .eq("descontinuado", false)
         .neq("familia_padre_id", FAMILIA_HERRAMIENTA_MANUAL) // Excluir Herramienta Manual
         .order("descripcion");
@@ -708,8 +720,14 @@ export default function DiagnosticoInicial() {
       toast.error("Debes seleccionar un producto alternativo");
       return;
     }
-    if (!porcentajeDescuento) {
-      toast.error("Debes seleccionar un porcentaje de descuento");
+    
+    // Validar que el producto tenga precio configurado
+    const precioSeleccionado = clienteEsFerretero 
+      ? productoSeleccionado.precio_con_descuento
+      : (tipoPrecioCanje === "cliente" ? productoSeleccionado.precio_cliente : productoSeleccionado.precio_minimo);
+    
+    if (!precioSeleccionado || precioSeleccionado <= 0) {
+      toast.error("El producto seleccionado no tiene precio configurado");
       return;
     }
 
@@ -1046,9 +1064,12 @@ export default function DiagnosticoInicial() {
             ? {
                 codigo: productoSeleccionado.codigo,
                 descripcion: productoSeleccionado.descripcion,
+                precio: clienteEsFerretero 
+                  ? productoSeleccionado.precio_con_descuento 
+                  : (tipoPrecioCanje === "cliente" ? productoSeleccionado.precio_cliente : productoSeleccionado.precio_minimo),
               }
             : null,
-          porcentajeDescuento,
+          tipoPrecioCanje,
         }),
         estado: "finalizado",
         fecha_fin_diagnostico: new Date().toISOString(),
@@ -1625,27 +1646,73 @@ export default function DiagnosticoInicial() {
                   </p>
                 </div>
 
-                {/* Selección de Porcentaje de Descuento */}
+                {/* Selección de Tipo de Precio */}
                 <div className="space-y-3">
-                  <Label className="text-base font-medium">Porcentaje de Descuento</Label>
-                  <div className="flex gap-4">
-                    <Button
-                      type="button"
-                      variant={porcentajeDescuento === 10 ? "default" : "outline"}
-                      onClick={() => setPorcentajeDescuento(10)}
-                      className="flex-1"
+                  <Label className="text-base font-medium">Tipo de Precio</Label>
+                  
+                  {clienteEsFerretero ? (
+                    // Ferretero: solo precio con descuento
+                    <div className="p-4 border rounded-lg bg-muted/50">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium">Precio con Descuento</p>
+                          <p className="text-sm text-muted-foreground">
+                            Descuento ferretero aplicado
+                          </p>
+                        </div>
+                        <p className="text-2xl font-bold text-primary">
+                          {productoSeleccionado ? formatQuetzales(productoSeleccionado.precio_con_descuento) : "Seleccione un producto"}
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    // Consumidor final: elegir entre precio cliente o precio minimo
+                    <RadioGroup 
+                      value={tipoPrecioCanje} 
+                      onValueChange={(v) => setTipoPrecioCanje(v as "cliente" | "minimo")}
+                      className="space-y-2"
                     >
-                      10% de Descuento
-                    </Button>
-                    <Button
-                      type="button"
-                      variant={porcentajeDescuento === 40 ? "default" : "outline"}
-                      onClick={() => setPorcentajeDescuento(40)}
-                      className="flex-1"
-                    >
-                      40% de Descuento
-                    </Button>
-                  </div>
+                      <div 
+                        className={`flex items-center justify-between p-3 border rounded-lg cursor-pointer transition-colors ${tipoPrecioCanje === "cliente" ? "border-primary bg-primary/5" : "hover:bg-muted/50"}`}
+                        onClick={() => setTipoPrecioCanje("cliente")}
+                      >
+                        <div className="flex items-center space-x-3">
+                          <RadioGroupItem value="cliente" id="precio-cliente-canje" />
+                          <div>
+                            <Label htmlFor="precio-cliente-canje" className="cursor-pointer font-medium">
+                              Precio Cliente
+                            </Label>
+                            <p className="text-sm text-muted-foreground">
+                              Precio mínimo de venta
+                            </p>
+                          </div>
+                        </div>
+                        <p className="text-xl font-bold">
+                          {productoSeleccionado ? formatQuetzales(productoSeleccionado.precio_cliente) : "-"}
+                        </p>
+                      </div>
+                      
+                      <div 
+                        className={`flex items-center justify-between p-3 border rounded-lg cursor-pointer transition-colors ${tipoPrecioCanje === "minimo" ? "border-primary bg-primary/5" : "hover:bg-muted/50"}`}
+                        onClick={() => setTipoPrecioCanje("minimo")}
+                      >
+                        <div className="flex items-center space-x-3">
+                          <RadioGroupItem value="minimo" id="precio-minimo-canje" />
+                          <div>
+                            <Label htmlFor="precio-minimo-canje" className="cursor-pointer font-medium">
+                              Precio Mínimo
+                            </Label>
+                            <p className="text-sm text-muted-foreground">
+                              Precio máximo de venta
+                            </p>
+                          </div>
+                        </div>
+                        <p className="text-xl font-bold">
+                          {productoSeleccionado ? formatQuetzales(productoSeleccionado.precio_minimo) : "-"}
+                        </p>
+                      </div>
+                    </RadioGroup>
+                  )}
                 </div>
 
                 <Separator />
@@ -1684,6 +1751,10 @@ export default function DiagnosticoInicial() {
                             p.clave.toLowerCase().includes(searchProducto.toLowerCase()),
                         )[index + 1]?.esSugerido === false;
 
+                      const precioProducto = clienteEsFerretero 
+                        ? producto.precio_con_descuento 
+                        : (tipoPrecioCanje === "cliente" ? producto.precio_cliente : producto.precio_minimo);
+
                       return (
                         <div key={producto.id}>
                           <div
@@ -1719,11 +1790,16 @@ export default function DiagnosticoInicial() {
                                   <span>Código: {producto.codigo}</span>
                                   <span>Clave: {producto.clave}</span>
                                 </div>
-                                <div className="flex gap-2 mt-2 flex-wrap">
-                                  <Badge className="bg-green-500 text-white text-xs">
-                                    <Package className="w-3 h-3 mr-1" />
-                                    Disponible para despacho
-                                  </Badge>
+                                <div className="flex items-center justify-between mt-2">
+                                  <div className="flex gap-2 flex-wrap">
+                                    <Badge variant={producto.unidades_disponibles > 0 ? "default" : "secondary"} className={producto.unidades_disponibles > 0 ? "bg-green-600" : ""}>
+                                      <Package className="w-3 h-3 mr-1" />
+                                      {producto.unidades_disponibles > 0 ? `${producto.unidades_disponibles} disponibles` : "Sin stock"}
+                                    </Badge>
+                                  </div>
+                                  <p className="text-lg font-bold text-primary">
+                                    {formatQuetzales(precioProducto)}
+                                  </p>
                                 </div>
                               </div>
                               {productoSeleccionado?.id === producto.id && (
@@ -1742,13 +1818,13 @@ export default function DiagnosticoInicial() {
                 </div>
 
                 {/* Resumen de la Cotización */}
-                {productoSeleccionado && porcentajeDescuento && (
+                {productoSeleccionado && (
                   <Card className="bg-primary/5 border-primary">
                     <CardHeader>
                       <CardTitle className="text-base">Resumen de Cotización</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-3">
-                      <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div className="grid grid-cols-2 gap-4 text-sm">
                         <div>
                           <p className="text-muted-foreground">Producto Seleccionado:</p>
                           <p className="font-semibold">{productoSeleccionado.descripcion}</p>
@@ -1758,15 +1834,21 @@ export default function DiagnosticoInicial() {
                           <p className="font-semibold">{productoSeleccionado.codigo}</p>
                         </div>
                         <div>
-                          <p className="text-muted-foreground">Descuento Aplicado:</p>
-                          <p className="font-semibold text-primary">{porcentajeDescuento}%</p>
+                          <p className="text-muted-foreground">Tipo de Precio:</p>
+                          <p className="font-semibold">
+                            {clienteEsFerretero ? "Precio con Descuento" : (tipoPrecioCanje === "cliente" ? "Precio Cliente" : "Precio Mínimo")}
+                          </p>
                         </div>
-                      </div>
-                      <div className="pt-3 border-t">
-                        <p className="text-xs text-muted-foreground">
-                          El cliente recibirá un descuento del {porcentajeDescuento}% sobre el precio regular del
-                          producto seleccionado.
-                        </p>
+                        <div>
+                          <p className="text-muted-foreground">Precio Final:</p>
+                          <p className="font-bold text-primary text-xl">
+                            {formatQuetzales(
+                              clienteEsFerretero 
+                                ? productoSeleccionado.precio_con_descuento 
+                                : (tipoPrecioCanje === "cliente" ? productoSeleccionado.precio_cliente : productoSeleccionado.precio_minimo)
+                            )}
+                          </p>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
