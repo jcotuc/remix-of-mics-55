@@ -2130,9 +2130,6 @@ export default function NuevoIncidente() {
         <AlertDialogContent className="max-w-4xl max-h-[90vh] overflow-auto">
           <AlertDialogHeader>
             <AlertDialogTitle>Vista previa de impresión</AlertDialogTitle>
-            <AlertDialogDescription>
-              Revisa la hoja y luego presiona “Imprimir” para generar el documento.
-            </AlertDialogDescription>
           </AlertDialogHeader>
 
           {incidenteCreado && (
