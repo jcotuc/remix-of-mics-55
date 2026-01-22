@@ -71,7 +71,7 @@ const productosHandlers: Record<string, ActionHandler<any>> = {
   "productos.delete": notImplemented("productos.delete"),
   "productos.search": async (input) => {
     const { search = "", limit = 20 } = input;
-    let query = supabase.from("productos").select("id, codigo, descripcion, sku, marca, modelo").limit(limit);
+    let query = supabase.from("productos").select("id, codigo, descripcion, sku, marca, modelo, clave, descontinuado, unidades_disponibles, precio_minimo, precio_cliente, precio_con_descuento").limit(limit);
     if (search) query = query.or(`codigo.ilike.%${search}%,descripcion.ilike.%${search}%,sku.ilike.%${search}%`);
     const { data, error } = await query;
     if (error) throw error;

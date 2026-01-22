@@ -2763,7 +2763,11 @@ export type Database = {
           id: number
           marca: string | null
           modelo: string | null
+          precio_cliente: number | null
+          precio_con_descuento: number | null
+          precio_minimo: number | null
           sku: string | null
+          unidades_disponibles: number | null
           updated_at: string | null
           url_foto: string | null
         }
@@ -2780,7 +2784,11 @@ export type Database = {
           id?: number
           marca?: string | null
           modelo?: string | null
+          precio_cliente?: number | null
+          precio_con_descuento?: number | null
+          precio_minimo?: number | null
           sku?: string | null
+          unidades_disponibles?: number | null
           updated_at?: string | null
           url_foto?: string | null
         }
@@ -2797,7 +2805,11 @@ export type Database = {
           id?: number
           marca?: string | null
           modelo?: string | null
+          precio_cliente?: number | null
+          precio_con_descuento?: number | null
+          precio_minimo?: number | null
           sku?: string | null
+          unidades_disponibles?: number | null
           updated_at?: string | null
           url_foto?: string | null
         }
