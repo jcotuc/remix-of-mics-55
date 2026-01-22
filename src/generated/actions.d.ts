@@ -87,6 +87,80 @@ export interface AccesorioUpdateOutput {
   result: AccesorioSchema;
 }
 
+// From app.contracts.auth.login
+export interface LoginInput {
+  email: string;
+  password: string;
+}
+
+export interface LoginOutput {
+  message?: string;
+}
+
+export interface LoginRequestSchema {
+  email: string;
+  password: string;
+}
+
+// From app.contracts.auth.logout
+export interface LogoutInput {}
+
+export interface LogoutOutput {
+  message?: string;
+}
+
+// From app.contracts.auth.me
+export interface MeInput {}
+
+export interface MeOutput {
+  result: UsuarioSchema;
+}
+
+export interface UsuarioSchema {
+  email: string;
+  nombre: string;
+  apellido?: string | null;
+  telefono?: string | null;
+  activo?: boolean;
+  codigo_empleado?: string | null;
+  cliente_id?: number | null;
+  id: number;
+  roles?: RolSchema[];
+  centro_de_servicio?: CentroDeServicioSchema | null;
+}
+
+export interface RolSchema {
+  id: number;
+  nombre: string;
+  slug: string;
+  descripcion?: string | null;
+  [k: string]: unknown;
+}
+
+export interface CentroDeServicioSchema {
+  empresa_id?: number | null;
+  codigo: string;
+  nombre: string;
+  slug: string;
+  direccion?: string | null;
+  telefono?: string | null;
+  correo?: string | null;
+  es_central?: boolean;
+  activo?: boolean;
+  responsable_id?: number | null;
+  id: number;
+  created_at: string;
+  updated_at?: string | null;
+  [k: string]: unknown;
+}
+
+// From app.contracts.auth.refresh_token
+export interface RefreshTokenInput {}
+
+export interface RefreshTokenOutput {
+  message?: string;
+}
+
 // From app.contracts.bodegas.create
 export interface BodegaCreateInput {
   uuid_id: string;
@@ -302,22 +376,6 @@ export interface CentroDeServicioCreateSchema {
   es_central?: boolean;
   activo?: boolean;
   responsable_id?: number | null;
-}
-
-export interface CentroDeServicioSchema {
-  empresa_id?: number | null;
-  codigo: string;
-  nombre: string;
-  slug: string;
-  direccion?: string | null;
-  telefono?: string | null;
-  correo?: string | null;
-  es_central?: boolean;
-  activo?: boolean;
-  responsable_id?: number | null;
-  id: number;
-  created_at: string;
-  updated_at?: string | null;
 }
 
 // From app.contracts.centros_de_servicio.delete
@@ -624,14 +682,6 @@ export interface DiagnosticoCreateOutput {
   fallas?: FallaInDBSchema[];
   causas?: CausaInDBSchema[];
   repuestos?: RepuestoSchema[];
-}
-
-export interface UsuarioSchema {
-  id: number;
-  nombre: string;
-  apellido?: string | null;
-  email: string;
-  [k: string]: unknown;
 }
 
 export interface FallaInDBSchema {
@@ -3163,13 +3213,6 @@ export interface RolCreateInput {
 
 export interface RolCreateOutput {
   result: RolSchema;
-}
-
-export interface RolSchema {
-  id: number;
-  nombre: string;
-  slug: string;
-  descripcion?: string | null;
 }
 
 // From app.contracts.roles.delete
