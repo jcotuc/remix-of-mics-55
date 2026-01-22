@@ -113,51 +113,54 @@ export function FloatingIncidentsWidget() {
 
       {/* Lista de incidentes */}
       {isExpanded && (
-        <div className="max-h-64 overflow-y-auto">
-          {incidentsWithTimeInfo.map((incident, index) => {
+        <div className="max-h-64 overflow-y-auto divide-y divide-border/40">
+          {incidentsWithTimeInfo.map((incident) => {
             const isCurrentPage = location.pathname === `/taller/diagnostico/${incident.id}`;
 
             return (
               <div
                 key={incident.id}
                 className={cn(
-                  "flex items-center justify-between p-2 hover:bg-muted/50 cursor-pointer border-b border-border/50 last:border-0 transition-all",
-                  isCurrentPage && "bg-primary/10 border-l-2 border-l-primary",
-                  incident.isOverOneHour && "bg-orange-50 border-l-2 border-l-orange-500",
+                  "flex items-center gap-3 px-3 py-2.5 hover:bg-muted/50 cursor-pointer transition-colors",
+                  isCurrentPage && "bg-primary/5 border-l-2 border-l-primary",
+                  incident.isOverOneHour && !isCurrentPage && "bg-orange-50/50 border-l-2 border-l-orange-400",
                 )}
                 onClick={() => navigate(`/taller/diagnostico/${incident.id}`)}
               >
-                <div className="flex items-center gap-2 flex-1 min-w-0">
-                  <span className="text-xs text-muted-foreground w-4">{index + 1}.</span>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1">
-                      <span className="font-mono text-sm font-medium truncate">{incident.codigo}</span>
-                      {isCurrentPage && <span className="text-[10px] text-primary">(actual)</span>}
-                      {incident.isOverOneHour && (
-                        <Clock className="h-3 w-3 text-orange-500 animate-pulse" />
-                      )}
-                    </div>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {incident.producto?.codigo || incident.codigo_producto || "Sin producto"}
-                    </p>
+                {/* Info principal */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-mono text-sm font-semibold text-foreground truncate">
+                      {incident.codigo}
+                    </span>
+                    {isCurrentPage && (
+                      <span className="text-[10px] text-primary font-medium bg-primary/10 px-1 rounded">
+                        actual
+                      </span>
+                    )}
                   </div>
+                  <p className="text-xs text-muted-foreground truncate mt-0.5">
+                    {incident.producto?.codigo || incident.codigo_producto || "Sin producto"}
+                  </p>
                 </div>
 
-                <div className="flex items-center gap-1">
+                {/* Badges y tiempo */}
+                <div className="flex items-center gap-1.5 shrink-0">
                   {incident.isOverOneHour && (
-                    <span className="text-[10px] text-orange-600 font-medium">
-                      {Math.floor(incident.minutesElapsed / 60)}h{incident.minutesElapsed % 60}m
-                    </span>
+                    <div className="flex items-center gap-1 text-orange-600 bg-orange-100 px-1.5 py-0.5 rounded text-[10px] font-medium">
+                      <Clock className="h-3 w-3" />
+                      <span>{Math.floor(incident.minutesElapsed / 60)}h{incident.minutesElapsed % 60}m</span>
+                    </div>
                   )}
                   {incident.notificacionesPendientes > 0 && (
                     <Badge
                       variant="destructive"
-                      className="h-5 w-5 p-0 flex items-center justify-center text-[10px] animate-pulse"
+                      className="h-5 min-w-5 px-1 flex items-center justify-center text-[10px] animate-pulse"
                     >
                       {incident.notificacionesPendientes}
                     </Badge>
                   )}
-                  <ExternalLink className="h-3 w-3 text-muted-foreground" />
+                  <ExternalLink className="h-3.5 w-3.5 text-muted-foreground/60" />
                 </div>
               </div>
             );
