@@ -624,7 +624,10 @@ export default function DetalleIncidenteSAC() {
                 </div>
                 <div className="flex items-start gap-2 pt-2 border-t">
                   <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
-                  <p className="text-sm">{cliente?.municipio || "Guatemala"}, {cliente?.departamento || "Guatemala"}</p>
+                  <div className="text-sm">
+                    {cliente?.direccion && <p>{cliente.direccion}</p>}
+                    <p className="text-muted-foreground">{cliente?.municipio || "Guatemala"}, {cliente?.departamento || "Guatemala"}</p>
+                  </div>
                 </div>
               </CardContent>
             </Card>
