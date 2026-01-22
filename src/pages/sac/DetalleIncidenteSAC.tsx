@@ -25,7 +25,10 @@ import {
   MapPin,
   Wrench,
   Share2,
-  Printer
+  Printer,
+  Camera,
+  Truck,
+  ExternalLink
 } from "lucide-react";
 import { DiagnosticoPrintSheet } from "@/components/features/diagnostico";
 import { 
@@ -87,6 +90,8 @@ export default function DetalleIncidenteSAC() {
   const [causas, setCausas] = useState<string[]>([]);
   const [repuestos, setRepuestos] = useState<RepuestoSolicitud[]>([]);
   const [accesorios, setAccesorios] = useState<string[]>([]);
+  const [fotos, setFotos] = useState<any[]>([]);
+  const [guia, setGuia] = useState<any>(null);
   const [productoAlternativo, setProductoAlternativo] = useState<ProductoAlternativo | null>(null);
   const [centroServicio, setCentroServicio] = useState<string>("");
   
@@ -255,6 +260,18 @@ export default function DetalleIncidenteSAC() {
         .eq("incidente_id", Number(id));
       
       setAccesorios((accesoriosData || []).map((a: any) => a.accesorios?.nombre).filter(Boolean));
+
+      // Fetch fotos del incidente
+      const { results: fotosData } = await apiBackendAction("incidente_fotos.list", { incidente_id: Number(id) });
+      setFotos(fotosData || []);
+
+      // Fetch guía del incidente
+      try {
+        const { results: guiasData } = await apiBackendAction("guias.search", { incidente_id: Number(id), limit: 1 });
+        setGuia(guiasData?.[0] || null);
+      } catch (e) {
+        console.warn("Could not fetch guia:", e);
+      }
 
       // Fetch centro de servicio
       if (incData.centro_de_servicio_id) {
@@ -676,16 +693,18 @@ export default function DetalleIncidenteSAC() {
                   <p className="text-sm text-muted-foreground">Problema Reportado</p>
                   <p className="text-sm mt-1">{incidente.descripcion_problema || "Sin descripción"}</p>
                 </div>
-                {accesorios.length > 0 && (
-                  <div className="pt-2 border-t">
-                    <p className="text-sm text-muted-foreground mb-1">Accesorios de Ingreso</p>
+                <div className="pt-2 border-t">
+                  <p className="text-sm text-muted-foreground mb-1">Accesorios de Ingreso</p>
+                  {accesorios.length > 0 ? (
                     <div className="flex flex-wrap gap-1">
                       {accesorios.map((acc, idx) => (
                         <Badge key={idx} variant="secondary" className="text-xs">{acc}</Badge>
                       ))}
                     </div>
-                  </div>
-                )}
+                  ) : (
+                    <p className="text-sm text-muted-foreground italic">Ingresó sin accesorios</p>
+                  )}
+                </div>
               </CardContent>
             </Card>
           </div>
@@ -994,6 +1013,95 @@ export default function DetalleIncidenteSAC() {
                   <Mail className="h-4 w-4 text-orange-600" />
                   Email
                 </Button>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Fotos del Incidente */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Camera className="h-5 w-5" />
+                Fotos ({fotos.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {fotos.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  Sin fotos registradas
+                </p>
+              ) : (
+                <div className="grid grid-cols-3 gap-2">
+                  {fotos.slice(0, 6).map((foto, idx) => (
+                    <div 
+                      key={foto.id || idx} 
+                      className="aspect-square rounded-lg overflow-hidden bg-muted cursor-pointer hover:opacity-80 transition-opacity"
+                      onClick={() => window.open(foto.url, '_blank')}
+                    >
+                      <img 
+                        src={foto.url} 
+                        alt={`Foto ${idx + 1}`} 
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+              {fotos.length > 6 && (
+                <p className="text-xs text-muted-foreground text-center mt-2">
+                  +{fotos.length - 6} fotos más
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Guía de Envío */}
+          <Card className={guia ? "border-l-4 border-l-blue-500" : ""}>
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Truck className="h-5 w-5" />
+                {incidente?.quiere_envio ? "Guía de Envío" : "Recolección"}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {!incidente?.quiere_envio ? (
+                <div className="text-center py-2">
+                  <Badge variant="outline" className="gap-1">
+                    <MapPin className="h-3 w-3" />
+                    Recoger en centro
+                  </Badge>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    {centroServicio || "Centro de servicio"}
+                  </p>
+                </div>
+              ) : guia ? (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">No. Guía</span>
+                    <span className="font-mono font-medium text-sm">{guia.numero_guia || guia.tracking_number || "-"}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Estado</span>
+                    <Badge variant={guia.estado === "ENTREGADA" ? "default" : "secondary"} className="text-xs">
+                      {guia.estado || "Pendiente"}
+                    </Badge>
+                  </div>
+                  {guia.tracking_number && (
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="w-full gap-2 mt-2"
+                      onClick={() => window.open(`https://tracking.zigo.com.mx/${guia.tracking_number}`, '_blank')}
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                      Rastrear envío
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-4">
+                  Guía pendiente de generar
+                </p>
               )}
             </CardContent>
           </Card>
