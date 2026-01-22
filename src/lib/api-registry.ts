@@ -552,8 +552,8 @@ export interface ActionRegistry {
   // =============================================================================
   // USUARIOS (extended)
   // =============================================================================
-  "usuarios.search": { input: { search?: string; rol?: string; auth_uid?: string }; output: { results: unknown[] } };
-  "usuarios.getByAuthUid": { input: { auth_uid: string }; output: { result: unknown | null } };
+  "usuarios.search": { input: { search?: string; rol?: string; email?: string }; output: { results: unknown[] } };
+  "usuarios.getByEmail": { input: { email: string }; output: { result: unknown | null } };
 
   // =============================================================================
   // TRANSITOS BODEGA (extended)

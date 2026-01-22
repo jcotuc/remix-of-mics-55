@@ -284,7 +284,7 @@ export default function DiagnosticoInicial() {
     });
     try {
       // Get user profile for name
-      const { results } = await apiBackendAction("usuarios.search", { auth_uid: user.id });
+      const { results } = await apiBackendAction("usuarios.search", { email: user.email });
       const usuario = results?.[0] as any;
       const tecnicoNombre = usuario ? `${usuario.nombre} ${usuario.apellido}` : user.email || "Técnico";
 
@@ -445,7 +445,7 @@ export default function DiagnosticoInicial() {
 
       if (user && todosLosCodigos.length > 0) {
         // Get user's centro_servicio_id from usuarios table
-        const { results: usuarios } = await apiBackendAction("usuarios.search", { auth_uid: user.id });
+        const { results: usuarios } = await apiBackendAction("usuarios.search", { email: user.email });
         const usuario = usuarios?.[0] as any;
 
         if (usuario?.centro_servicio_id) {
@@ -800,7 +800,7 @@ export default function DiagnosticoInicial() {
           if (!user) throw new Error("No user found");
 
           // Get user profile for name
-          const { results: usuarios } = await apiBackendAction("usuarios.search", { auth_uid: user.id });
+          const { results: usuarios } = await apiBackendAction("usuarios.search", { email: user.email });
           const usuario = usuarios?.[0] as any;
           const tecnicoNombre = usuario ? `${usuario.nombre} ${usuario.apellido}` : user.email || "Técnico";
 
@@ -852,7 +852,7 @@ export default function DiagnosticoInicial() {
         if (!user) throw new Error("No user found");
 
         // Get user profile for name
-        const { results: usuarios } = await apiBackendAction("usuarios.search", { auth_uid: user.id });
+        const { results: usuarios } = await apiBackendAction("usuarios.search", { email: user.email });
         const usuario = usuarios?.[0] as any;
         const tecnicoNombre = usuario ? `${usuario.nombre} ${usuario.apellido}` : user.email || "Técnico";
 
@@ -914,7 +914,7 @@ export default function DiagnosticoInicial() {
       if (!user) throw new Error("No user found");
 
       // Get user profile for name
-      const { results: usuarios } = await apiBackendAction("usuarios.search", { auth_uid: user.id });
+      const { results: usuarios } = await apiBackendAction("usuarios.search", { email: user.email });
       const usuario = usuarios?.[0] as any;
       const tecnicoNombre = usuario ? `${usuario.nombre} ${usuario.apellido}` : user.email || "Técnico";
 
@@ -1092,7 +1092,7 @@ export default function DiagnosticoInicial() {
       // Si es Nota de Crédito, crear solicitud de cambio para aprobación
       if (tipoResolucion === "Nota de Crédito" && user) {
         // Get user profile for name
-        const { results: usuarios } = await apiBackendAction("usuarios.search", { auth_uid: user.id });
+        const { results: usuarios } = await apiBackendAction("usuarios.search", { email: user.email });
         const usuario = usuarios?.[0] as any;
         const tecnicoNombre = usuario ? `${usuario.nombre} ${usuario.apellido}` : user.email || "Técnico";
 
@@ -1161,7 +1161,7 @@ export default function DiagnosticoInicial() {
     setDesasignando(true);
     try {
       // Get user profile for name
-      const { results: usuarios } = await apiBackendAction("usuarios.search", { auth_uid: user.id });
+      const { results: usuarios } = await apiBackendAction("usuarios.search", { email: user.email });
       const usuario = usuarios?.[0] as any;
       const tecnicoNombre = usuario ? `${usuario.nombre} ${usuario.apellido}` : user.email || "Técnico";
       const userEmail = usuario?.email || user.email || "";

@@ -117,7 +117,7 @@ export default function Transferencias() {
     setSubmitting(true);
     try {
       // Get user's info via apiBackendAction
-      const { result: usuario } = await apiBackendAction("usuarios.getByAuthUid", { auth_uid: user.id });
+      const { result: usuario } = await apiBackendAction("usuarios.getByEmail", { email: user.email || "" });
 
       const centroOrigenId = (usuario as any)?.centro_de_servicio_id || centros[0]?.id;
 
