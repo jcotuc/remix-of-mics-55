@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
+import { DEV_BYPASS_AUTH, disableDevBypass, isDevBypassEnabled } from "@/config/devBypassAuth";
 
 // Simplified roles - actual role management requires user_roles table
 type UserRole = "admin" | "mostrador" | "logistica" | "taller" | "bodega" | "tecnico" | "digitador" | "jefe_taller" | "sac" | "control_calidad" | "asesor" | "gerente_centro" | "supervisor_regional" | "jefe_logistica" | "jefe_bodega" | "supervisor_bodega" | "supervisor_calidad" | "supervisor_sac" | "auxiliar_bodega" | "auxiliar_logistica" | "supervisor_inventarios" | "capacitador";
@@ -38,33 +39,60 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
 
   useEffect(() => {
+    const applyDevBypass = () => {
+      const fakeUser = {
+        id: "dev-bypass",
+        email: DEV_BYPASS_AUTH.email,
+      } as any as User;
+
+      setSession(null);
+      setUser(fakeUser);
+      setUserRole(DEV_BYPASS_AUTH.role);
+      setLoading(false);
+    };
+
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        
         if (session?.user) {
+          setSession(session);
+          setUser(session.user);
           // PLACEHOLDER: user_roles table doesn't exist
-          // For now, default to admin role for all authenticated users
           setUserRole("admin");
           setLoading(false);
-        } else {
-          setUserRole(null);
-          setLoading(false);
+          return;
         }
+
+        if (isDevBypassEnabled()) {
+          applyDevBypass();
+          return;
+        }
+
+        setSession(null);
+        setUser(null);
+        setUserRole(null);
+        setLoading(false);
       }
     );
 
     // Check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      
       if (session?.user) {
-        // PLACEHOLDER: default to admin
+        setSession(session);
+        setUser(session.user);
         setUserRole("admin");
+        setLoading(false);
+        return;
       }
+
+      if (isDevBypassEnabled()) {
+        applyDevBypass();
+        return;
+      }
+
+      setSession(null);
+      setUser(null);
+      setUserRole(null);
       setLoading(false);
     });
 
@@ -73,6 +101,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     try {
+      // Permite salir incluso si el bypass está activo.
+      disableDevBypass();
       await supabase.auth.signOut();
       setUser(null);
       setSession(null);

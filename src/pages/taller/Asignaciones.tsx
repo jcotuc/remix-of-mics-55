@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useActiveIncidents, MAX_ASSIGNMENTS } from "@/contexts/ActiveIncidentsContext";
 import { apiBackendAction } from "@/lib/api-backend";
+import { DEV_BYPASS_AUTH, isDevBypassEnabled } from "@/config/devBypassAuth";
 
 interface IncidenteConProducto {
   id: number;
@@ -91,40 +92,27 @@ export default function Asignaciones() {
     const loadUserConfig = async () => {
       try {
         setLoadingConfig(true);
-        // 1) Obtener usuario (con auto-login dev como fallback)
-        const getOrAutoLoginUser = async () => {
-          const { data } = await supabase.auth.getUser();
-          if (data.user) return data.user;
-
-          // Auto-login DEV (evita bloquearse si se entra directo a /taller/asignaciones)
-          const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-            email: "jcotuc@hpc.com.gt",
-            password: "123456",
-          });
-          if (signInError) return null;
-          return signInData.user ?? (await supabase.auth.getUser()).data.user ?? null;
-        };
-
-        const user = await getOrAutoLoginUser();
-        if (!user) {
-          console.warn("No hay usuario autenticado");
-          return;
-        }
+        // 1) Obtener usuario (si no hay sesión real, usar bypass por email para pruebas)
+        const { data: userData } = await supabase.auth.getUser();
+        const user = userData.user ?? null;
+        const effectiveEmail = user?.email ?? (isDevBypassEnabled() ? DEV_BYPASS_AUTH.email : null);
 
         // 2) Obtener centro de servicio del usuario (fallback por email; la tabla `usuarios` no siempre tiene auth_uid)
         let userProfile: any = null;
         try {
-          const r = await apiBackendAction("usuarios.getByAuthUid", { auth_uid: user.id } as any);
-          userProfile = (r as any)?.result ?? null;
+          if (user?.id) {
+            const r = await apiBackendAction("usuarios.getByAuthUid", { auth_uid: user.id } as any);
+            userProfile = (r as any)?.result ?? null;
+          }
         } catch {
           // ignore
         }
 
-        if (!userProfile && user.email) {
+        if (!userProfile && effectiveEmail) {
           const { data: byEmail } = await (supabase as any)
             .from("usuarios")
             .select("id, centro_de_servicio_id, activo, email")
-            .eq("email", user.email)
+            .eq("email", effectiveEmail)
             .maybeSingle();
           userProfile = byEmail;
         }
@@ -280,20 +268,39 @@ export default function Asignaciones() {
     }
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        toast.error('No se pudo obtener el usuario actual');
+      const { data: userData } = await supabase.auth.getUser();
+      const user = userData.user ?? null;
+      const effectiveEmail = user?.email ?? (isDevBypassEnabled() ? DEV_BYPASS_AUTH.email : null);
+      if (!user && !effectiveEmail) {
+        toast.error("No se pudo obtener el usuario actual");
         return;
       }
 
       // Get user profile
-      const { data: profile } = await (supabase as any)
-        .from('usuarios')
-        .select('id, nombre, apellido, codigo_empleado')
-        .eq('auth_uid', user.id)
-        .maybeSingle();
+      let profile: any = null;
+      if (user?.id) {
+        const { data } = await (supabase as any)
+          .from("usuarios")
+          .select("id, nombre, apellido, codigo_empleado, email")
+          .eq("auth_uid", user.id)
+          .maybeSingle();
+        profile = data;
+      }
+      if (!profile && effectiveEmail) {
+        const { data } = await (supabase as any)
+          .from("usuarios")
+          .select("id, nombre, apellido, codigo_empleado, email")
+          .eq("email", effectiveEmail)
+          .maybeSingle();
+        profile = data;
+      }
 
-      const codigoTecnico = profile?.codigo_empleado || `${profile?.nombre || ''} ${profile?.apellido || ''}`.trim() || user.id;
+      const codigoTecnico =
+        profile?.codigo_empleado ||
+        `${profile?.nombre || ""} ${profile?.apellido || ""}`.trim() ||
+        effectiveEmail ||
+        user?.id ||
+        "";
 
       // Update incident status
       const { error } = await supabase
