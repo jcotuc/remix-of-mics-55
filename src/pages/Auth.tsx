@@ -22,14 +22,32 @@ export default function Auth() {
 
   useEffect(() => {
     let mounted = true;
+    const autoLogin = async () => {
+      if (!mounted) return;
+      
+      // Auto-login para desarrollo
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: "jcotuc@hpc.com.gt",
+        password: "123456",
+      });
+      
+      if (!error && data.session) {
+        navigate("/");
+      }
+    };
+    
     supabase.auth.getSession().then(async ({ data, error }) => {
       if (!mounted) return;
       if (error) {
-        // Limpia tokens corruptos (ej. "token is malformed")
         await supabase.auth.signOut({ scope: "local" });
       }
-      if (data.session) navigate("/");
+      if (data.session) {
+        navigate("/");
+      } else {
+        autoLogin();
+      }
     });
+    
     return () => {
       mounted = false;
     };
