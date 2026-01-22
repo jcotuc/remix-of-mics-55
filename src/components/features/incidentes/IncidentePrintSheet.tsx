@@ -88,21 +88,22 @@ const styles = {
     fontSize: '8px',
   },
   cell: {
-    borderRight: '1px solid #d1d5db',
-    borderBottom: '1px solid #d1d5db',
+    borderRight: '1px solid #000000',
+    borderBottom: '1px solid #000000',
     padding: '3px 4px',
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#ffffff',
   },
   cellLast: {
-    borderBottom: '1px solid #d1d5db',
+    borderBottom: '1px solid #000000',
     padding: '3px 4px',
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#ffffff',
   },
   label: {
-    color: '#6b7280',
+    color: '#000000',
     fontSize: '7px',
     textTransform: 'uppercase' as const,
     marginBottom: '1px',
+    fontWeight: 600,
   },
   value: {
     fontWeight: 600,
@@ -112,7 +113,7 @@ const styles = {
     fontSize: '8px',
   },
   cutLine: {
-    borderTop: '1.5px dashed #9ca3af',
+    borderTop: '1.5px dashed #000000',
     margin: '4px 0',
     position: 'relative' as const,
     textAlign: 'center' as const,
@@ -125,7 +126,7 @@ const styles = {
     backgroundColor: '#ffffff',
     padding: '0 6px',
     fontSize: '7px',
-    color: '#9ca3af',
+    color: '#000000',
   },
   barcode: {
     display: 'flex',
@@ -139,13 +140,13 @@ const styles = {
   },
 };
 
-// Componente de código de barras compacto
+// Componente de código de barras más visible para impresión
 const CSSBarcode = ({ value }: { value: string }) => {
   const generatePattern = (str: string): number[] => {
     const pattern: number[] = [];
-    for (let i = 0; i < str.length * 3; i++) {
+    for (let i = 0; i < str.length * 4; i++) {
       const charCode = str.charCodeAt(i % str.length);
-      pattern.push((charCode + i) % 4 + 1);
+      pattern.push((charCode + i) % 3 + 2);
     }
     return pattern;
   };
@@ -153,14 +154,21 @@ const CSSBarcode = ({ value }: { value: string }) => {
   const pattern = generatePattern(value);
 
   return (
-    <div style={styles.barcode}>
+    <div style={{ 
+      display: 'flex', 
+      alignItems: 'flex-end', 
+      justifyContent: 'center', 
+      height: '35px', 
+      gap: '1px',
+      padding: '4px 0'
+    }}>
       {pattern.map((width, index) => (
         <div
           key={index}
           style={{
-            ...styles.barcodeBar,
+            backgroundColor: '#000000',
             width: `${width}px`,
-            height: `${18 + (index % 3) * 3}px`,
+            height: `${22 + (index % 3) * 4}px`,
           }}
         />
       ))}
@@ -256,20 +264,20 @@ const IncidentePrintSheet = forwardRef<HTMLDivElement, Props>(({ data }, ref) =>
           </div>
         </div>
 
-        <div style={{ borderBottom: '1px solid #d1d5db', padding: '3px 4px' }}>
+        <div style={{ borderBottom: '1px solid #000000', padding: '3px 4px' }}>
           <p style={styles.label}>Descripción Producto</p>
           <p style={styles.value}>{data.descripcionProducto}</p>
         </div>
 
         {/* Badge de reingreso */}
         {data.esReingreso && (
-          <div style={{ padding: '3px 4px', borderBottom: '1px solid #d1d5db', backgroundColor: '#ffffff' }}>
+          <div style={{ padding: '3px 4px', borderBottom: '1px solid #000000', backgroundColor: '#ffffff' }}>
             <span style={{ 
               padding: '1px 6px', 
               borderRadius: '9999px', 
               fontSize: '7px', 
               fontWeight: 700, 
-              backgroundColor: '#e5e7eb', 
+              backgroundColor: '#ffffff', 
               color: '#000000',
               border: '1.5px solid #000000'
             }}>
@@ -279,15 +287,15 @@ const IncidentePrintSheet = forwardRef<HTMLDivElement, Props>(({ data }, ref) =>
         )}
 
         {/* Problema reportado */}
-        <div style={{ padding: '4px', borderBottom: '1px solid #d1d5db' }}>
+        <div style={{ padding: '4px', borderBottom: '1px solid #000000' }}>
           <p style={{ ...styles.label, fontWeight: 700, marginBottom: '2px' }}>Problema Reportado</p>
           <p style={{ 
             fontSize: '8px', 
             lineHeight: 1.2, 
-            backgroundColor: '#f9fafb', 
+            backgroundColor: '#ffffff', 
             padding: '3px', 
             borderRadius: '2px',
-            border: '1px solid #e5e7eb',
+            border: '1px solid #000000',
             maxHeight: '28px',
             overflow: 'hidden'
           }}>{data.descripcionProblema}</p>
@@ -295,7 +303,7 @@ const IncidentePrintSheet = forwardRef<HTMLDivElement, Props>(({ data }, ref) =>
 
         {/* Footer con accesorios e ingresado por */}
         <div style={styles.grid2}>
-          <div style={{ borderRight: '1px solid #d1d5db', padding: '3px 4px' }}>
+          <div style={{ borderRight: '1px solid #000000', padding: '3px 4px' }}>
             <p style={{ ...styles.label, fontWeight: 700 }}>Accesorios</p>
             <p style={{ marginTop: '1px', fontSize: '7px' }}>{data.accesorios || 'Ninguno especificado'}</p>
           </div>
@@ -323,7 +331,7 @@ const IncidentePrintSheet = forwardRef<HTMLDivElement, Props>(({ data }, ref) =>
             </div>
             <div>
               <p style={{ fontWeight: 700, fontSize: '10px', margin: 0 }}>CONTRASEÑA DE SERVICIO</p>
-              <p style={{ fontSize: '7px', color: '#d1d5db', margin: 0 }}>Conserve este documento</p>
+              <p style={{ fontSize: '7px', color: '#ffffff', margin: 0 }}>Conserve este documento</p>
             </div>
           </div>
           <div style={{ textAlign: 'right' }}>
@@ -334,8 +342,8 @@ const IncidentePrintSheet = forwardRef<HTMLDivElement, Props>(({ data }, ref) =>
         {/* Info del centro */}
         <div style={{ 
           padding: '3px 6px', 
-          borderBottom: '1px solid #d1d5db', 
-          backgroundColor: '#f9fafb', 
+          borderBottom: '1px solid #000000', 
+          backgroundColor: '#ffffff', 
           fontSize: '7px',
           display: 'flex',
           justifyContent: 'space-between',
@@ -343,7 +351,7 @@ const IncidentePrintSheet = forwardRef<HTMLDivElement, Props>(({ data }, ref) =>
         }}>
           <div>
             <span style={{ fontWeight: 700 }}>{data.centroServicio}</span>
-            <span style={{ margin: '0 4px', color: '#9ca3af' }}>|</span>
+            <span style={{ margin: '0 4px', color: '#000000' }}>|</span>
             <span>27 Calle 41-55 Zona 5, Guatemala</span>
           </div>
           <div style={{ textAlign: 'right' }}>
@@ -353,36 +361,36 @@ const IncidentePrintSheet = forwardRef<HTMLDivElement, Props>(({ data }, ref) =>
 
         {/* Datos del cliente y producto en 2 columnas */}
         <div style={styles.grid2}>
-          <div style={{ borderRight: '1px solid #d1d5db', borderBottom: '1px solid #d1d5db', padding: '4px' }}>
+          <div style={{ borderRight: '1px solid #000000', borderBottom: '1px solid #000000', padding: '4px' }}>
             <p style={{ ...styles.label, marginBottom: '2px' }}>Datos del Cliente</p>
             <div style={{ lineHeight: 1.3, fontSize: '7px' }}>
-              <p style={{ margin: '1px 0' }}><span style={{ color: '#6b7280' }}>Código:</span> <span style={{ fontWeight: 700 }}>{data.codigoCliente}</span></p>
-              <p style={{ margin: '1px 0' }}><span style={{ color: '#6b7280' }}>Nombre:</span> <span style={{ fontWeight: 600 }}>{data.nombreCliente}</span></p>
+              <p style={{ margin: '1px 0' }}><span style={{ fontWeight: 600 }}>Código:</span> <span style={{ fontWeight: 700 }}>{data.codigoCliente}</span></p>
+              <p style={{ margin: '1px 0' }}><span style={{ fontWeight: 600 }}>Nombre:</span> <span style={{ fontWeight: 600 }}>{data.nombreCliente}</span></p>
               {data.telefonoCliente && (
-                <p style={{ margin: '1px 0' }}><span style={{ color: '#6b7280' }}>Tel:</span> {data.telefonoCliente}</p>
+                <p style={{ margin: '1px 0' }}><span style={{ fontWeight: 600 }}>Tel:</span> {data.telefonoCliente}</p>
               )}
             </div>
           </div>
-          <div style={{ borderBottom: '1px solid #d1d5db', padding: '4px' }}>
+          <div style={{ borderBottom: '1px solid #000000', padding: '4px' }}>
             <p style={{ ...styles.label, marginBottom: '2px' }}>Datos del Equipo</p>
             <div style={{ lineHeight: 1.3, fontSize: '7px' }}>
-              <p style={{ margin: '1px 0' }}><span style={{ color: '#6b7280' }}>SKU:</span> <span style={{ fontFamily: 'monospace', fontWeight: 700 }}>{data.codigoProducto}</span></p>
-              <p style={{ margin: '1px 0' }}><span style={{ color: '#6b7280' }}>Ingreso:</span> <span style={{ fontWeight: 700 }}>{fechaFormateada} {horaFormateada}</span></p>
-              <p style={{ margin: '1px 0' }}><span style={{ color: '#6b7280' }}>Accesorios:</span> {data.accesorios || 'Ninguno'}</p>
+              <p style={{ margin: '1px 0' }}><span style={{ fontWeight: 600 }}>SKU:</span> <span style={{ fontFamily: 'monospace', fontWeight: 700 }}>{data.codigoProducto}</span></p>
+              <p style={{ margin: '1px 0' }}><span style={{ fontWeight: 600 }}>Ingreso:</span> <span style={{ fontWeight: 700 }}>{fechaFormateada} {horaFormateada}</span></p>
+              <p style={{ margin: '1px 0' }}><span style={{ fontWeight: 600 }}>Accesorios:</span> {data.accesorios || 'Ninguno'}</p>
             </div>
           </div>
         </div>
 
         {/* Código de barras */}
-        <div style={{ padding: '4px', borderBottom: '1px solid #d1d5db', backgroundColor: '#ffffff', textAlign: 'center' }}>
+        <div style={{ padding: '4px', borderBottom: '1px solid #000000', backgroundColor: '#ffffff', textAlign: 'center' }}>
           <CSSBarcode value={data.codigo} />
-          <p style={{ textAlign: 'center', fontSize: '7px', color: '#6b7280', marginTop: '1px', fontFamily: 'monospace' }}>{data.codigo}</p>
+          <p style={{ textAlign: 'center', fontSize: '8px', color: '#000000', marginTop: '2px', fontFamily: 'monospace', fontWeight: 700 }}>{data.codigo}</p>
         </div>
 
         {/* Políticas compactas */}
         <div style={{ padding: '4px', fontSize: '6px', lineHeight: 1.2 }}>
-          <p style={{ fontWeight: 700, fontSize: '7px', marginBottom: '2px', color: '#374151' }}>TÉRMINOS Y CONDICIONES</p>
-          <div style={{ color: '#4b5563', columnCount: 2, columnGap: '8px' }}>
+          <p style={{ fontWeight: 700, fontSize: '7px', marginBottom: '2px', color: '#000000' }}>TÉRMINOS Y CONDICIONES</p>
+          <div style={{ color: '#000000', columnCount: 2, columnGap: '8px' }}>
             <p style={{ marginBottom: '1px' }}>• Después de 30 días sin recoger, HPC puede disponer del equipo.</p>
             <p style={{ marginBottom: '1px' }}>• Se requiere esta contraseña para recoger la herramienta.</p>
             <p style={{ marginBottom: '1px' }}>• Garantía en mano de obra por 30 días.</p>
@@ -391,11 +399,11 @@ const IncidentePrintSheet = forwardRef<HTMLDivElement, Props>(({ data }, ref) =>
         </div>
 
         {/* Firma Digital del Cliente - Compacta */}
-        <div style={{ padding: '4px', borderTop: '1px solid #d1d5db', backgroundColor: '#f9fafb' }}>
+        <div style={{ padding: '4px', borderTop: '1px solid #000000', backgroundColor: '#ffffff' }}>
           <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'flex-end' }}>
             <div style={{ textAlign: 'center' }}>
               {data.firmaClienteDataUrl ? (
-                <div style={{ border: '1px solid #d1d5db', borderRadius: '2px', backgroundColor: '#ffffff', padding: '2px', marginBottom: '2px' }}>
+                <div style={{ border: '1px solid #000000', borderRadius: '2px', backgroundColor: '#ffffff', padding: '2px', marginBottom: '2px' }}>
                   <img 
                     src={data.firmaClienteDataUrl} 
                     alt="Firma del cliente" 
@@ -407,7 +415,7 @@ const IncidentePrintSheet = forwardRef<HTMLDivElement, Props>(({ data }, ref) =>
               )}
               <p style={{ fontSize: '6px', fontWeight: 700 }}>FIRMA CLIENTE</p>
             </div>
-            <div style={{ textAlign: 'center', fontSize: '7px', color: '#6b7280' }}>
+            <div style={{ textAlign: 'center', fontSize: '7px', color: '#000000' }}>
               <p style={{ fontWeight: 700 }}>{fechaFormateada}</p>
               <p>{horaFormateada}</p>
             </div>
@@ -442,22 +450,22 @@ const IncidentePrintSheet = forwardRef<HTMLDivElement, Props>(({ data }, ref) =>
           </div>
 
           {/* Código grande */}
-          <div style={{ padding: '6px', textAlign: 'center', borderBottom: '1px solid #d1d5db' }}>
+          <div style={{ padding: '6px', textAlign: 'center', borderBottom: '1px solid #000000' }}>
             <p style={{ fontFamily: 'monospace', fontWeight: 800, fontSize: '18px', margin: 0 }}>{data.codigo}</p>
-            <p style={{ fontSize: '6px', color: '#6b7280', marginTop: '2px' }}>{fechaFormateada}</p>
+            <p style={{ fontSize: '6px', color: '#000000', marginTop: '2px' }}>{fechaFormateada}</p>
           </div>
 
           {/* Info producto */}
           <div style={{ padding: '4px', fontSize: '7px' }}>
-            <p style={{ margin: '1px 0' }}><span style={{ color: '#6b7280' }}>SKU:</span> <span style={{ fontFamily: 'monospace', fontWeight: 700 }}>{data.codigoProducto}</span></p>
+            <p style={{ margin: '1px 0' }}><span style={{ fontWeight: 600 }}>SKU:</span> <span style={{ fontFamily: 'monospace', fontWeight: 700 }}>{data.codigoProducto}</span></p>
             <p style={{ margin: '1px 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{data.descripcionProducto}</p>
           </div>
 
           {/* Barcode pequeño */}
-          <div style={{ padding: '4px', backgroundColor: '#f9fafb', textAlign: 'center' }}>
-            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'center', height: '20px', gap: '1px' }}>
-              {[...Array(20)].map((_, i) => (
-                <div key={i} style={{ backgroundColor: '#000', width: '2px', height: `${12 + (i % 3) * 3}px` }} />
+          <div style={{ padding: '4px', backgroundColor: '#ffffff', textAlign: 'center', borderTop: '1px solid #000000' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'center', height: '24px', gap: '1px' }}>
+              {[...Array(25)].map((_, i) => (
+                <div key={i} style={{ backgroundColor: '#000000', width: '2px', height: `${14 + (i % 3) * 4}px` }} />
               ))}
             </div>
           </div>
