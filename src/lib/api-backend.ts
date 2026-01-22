@@ -912,6 +912,55 @@ const diagnosticosWriteHandlers: Record<string, ActionHandler<any>> = {
 };
 
 // =============================================================================
+// GUIAS HANDLERS
+// =============================================================================
+const guiasHandlers: Record<string, ActionHandler<any>> = {
+  "guias.list": async (input) => {
+    const { skip = 0, limit = 100 } = input || {};
+    const { data, error } = await supabase.from("guias").select("*").range(skip, skip + limit - 1).order("fecha_guia", { ascending: false });
+    if (error) throw error;
+    return { results: data || [] };
+  },
+  "guias.get": async (input) => {
+    const { data, error } = await supabase.from("guias").select("*").eq("id", input.id).maybeSingle();
+    if (error) throw error;
+    return { result: data };
+  },
+  "guias.create": async (input) => {
+    const { data, error } = await supabase.from("guias").insert(input as any).select().single();
+    if (error) throw error;
+    return data;
+  },
+  "guias.update": async (input) => {
+    const { id, data: updateData } = input as any;
+    const { data, error } = await supabase.from("guias").update(updateData).eq("id", id).select().single();
+    if (error) throw error;
+    return data;
+  },
+};
+
+// =============================================================================
+// SOLICITUDES REPUESTOS EXTENDED HANDLERS
+// =============================================================================
+const solicitudesRepuestosExtendedHandlers: Record<string, ActionHandler<any>> = {
+  "solicitudes_repuestos.update": async (input) => {
+    const { id, data: updateData } = input as any;
+    const { data, error } = await supabase.from("solicitudes_repuestos").update(updateData).eq("id", id).select().single();
+    if (error) throw error;
+    return data;
+  },
+  "solicitudes_repuestos.search": async (input) => {
+    const { incidente_id, estado } = input || {};
+    let query = supabase.from("solicitudes_repuestos").select("*");
+    if (incidente_id) query = query.eq("incidente_id", incidente_id);
+    if (estado) query = query.eq("estado", estado);
+    const { data, error } = await query.order("updated_at", { ascending: true });
+    if (error) throw error;
+    return { results: data || [] };
+  },
+};
+
+// =============================================================================
 // HANDLERS MAP
 // =============================================================================
 const handlers: Partial<Record<ActionName, ActionHandler<any>>> = {
@@ -937,6 +986,8 @@ const handlers: Partial<Record<ActionName, ActionHandler<any>>> = {
   ...mediaHandlers,
   ...pedidosBodegaExtendedHandlers,
   ...diagnosticosWriteHandlers,
+  ...guiasHandlers,
+  ...solicitudesRepuestosExtendedHandlers,
 };
 
 // =============================================================================

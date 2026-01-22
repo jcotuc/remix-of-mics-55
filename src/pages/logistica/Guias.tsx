@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Search, Plus, FileText, Printer, PackagePlus } from "lucide-react";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { apiBackendAction } from "@/lib/api-backend";
 import { showError, showSuccess } from "@/utils/toastHelpers";
 import { formatFechaInput, formatFechaCorta } from "@/utils/dateFormatters";
 import { format } from "date-fns";
@@ -118,13 +119,8 @@ export default function Guias() {
 
   const fetchGuias = async () => {
     try {
-      const { data, error } = await (supabase as any)
-        .from('guias')
-        .select('*')
-        .order('fecha_guia', { ascending: false });
-
-      if (error) throw error;
-      setGuias((data || []) as Guia[]);
+      const result = await (apiBackendAction as any)("guias.list", { limit: 200 });
+      setGuias((result.results || []) as unknown as Guia[]);
     } catch (error) {
       console.error('Error fetching guias:', error);
       showError("No se pudieron cargar las guías");
@@ -135,16 +131,12 @@ export default function Guias() {
 
   const fetchIncidentesDisponibles = async () => {
     try {
-      // Obtener incidentes que están listos para envío (estado: "EN_ENTREGA")
-      const { data, error } = await supabase
-        .from('incidentes')
-        .select('id, codigo, descripcion_problema, cliente_id, quiere_envio')
-        .eq('estado', 'EN_ENTREGA')
-        .eq('quiere_envio', true)
-        .order('fecha_ingreso', { ascending: false });
-
-      if (error) throw error;
-      setIncidentesDisponibles(data || []);
+      // Use apiBackendAction for incidentes
+      const result = await apiBackendAction("incidentes.list", { limit: 1000 });
+      const filtered = result.results
+        .filter((i: any) => i.estado === 'EN_ENTREGA' && i.quiere_envio === true)
+        .map((i: any) => ({ id: i.id, codigo: i.codigo, descripcion_problema: i.descripcion_problema, cliente_id: i.cliente?.id, quiere_envio: i.quiere_envio }));
+      setIncidentesDisponibles(filtered);
     } catch (error) {
       console.error('Error fetching incidentes:', error);
     }
@@ -152,13 +144,11 @@ export default function Guias() {
 
   const fetchClientes = async () => {
     try {
-      const { data, error } = await supabase
-        .from('clientes')
-        .select('*')
-        .order('nombre', { ascending: true });
-
-      if (error) throw error;
-      setClientes((data || []) as Cliente[]);
+      const result = await apiBackendAction("clientes.list", { limit: 5000 });
+      const sorted = (result.results || []).sort((a: any, b: any) => 
+        (a.nombre || "").localeCompare(b.nombre || "")
+      );
+      setClientes(sorted as Cliente[]);
     } catch (error) {
       console.error('Error fetching clientes:', error);
     }
@@ -166,18 +156,10 @@ export default function Guias() {
 
   const loadCentroServicioUsuario = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      // Obtener el centro de servicio asociado al usuario
-      // Por ahora usamos el centro GUA por defecto
-      const { data: centro, error } = await (supabase as any)
-        .from('centros_de_servicio')
-        .select('*')
-        .eq('nombre', 'GUA')
-        .single();
-
-      if (error) throw error;
+      // Use apiBackendAction for centros_de_servicio
+      const result = await apiBackendAction("centros_de_servicio.list", {});
+      const centros = ((result as any).results || (result as any).data || []) as any[];
+      const centro = centros.find((c: any) => c.nombre === 'GUA');
 
       if (centro) {
         setFormData(prev => ({

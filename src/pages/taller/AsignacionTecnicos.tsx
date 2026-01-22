@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { apiBackendAction } from "@/lib/api-backend";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -7,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Users, FolderTree, X, Save } from "lucide-react";
 import { toast } from "sonner";
-import type { Database } from "@/integrations/supabase/types";
 
 interface FamiliaAbuelo {
   id: number;
@@ -97,14 +95,13 @@ export default function AsignacionTecnicos() {
 
   const fetchAsignaciones = async () => {
     try {
-      const { data } = await (supabase as any)
-        .from("configuracion_fifo_centro")
-        .select("*")
-        .eq("centro_servicio_id", Number(selectedCentro))
-        .eq("activo", true);
+      const result = await apiBackendAction("configuracion_fifo_centro.list", { 
+        centro_servicio_id: Number(selectedCentro), 
+        activo: true 
+      });
 
       // Map to our interface
-      const mapped: AsignacionTecnico[] = (data || []).map((d: any) => ({
+      const mapped: AsignacionTecnico[] = ((result as any).results || []).map((d: any) => ({
         id: d.id,
         user_id: d.updated_by || 0,
         familia_abuelo_id: d.familia_abuelo_id,
@@ -129,17 +126,13 @@ export default function AsignacionTecnicos() {
         return;
       }
 
-      const { error } = await (supabase as any)
-        .from("configuracion_fifo_centro")
-        .insert({
-          updated_by: userId,
-          familia_abuelo_id: familiaId,
-          centro_servicio_id: Number(selectedCentro),
-          activo: true,
-          orden: asignaciones.length + 1
-        });
-
-      if (error) throw error;
+      await apiBackendAction("configuracion_fifo_centro.create", {
+        updated_by: userId,
+        familia_abuelo_id: familiaId,
+        centro_servicio_id: Number(selectedCentro),
+        activo: true,
+        orden: asignaciones.length + 1
+      });
 
       toast.success("Técnico asignado correctamente");
       fetchAsignaciones();
@@ -151,12 +144,10 @@ export default function AsignacionTecnicos() {
 
   const handleRemover = async (asignacionId: number) => {
     try {
-      const { error } = await (supabase as any)
-        .from("configuracion_fifo_centro")
-        .update({ activo: false })
-        .eq("id", asignacionId);
-
-      if (error) throw error;
+      await apiBackendAction("configuracion_fifo_centro.update", {
+        id: asignacionId,
+        data: { activo: false }
+      });
 
       toast.success("Asignación removida");
       fetchAsignaciones();

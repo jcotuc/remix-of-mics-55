@@ -9,7 +9,6 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { supabase } from "@/integrations/supabase/client";
 import { apiBackendAction } from "@/lib/api-backend";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -129,14 +128,10 @@ export default function BusquedaIncidentes() {
         productoData = productosResult.results.find(p => p.id === incidente.producto_id) as unknown as ProductoDB || null;
       }
 
-      // Diagnóstico via apiBackendAction, media still via direct Supabase (not in registry)
-      const [diagnosticoResult, mediaRes] = await Promise.all([
+      // Diagnóstico and media via apiBackendAction
+      const [diagnosticoResult, mediaResult] = await Promise.all([
         apiBackendAction("diagnosticos.search", { incidente_id: incidente.id }),
-        supabase
-          .from("media")
-          .select("*")
-          .eq("incidente_id", incidente.id)
-          .order("created_at", { ascending: false })
+        apiBackendAction("media.list", { incidente_id: incidente.id })
       ]);
 
       const diagnosticoData = diagnosticoResult.results?.[0] || null;
@@ -145,7 +140,7 @@ export default function BusquedaIncidentes() {
         cliente: clienteData as ClienteDB | null,
         producto: productoData as ProductoDB | null,
         diagnostico: diagnosticoData as unknown as DiagnosticoDB | null,
-        mediaFiles: mediaRes.data || [],
+        mediaFiles: (mediaResult.results || []) as MediaDB[],
       });
     } catch (error) {
       console.error("Error al cargar detalles:", error);
