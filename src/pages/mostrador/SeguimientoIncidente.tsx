@@ -110,7 +110,7 @@ type GuiaData = {
 
 type EventoHistorial = {
   id: string;
-  tipo: "creacion" | "asignacion" | "diagnostico" | "reparacion" | "observacion" | "foto" | "guia" | "estado";
+  tipo: "creacion" | "asignacion" | "diagnostico" | "reparacion" | "observacion" | "foto" | "guia" | "estado" | "repuesto" | "despacho";
   titulo: string;
   descripcion: string;
   usuario: string;
@@ -340,7 +340,12 @@ export default function SeguimientoIncidente() {
         (accesoriosRes.data || []).map((a: any) => a.accesorios?.nombre).filter(Boolean)
       );
 
-      // Build eventos from all sources
+      // Fetch solicitudes_repuestos for timeline events
+      const { data: solicitudesTimelineData } = await supabase
+        .from("solicitudes_repuestos")
+        .select("*, solicitante:tecnico_solicitante_id(nombre), despachador:entregado_por(nombre)")
+        .eq("incidente_id", incidenteIdNum)
+        .order("created_at", { ascending: true });
       const eventosBuilt: EventoHistorial[] = [];
       
       // Get propietario name if available
@@ -438,6 +443,32 @@ export default function SeguimientoIncidente() {
           usuario: "Logística",
           fecha: new Date(g.fecha_guia || new Date()),
         });
+      });
+
+      // Eventos de solicitudes de repuestos
+      (solicitudesTimelineData || []).forEach((s: any, idx: number) => {
+        // Evento de solicitud creada
+        const repuestosCount = Array.isArray(s.repuestos) ? s.repuestos.length : 0;
+        eventosBuilt.push({
+          id: `solicitud-${s.id || idx}`,
+          tipo: "repuesto",
+          titulo: "Solicitud de Repuestos",
+          descripcion: `${repuestosCount} repuesto(s) solicitado(s) - ${s.tipo_despacho === "autoservicio" ? "Autoservicio" : "Bodega"}`,
+          usuario: s.solicitante?.nombre || "Técnico",
+          fecha: new Date(s.created_at),
+        });
+
+        // Evento de despacho (si fue despachado)
+        if (s.estado === "entregado" && s.fecha_entrega) {
+          eventosBuilt.push({
+            id: `despacho-${s.id || idx}`,
+            tipo: "despacho",
+            titulo: "Repuestos Despachados",
+            descripcion: `${repuestosCount} repuesto(s) entregado(s) al técnico`,
+            usuario: s.despachador?.nombre || "Bodega",
+            fecha: new Date(s.fecha_entrega),
+          });
+        }
       });
 
       setEventos(eventosBuilt);
@@ -934,6 +965,10 @@ export default function SeguimientoIncidente() {
                             return { icon: Camera, bg: "bg-orange-100", color: "text-orange-600" };
                           case "guia":
                             return { icon: Truck, bg: "bg-indigo-100", color: "text-indigo-600" };
+                          case "repuesto":
+                            return { icon: Package, bg: "bg-cyan-100", color: "text-cyan-600" };
+                          case "despacho":
+                            return { icon: Package, bg: "bg-green-100", color: "text-green-600" };
                           default:
                             return { icon: Clock, bg: "bg-gray-100", color: "text-gray-600" };
                         }
