@@ -272,7 +272,7 @@ export default function SeguimientoIncidente() {
       const diagData = diagnosticosRes.data?.[0];
       if (diagData) {
         // Fetch fallas, causas and repuestos for the diagnostico
-        const [fallasRes, causasRes, repuestosRes] = await Promise.all([
+        const [fallasRes, causasRes, solicitudesRes] = await Promise.all([
           supabase
             .from("diagnostico_fallas")
             .select("fallas:falla_id(nombre)")
@@ -283,20 +283,45 @@ export default function SeguimientoIncidente() {
             .eq("diagnostico_id", diagData.id),
           supabase
             .from("solicitudes_repuestos")
-            .select("*, repuestos:repuesto_id(codigo, descripcion)")
+            .select("repuestos, estado")
             .eq("incidente_id", incidenteIdNum),
         ]);
+
+        // Extract repuestos from JSONB field and fetch their prices
+        const repuestosFromSolicitudes: any[] = [];
+        for (const solicitud of (solicitudesRes.data || [])) {
+          const repuestosJson = solicitud.repuestos as any[];
+          if (repuestosJson && Array.isArray(repuestosJson)) {
+            for (const r of repuestosJson) {
+              repuestosFromSolicitudes.push({
+                codigo: r.codigo,
+                descripcion: r.descripcion || "Repuesto",
+                cantidad: r.cantidad || 1,
+                precioUnitario: 0, // Will be fetched below
+              });
+            }
+          }
+        }
+
+        // Fetch prices for repuestos
+        if (repuestosFromSolicitudes.length > 0) {
+          const codigos = repuestosFromSolicitudes.map(r => r.codigo);
+          const { data: repuestosConPrecio } = await supabase
+            .from("repuestos")
+            .select("codigo, precio")
+            .in("codigo", codigos);
+          
+          const precioMap = new Map((repuestosConPrecio || []).map((r: any) => [r.codigo, r.precio || 0]));
+          repuestosFromSolicitudes.forEach(r => {
+            r.precioUnitario = precioMap.get(r.codigo) || 0;
+          });
+        }
 
         setDiagnosticoData({
           ...diagData,
           fallas: (fallasRes.data || []).map((f: any) => f.fallas?.nombre).filter(Boolean),
           causas: (causasRes.data || []).map((c: any) => c.causas?.nombre).filter(Boolean),
-          repuestos: (repuestosRes.data || []).map((r: any) => ({
-            codigo: r.repuestos?.codigo || r.codigo_repuesto,
-            descripcion: r.repuestos?.descripcion || "Repuesto",
-            cantidad: r.cantidad || 1,
-            precioUnitario: r.precio_unitario || 0,
-          })),
+          repuestos: repuestosFromSolicitudes,
           tecnicoNombre: diagData.usuarios?.nombre || "Técnico",
         });
       }
@@ -603,7 +628,8 @@ export default function SeguimientoIncidente() {
       aplicaGarantia: diagnosticoData.aplica_garantia || false,
       tipoTrabajo: diagnosticoData.tipo_trabajo || undefined,
       repuestos: diagnosticoData.repuestos || [],
-      costoManoObra: 20, // Consumibles fijo
+      costoManoObra: 0, // Mano de obra (si aplica)
+      costoConsumibles: 20, // Consumibles fijo Q20
       costoEnvio: incidente.quiere_envio ? 50 : 0,
       productoAlternativo: diagnosticoData.producto_alternativo_id ? {
         codigo: "",
