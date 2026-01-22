@@ -93,20 +93,29 @@ const IncidentePrintSheet = forwardRef<HTMLDivElement, Props>(({ data }, ref) =>
             <p className="font-semibold truncate">{data.nombreCliente}</p>
           </div>
           <div className="border-r border-b border-gray-300 p-1.5 bg-gray-50">
+            <p className="text-gray-500 text-[8px] uppercase">Teléfono</p>
+            <p className="font-bold">{data.telefonoCliente || 'N/A'}</p>
+          </div>
+          <div className="border-b border-gray-300 p-1.5 bg-gray-50">
             <p className="text-gray-500 text-[8px] uppercase">Fecha/Hora</p>
             <p className="font-bold">{fechaFormateada} {horaFormateada}</p>
           </div>
-          <div className="border-b border-gray-300 p-1.5 bg-gray-50">
+          
+          <div className="col-span-2 border-r border-b border-gray-300 p-1.5 bg-gray-50">
+            <p className="text-gray-500 text-[8px] uppercase">Dirección</p>
+            <p className="font-semibold truncate">{data.direccionCliente || 'N/A'}</p>
+          </div>
+          <div className="border-r border-b border-gray-300 p-1.5 bg-gray-50">
             <p className="text-gray-500 text-[8px] uppercase">Tipología</p>
             <p className="font-bold">{data.tipologia}</p>
           </div>
-          
-          <div className="border-r border-b border-gray-300 p-1.5">
+          <div className="border-b border-gray-300 p-1.5 bg-gray-50">
             <p className="text-gray-500 text-[8px] uppercase">SKU Producto</p>
             <p className="font-mono font-bold text-[10px]">{data.codigoProducto}</p>
           </div>
-          <div className="col-span-3 border-b border-gray-300 p-1.5">
-            <p className="text-gray-500 text-[8px] uppercase">Descripción</p>
+          
+          <div className="col-span-4 border-b border-gray-300 p-1.5">
+            <p className="text-gray-500 text-[8px] uppercase">Descripción Producto</p>
             <p className="font-semibold truncate">{data.descripcionProducto}</p>
           </div>
         </div>
