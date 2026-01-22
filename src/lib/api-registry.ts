@@ -464,6 +464,109 @@ export interface ActionRegistry {
 
   // Inventarios - search by codigos
   "inventarios.search": { input: { codigos_repuesto?: string[]; centro_servicio_id?: number }; output: { results: unknown[] } };
+
+  // =============================================================================
+  // AUDITORIAS CALIDAD
+  // =============================================================================
+  "auditorias_calidad.list": { input: { skip?: number; limit?: number }; output: { results: unknown[] } };
+  "auditorias_calidad.get": { input: { id: number }; output: { result: unknown | null } };
+  "auditorias_calidad.create": { input: Record<string, unknown>; output: unknown };
+  "auditorias_calidad.update": { input: { id: number; data: Record<string, unknown> }; output: unknown };
+  "auditorias_calidad.delete": { input: { id: number }; output: { status: string; id: number } };
+
+  // =============================================================================
+  // DEFECTOS CALIDAD
+  // =============================================================================
+  "defectos_calidad.list": { input: { skip?: number; limit?: number }; output: { results: unknown[] } };
+  "defectos_calidad.get": { input: { id: number }; output: { result: unknown | null } };
+  "defectos_calidad.create": { input: Record<string, unknown>; output: unknown };
+  "defectos_calidad.update": { input: { id: number; data: Record<string, unknown> }; output: unknown };
+  "defectos_calidad.delete": { input: { id: number }; output: { status: string; id: number } };
+
+  // =============================================================================
+  // GARANTIAS MANUALES
+  // =============================================================================
+  "garantias_manuales.list": { input: { skip?: number; limit?: number; created_by?: string }; output: { results: unknown[] } };
+  "garantias_manuales.get": { input: { id: number }; output: { result: unknown | null } };
+  "garantias_manuales.create": { input: Record<string, unknown>; output: unknown };
+  "garantias_manuales.update": { input: { id: number; data: Record<string, unknown> }; output: unknown };
+  "garantias_manuales.delete": { input: { id: number }; output: { status: string; id: number } };
+
+  // =============================================================================
+  // ASIGNACIONES SAC
+  // =============================================================================
+  "asignaciones_sac.list": { input: { user_id?: number; incidente_id?: number; activo?: boolean }; output: { results: unknown[] } };
+  "asignaciones_sac.get": { input: { id: number }; output: { result: unknown | null } };
+  "asignaciones_sac.create": { input: Record<string, unknown>; output: unknown };
+  "asignaciones_sac.update": { input: { id: number; data: Record<string, unknown> }; output: unknown };
+  "asignaciones_sac.delete": { input: { id: number }; output: { status: string; id: number } };
+
+  // =============================================================================
+  // NOTIFICACIONES (sistema interno)
+  // =============================================================================
+  "notificaciones.list": { input: { usuario_id?: number; leido?: boolean; tipo?: string }; output: { results: unknown[] } };
+  "notificaciones.get": { input: { id: number }; output: { result: unknown | null } };
+  "notificaciones.create": { input: Record<string, unknown>; output: unknown };
+  "notificaciones.update": { input: { id: number; data: Record<string, unknown> }; output: unknown };
+  "notificaciones.delete": { input: { id: number }; output: { status: string; id: number } };
+  "notificaciones.markAsRead": { input: { id: number }; output: unknown };
+
+  // =============================================================================
+  // SOLICITUDES CAMBIO
+  // =============================================================================
+  "solicitudes_cambio.list": { input: { skip?: number; limit?: number; estado?: string }; output: { results: unknown[] } };
+  "solicitudes_cambio.get": { input: { id: number }; output: { result: unknown | null } };
+  "solicitudes_cambio.create": { input: Record<string, unknown>; output: unknown };
+  "solicitudes_cambio.update": { input: { id: number; data: Record<string, unknown> }; output: unknown };
+  "solicitudes_cambio.delete": { input: { id: number }; output: { status: string; id: number } };
+
+  // =============================================================================
+  // INCIDENTE TECNICO (CRUD completo)
+  // =============================================================================
+  "incidente_tecnico.get": { input: { id: number }; output: { result: unknown | null } };
+  "incidente_tecnico.create": { input: Record<string, unknown>; output: unknown };
+  "incidente_tecnico.update": { input: { id: number; data: Record<string, unknown> }; output: unknown };
+  "incidente_tecnico.delete": { input: { id: number }; output: { status: string; id: number } };
+  "incidente_tecnico.search": { input: { tecnico_id?: number; es_activo?: boolean }; output: { results: unknown[] } };
+
+  // =============================================================================
+  // DIAGNOSTICOS (CRUD completo - implementar handlers faltantes)
+  // =============================================================================
+  // diagnosticos.create, diagnosticos.update ya están en registry pero handlers notImplemented
+
+  // =============================================================================
+  // DIAGNOSTICO FALLAS / CAUSAS (asociaciones)
+  // =============================================================================
+  "diagnostico_fallas.list": { input: { diagnostico_id: number }; output: { results: unknown[] } };
+  "diagnostico_fallas.create": { input: Record<string, unknown>; output: unknown };
+  "diagnostico_fallas.delete": { input: { diagnostico_id: number; falla_id?: number }; output: { status: string } };
+
+  "diagnostico_causas.list": { input: { diagnostico_id: number }; output: { results: unknown[] } };
+  "diagnostico_causas.create": { input: Record<string, unknown>; output: unknown };
+  "diagnostico_causas.delete": { input: { diagnostico_id: number; causa_id?: number }; output: { status: string } };
+
+  // =============================================================================
+  // USUARIOS (extended)
+  // =============================================================================
+  "usuarios.search": { input: { search?: string; rol?: string; auth_uid?: string }; output: { results: unknown[] } };
+  "usuarios.getByAuthUid": { input: { auth_uid: string }; output: { result: unknown | null } };
+
+  // =============================================================================
+  // TRANSITOS BODEGA (extended)
+  // =============================================================================
+  "transitos_bodega.search": { input: { estado?: string; bodega_origen_id?: number; bodega_destino_id?: number }; output: { results: unknown[] } };
+
+  // =============================================================================
+  // CENTROS SUPERVISOR
+  // =============================================================================
+  "centros_supervisor.list": { input: { supervisor_id?: number }; output: { results: unknown[] } };
+  "centros_supervisor.create": { input: Record<string, unknown>; output: unknown };
+  "centros_supervisor.delete": { input: { id?: number; supervisor_id?: number }; output: { status: string } };
+
+  // =============================================================================
+  // USER ROLES
+  // =============================================================================
+  "user_roles.list": { input: { user_id?: number; role?: string }; output: { results: unknown[] } };
 }
 
 export type ActionName = keyof ActionRegistry;

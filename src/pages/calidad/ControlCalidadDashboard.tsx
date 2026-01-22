@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { apiBackendAction } from "@/lib/api-backend";
 import type { IncidenteSchema } from "@/generated/actions.d";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,21 +22,20 @@ export default function ControlCalidadDashboard() {
 
   const fetchStats = async () => {
     try {
-      // Use Supabase for auditorias and defectos (no handler yet), API for incidentes
       const [auditoriasRes, defectosRes, incidentesRes] = await Promise.all([
-        supabase.from("auditorias_calidad").select("resultado"),
-        supabase.from("defectos_calidad").select("gravedad"),
+        apiBackendAction("auditorias_calidad.list", {}),
+        apiBackendAction("defectos_calidad.list", {}),
         apiBackendAction("incidentes.list", { limit: 2000 }),
       ]);
 
-      const auditorias = auditoriasRes.data || [];
-      const defectos = defectosRes.data || [];
+      const auditorias = auditoriasRes.results || [];
+      const defectos = defectosRes.results || [];
       const incidentes = incidentesRes.results || [];
 
-      const aprobadas = auditorias.filter((a) => a.resultado === "aprobado").length;
-      const rechazadas = auditorias.filter((a) => a.resultado === "rechazado").length;
-      const reingresos = auditorias.filter((a) => a.resultado === "reingreso").length;
-      const defectosCriticos = defectos.filter((d) => d.gravedad === "critica").length;
+      const aprobadas = auditorias.filter((a: any) => a.resultado === "aprobado").length;
+      const rechazadas = auditorias.filter((a: any) => a.resultado === "rechazado").length;
+      const reingresos = auditorias.filter((a: any) => a.resultado === "reingreso").length;
+      const defectosCriticos = defectos.filter((d: any) => d.gravedad === "critica").length;
 
       // Count pending incidents as approximation
       const reincidenciasPendientes = incidentes.filter((i: IncidenteSchema) => 
