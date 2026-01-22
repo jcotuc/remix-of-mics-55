@@ -1,54 +1,47 @@
 import { useState, useEffect, useMemo } from "react";
-import { Plus, Search, Edit, Trash2 } from "lucide-react";
+import { Search, Edit, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { supabase } from "@/integrations/supabase/client";
+import { apiBackendAction } from "@/lib/api-backend";
 import { toast } from "sonner";
 import { TablePagination } from "@/components/shared";
-import type { Database } from "@/integrations/supabase/types";
-type Cliente = Database['public']['Tables']['clientes']['Row'];
+import type { ClienteSchema } from "@/generated/actions.d";
+
 export default function Clientes() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [clientesList, setClientesList] = useState<Cliente[]>([]);
+  const [clientesList, setClientesList] = useState<ClienteSchema[]>([]);
   const [loading, setLoading] = useState(true);
-  const [editingCliente, setEditingCliente] = useState<Cliente | null>(null);
+  const [editingCliente, setEditingCliente] = useState<ClienteSchema | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(50);
+
   useEffect(() => {
     updateCodesAndFetch();
   }, []);
 
-  // Reset page when search changes
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm]);
+
   const updateCodesAndFetch = async () => {
     try {
       setLoading(true);
-      const {
-        data: hpcClientes
-      } = await supabase.from('clientes').select('id, codigo').like('codigo', 'HPC-%');
-      if (hpcClientes && hpcClientes.length > 0) {
-        console.log(`Actualizando ${hpcClientes.length} clientes de HPC a HPS...`);
+      // Fetch all clients to find HPC codes
+      const response = await apiBackendAction("clientes.list", { limit: 5000 });
+      const allClientes = response.results || [];
+      const hpcClientes = allClientes.filter((c: ClienteSchema) => c.codigo?.startsWith('HPC-'));
+
+      if (hpcClientes.length > 0) {
+        console.log(`Encontrados ${hpcClientes.length} clientes con prefijo HPC - códigos son inmutables`);
+        // Note: codigo is immutable, HPC codes should be migrated at DB level
         for (const cliente of hpcClientes) {
-          const newCodigo = cliente.codigo.replace('HPC-', 'HPS-');
-          const {
-            error
-          } = await supabase.from('clientes').update({
-            codigo: newCodigo
-          }).eq('id', cliente.id);
-          if (error) {
-            console.error(`Error actualizando ${cliente.codigo} → ${newCodigo}:`, error);
-          } else {
-            console.log(`✓ Actualizado: ${cliente.codigo} → ${newCodigo}`);
-          }
+          console.log(`Cliente HPC encontrado: ${cliente.codigo}`);
         }
-        toast.success(`${hpcClientes.length} clientes actualizados a HPS`);
       }
       await fetchClientes();
     } catch (error) {
@@ -57,17 +50,20 @@ export default function Clientes() {
       setLoading(false);
     }
   };
+
   const fetchClientes = async () => {
     try {
       setLoading(true);
-      const {
-        data,
-        error
-      } = await supabase.from('clientes').select('*').like('codigo', 'HPS-%').order('created_at', {
-        ascending: false
-      });
-      if (error) throw error;
-      const clientesManuales = (data || []).filter(c => /^HPS-\d{6}$/.test(c.codigo));
+      const response = await apiBackendAction("clientes.list", { limit: 5000 });
+      const allClientes = response.results || [];
+      // Filter for HPS- codes matching pattern HPS-XXXXXX
+      const clientesManuales = allClientes.filter((c: ClienteSchema) => 
+        c.codigo?.startsWith('HPS-') && /^HPS-\d{6}$/.test(c.codigo)
+      );
+      // Sort by created_at descending
+      clientesManuales.sort((a: ClienteSchema, b: ClienteSchema) => 
+        new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
+      );
       setClientesList(clientesManuales);
     } catch (error) {
       console.error('Error al cargar clientes:', error);
@@ -76,13 +72,11 @@ export default function Clientes() {
       setLoading(false);
     }
   };
-  const handleDelete = async (codigo: string) => {
+
+  const handleDelete = async (id: number) => {
     if (!confirm('¿Estás seguro de eliminar este cliente?')) return;
     try {
-      const {
-        error
-      } = await supabase.from('clientes').delete().eq('codigo', codigo);
-      if (error) throw error;
+      await apiBackendAction("clientes.delete", { id });
       toast.success('Cliente eliminado exitosamente');
       fetchClientes();
     } catch (error) {
@@ -90,31 +84,33 @@ export default function Clientes() {
       toast.error('Error al eliminar el cliente');
     }
   };
-  const handleEdit = (cliente: Cliente) => {
+
+  const handleEdit = (cliente: ClienteSchema) => {
     setEditingCliente(cliente);
     setIsEditDialogOpen(true);
   };
+
   const handleSaveEdit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!editingCliente) return;
     const formData = new FormData(e.currentTarget);
     try {
-      const {
-        error
-      } = await supabase.from('clientes').update({
-        nombre: formData.get('nombre') as string,
-        nit: formData.get('nit') as string,
-        celular: formData.get('celular') as string,
-        direccion: formData.get('direccion') as string || null,
-        correo: formData.get('correo') as string || null,
-        telefono_principal: formData.get('telefono_principal') as string || null,
-        telefono_secundario: formData.get('telefono_secundario') as string || null,
-        nombre_facturacion: formData.get('nombre_facturacion') as string || null,
-        pais: formData.get('pais') as string || null,
-        departamento: formData.get('departamento') as string || null,
-        municipio: formData.get('municipio') as string || null
-      }).eq('codigo', editingCliente.codigo);
-      if (error) throw error;
+      await apiBackendAction("clientes.update", {
+        id: editingCliente.id,
+        data: {
+          nombre: formData.get('nombre') as string,
+          nit: formData.get('nit') as string,
+          celular: formData.get('celular') as string,
+          direccion: formData.get('direccion') as string || null,
+          correo: formData.get('correo') as string || null,
+          telefono_principal: formData.get('telefono_principal') as string || null,
+          telefono_secundario: formData.get('telefono_secundario') as string || null,
+          nombre_facturacion: formData.get('nombre_facturacion') as string || null,
+          pais: formData.get('pais') as string || null,
+          departamento: formData.get('departamento') as string || null,
+          municipio: formData.get('municipio') as string || null
+        }
+      });
       toast.success('Cliente actualizado exitosamente');
       setIsEditDialogOpen(false);
       setEditingCliente(null);
@@ -124,19 +120,24 @@ export default function Clientes() {
       toast.error('Error al actualizar el cliente');
     }
   };
+
   const filteredClientes = useMemo(() => {
-    return clientesList.filter(cliente => cliente.nombre.toLowerCase().includes(searchTerm.toLowerCase()) || cliente.nit.includes(searchTerm) || cliente.codigo.toLowerCase().includes(searchTerm.toLowerCase()));
+    return clientesList.filter(cliente => 
+      cliente.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+      cliente.nit?.includes(searchTerm) || 
+      cliente.codigo?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
   }, [clientesList, searchTerm]);
 
-  // Pagination
   const totalPages = Math.max(1, Math.ceil(filteredClientes.length / itemsPerPage));
   const startIndex = (currentPage - 1) * itemsPerPage;
   const paginatedClientes = filteredClientes.slice(startIndex, startIndex + itemsPerPage);
-  return <div className="space-y-6">
+
+  return (
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Gestión de Clientes</h1>
-          
         </div>
       </div>
 
@@ -150,7 +151,12 @@ export default function Clientes() {
         <CardContent>
           <div className="flex items-center space-x-2 mb-4">
             <Search className="h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Buscar por nombre, NIT o código..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="max-w-sm" />
+            <Input 
+              placeholder="Buscar por nombre, NIT o código..." 
+              value={searchTerm} 
+              onChange={e => setSearchTerm(e.target.value)} 
+              className="max-w-sm" 
+            />
           </div>
 
           <div className="rounded-md border">
@@ -165,15 +171,25 @@ export default function Clientes() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {loading ? <TableRow>
+                {loading ? (
+                  <TableRow>
                     <TableCell colSpan={5} className="text-center">
                       Cargando...
                     </TableCell>
-                  </TableRow> : paginatedClientes.length === 0 ? <TableRow>
+                  </TableRow>
+                ) : paginatedClientes.length === 0 ? (
+                  <TableRow>
                     <TableCell colSpan={5} className="text-center">
                       No hay clientes registrados
                     </TableCell>
-                  </TableRow> : paginatedClientes.map(cliente => <TableRow key={cliente.codigo} className="cursor-pointer hover:bg-muted/50" onClick={() => window.location.href = `/mostrador/clientes/${cliente.codigo}`}>
+                  </TableRow>
+                ) : (
+                  paginatedClientes.map(cliente => (
+                    <TableRow 
+                      key={cliente.id} 
+                      className="cursor-pointer hover:bg-muted/50" 
+                      onClick={() => window.location.href = `/mostrador/clientes/${cliente.codigo}`}
+                    >
                       <TableCell className="font-medium">{cliente.codigo}</TableCell>
                       <TableCell>{cliente.nombre}</TableCell>
                       <TableCell>{cliente.nit}</TableCell>
@@ -183,20 +199,36 @@ export default function Clientes() {
                           <Button variant="outline" size="sm" onClick={() => handleEdit(cliente)}>
                             <Edit className="h-4 w-4" />
                           </Button>
-                          <Button variant="outline" size="sm" className="text-destructive hover:text-destructive" onClick={() => handleDelete(cliente.codigo)}>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="text-destructive hover:text-destructive" 
+                            onClick={() => handleDelete(cliente.id)}
+                          >
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
                       </TableCell>
-                    </TableRow>)}
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
           </div>
 
-          {!loading && filteredClientes.length > 0 && <TablePagination currentPage={currentPage} totalPages={totalPages} totalItems={filteredClientes.length} itemsPerPage={itemsPerPage} onPageChange={setCurrentPage} onItemsPerPageChange={value => {
-          setItemsPerPage(value);
-          setCurrentPage(1);
-        }} />}
+          {!loading && filteredClientes.length > 0 && (
+            <TablePagination 
+              currentPage={currentPage} 
+              totalPages={totalPages} 
+              totalItems={filteredClientes.length} 
+              itemsPerPage={itemsPerPage} 
+              onPageChange={setCurrentPage} 
+              onItemsPerPageChange={value => {
+                setItemsPerPage(value);
+                setCurrentPage(1);
+              }} 
+            />
+          )}
         </CardContent>
       </Card>
 
@@ -209,7 +241,8 @@ export default function Clientes() {
             </DialogDescription>
           </DialogHeader>
           
-          {editingCliente && <form onSubmit={handleSaveEdit} className="space-y-4">
+          {editingCliente && (
+            <form onSubmit={handleSaveEdit} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="edit-nombre">Nombre *</Label>
@@ -218,12 +251,12 @@ export default function Clientes() {
                 
                 <div className="space-y-2">
                   <Label htmlFor="edit-nit">NIT *</Label>
-                  <Input id="edit-nit" name="nit" defaultValue={editingCliente.nit} required />
+                  <Input id="edit-nit" name="nit" defaultValue={editingCliente.nit || ''} required />
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="edit-celular">Celular *</Label>
-                  <Input id="edit-celular" name="celular" defaultValue={editingCliente.celular} required />
+                  <Input id="edit-celular" name="celular" defaultValue={editingCliente.celular || ''} required />
                 </div>
 
                 <div className="space-y-2">
@@ -275,8 +308,10 @@ export default function Clientes() {
                   Guardar Cambios
                 </Button>
               </div>
-            </form>}
+            </form>
+          )}
         </DialogContent>
       </Dialog>
-    </div>;
+    </div>
+  );
 }
