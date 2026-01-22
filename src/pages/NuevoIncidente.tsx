@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -25,6 +25,7 @@ import {
   Printer,
   Copy,
   Edit3,
+  PenTool,
 } from "lucide-react";
 import { showError, showSuccess, showWarning } from "@/utils/toastHelpers";
 import { supabase } from "@/integrations/supabase/client";
@@ -38,6 +39,7 @@ import { AccesorioSearchSelect } from "@/components/shared";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/contexts/AuthContext";
 import { IncidentePrintSheet } from "@/components/features/incidentes";
+import { SignatureCanvasComponent, SignatureCanvasRef } from "@/components/shared/SignatureCanvas";
 const tipologias = ["Mantenimiento", "Reparación", "Daños por transporte", "Venta de repuestos"];
 
 function mapTipologiaToEnum(value: string): Database["public"]["Enums"]["tipoincidente"] {
@@ -567,6 +569,9 @@ export default function NuevoIncidente() {
     codigo: string;
     codigoCliente: string;
     nombreCliente: string;
+    telefonoCliente?: string;
+    direccionCliente?: string;
+    tipoCliente?: string;
     codigoProducto: string;
     descripcionProducto: string;
     skuMaquina: string;
@@ -577,8 +582,11 @@ export default function NuevoIncidente() {
     personaDejaMaquina: string;
     tipologia: string;
     esReingreso: boolean;
+    firmaClienteDataUrl?: string;
   } | null>(null);
   const [showPrintDialog, setShowPrintDialog] = useState(false);
+  const signatureRef = useRef<SignatureCanvasRef>(null);
+  const [firmaCapturada, setFirmaCapturada] = useState<string | null>(null);
   useEffect(() => {
     if (nuevoCliente.departamento) {
       setMunicipiosDisponibles(MUNICIPIOS[nuevoCliente.departamento] || []);
@@ -2086,9 +2094,9 @@ export default function NuevoIncidente() {
         commentRequired={false}
       />
 
-      {/* Dialog de éxito */}
+      {/* Dialog de éxito con firma */}
       <AlertDialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
-        <AlertDialogContent className="max-w-md">
+        <AlertDialogContent className="max-w-lg">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-center">¡Incidente creado exitosamente!</AlertDialogTitle>
             <AlertDialogDescription className="text-center">
@@ -2096,11 +2104,36 @@ export default function NuevoIncidente() {
             </AlertDialogDescription>
           </AlertDialogHeader>
 
+          {/* Sección de firma digital */}
+          <div className="my-4">
+            <div className="flex items-center gap-2 mb-2">
+              <PenTool className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-medium">Firma del cliente para confirmar entrega</span>
+            </div>
+            <SignatureCanvasComponent 
+              ref={signatureRef}
+              onEnd={() => {
+                const dataUrl = signatureRef.current?.toDataURL();
+                if (dataUrl) {
+                  setFirmaCapturada(dataUrl);
+                }
+              }}
+            />
+          </div>
+
           <div className="flex justify-center my-4">
             <Button
               variant="outline"
               className="gap-2"
               onClick={() => {
+                // Capturar firma antes de ir a imprimir
+                const firma = signatureRef.current?.toDataURL();
+                if (incidenteCreado) {
+                  setIncidenteCreado({
+                    ...incidenteCreado,
+                    firmaClienteDataUrl: firma || undefined
+                  });
+                }
                 setShowSuccessDialog(false);
                 setShowPrintDialog(true);
               }}
@@ -2116,6 +2149,7 @@ export default function NuevoIncidente() {
               onClick={() => {
                 setShowSuccessDialog(false);
                 setIncidenteCreado(null);
+                setFirmaCapturada(null);
                 resetForm();
               }}
             >
