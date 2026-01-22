@@ -44,40 +44,6 @@ interface GrupoColaFifo {
   familias: number[];
 }
 
-// Colores para grupos con incidentes pendientes
-const COLORES_FONDO: Record<string, string> = {
-  orange: "bg-orange-100 border-orange-300 hover:bg-orange-200",
-  green: "bg-green-100 border-green-300 hover:bg-green-200",
-  blue: "bg-blue-100 border-blue-300 hover:bg-blue-200",
-  purple: "bg-purple-100 border-purple-300 hover:bg-purple-200",
-  red: "bg-red-100 border-red-300 hover:bg-red-200",
-  yellow: "bg-yellow-100 border-yellow-300 hover:bg-yellow-200",
-  cyan: "bg-cyan-100 border-cyan-300 hover:bg-cyan-200",
-  pink: "bg-pink-100 border-pink-300 hover:bg-pink-200",
-};
-
-const COLORES_TEXTO: Record<string, string> = {
-  orange: "text-orange-600",
-  green: "text-green-600",
-  blue: "text-blue-600",
-  purple: "text-purple-600",
-  red: "text-red-600",
-  yellow: "text-yellow-600",
-  cyan: "text-cyan-600",
-  pink: "text-pink-600",
-};
-
-const COLORES_BADGE: Record<string, string> = {
-  orange: "bg-orange-500 text-white",
-  green: "bg-green-500 text-white",
-  blue: "bg-blue-500 text-white",
-  purple: "bg-purple-500 text-white",
-  red: "bg-red-500 text-white",
-  yellow: "bg-yellow-500 text-white",
-  cyan: "bg-cyan-500 text-white",
-  pink: "bg-pink-500 text-white",
-};
-
 export default function Asignaciones() {
   const navigate = useNavigate();
   const { currentAssignments, canTakeMoreAssignments, refreshIncidents } = useActiveIncidents();
@@ -323,17 +289,44 @@ export default function Asignaciones() {
         profile = data;
       }
 
-      // Update incident status
-      const { error } = await supabase
-        .from("incidentes")
-        .update({
-          estado: "EN_DIAGNOSTICO" as const,
-          propietario_id: profile?.id || null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", primerIncidente.id);
+      const tecnicoId = Number(profile?.id);
+      if (!tecnicoId) {
+        toast.error("No se pudo identificar el técnico actual");
+        return;
+      }
 
-      if (error) throw error;
+      // 1) Asegurar vínculo incidente <-> técnico (tabla incidente_tecnico)
+      const { results: existentes } = await apiBackendAction("incidente_tecnico.list", {
+        incidente_id: primerIncidente.id,
+        es_principal: true,
+      } as any);
+
+      const existente = (existentes || [])[0] as any;
+      if (existente?.id) {
+        // Si ya existe un principal, lo reasignamos a este técnico
+        await apiBackendAction("incidente_tecnico.update", {
+          id: existente.id,
+          data: {
+            tecnico_id: tecnicoId,
+            es_principal: true,
+          },
+        } as any);
+      } else {
+        await apiBackendAction("incidente_tecnico.create", {
+          incidente_id: primerIncidente.id,
+          tecnico_id: tecnicoId,
+          es_principal: true,
+        } as any);
+      }
+
+      // 2) Actualizar estado del incidente (NO usar propietario_id: FK apunta a propietarios)
+      await apiBackendAction("incidentes.update", {
+        id: primerIncidente.id,
+        data: {
+          estado: "EN_DIAGNOSTICO",
+          updated_at: new Date().toISOString(),
+        },
+      } as any);
 
       toast.success("Incidente asignado");
       refreshIncidents();
