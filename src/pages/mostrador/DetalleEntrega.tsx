@@ -330,8 +330,9 @@ export default function DetalleEntrega() {
     
     const subtotalRepuestos = repuestosConPrecios.reduce((sum, r) => sum + (r.cantidad * r.precioUnitario), 0);
     const costoManoObra = 150;
+    const costoConsumibles = 20;
     const costoEnvio = incidente.quiere_envio ? 75 : 0;
-    const subtotalGeneral = subtotalRepuestos + costoManoObra + costoEnvio;
+    const subtotalGeneral = subtotalRepuestos + costoManoObra + costoConsumibles + costoEnvio;
     
     let descuento = 0;
     let porcentajeDesc = diagnostico.descuento_porcentaje || 0;
@@ -350,6 +351,7 @@ export default function DetalleEntrega() {
       accesorios,
       subtotalRepuestos,
       costoManoObra,
+      costoConsumibles,
       costoEnvio,
       subtotalGeneral,
       descuento,
@@ -669,8 +671,8 @@ export default function DetalleEntrega() {
                             <tr>
                               <td className="border px-2 py-1">Consumibles</td>
                               <td className="border px-1 py-1 text-center">1</td>
-                              <td className="border px-2 py-1 text-right">Q 20.00</td>
-                              <td className="border px-2 py-1 text-right">Q 20.00</td>
+                              <td className="border px-2 py-1 text-right">Q {previewData.costoConsumibles.toFixed(2)}</td>
+                              <td className="border px-2 py-1 text-right">Q {previewData.costoConsumibles.toFixed(2)}</td>
                             </tr>
                             {/* Mano de Obra */}
                             <tr>
