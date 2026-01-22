@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { apiBackendAction } from "@/lib/api-backend";
@@ -23,8 +23,11 @@ import {
   Send,
   DollarSign,
   MapPin,
-  Wrench
+  Wrench,
+  Share2,
+  Printer
 } from "lucide-react";
+import { DiagnosticoPrintSheet } from "@/components/features/diagnostico";
 import { 
   AlertDialog, 
   AlertDialogAction, 
@@ -62,9 +65,17 @@ interface RepuestoSolicitud {
   precioUnitario: number;
 }
 
+interface ProductoAlternativo {
+  id: number;
+  codigo: string;
+  descripcion: string;
+  precio: number;
+}
+
 export default function DetalleIncidenteSAC() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const printRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(true);
   const [incidente, setIncidente] = useState<IncidenteDB | null>(null);
   const [cliente, setCliente] = useState<ClienteDB | null>(null);
@@ -75,6 +86,8 @@ export default function DetalleIncidenteSAC() {
   const [fallas, setFallas] = useState<string[]>([]);
   const [causas, setCausas] = useState<string[]>([]);
   const [repuestos, setRepuestos] = useState<RepuestoSolicitud[]>([]);
+  const [productoAlternativo, setProductoAlternativo] = useState<ProductoAlternativo | null>(null);
+  const [centroServicio, setCentroServicio] = useState<string>("");
   
   // Estado para notificaciones
   const [canal, setCanal] = useState<string>("whatsapp");
@@ -214,6 +227,34 @@ export default function DetalleIncidenteSAC() {
           cantidad: r.cantidad || 1,
           precioUnitario: r.precio_unitario || 0,
         })));
+
+        // Fetch producto alternativo if tipo_resolucion is CANJE
+        if (diagnosticoData.producto_alternativo_id) {
+          const { data: prodAlt } = await supabase
+            .from("productos")
+            .select("id, codigo, descripcion, precio_cliente")
+            .eq("id", diagnosticoData.producto_alternativo_id)
+            .single();
+          
+          if (prodAlt) {
+            setProductoAlternativo({
+              id: prodAlt.id,
+              codigo: prodAlt.codigo,
+              descripcion: prodAlt.descripcion,
+              precio: prodAlt.precio_cliente || 0
+            });
+          }
+        }
+      }
+
+      // Fetch centro de servicio
+      if (incData.centro_de_servicio_id) {
+        const { data: centro } = await supabase
+          .from("centros_de_servicio")
+          .select("nombre")
+          .eq("id", incData.centro_de_servicio_id)
+          .single();
+        setCentroServicio(centro?.nombre || "Centro de Servicio");
       }
 
       // Fetch notificaciones (mock for now - would need a table)
@@ -333,9 +374,14 @@ export default function DetalleIncidenteSAC() {
   };
 
   // Calcular costos
+  const tipoResolucion = (incidente as any)?.tipo_resolucion || (diagnostico as any)?.tipo_resolucion;
+  const isCanje = tipoResolucion === "CANJE";
+  
   const subtotalRepuestos = repuestos.reduce((sum, r) => sum + (r.cantidad * r.precioUnitario), 0);
   const costoManoObra = 20; // Consumibles fijo
-  const subtotalGeneral = subtotalRepuestos + costoManoObra;
+  const subtotalGeneral = isCanje 
+    ? (productoAlternativo?.precio || 0) 
+    : subtotalRepuestos + costoManoObra;
   const porcentajeDescuento = (diagnostico as any)?.descuento_porcentaje || 0;
   const descuento = subtotalGeneral * (porcentajeDescuento / 100);
   const totalFinal = subtotalGeneral - descuento;
@@ -343,7 +389,6 @@ export default function DetalleIncidenteSAC() {
   const formatCurrency = (amount: number) => `Q ${amount.toFixed(2)}`;
 
   const getTipoResolucionLabel = () => {
-    const tipo = (incidente as any)?.tipo_resolucion || (diagnostico as any)?.tipo_resolucion;
     const labels: Record<string, string> = {
       CANJE: "Canje",
       PRESUPUESTO: "Presupuesto",
@@ -351,7 +396,93 @@ export default function DetalleIncidenteSAC() {
       CAMBIO: "Cambio por Garantía",
       NOTA_CREDITO: "Nota de Crédito",
     };
-    return labels[tipo] || tipo || "Pendiente";
+    return labels[tipoResolucion] || tipoResolucion || "Pendiente";
+  };
+
+  const handlePrintDiagnostico = () => {
+    const printWindow = window.open("", "_blank");
+    if (!printWindow || !printRef.current) return;
+
+    const diagnosticoData = {
+      codigoIncidente: incidente?.codigo || "",
+      fechaIngreso: incidente?.fecha_ingreso || incidente?.created_at || "",
+      cliente: {
+        nombre: cliente?.nombre || "",
+        codigo: cliente?.codigo || "",
+        nit: cliente?.nit || "",
+        telefono: cliente?.telefono_principal || cliente?.celular || "",
+        direccion: cliente?.direccion || "",
+      },
+      producto: {
+        codigo: producto?.codigo || "",
+        descripcion: producto?.descripcion || "",
+        problemaReportado: incidente?.descripcion_problema || "",
+      },
+      fallas,
+      causas,
+      repuestos: repuestos.map(r => ({
+        codigo: r.codigo,
+        descripcion: r.descripcion,
+        cantidad: r.cantidad,
+        precioUnitario: r.precioUnitario,
+      })),
+      tipoResolucion: getTipoResolucionLabel(),
+      esReparable: (diagnostico as any)?.es_reparable ?? true,
+      aplicaGarantia: (diagnostico as any)?.aplica_garantia || incidente?.aplica_garantia || false,
+      descuentoPorcentaje: porcentajeDescuento,
+      recomendaciones: (diagnostico as any)?.recomendaciones || "",
+      centroServicio,
+      productoAlternativo: productoAlternativo ? {
+        codigo: productoAlternativo.codigo,
+        descripcion: productoAlternativo.descripcion,
+        precio: productoAlternativo.precio
+      } : undefined,
+    };
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Diagnóstico - ${incidente?.codigo}</title>
+          <style>
+            @media print {
+              body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            }
+          </style>
+        </head>
+        <body>
+          <div id="print-root"></div>
+        </body>
+      </html>
+    `);
+
+    const container = printRef.current.cloneNode(true);
+    printWindow.document.getElementById("print-root")?.appendChild(container);
+    printWindow.document.close();
+
+    setTimeout(() => {
+      printWindow.print();
+    }, 500);
+  };
+
+  const handleShareDiagnostico = async () => {
+    const shareData = {
+      title: `Diagnóstico ${incidente?.codigo}`,
+      text: `Diagnóstico del incidente ${incidente?.codigo}\nCliente: ${cliente?.nombre}\nProducto: ${producto?.codigo}\nResolución: ${getTipoResolucionLabel()}\nTotal: ${formatCurrency(totalFinal)}`,
+    };
+
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData);
+        toast.success("Compartido exitosamente");
+      } catch (error) {
+        console.log("Share cancelled");
+      }
+    } else {
+      // Fallback: copy to clipboard
+      await navigator.clipboard.writeText(shareData.text);
+      toast.success("Información copiada al portapapeles");
+    }
   };
 
   if (loading) {
@@ -380,6 +511,46 @@ export default function DetalleIncidenteSAC() {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
+      {/* Hidden print component */}
+      <div ref={printRef} className="hidden">
+        <DiagnosticoPrintSheet
+          data={{
+            codigo: incidente?.codigo || "",
+            fechaIngreso: new Date(incidente?.fecha_ingreso || incidente?.created_at || new Date()),
+            fechaDiagnostico: new Date(diagnostico?.created_at || new Date()),
+            centroServicio,
+            codigoCliente: cliente?.codigo || "",
+            nombreCliente: cliente?.nombre || "",
+            telefonoCliente: cliente?.telefono_principal || cliente?.celular || "",
+            direccionEnvio: cliente?.direccion || "",
+            codigoProducto: producto?.codigo || "",
+            descripcionProducto: producto?.descripcion || "",
+            skuMaquina: producto?.codigo || "",
+            accesorios: [],
+            fallas,
+            causas,
+            recomendaciones: (diagnostico as any)?.recomendaciones || "",
+            tecnicoNombre: tecnico?.nombre || "Técnico",
+            tipoResolucion: getTipoResolucionLabel(),
+            aplicaGarantia: (diagnostico as any)?.aplica_garantia || incidente?.aplica_garantia || false,
+            tipoTrabajo: "reparacion",
+            repuestos: repuestos.map(r => ({
+              codigo: r.codigo,
+              descripcion: r.descripcion,
+              cantidad: r.cantidad,
+              precioUnitario: r.precioUnitario,
+            })),
+            costoManoObra: 20,
+            costoEnvio: 0,
+            productoAlternativo: productoAlternativo ? {
+              codigo: productoAlternativo.codigo,
+              descripcion: productoAlternativo.descripcion
+            } : undefined,
+            porcentajeDescuento,
+          }}
+        />
+      </div>
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
@@ -397,6 +568,18 @@ export default function DetalleIncidenteSAC() {
             <Clock className="h-3 w-3" />
             {dias} días
           </Badge>
+          {diagnostico && (
+            <>
+              <Button variant="outline" size="sm" className="gap-1" onClick={handleShareDiagnostico}>
+                <Share2 className="h-4 w-4" />
+                Compartir
+              </Button>
+              <Button variant="outline" size="sm" className="gap-1" onClick={handlePrintDiagnostico}>
+                <Printer className="h-4 w-4" />
+                Imprimir
+              </Button>
+            </>
+          )}
           <Button variant="outline" size="sm" onClick={handleReleaseIncident}>
             Liberar
           </Button>
@@ -406,187 +589,79 @@ export default function DetalleIncidenteSAC() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Content */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Cliente Info - Improved Design */}
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <User className="h-5 w-5 text-primary" />
-                Información del Cliente
-              </CardTitle>
-              <p className="text-sm text-muted-foreground">Datos de contacto para notificación</p>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-3">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Nombre</p>
-                    <p className="font-semibold text-lg">{cliente?.nombre || "Desconocido"}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Código / NIT</p>
-                    <p className="font-medium">{cliente?.codigo || "-"} | {cliente?.nit || "-"}</p>
-                  </div>
-                </div>
-                <div className="space-y-2 bg-muted/30 p-3 rounded-lg">
-                  <div className="flex items-center gap-2">
-                    <MessageCircle className="h-4 w-4 text-green-600" />
-                    <div>
-                      <p className="text-xs text-muted-foreground">Celular (WhatsApp)</p>
-                      <p className="font-semibold">{cliente?.celular || cliente?.telefono_principal || "-"}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Phone className="h-4 w-4 text-blue-600" />
-                    <div>
-                      <p className="text-xs text-muted-foreground">Teléfono Principal</p>
-                      <p className="font-semibold">{cliente?.telefono_principal || "-"}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Mail className="h-4 w-4 text-orange-600" />
-                    <div>
-                      <p className="text-xs text-muted-foreground">Correo</p>
-                      <p className="font-medium text-sm">{cliente?.correo || "na"}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Dirección */}
-              <div className="flex items-start gap-2 pt-2 border-t">
-                <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
+          {/* Row 1: Cliente Info + Producto Info side by side */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Cliente Info */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <User className="h-5 w-5 text-primary" />
+                  Información del Cliente
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
                 <div>
-                  <p className="text-xs text-muted-foreground">Ciudad</p>
+                  <p className="text-sm text-muted-foreground">Nombre</p>
+                  <p className="font-semibold">{cliente?.nombre || "Desconocido"}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Código / NIT</p>
+                  <p className="font-medium">{cliente?.codigo || "-"} | {cliente?.nit || "-"}</p>
+                </div>
+                <div className="space-y-1 pt-2 border-t">
+                  <div className="flex items-center gap-2 text-sm">
+                    <MessageCircle className="h-4 w-4 text-green-600" />
+                    <span>{cliente?.celular || cliente?.telefono_principal || "-"}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <Phone className="h-4 w-4 text-blue-600" />
+                    <span>{cliente?.telefono_principal || "-"}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <Mail className="h-4 w-4 text-orange-600" />
+                    <span>{cliente?.correo || "na"}</span>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2 pt-2 border-t">
+                  <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
                   <p className="text-sm">{cliente?.municipio || "Guatemala"}, {cliente?.departamento || "Guatemala"}</p>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
 
-          {/* Resumen de Costos */}
-          <Card className="border-l-4 border-l-blue-500">
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <DollarSign className="h-5 w-5 text-blue-600" />
-                Resumen de Costos
-              </CardTitle>
-              {porcentajeDescuento > 0 && (
-                <p className="text-sm text-green-600">% Con descuento de {porcentajeDescuento}% aplicado</p>
-              )}
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {repuestos.length === 0 ? (
-                <div className="text-center py-6 text-muted-foreground">
-                  <Package className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p>No hay repuestos registrados</p>
+            {/* Producto Info */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Package className="h-5 w-5" />
+                  Producto
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div>
+                  <p className="text-sm text-muted-foreground">Código</p>
+                  <p className="font-semibold font-mono text-lg">{producto?.codigo || "-"}</p>
                 </div>
-              ) : (
-                <div className="space-y-1 text-sm">
-                  {repuestos.map((r, idx) => (
-                    <div key={idx} className="flex justify-between">
-                      <span className="text-muted-foreground">{r.descripcion} x{r.cantidad}</span>
-                      <span>{formatCurrency(r.cantidad * r.precioUnitario)}</span>
-                    </div>
-                  ))}
+                <div>
+                  <p className="text-sm text-muted-foreground">Descripción</p>
+                  <p className="font-medium">{producto?.descripcion || "-"}</p>
                 </div>
-              )}
-
-              <Separator />
-              
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Subtotal Repuestos:</span>
-                  <span>{formatCurrency(subtotalRepuestos)}</span>
+                <div className="pt-2 border-t">
+                  <p className="text-sm text-muted-foreground">Problema Reportado</p>
+                  <p className="text-sm mt-1">{incidente.descripcion_problema || "Sin descripción"}</p>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Subtotal:</span>
-                  <span className="line-through text-muted-foreground">{formatCurrency(subtotalGeneral)}</span>
-                </div>
-                {porcentajeDescuento > 0 && (
-                  <div className="flex justify-between text-green-600">
-                    <span>Descuento ({porcentajeDescuento}%):</span>
-                    <span>- {formatCurrency(descuento)}</span>
-                  </div>
-                )}
-              </div>
+              </CardContent>
+            </Card>
+          </div>
 
-              <div className="bg-muted/50 p-3 rounded-lg">
-                <div className="flex justify-between items-center">
-                  <span className="font-bold">TOTAL A PAGAR:</span>
-                  <span className="font-bold text-xl">{formatCurrency(totalFinal)}</span>
-                </div>
-              </div>
-
-              {/* Botones de Decisión */}
-              {incidente.estado === "ESPERA_APROBACION" && (
-                <>
-                  <p className="text-center text-sm text-muted-foreground">¿Cuál fue la decisión del cliente?</p>
-                  <div className="grid grid-cols-2 gap-3">
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button 
-                          className="w-full gap-2 bg-green-600 hover:bg-green-700" 
-                          disabled={processingDecision}
-                        >
-                          <CheckCircle className="h-4 w-4" />
-                          Aprobó Canje
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Confirmar Aprobación</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            ¿El cliente aprobó el presupuesto/canje? El incidente pasará a reparación.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                          <AlertDialogAction onClick={handleAprobarPresupuesto}>
-                            Confirmar
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button 
-                          variant="destructive" 
-                          className="w-full gap-2 bg-orange-500 hover:bg-orange-600" 
-                          disabled={processingDecision}
-                        >
-                          <XCircle className="h-4 w-4" />
-                          Rechazó Canje
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Confirmar Rechazo</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            ¿El cliente rechazó el presupuesto? El incidente pasará a entrega sin reparar.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                          <AlertDialogAction onClick={handleRechazarPresupuesto}>
-                            Confirmar
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Diagnóstico Técnico */}
+          {/* Row 2: Diagnóstico Técnico */}
           {diagnostico && (
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="flex items-center gap-2 text-base">
                   <Wrench className="h-5 w-5" />
                   Diagnóstico Técnico
+                  <Badge variant="secondary" className="ml-auto">{getTipoResolucionLabel()}</Badge>
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -618,33 +693,152 @@ export default function DetalleIncidenteSAC() {
                     </ul>
                   </div>
                 </div>
+                {(diagnostico as any)?.recomendaciones && (
+                  <div className="mt-4 pt-4 border-t">
+                    <p className="text-sm font-medium text-muted-foreground mb-1">Recomendaciones</p>
+                    <p className="text-sm">{(diagnostico as any).recomendaciones}</p>
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}
 
-          {/* Producto Info */}
-          <Card>
+          {/* Row 3: Resumen de Costos */}
+          <Card className="border-l-4 border-l-blue-500">
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-base">
-                <Package className="h-5 w-5" />
-                Producto
+                <DollarSign className="h-5 w-5 text-blue-600" />
+                Resumen de Costos - {getTipoResolucionLabel()}
               </CardTitle>
+              {porcentajeDescuento > 0 && (
+                <p className="text-sm text-green-600">Con descuento de {porcentajeDescuento}% aplicado</p>
+              )}
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">Código</p>
-                  <p className="font-semibold font-mono">{producto?.codigo || "-"}</p>
+              {/* Show alternative product for CANJE */}
+              {isCanje && productoAlternativo ? (
+                <div className="space-y-3">
+                  <div className="bg-blue-50 dark:bg-blue-950/30 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
+                    <p className="text-sm font-medium text-blue-700 dark:text-blue-300 mb-2">Máquina Alternativa Ofrecida</p>
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="font-mono font-bold text-lg">{productoAlternativo.codigo}</p>
+                        <p className="text-sm text-muted-foreground">{productoAlternativo.descripcion}</p>
+                      </div>
+                      <p className="font-bold text-xl text-blue-600">{formatCurrency(productoAlternativo.precio)}</p>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Descripción</p>
-                  <p className="font-semibold">{producto?.descripcion || "-"}</p>
+              ) : (
+                /* Show spare parts for PRESUPUESTO */
+                <>
+                  {repuestos.length === 0 ? (
+                    <div className="text-center py-4 text-muted-foreground">
+                      <Package className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      <p>No hay repuestos registrados</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-1 text-sm">
+                      {repuestos.map((r, idx) => (
+                        <div key={idx} className="flex justify-between py-1 border-b border-dashed last:border-0">
+                          <span className="text-muted-foreground">{r.descripcion} x{r.cantidad}</span>
+                          <span className="font-medium">{formatCurrency(r.cantidad * r.precioUnitario)}</span>
+                        </div>
+                      ))}
+                      <div className="flex justify-between pt-2">
+                        <span className="text-muted-foreground">Consumibles:</span>
+                        <span>{formatCurrency(costoManoObra)}</span>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+
+              <Separator />
+              
+              <div className="space-y-2 text-sm">
+                {porcentajeDescuento > 0 && (
+                  <>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Subtotal:</span>
+                      <span className="line-through text-muted-foreground">{formatCurrency(subtotalGeneral)}</span>
+                    </div>
+                    <div className="flex justify-between text-green-600">
+                      <span>Descuento ({porcentajeDescuento}%):</span>
+                      <span>- {formatCurrency(descuento)}</span>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              <div className="bg-muted/50 p-4 rounded-lg">
+                <div className="flex justify-between items-center">
+                  <span className="font-bold text-lg">TOTAL A PAGAR:</span>
+                  <span className="font-bold text-2xl text-primary">{formatCurrency(totalFinal)}</span>
                 </div>
               </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Problema Reportado</p>
-                <p className="mt-1 text-sm">{incidente.descripcion_problema || "Sin descripción"}</p>
-              </div>
+
+              {/* Botones de Decisión */}
+              {incidente.estado === "ESPERA_APROBACION" && (
+                <>
+                  <Separator />
+                  <p className="text-center text-sm text-muted-foreground">¿Cuál fue la decisión del cliente?</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button 
+                          className="w-full gap-2 bg-green-600 hover:bg-green-700" 
+                          disabled={processingDecision}
+                        >
+                          <CheckCircle className="h-4 w-4" />
+                          Aprobó
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Confirmar Aprobación</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            ¿El cliente aprobó el {isCanje ? "canje" : "presupuesto"}? El incidente pasará a reparación.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction onClick={handleAprobarPresupuesto}>
+                            Confirmar
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button 
+                          variant="destructive" 
+                          className="w-full gap-2 bg-orange-500 hover:bg-orange-600" 
+                          disabled={processingDecision}
+                        >
+                          <XCircle className="h-4 w-4" />
+                          Rechazó
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Confirmar Rechazo</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            ¿El cliente rechazó el {isCanje ? "canje" : "presupuesto"}? El incidente pasará a entrega sin reparar.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction onClick={handleRechazarPresupuesto}>
+                            Confirmar
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -656,12 +850,12 @@ export default function DetalleIncidenteSAC() {
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-base">
                 <Send className="h-5 w-5 text-orange-600" />
-                Enviar Notificación ({notificaciones.length}/{MAX_NOTIFICACIONES})
+                Notificación ({notificaciones.length}/{MAX_NOTIFICACIONES})
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <label className="text-sm text-muted-foreground">Canal de Notificación</label>
+                <label className="text-sm text-muted-foreground">Canal</label>
                 <Select value={canal} onValueChange={setCanal}>
                   <SelectTrigger className="mt-1">
                     <SelectValue />
@@ -698,7 +892,7 @@ export default function DetalleIncidenteSAC() {
                 disabled={enviandoNotificacion || notificaciones.length >= MAX_NOTIFICACIONES}
               >
                 <Send className="h-4 w-4" />
-                Enviar Notificación
+                Enviar
               </Button>
             </CardContent>
           </Card>
@@ -706,7 +900,7 @@ export default function DetalleIncidenteSAC() {
           {/* Historial de Notificaciones */}
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-base">Historial de Notificaciones</CardTitle>
+              <CardTitle className="text-base">Historial</CardTitle>
             </CardHeader>
             <CardContent>
               {notificaciones.length === 0 ? (
