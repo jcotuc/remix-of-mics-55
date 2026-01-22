@@ -373,6 +373,399 @@ const mostradorHandlers: Record<string, ActionHandler<any>> = {
 };
 
 // =============================================================================
+// CALIDAD MODULE HANDLERS
+// =============================================================================
+const calidadHandlers: Record<string, ActionHandler<any>> = {
+  "auditorias_calidad.list": async (input) => {
+    const { skip = 0, limit = 100 } = input || {};
+    const { data, error } = await supabase.from("auditorias_calidad").select("*").range(skip, skip + limit - 1).order("fecha_auditoria", { ascending: false });
+    if (error) throw error;
+    return { results: data || [] };
+  },
+  "auditorias_calidad.get": async (input) => {
+    const { data, error } = await supabase.from("auditorias_calidad").select("*").eq("id", input.id).maybeSingle();
+    if (error) throw error;
+    return { result: data };
+  },
+  "auditorias_calidad.create": async (input) => {
+    const { data, error } = await supabase.from("auditorias_calidad").insert(input as any).select().single();
+    if (error) throw error;
+    return data;
+  },
+  "auditorias_calidad.update": async (input) => {
+    const { id, data: updateData } = input as any;
+    const { data, error } = await supabase.from("auditorias_calidad").update(updateData).eq("id", id).select().single();
+    if (error) throw error;
+    return data;
+  },
+  "auditorias_calidad.delete": async (input) => {
+    const { error } = await supabase.from("auditorias_calidad").delete().eq("id", input.id);
+    if (error) throw error;
+    return { status: "deleted", id: input.id };
+  },
+  "defectos_calidad.list": async (input) => {
+    const { skip = 0, limit = 100 } = input || {};
+    const { data, error } = await supabase.from("defectos_calidad").select("*").range(skip, skip + limit - 1).order("created_at", { ascending: false });
+    if (error) throw error;
+    return { results: data || [] };
+  },
+  "defectos_calidad.get": async (input) => {
+    const { data, error } = await supabase.from("defectos_calidad").select("*").eq("id", input.id).maybeSingle();
+    if (error) throw error;
+    return { result: data };
+  },
+  "defectos_calidad.create": async (input) => {
+    const { data, error } = await supabase.from("defectos_calidad").insert(input as any).select().single();
+    if (error) throw error;
+    return data;
+  },
+  "defectos_calidad.update": async (input) => {
+    const { id, data: updateData } = input as any;
+    const { data, error } = await supabase.from("defectos_calidad").update(updateData).eq("id", id).select().single();
+    if (error) throw error;
+    return data;
+  },
+  "defectos_calidad.delete": async (input) => {
+    const { error } = await supabase.from("defectos_calidad").delete().eq("id", input.id);
+    if (error) throw error;
+    return { status: "deleted", id: input.id };
+  },
+};
+
+// =============================================================================
+// GARANTIAS MANUALES HANDLERS
+// =============================================================================
+const garantiasHandlers: Record<string, ActionHandler<any>> = {
+  "garantias_manuales.list": async (input) => {
+    const { skip = 0, limit = 100, created_by } = input || {};
+    let query = supabase.from("garantias_manuales").select("*");
+    if (created_by) query = query.eq("created_by", created_by);
+    const { data, error } = await query.range(skip, skip + limit - 1).order("created_at", { ascending: false });
+    if (error) throw error;
+    return { results: data || [] };
+  },
+  "garantias_manuales.get": async (input) => {
+    const { data, error } = await supabase.from("garantias_manuales").select("*").eq("id", input.id).maybeSingle();
+    if (error) throw error;
+    return { result: data };
+  },
+  "garantias_manuales.create": async (input) => {
+    const { data, error } = await supabase.from("garantias_manuales").insert(input as any).select().single();
+    if (error) throw error;
+    return data;
+  },
+  "garantias_manuales.update": async (input) => {
+    const { id, data: updateData } = input as any;
+    const { data, error } = await supabase.from("garantias_manuales").update(updateData).eq("id", id).select().single();
+    if (error) throw error;
+    return data;
+  },
+  "garantias_manuales.delete": async (input) => {
+    const { error } = await supabase.from("garantias_manuales").delete().eq("id", input.id);
+    if (error) throw error;
+    return { status: "deleted", id: input.id };
+  },
+};
+
+// =============================================================================
+// SAC MODULE HANDLERS
+// =============================================================================
+const sacHandlers: Record<string, ActionHandler<any>> = {
+  "asignaciones_sac.list": async (input) => {
+    const { user_id, incidente_id, activo } = input || {};
+    let query = supabase.from("asignaciones_sac").select("*");
+    if (user_id) query = query.eq("user_id", user_id);
+    if (incidente_id) query = query.eq("incidente_id", incidente_id);
+    if (activo !== undefined) query = query.eq("activo", activo);
+    const { data, error } = await query.order("created_at", { ascending: false });
+    if (error) throw error;
+    return { results: data || [] };
+  },
+  "asignaciones_sac.get": async (input) => {
+    const { data, error } = await supabase.from("asignaciones_sac").select("*").eq("id", input.id).maybeSingle();
+    if (error) throw error;
+    return { result: data };
+  },
+  "asignaciones_sac.create": async (input) => {
+    const { data, error } = await supabase.from("asignaciones_sac").insert(input as any).select().single();
+    if (error) throw error;
+    return data;
+  },
+  "asignaciones_sac.update": async (input) => {
+    const { id, data: updateData } = input as any;
+    const { data, error } = await supabase.from("asignaciones_sac").update(updateData).eq("id", id).select().single();
+    if (error) throw error;
+    return data;
+  },
+  "asignaciones_sac.delete": async (input) => {
+    const { error } = await supabase.from("asignaciones_sac").delete().eq("id", input.id);
+    if (error) throw error;
+    return { status: "deleted", id: input.id };
+  },
+};
+
+// =============================================================================
+// NOTIFICACIONES HANDLERS (sistema interno)
+// =============================================================================
+const notificacionesHandlers: Record<string, ActionHandler<any>> = {
+  "notificaciones.list": async (input) => {
+    const { usuario_id, leido, tipo } = input || {};
+    let query = (supabase as any).from("notificaciones").select("*");
+    if (usuario_id) query = query.eq("usuario_id", usuario_id);
+    if (leido !== undefined) query = query.eq("leido", leido);
+    if (tipo) query = query.eq("tipo", tipo);
+    const { data, error } = await query.order("created_at", { ascending: false });
+    if (error) throw error;
+    return { results: data || [] };
+  },
+  "notificaciones.get": async (input) => {
+    const { data, error } = await (supabase as any).from("notificaciones").select("*").eq("id", input.id).maybeSingle();
+    if (error) throw error;
+    return { result: data };
+  },
+  "notificaciones.create": async (input) => {
+    const { data, error } = await (supabase as any).from("notificaciones").insert(input as any).select().single();
+    if (error) throw error;
+    return data;
+  },
+  "notificaciones.update": async (input) => {
+    const { id, data: updateData } = input as any;
+    const { data, error } = await (supabase as any).from("notificaciones").update(updateData).eq("id", id).select().single();
+    if (error) throw error;
+    return data;
+  },
+  "notificaciones.delete": async (input) => {
+    const { error } = await (supabase as any).from("notificaciones").delete().eq("id", input.id);
+    if (error) throw error;
+    return { status: "deleted", id: input.id };
+  },
+  "notificaciones.markAsRead": async (input) => {
+    const { id } = input;
+    const { data, error } = await (supabase as any).from("notificaciones").update({ leido: true, fecha_leido: new Date().toISOString() }).eq("id", id).select().single();
+    if (error) throw error;
+    return data;
+  },
+};
+
+// =============================================================================
+// SOLICITUDES CAMBIO HANDLERS
+// =============================================================================
+const solicitudesCambioHandlers: Record<string, ActionHandler<any>> = {
+  "solicitudes_cambio.list": async (input) => {
+    const { skip = 0, limit = 100, estado } = input || {};
+    let query = (supabase as any).from("solicitudes_cambio").select("*");
+    if (estado) query = query.eq("estado", estado);
+    const { data, error } = await query.range(skip, skip + limit - 1).order("created_at", { ascending: false });
+    if (error) throw error;
+    return { results: data || [] };
+  },
+  "solicitudes_cambio.get": async (input) => {
+    const { data, error } = await (supabase as any).from("solicitudes_cambio").select("*").eq("id", input.id).maybeSingle();
+    if (error) throw error;
+    return { result: data };
+  },
+  "solicitudes_cambio.create": async (input) => {
+    const { data, error } = await (supabase as any).from("solicitudes_cambio").insert(input as any).select().single();
+    if (error) throw error;
+    return data;
+  },
+  "solicitudes_cambio.update": async (input) => {
+    const { id, data: updateData } = input as any;
+    const { data, error } = await (supabase as any).from("solicitudes_cambio").update(updateData).eq("id", id).select().single();
+    if (error) throw error;
+    return data;
+  },
+  "solicitudes_cambio.delete": async (input) => {
+    const { error } = await (supabase as any).from("solicitudes_cambio").delete().eq("id", input.id);
+    if (error) throw error;
+    return { status: "deleted", id: input.id };
+  },
+};
+
+// =============================================================================
+// INCIDENTE TECNICO EXTENDED HANDLERS
+// =============================================================================
+const incidenteTecnicoHandlers: Record<string, ActionHandler<any>> = {
+  "incidente_tecnico.get": async (input) => {
+    const { data, error } = await supabase.from("incidente_tecnico").select("*").eq("id", input.id).maybeSingle();
+    if (error) throw error;
+    return { result: data };
+  },
+  "incidente_tecnico.create": async (input) => {
+    const { data, error } = await supabase.from("incidente_tecnico").insert(input as any).select().single();
+    if (error) throw error;
+    return data;
+  },
+  "incidente_tecnico.update": async (input) => {
+    const { id, data: updateData } = input as any;
+    const { data, error } = await supabase.from("incidente_tecnico").update(updateData).eq("id", id).select().single();
+    if (error) throw error;
+    return data;
+  },
+  "incidente_tecnico.delete": async (input) => {
+    const { error } = await supabase.from("incidente_tecnico").delete().eq("id", input.id);
+    if (error) throw error;
+    return { status: "deleted", id: input.id };
+  },
+  "incidente_tecnico.search": async (input) => {
+    const { tecnico_id, es_activo } = input || {};
+    let query = (supabase as any).from("incidente_tecnico").select("*");
+    if (tecnico_id) query = query.eq("tecnico_id", tecnico_id);
+    if (es_activo !== undefined) query = query.eq("es_activo", es_activo);
+    const { data, error } = await query.order("created_at", { ascending: false });
+    if (error) throw error;
+    return { results: data || [] };
+  },
+};
+
+// =============================================================================
+// DIAGNOSTICO FALLAS/CAUSAS HANDLERS
+// =============================================================================
+const diagnosticoAsociacionesHandlers: Record<string, ActionHandler<any>> = {
+  "diagnostico_fallas.list": async (input) => {
+    const { diagnostico_id } = input;
+    const { data, error } = await supabase.from("diagnostico_fallas").select("*").eq("diagnostico_id", diagnostico_id);
+    if (error) throw error;
+    return { results: data || [] };
+  },
+  "diagnostico_fallas.create": async (input) => {
+    const { data, error } = await supabase.from("diagnostico_fallas").insert(input as any).select().single();
+    if (error) throw error;
+    return data;
+  },
+  "diagnostico_fallas.delete": async (input) => {
+    const { diagnostico_id, falla_id } = input;
+    let query = supabase.from("diagnostico_fallas").delete().eq("diagnostico_id", diagnostico_id);
+    if (falla_id) query = query.eq("falla_id", falla_id);
+    const { error } = await query;
+    if (error) throw error;
+    return { status: "deleted" };
+  },
+  "diagnostico_causas.list": async (input) => {
+    const { diagnostico_id } = input;
+    const { data, error } = await supabase.from("diagnostico_causas").select("*").eq("diagnostico_id", diagnostico_id);
+    if (error) throw error;
+    return { results: data || [] };
+  },
+  "diagnostico_causas.create": async (input) => {
+    const { data, error } = await supabase.from("diagnostico_causas").insert(input as any).select().single();
+    if (error) throw error;
+    return data;
+  },
+  "diagnostico_causas.delete": async (input) => {
+    const { diagnostico_id, causa_id } = input;
+    let query = supabase.from("diagnostico_causas").delete().eq("diagnostico_id", diagnostico_id);
+    if (causa_id) query = query.eq("causa_id", causa_id);
+    const { error } = await query;
+    if (error) throw error;
+    return { status: "deleted" };
+  },
+};
+
+// =============================================================================
+// USUARIOS EXTENDED HANDLERS
+// =============================================================================
+const usuariosExtendedHandlers: Record<string, ActionHandler<any>> = {
+  "usuarios.search": async (input) => {
+    const { search, rol, auth_uid } = input || {};
+    let query = (supabase as any).from("usuarios").select("*");
+    if (search) query = query.or(`nombre.ilike.%${search}%,apellido.ilike.%${search}%,email.ilike.%${search}%`);
+    if (rol) query = query.eq("rol", rol);
+    if (auth_uid) query = query.eq("auth_uid", auth_uid);
+    const { data, error } = await query.order("nombre");
+    if (error) throw error;
+    return { results: data || [] };
+  },
+  "usuarios.getByAuthUid": async (input) => {
+    const { auth_uid } = input;
+    const { data, error } = await (supabase as any).from("usuarios").select("*").eq("auth_uid", auth_uid).maybeSingle();
+    if (error) throw error;
+    return { result: data };
+  },
+};
+
+// =============================================================================
+// TRANSITOS BODEGA EXTENDED
+// =============================================================================
+const transitosExtendedHandlers: Record<string, ActionHandler<any>> = {
+  "transitos_bodega.search": async (input) => {
+    const { estado, bodega_origen_id, bodega_destino_id } = input || {};
+    let query = (supabase as any).from("transitos_bodega").select("*");
+    if (estado) query = query.eq("estado", estado);
+    if (bodega_origen_id) query = query.eq("bodega_origen_id", bodega_origen_id);
+    if (bodega_destino_id) query = query.eq("bodega_destino_id", bodega_destino_id);
+    const { data, error } = await query.order("fecha_envio", { ascending: false });
+    if (error) throw error;
+    return { results: data || [] };
+  },
+};
+
+// =============================================================================
+// CENTROS SUPERVISOR HANDLERS
+// =============================================================================
+const centrosSupervisorHandlers: Record<string, ActionHandler<any>> = {
+  "centros_supervisor.list": async (input) => {
+    const { supervisor_id } = input || {};
+    let query = supabase.from("centros_supervisor").select("*");
+    if (supervisor_id) query = query.eq("supervisor_id", supervisor_id);
+    const { data, error } = await query;
+    if (error) throw error;
+    return { results: data || [] };
+  },
+  "centros_supervisor.create": async (input) => {
+    const { data, error } = await supabase.from("centros_supervisor").insert(input as any).select().single();
+    if (error) throw error;
+    return data;
+  },
+  "centros_supervisor.delete": async (input) => {
+    const { id, supervisor_id } = input;
+    let query = supabase.from("centros_supervisor").delete();
+    if (id) query = query.eq("id", id);
+    if (supervisor_id) query = query.eq("supervisor_id", supervisor_id);
+    const { error } = await query;
+    if (error) throw error;
+    return { status: "deleted" };
+  },
+};
+
+// =============================================================================
+// USER ROLES HANDLERS
+// =============================================================================
+const userRolesHandlers: Record<string, ActionHandler<any>> = {
+  "user_roles.list": async (input) => {
+    const { user_id, role } = input || {};
+    let query = (supabase as any).from("user_roles").select("*");
+    if (user_id) query = query.eq("user_id", user_id);
+    if (role) query = query.eq("role", role);
+    const { data, error } = await query;
+    if (error) throw error;
+    return { results: data || [] };
+  },
+};
+
+// =============================================================================
+// DIAGNOSTICOS CRUD HANDLERS (implementar los que faltan)
+// =============================================================================
+const diagnosticosWriteHandlers: Record<string, ActionHandler<any>> = {
+  "diagnosticos.create": async (input) => {
+    const { data, error } = await supabase.from("diagnosticos").insert(input as any).select().single();
+    if (error) throw error;
+    return data;
+  },
+  "diagnosticos.update": async (input) => {
+    const { id, data: updateData } = input as any;
+    const { data, error } = await supabase.from("diagnosticos").update({ ...updateData, updated_at: new Date().toISOString() }).eq("id", id).select().single();
+    if (error) throw error;
+    return data;
+  },
+  "diagnosticos.delete": async (input) => {
+    const { error } = await supabase.from("diagnosticos").delete().eq("id", input.id);
+    if (error) throw error;
+    return { status: "deleted", id: input.id };
+  },
+};
+
+// =============================================================================
 // HANDLERS MAP
 // =============================================================================
 const handlers: Partial<Record<ActionName, ActionHandler<any>>> = {
@@ -381,6 +774,18 @@ const handlers: Partial<Record<ActionName, ActionHandler<any>>> = {
   ...incidentesHandlers,
   ...simpleHandlers,
   ...mostradorHandlers,
+  ...calidadHandlers,
+  ...garantiasHandlers,
+  ...sacHandlers,
+  ...notificacionesHandlers,
+  ...solicitudesCambioHandlers,
+  ...incidenteTecnicoHandlers,
+  ...diagnosticoAsociacionesHandlers,
+  ...usuariosExtendedHandlers,
+  ...transitosExtendedHandlers,
+  ...centrosSupervisorHandlers,
+  ...userRolesHandlers,
+  ...diagnosticosWriteHandlers,
 };
 
 // =============================================================================

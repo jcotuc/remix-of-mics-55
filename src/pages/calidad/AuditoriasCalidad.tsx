@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { apiBackendAction } from "@/lib/api-backend";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WhatsAppStyleMediaCapture } from "@/components/features/media";
+import type { IncidenteSchema } from "@/generated/actions.d";
 
 interface Incidente {
   id: number;
@@ -90,14 +91,18 @@ export default function AuditoriasCalidad() {
 
   const fetchIncidentes = async () => {
     try {
-      const { data, error } = await supabase
-        .from("incidentes")
-        .select("id, codigo, producto_id, cliente_id, fecha_ingreso, estado")
-        .in("estado", ["REPARADO", "CAMBIO_POR_GARANTIA", "NOTA_DE_CREDITO"])
-        .order("fecha_ingreso", { ascending: false });
-
-      if (error) throw error;
-      setIncidentes((data || []) as Incidente[]);
+      const { results } = await apiBackendAction("incidentes.list", { limit: 500 });
+      const filtered = (results || []).filter((inc: any) =>
+        ["REPARADO", "CAMBIO_POR_GARANTIA", "NOTA_DE_CREDITO"].includes(inc.estado)
+      );
+      setIncidentes(filtered.map((inc: any) => ({
+        id: inc.id,
+        codigo: inc.codigo,
+        producto_id: inc.producto?.id || null,
+        cliente_id: inc.cliente?.id || 0,
+        estado: inc.estado,
+        fecha_ingreso: inc.created_at,
+      })) as Incidente[]);
     } catch (error) {
       console.error("Error fetching incidentes:", error);
       toast.error("Error al cargar incidentes");
@@ -107,26 +112,20 @@ export default function AuditoriasCalidad() {
   const fetchAuditorias = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("auditorias_calidad")
-        .select("*")
-        .order("fecha_auditoria", { ascending: false });
-
-      if (error) throw error;
+      const { results } = await apiBackendAction("auditorias_calidad.list", {});
       
-      // Fetch incidente details separately
+      // Fetch incidente details for each auditoria
       const auditoriasConIncidentes = await Promise.all(
-        (data || []).map(async (aud) => {
-          const { data: incidente } = await supabase
-            .from("incidentes")
-            .select("codigo, producto_id")
-            .eq("id", aud.incidente_id)
-            .single();
-          
-          return {
-            ...aud,
-            incidentes: incidente
-          };
+        (results || []).map(async (aud: any) => {
+          try {
+            const { result: incidente } = await apiBackendAction("incidentes.get", { id: aud.incidente_id });
+            return {
+              ...aud,
+              incidentes: incidente ? { codigo: incidente.codigo, producto_id: incidente.producto?.id } : null
+            };
+          } catch {
+            return { ...aud, incidentes: null };
+          }
         })
       );
       
@@ -164,10 +163,10 @@ export default function AuditoriasCalidad() {
         cumple_sellado: formData.cumple_sellado,
         cumple_ensamblaje: formData.cumple_ensamblaje,
         cumple_presentacion: formData.cumple_presentacion,
+        updated_at: new Date().toISOString(),
       };
-      const { error } = await supabase.from("auditorias_calidad").insert(insertData as any);
-
-      if (error) throw error;
+      
+      await apiBackendAction("auditorias_calidad.create", insertData);
 
       toast.success("Auditoría registrada exitosamente");
       setIsDialogOpen(false);
@@ -461,7 +460,6 @@ export default function AuditoriasCalidad() {
         </Dialog>
       </div>
 
-      {/* Filters */}
       <Card>
         <CardHeader>
           <CardTitle>Filtros</CardTitle>
@@ -473,13 +471,14 @@ export default function AuditoriasCalidad() {
               <div className="relative">
                 <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Código, SKU, técnico..."
+                  placeholder="Código de incidente, técnico..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-8"
                 />
               </div>
             </div>
+
             <div>
               <Label>Resultado</Label>
               <Select value={filtroResultado} onValueChange={setFiltroResultado}>
@@ -498,7 +497,6 @@ export default function AuditoriasCalidad() {
         </CardContent>
       </Card>
 
-      {/* Table */}
       <Card>
         <CardHeader>
           <CardTitle>Auditorías ({auditoriasFiltradas.length})</CardTitle>
@@ -516,37 +514,43 @@ export default function AuditoriasCalidad() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {auditoriasFiltradas.map((aud) => (
-                <TableRow key={aud.id}>
-                  <TableCell>{new Date(aud.fecha_auditoria).toLocaleDateString()}</TableCell>
-                  <TableCell>
-                    <div>
-                      <p className="font-medium">{aud.incidentes?.codigo || "N/A"}</p>
-                      <p className="text-xs text-muted-foreground">{aud.incidentes?.sku_maquina}</p>
-                    </div>
-                  </TableCell>
-                  <TableCell>{aud.tecnico_responsable}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      {getResultadoIcon(aud.resultado)}
-                      <span className="capitalize">{aud.resultado}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>{aud.tipo_falla || "-"}</TableCell>
-                  <TableCell>
-                    <Button size="sm" variant="outline" onClick={() => navigate(`/calidad/auditorias/${aud.id}`)}>
-                      <FileText className="h-4 w-4 mr-1" />
-                      Ver
-                    </Button>
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center py-8">
+                    Cargando...
                   </TableCell>
                 </TableRow>
-              ))}
-              {auditoriasFiltradas.length === 0 && (
+              ) : auditoriasFiltradas.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                     No se encontraron auditorías
                   </TableCell>
                 </TableRow>
+              ) : (
+                auditoriasFiltradas.map((aud) => (
+                  <TableRow key={aud.id}>
+                    <TableCell>{new Date(aud.fecha_auditoria).toLocaleDateString()}</TableCell>
+                    <TableCell className="font-mono">{aud.incidentes?.codigo || "-"}</TableCell>
+                    <TableCell>{aud.tecnico_responsable}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        {getResultadoIcon(aud.resultado)}
+                        <span className="capitalize">{aud.resultado}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>{aud.tipo_falla || "-"}</TableCell>
+                    <TableCell>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => navigate(`/calidad/auditorias/${aud.id}`)}
+                      >
+                        <FileText className="h-4 w-4 mr-1" />
+                        Ver
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
               )}
             </TableBody>
           </Table>

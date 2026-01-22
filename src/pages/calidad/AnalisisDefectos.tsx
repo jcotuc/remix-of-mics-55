@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { apiBackendAction } from "@/lib/api-backend";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -69,26 +69,20 @@ export default function AnalisisDefectos() {
 
   const fetchAuditorias = async () => {
     try {
-      const { data, error } = await supabase
-        .from("auditorias_calidad")
-        .select("id, incidente_id, fecha_auditoria, resultado")
-        .order("fecha_auditoria", { ascending: false });
-
-      if (error) throw error;
+      const { results } = await apiBackendAction("auditorias_calidad.list", {});
       
-      // Fetch incidente codes separately
+      // Fetch incidente codes for each auditoria
       const auditoriasConIncidentes = await Promise.all(
-        (data || []).map(async (aud) => {
-          const { data: incidente } = await supabase
-            .from("incidentes")
-            .select("codigo")
-            .eq("id", aud.incidente_id)
-            .single();
-          
-          return {
-            ...aud,
-            incidentes: incidente
-          };
+        (results || []).map(async (aud: any) => {
+          try {
+            const { result: incidente } = await apiBackendAction("incidentes.get", { id: aud.incidente_id });
+            return {
+              ...aud,
+              incidentes: incidente ? { codigo: incidente.codigo } : null
+            };
+          } catch {
+            return { ...aud, incidentes: null };
+          }
         })
       );
       
@@ -101,13 +95,8 @@ export default function AnalisisDefectos() {
   const fetchDefectos = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from("defectos_calidad")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      setDefectos((data || []) as Defecto[]);
+      const { results } = await apiBackendAction("defectos_calidad.list", {});
+      setDefectos((results || []) as Defecto[]);
     } catch (error) {
       console.error("Error fetching defectos:", error);
       toast.error("Error al cargar defectos");
@@ -125,7 +114,7 @@ export default function AnalisisDefectos() {
 
     setLoading(true);
     try {
-      const { error } = await supabase.from("defectos_calidad").insert({
+      await apiBackendAction("defectos_calidad.create", {
         auditoria_id: Number(formData.auditoria_id),
         tipo_elemento: formData.tipo_elemento,
         codigo_elemento: formData.codigo_elemento,
@@ -138,8 +127,6 @@ export default function AnalisisDefectos() {
         comentarios_tecnicos: formData.comentarios_tecnicos || null,
         sugerencias_mejora: formData.sugerencias_mejora || null,
       });
-
-      if (error) throw error;
 
       toast.success("Defecto registrado exitosamente");
       setIsDialogOpen(false);
@@ -471,8 +458,8 @@ export default function AnalisisDefectos() {
                       <TableCell className="font-mono">{def.codigo_elemento}</TableCell>
                       <TableCell className="max-w-xs truncate">{def.descripcion_defecto}</TableCell>
                       <TableCell>
-                        <Badge variant={getGravedadColor(def.gravedad)} className="capitalize">
-                          {def.gravedad}
+                        <Badge variant={getGravedadColor(def.gravedad) as any}>
+                          {def.gravedad || "N/A"}
                         </Badge>
                       </TableCell>
                       <TableCell>{def.frecuencia}</TableCell>
@@ -491,15 +478,15 @@ export default function AnalisisDefectos() {
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
                   <span>{proveedor}</span>
-                  <Badge>{defs.length} defecto(s)</Badge>
+                  <Badge>{defs.length} defectos</Badge>
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead>Fecha</TableHead>
                       <TableHead>Código</TableHead>
-                      <TableHead>Tipo</TableHead>
                       <TableHead>Defecto</TableHead>
                       <TableHead>Gravedad</TableHead>
                       <TableHead>Frecuencia</TableHead>
@@ -508,12 +495,12 @@ export default function AnalisisDefectos() {
                   <TableBody>
                     {defs.map((def) => (
                       <TableRow key={def.id}>
+                        <TableCell>{new Date(def.created_at).toLocaleDateString()}</TableCell>
                         <TableCell className="font-mono">{def.codigo_elemento}</TableCell>
-                        <TableCell className="capitalize">{def.tipo_elemento}</TableCell>
-                        <TableCell className="max-w-md truncate">{def.descripcion_defecto}</TableCell>
+                        <TableCell className="max-w-xs truncate">{def.descripcion_defecto}</TableCell>
                         <TableCell>
-                          <Badge variant={getGravedadColor(def.gravedad)} className="capitalize">
-                            {def.gravedad}
+                          <Badge variant={getGravedadColor(def.gravedad) as any}>
+                            {def.gravedad || "N/A"}
                           </Badge>
                         </TableCell>
                         <TableCell>{def.frecuencia}</TableCell>
