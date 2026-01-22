@@ -12,7 +12,6 @@ const DanosTransporte = lazy(() => import("@/pages/logistica/DanosTransporte"));
 const ConsultaPreciosLogistica = lazy(() => import("@/pages/logistica/ConsultaPreciosLogistica"));
 const ConsultaUbicaciones = lazy(() => import("@/pages/logistica/ConsultaUbicaciones"));
 const ClientesUnificado = lazy(() => import("@/pages/ClientesUnificado"));
-const MaquinasPendientesEnvio = lazy(() => import("@/pages/logistica/MaquinasPendientesEnvio"));
 const DashboardJefeLogistica = lazy(() => import("@/pages/logistica/DashboardJefeLogistica"));
 
 export const logisticaRoutes = [
@@ -27,6 +26,5 @@ export const logisticaRoutes = [
   <Route key="logistica-precios" path="/logistica/consulta-precios" element={<ConsultaPreciosLogistica />} />,
   <Route key="logistica-ubicaciones" path="/logistica/consulta-ubicaciones" element={<ConsultaUbicaciones />} />,
   <Route key="logistica-clientes" path="/logistica/clientes" element={<ClientesUnificado defaultTab="logistica" />} />,
-  <Route key="logistica-pendientes" path="/logistica/pendientes-envio" element={<MaquinasPendientesEnvio />} />,
   <Route key="logistica-dashboard" path="/logistica/dashboard-jefe" element={<DashboardJefeLogistica />} />,
 ];
