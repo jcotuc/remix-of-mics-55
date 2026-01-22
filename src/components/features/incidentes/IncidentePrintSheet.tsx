@@ -55,6 +55,60 @@ const CSSBarcode = ({ value }: { value: string }) => {
   );
 };
 
+// Figuras para identificar máquinas por día de la semana
+const DayShape = ({ date }: { date: Date }) => {
+  const dayOfWeek = date.getDay(); // 0 = Domingo, 1 = Lunes, etc.
+  
+  const shapes: Record<number, { shape: React.ReactNode; color: string; label: string }> = {
+    0: { // Domingo
+      shape: <circle cx="12" cy="12" r="10" />,
+      color: '#DC2626', // red
+      label: 'DOM'
+    },
+    1: { // Lunes
+      shape: <rect x="2" y="2" width="20" height="20" />,
+      color: '#2563EB', // blue
+      label: 'LUN'
+    },
+    2: { // Martes
+      shape: <polygon points="12,2 22,22 2,22" />,
+      color: '#16A34A', // green
+      label: 'MAR'
+    },
+    3: { // Miércoles
+      shape: <polygon points="12,2 22,12 12,22 2,12" />,
+      color: '#9333EA', // purple
+      label: 'MIÉ'
+    },
+    4: { // Jueves
+      shape: <polygon points="12,2 20,8 18,18 6,18 4,8" />,
+      color: '#EA580C', // orange
+      label: 'JUE'
+    },
+    5: { // Viernes
+      shape: <polygon points="12,2 24,10 20,24 4,24 0,10" />,
+      color: '#0891B2', // cyan
+      label: 'VIE'
+    },
+    6: { // Sábado
+      shape: <polygon points="12,0 15,8 24,9 17,15 19,24 12,19 5,24 7,15 0,9 9,8" />,
+      color: '#CA8A04', // yellow
+      label: 'SÁB'
+    },
+  };
+
+  const { shape, color, label } = shapes[dayOfWeek];
+
+  return (
+    <div className="flex flex-col items-center">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill={color} stroke={color} strokeWidth="1">
+        {shape}
+      </svg>
+      <span className="text-[7px] font-bold mt-0.5" style={{ color }}>{label}</span>
+    </div>
+  );
+};
+
 const IncidentePrintSheet = forwardRef<HTMLDivElement, Props>(({ data }, ref) => {
   const fechaFormateada = format(data.fechaIngreso, "dd/MM/yyyy", { locale: es });
   const horaFormateada = format(data.fechaIngreso, "HH:mm", { locale: es });
@@ -245,19 +299,26 @@ const IncidentePrintSheet = forwardRef<HTMLDivElement, Props>(({ data }, ref) =>
       {/* SECCIÓN 3: ETIQUETA PARA MÁQUINA */}
       {/* ═══════════════════════════════════════════════════════════════ */}
       <div className="flex justify-center">
-        <div className="border-2 border-black rounded-sm w-56 overflow-hidden">
+        <div className="border-2 border-black rounded-sm w-64 overflow-hidden">
           <div className="bg-orange-500 text-white p-1.5 text-center">
             <p className="font-bold text-[10px]">ETIQUETA PARA MÁQUINA</p>
           </div>
-          <div className="p-2 text-center">
-            <p className="text-[8px] text-gray-500 uppercase">Incidente</p>
-            <p className="font-mono font-black text-lg leading-none">{data.codigo}</p>
+          <div className="p-2">
+            <div className="flex items-start justify-between">
+              <div className="text-left flex-1">
+                <p className="text-[8px] text-gray-500 uppercase">Incidente</p>
+                <p className="font-mono font-black text-lg leading-none">{data.codigo}</p>
+              </div>
+              <DayShape date={data.fechaIngreso} />
+            </div>
             <div className="mt-2">
               <CSSBarcode value={data.codigo} />
             </div>
-            <div className="mt-2 pt-2 border-t border-gray-200 text-[9px]">
+            <div className="mt-2 pt-2 border-t border-gray-200 text-[9px] text-left space-y-0.5">
               <p><span className="text-gray-500">SKU:</span> <span className="font-mono font-bold">{data.codigoProducto}</span></p>
               <p><span className="text-gray-500">Ingreso:</span> <span className="font-bold">{fechaFormateada}</span></p>
+              <p><span className="text-gray-500">Centro:</span> <span className="font-bold">{data.centroServicio}</span></p>
+              <p><span className="text-gray-500">Tipo Cliente:</span> <span className="font-bold uppercase">{data.tipoCliente || 'Mostrador'}</span></p>
             </div>
           </div>
         </div>
