@@ -18,7 +18,9 @@ import {
   Ban,
   XCircle,
   Undo2,
+  Truck,
 } from "lucide-react";
+import { generarGuiaAutomatica } from "@/lib/autoGuiaService";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -1243,6 +1245,25 @@ export default function DiagnosticoInicial() {
 
             await (supabase as any).from("notificaciones").insert(notificaciones);
           }
+        }
+      }
+
+      // Si el estado es REPARADO y el cliente quiere envío, generar guía automáticamente
+      if (nuevoEstado === "REPARADO" && incidente?.quiere_envio) {
+        try {
+          console.log("🚚 Incidente requiere envío, generando guía automática...");
+          const guiaResult = await generarGuiaAutomatica(Number(id));
+          if (guiaResult.success) {
+            toast.success(`Guía de envío ${guiaResult.numeroGuia || ""} generada automáticamente`, {
+              icon: <Truck className="h-4 w-4" />,
+            });
+          } else {
+            console.warn("⚠️ No se pudo generar la guía automáticamente:", guiaResult.error);
+            toast.warning("El diagnóstico se completó pero no se pudo generar la guía automáticamente. Puede generarla desde Logística.");
+          }
+        } catch (guiaError) {
+          console.error("❌ Error generando guía:", guiaError);
+          toast.warning("El diagnóstico se completó pero hubo un error al generar la guía de envío.");
         }
       }
 

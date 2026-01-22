@@ -23,7 +23,9 @@ import {
   MessageSquare,
   Truck,
   ChevronDown,
+  Loader2,
 } from "lucide-react";
+import { generarGuiaAutomatica, tieneGuiaEnvio } from "@/lib/autoGuiaService";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -136,6 +138,7 @@ export default function SeguimientoIncidente() {
   const [ordenEventos, setOrdenEventos] = useState<"reciente" | "antiguo">("reciente");
   const [diagnosticoData, setDiagnosticoData] = useState<any>(null);
   const [accesoriosIncidente, setAccesoriosIncidente] = useState<string[]>([]);
+  const [generandoGuia, setGenerandoGuia] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
   const diagnosticoPrintRef = useRef<HTMLDivElement>(null);
 
@@ -497,6 +500,26 @@ export default function SeguimientoIncidente() {
       return;
     }
     setShowDiagnosticoPrintPreview(true);
+  };
+
+  const handleGenerarGuia = async () => {
+    if (!incidente) return;
+    
+    setGenerandoGuia(true);
+    try {
+      const result = await generarGuiaAutomatica(incidente.id);
+      if (result.success) {
+        showSuccess(`Guía ${result.numeroGuia || ""} generada exitosamente`);
+        // Refrescar datos para mostrar la nueva guía
+        fetchData();
+      } else {
+        showError(result.error || "No se pudo generar la guía");
+      }
+    } catch (error: any) {
+      showError(error.message || "Error al generar la guía");
+    } finally {
+      setGenerandoGuia(false);
+    }
   };
 
   const handlePrintFromPreview = () => {
@@ -973,10 +996,19 @@ export default function SeguimientoIncidente() {
           {/* Guías Card */}
           <Card>
             <CardContent className="p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <Link2 className="h-5 w-5 text-orange-500" />
-                <span className="text-muted-foreground">—</span>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Truck className="h-5 w-5 text-orange-500" />
+                  <span className="font-medium">Guías de Envío</span>
+                </div>
+                {incidente.quiere_envio && (
+                  <Badge variant="secondary" className="gap-1">
+                    <MapPin className="h-3 w-3" />
+                    Envío solicitado
+                  </Badge>
+                )}
               </div>
+              
               {guiasEnvio.length > 0 ? (
                 <div className="space-y-2">
                   {guiasEnvio.map((guia) => (
@@ -992,7 +1024,36 @@ export default function SeguimientoIncidente() {
                     </div>
                   ))}
                 </div>
-              ) : null}
+              ) : incidente.quiere_envio ? (
+                <div className="text-center py-4 space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    No hay guías de envío generadas
+                  </p>
+                  {(incidente.estado === "REPARADO" || incidente.estado === "EN_ENTREGA") && (
+                    <Button 
+                      onClick={handleGenerarGuia} 
+                      disabled={generandoGuia}
+                      className="gap-2"
+                    >
+                      {generandoGuia ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Generando...
+                        </>
+                      ) : (
+                        <>
+                          <Truck className="h-4 w-4" />
+                          Generar Guía de Envío
+                        </>
+                      )}
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-2">
+                  Cliente recogerá en tienda
+                </p>
+              )}
             </CardContent>
           </Card>
         </div>
