@@ -29,6 +29,7 @@ type IncidenteDB = {
   descripcion_problema?: string | null;
   aplica_garantia?: boolean | null;
   diagnosticos?: Array<{ id: number; estado: string; tecnico_id: number }>;
+  producto?: { id: number; codigo: string; descripcion: string } | null;
 };
 
 export default function MisAsignaciones() {
@@ -127,11 +128,12 @@ export default function MisAsignaciones() {
         incidenteIds.includes(inc.id) && inc.estado === 'EN_DIAGNOSTICO'
       );
 
-      // Fetch diagnosticos for these incidentes
+      // Fetch diagnosticos y productos for these incidentes
       const incidentesWithDiag = await Promise.all(
         filteredIncidentes.map(async (inc: any) => {
           // No bloquear toda la lista si diagnosticos.search falla
           let diagResults: any[] = [];
+          let producto: any = null;
           try {
             const resp = await apiBackendAction("diagnosticos.search", { incidente_id: inc.id });
             diagResults = (resp as any).results || [];
@@ -139,9 +141,19 @@ export default function MisAsignaciones() {
             console.warn("diagnosticos.search failed", { incidente_id: inc.id, error: e });
             diagResults = [];
           }
+          // Fetch producto info
+          if (inc.producto_id) {
+            try {
+              const prodResp = await apiBackendAction("productos.get", { id: inc.producto_id });
+              producto = (prodResp as any).result || null;
+            } catch (e) {
+              console.warn("productos.get failed", { producto_id: inc.producto_id, error: e });
+            }
+          }
           return {
             ...inc,
             diagnosticos: diagResults || [],
+            producto,
           };
         })
       );
@@ -507,7 +519,7 @@ export default function MisAsignaciones() {
                       <div className="flex items-center justify-between">
                         <p className="font-bold text-lg">{inc.codigo}</p>
                         <Badge variant="outline" className="bg-blue-50">
-                          {inc.producto_id ? `Producto #${inc.producto_id}` : "Sin producto"}
+                          {inc.producto?.codigo || inc.producto?.descripcion || (inc.producto_id ? `Producto #${inc.producto_id}` : "Sin producto")}
                         </Badge>
                       </div>
 
