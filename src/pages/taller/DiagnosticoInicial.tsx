@@ -20,7 +20,7 @@ import {
   Undo2,
   Truck,
 } from "lucide-react";
-import { generarGuiaAutomatica } from "@/lib/autoGuiaService";
+import { generarGuiaInterna } from "@/lib/guiaInternaService";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -1250,22 +1250,23 @@ export default function DiagnosticoInicial() {
         }
       }
 
-      // Si el estado es REPARADO y el cliente quiere envío, generar guía automáticamente
-      if (nuevoEstado === "REPARADO" && incidente?.quiere_envio) {
+      // Si el estado es final y el cliente quiere envío, generar guía automáticamente
+      const estadosFinalesConEnvio = ["REPARADO", "RECHAZADO", "CAMBIO_POR_GARANTIA"];
+      if (estadosFinalesConEnvio.includes(nuevoEstado) && incidente?.quiere_envio) {
         try {
-          console.log("🚚 Incidente requiere envío, generando guía automática...");
-          const guiaResult = await generarGuiaAutomatica(Number(id));
+          console.log("🚚 Incidente requiere envío, generando guía interna automática...");
+          const guiaResult = await generarGuiaInterna(Number(id));
           if (guiaResult.success) {
-            toast.success(`Guía de envío ${guiaResult.numeroGuia || ""} generada automáticamente`, {
+            toast.success(`Guía ${guiaResult.numeroGuia || ""} generada • Listo para despacho`, {
               icon: <Truck className="h-4 w-4" />,
             });
           } else {
             console.warn("⚠️ No se pudo generar la guía automáticamente:", guiaResult.error);
-            toast.warning("El diagnóstico se completó pero no se pudo generar la guía automáticamente. Puede generarla desde Logística.");
+            toast.warning("Diagnóstico completado. La guía puede generarse desde Centro de Despacho.");
           }
         } catch (guiaError) {
           console.error("❌ Error generando guía:", guiaError);
-          toast.warning("El diagnóstico se completó pero hubo un error al generar la guía de envío.");
+          toast.warning("Diagnóstico completado. Error al generar guía de envío.");
         }
       }
 
