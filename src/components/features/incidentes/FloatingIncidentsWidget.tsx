@@ -1,17 +1,35 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useActiveIncidents } from "@/contexts/ActiveIncidentsContext";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Wrench, X, ChevronUp, ChevronDown, Bell, ExternalLink } from "lucide-react";
+import { Wrench, X, ChevronUp, ChevronDown, Bell, ExternalLink, Clock, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { differenceInMinutes } from "date-fns";
 
 export function FloatingIncidentsWidget() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { activeIncidents, currentAssignments, maxAssignments, isLoading } = useActiveIncidents();
+  const { activeIncidents, currentAssignments, maxAssignments, isLoading, refreshIncidents } = useActiveIncidents();
   const [isExpanded, setIsExpanded] = useState(true);
   const [isMinimized, setIsMinimized] = useState(false);
+
+  // Check which incidents have been in review for more than 1 hour
+  const incidentsWithTimeInfo = useMemo(() => {
+    const now = new Date();
+    return activeIncidents.map(inc => {
+      const createdAt = inc.created_at ? new Date(inc.created_at) : null;
+      const minutesElapsed = createdAt ? differenceInMinutes(now, createdAt) : 0;
+      const isOverOneHour = minutesElapsed >= 60;
+      return {
+        ...inc,
+        minutesElapsed,
+        isOverOneHour
+      };
+    });
+  }, [activeIncidents]);
+
+  const incidentsOverOneHour = incidentsWithTimeInfo.filter(inc => inc.isOverOneHour).length;
 
   // No mostrar si no hay incidentes activos o está cargando
   if (isLoading || activeIncidents.length === 0) {
@@ -31,8 +49,13 @@ export function FloatingIncidentsWidget() {
           className="relative rounded-full h-14 w-14 shadow-lg bg-primary hover:bg-primary/90"
         >
           <Wrench className="h-6 w-6" />
+          {incidentsOverOneHour > 0 && (
+            <span className="absolute -top-1 -right-1 h-5 w-5 bg-orange-500 rounded-full text-xs text-white flex items-center justify-center animate-pulse">
+              <AlertTriangle className="h-3 w-3" />
+            </span>
+          )}
           {totalNotificaciones > 0 && (
-            <span className="absolute -top-1 -right-1 h-5 w-5 bg-red-500 rounded-full text-xs text-white flex items-center justify-center animate-pulse">
+            <span className="absolute -top-1 -left-1 h-5 w-5 bg-red-500 rounded-full text-xs text-white flex items-center justify-center animate-pulse">
               {totalNotificaciones}
             </span>
           )}
@@ -65,8 +88,20 @@ export function FloatingIncidentsWidget() {
           >
             {currentAssignments}/{maxAssignments}
           </Badge>
+          {incidentsOverOneHour > 0 && (
+            <Badge variant="outline" className="text-xs bg-orange-100 text-orange-700 border-orange-300">
+              <AlertTriangle className="h-3 w-3 mr-1" />
+              {incidentsOverOneHour}
+            </Badge>
+          )}
         </div>
         <div className="flex items-center gap-1">
+          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => refreshIncidents()}>
+            <svg className="h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8" />
+              <path d="M21 3v5h-5" />
+            </svg>
+          </Button>
           <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setIsExpanded(!isExpanded)}>
             {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronUp className="h-4 w-4" />}
           </Button>
@@ -79,7 +114,7 @@ export function FloatingIncidentsWidget() {
       {/* Lista de incidentes */}
       {isExpanded && (
         <div className="max-h-64 overflow-y-auto">
-          {activeIncidents.map((incident, index) => {
+          {incidentsWithTimeInfo.map((incident, index) => {
             const isCurrentPage = location.pathname === `/taller/diagnostico/${incident.id}`;
 
             return (
@@ -88,6 +123,7 @@ export function FloatingIncidentsWidget() {
                 className={cn(
                   "flex items-center justify-between p-2 hover:bg-muted/50 cursor-pointer border-b border-border/50 last:border-0 transition-all",
                   isCurrentPage && "bg-primary/10 border-l-2 border-l-primary",
+                  incident.isOverOneHour && "bg-orange-50 border-l-2 border-l-orange-500",
                 )}
                 onClick={() => navigate(`/taller/diagnostico/${incident.id}`)}
               >
@@ -97,6 +133,9 @@ export function FloatingIncidentsWidget() {
                     <div className="flex items-center gap-1">
                       <span className="font-mono text-sm font-medium truncate">{incident.codigo}</span>
                       {isCurrentPage && <span className="text-[10px] text-primary">(actual)</span>}
+                      {incident.isOverOneHour && (
+                        <Clock className="h-3 w-3 text-orange-500 animate-pulse" />
+                      )}
                     </div>
                     <p className="text-xs text-muted-foreground truncate">
                       {incident.producto?.codigo || incident.codigo_producto || "Sin producto"}
@@ -105,6 +144,11 @@ export function FloatingIncidentsWidget() {
                 </div>
 
                 <div className="flex items-center gap-1">
+                  {incident.isOverOneHour && (
+                    <span className="text-[10px] text-orange-600 font-medium">
+                      {Math.floor(incident.minutesElapsed / 60)}h{incident.minutesElapsed % 60}m
+                    </span>
+                  )}
                   {incident.notificacionesPendientes > 0 && (
                     <Badge
                       variant="destructive"
@@ -121,16 +165,29 @@ export function FloatingIncidentsWidget() {
         </div>
       )}
 
-      {/* Footer con notificaciones totales */}
-      {totalNotificaciones > 0 && isExpanded && (
-        <div className="p-2 bg-amber-50 border-t border-amber-200 rounded-b-lg">
-          <div className="flex items-center gap-2 text-amber-700 text-xs">
-            <Bell className="h-3 w-3 animate-pulse" />
-            <span>
-              {totalNotificaciones} notificación{totalNotificaciones > 1 ? "es" : ""} pendiente
-              {totalNotificaciones > 1 ? "s" : ""}
-            </span>
-          </div>
+      {/* Footer con notificaciones y advertencias */}
+      {isExpanded && (incidentsOverOneHour > 0 || totalNotificaciones > 0) && (
+        <div className={cn(
+          "p-2 border-t rounded-b-lg",
+          incidentsOverOneHour > 0 ? "bg-orange-50 border-orange-200" : "bg-amber-50 border-amber-200"
+        )}>
+          {incidentsOverOneHour > 0 && (
+            <div className="flex items-center gap-2 text-orange-700 text-xs mb-1">
+              <AlertTriangle className="h-3 w-3" />
+              <span>
+                {incidentsOverOneHour} incidente{incidentsOverOneHour > 1 ? "s" : ""} con más de 1 hora
+              </span>
+            </div>
+          )}
+          {totalNotificaciones > 0 && (
+            <div className="flex items-center gap-2 text-amber-700 text-xs">
+              <Bell className="h-3 w-3 animate-pulse" />
+              <span>
+                {totalNotificaciones} notificación{totalNotificaciones > 1 ? "es" : ""} pendiente
+                {totalNotificaciones > 1 ? "s" : ""}
+              </span>
+            </div>
+          )}
         </div>
       )}
     </div>

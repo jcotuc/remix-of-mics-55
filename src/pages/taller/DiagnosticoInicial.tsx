@@ -30,6 +30,7 @@ import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/componen
 import { supabase } from "@/integrations/supabase/client";
 import { apiBackendAction } from "@/lib/api-backend";
 import { useAuth } from "@/contexts/AuthContext";
+import { useActiveIncidents } from "@/contexts/ActiveIncidentsContext";
 import { toast } from "sonner";
 // Fallas y Causas ahora se cargan desde la base de datos
 import { Textarea } from "@/components/ui/textarea";
@@ -47,6 +48,7 @@ import { SidebarMediaCapture, SidebarPhoto } from "@/components/features/media";
 
 export default function DiagnosticoInicial() {
   const { user } = useAuth();
+  const { refreshIncidents } = useActiveIncidents();
   const { id } = useParams();
   const navigate = useNavigate();
   const [incidente, setIncidente] = useState<any>(null);
@@ -1216,6 +1218,10 @@ export default function DiagnosticoInicial() {
 
       toast.success("Diagnóstico finalizado exitosamente");
       setShowTipoTrabajoDialog(false);
+      
+      // Refresh the active incidents widget
+      await refreshIncidents();
+      
       navigate("/taller/mis-asignaciones");
     } catch (error: any) {
       console.error("Error:", error);
