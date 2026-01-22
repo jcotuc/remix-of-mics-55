@@ -2,25 +2,25 @@ import { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
-  Package,
   User,
   MapPin,
   FileText,
   Printer,
   AlertTriangle,
-  Wrench,
   Phone,
   Mail,
-  Home,
-  Truck,
+  Clock,
   Edit,
   Save,
-  Clock,
-  History,
-  Eye,
+  Camera,
+  Link2,
+  Plus,
+  ArrowUpDown,
+  ImageOff,
+  Package,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { apiBackendAction } from "@/lib/api-backend";
@@ -36,7 +36,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { showSuccess, showError } from "@/utils/toastHelpers";
-import { formatFechaLarga, formatFechaHora } from "@/utils/dateFormatters";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 type IncidenteData = {
   id: number;
@@ -49,36 +55,36 @@ type IncidenteData = {
   aplica_garantia: boolean | null;
   direccion_entrega_id: number | null;
   created_at: string | null;
+  incidente_origen_id?: number | null;
+  centro_de_servicio_id?: number | null;
 };
 
 type ClienteData = {
   id: number;
   codigo: string;
   nombre: string;
+  nit?: string | null;
   telefono_principal?: string | null;
   correo?: string | null;
   direccion?: string | null;
   celular?: string | null;
+  municipio?: string | null;
+  departamento?: string | null;
 };
 
 type ProductoData = {
   id: number;
   codigo: string;
   descripcion: string | null;
+  clave?: string | null;
+  descontinuado?: boolean;
+  imagen_url?: string | null;
 };
 
-type DiagnosticoData = {
+type CentroServicioData = {
   id: number;
-  estado: string;
-  es_reparable: boolean | null;
-  recomendaciones: string | null;
-};
-
-type DireccionEnvioData = {
-  id: number;
-  direccion_completa: string;
-  nombre_contacto?: string | null;
-  telefono_contacto?: string | null;
+  nombre: string;
+  codigo: string;
 };
 
 type GuiaData = {
@@ -88,11 +94,14 @@ type GuiaData = {
   fecha_guia: string | null;
 };
 
-type UsuarioData = {
-  id: number;
-  nombre: string;
-  apellido?: string | null;
-  email?: string | null;
+type EventoHistorial = {
+  id: string;
+  tipo: "creacion" | "asignacion" | "diagnostico" | "reparacion" | "observacion";
+  titulo: string;
+  descripcion: string;
+  usuario: string;
+  fecha: Date;
+  observacion?: string;
 };
 
 export default function SeguimientoIncidente() {
@@ -101,27 +110,27 @@ export default function SeguimientoIncidente() {
   const [incidente, setIncidente] = useState<IncidenteData | null>(null);
   const [cliente, setCliente] = useState<ClienteData | null>(null);
   const [producto, setProducto] = useState<ProductoData | null>(null);
-  const [tecnico, setTecnico] = useState<UsuarioData | null>(null);
-  const [diagnostico, setDiagnostico] = useState<DiagnosticoData | null>(null);
-  const [direccionEnvio, setDireccionEnvio] = useState<DireccionEnvioData | null>(null);
+  const [centroServicio, setCentroServicio] = useState<CentroServicioData | null>(null);
   const [guiasEnvio, setGuiasEnvio] = useState<GuiaData[]>([]);
   const [clienteHistorial, setClienteHistorial] = useState<number>(0);
+  const [eventos, setEventos] = useState<EventoHistorial[]>([]);
   const [loading, setLoading] = useState(true);
   const [isEditingProductCode, setIsEditingProductCode] = useState(false);
   const [editedProductCode, setEditedProductCode] = useState("");
   const [guiaSeleccionada, setGuiaSeleccionada] = useState<GuiaData | null>(null);
   const [showPrintPreview, setShowPrintPreview] = useState(false);
+  const [filtroEventos, setFiltroEventos] = useState("todos");
+  const [ordenEventos, setOrdenEventos] = useState<"reciente" | "antiguo">("reciente");
   const printRef = useRef<HTMLDivElement>(null);
-  
+
   useEffect(() => {
     fetchData();
   }, [id]);
 
   const fetchData = async () => {
     try {
-      // Fetch incident
       const { result: incData } = await apiBackendAction("incidentes.get", { id: Number(id) });
-      
+
       if (!incData) {
         setLoading(false);
         return;
@@ -138,91 +147,90 @@ export default function SeguimientoIncidente() {
         aplica_garantia: incData.aplica_garantia,
         direccion_entrega_id: (incData as any).direccion_entrega_id || null,
         created_at: incData.created_at,
+        incidente_origen_id: (incData as any).incidente_origen_id || null,
+        centro_de_servicio_id: (incData as any).centro_de_servicio_id || null,
       };
       setIncidente(incidenteMapped);
 
-      // Extract cliente from incidente response
+      // Extract cliente
       if (incData.cliente) {
         const c = incData.cliente as any;
         setCliente({
           id: c.id,
           codigo: c.codigo,
           nombre: c.nombre,
+          nit: c.nit,
           telefono_principal: c.telefono_principal,
           correo: c.correo,
           direccion: c.direccion,
           celular: c.celular,
+          municipio: c.municipio,
+          departamento: c.departamento,
         });
       }
 
-      // Extract producto from incidente response
+      // Extract producto
       if (incData.producto) {
+        const p = incData.producto as any;
         setProducto({
-          id: incData.producto.id,
-          codigo: incData.producto.codigo,
-          descripcion: incData.producto.descripcion,
+          id: p.id,
+          codigo: p.codigo,
+          descripcion: p.descripcion,
+          clave: p.clave,
+          descontinuado: p.descontinuado || false,
+          imagen_url: p.imagen_url,
         });
       }
 
-      // Fetch parallel data: technician, diagnostico, client history, direccion, guias
-      const [incTecRes, diagRes, guiasRes] = await Promise.all([
-        apiBackendAction("incidente_tecnico.list", { incidente_id: Number(id), es_principal: true }),
-        apiBackendAction("diagnosticos.search", { incidente_id: Number(id) }),
+      // Fetch parallel data
+      const [guiasRes, centroRes] = await Promise.all([
         apiBackendAction("guias.search", { incidente_codigo: incData.codigo }),
+        incidenteMapped.centro_de_servicio_id
+          ? apiBackendAction("centros_de_servicio.get", { id: incidenteMapped.centro_de_servicio_id })
+          : Promise.resolve({ result: null }),
       ]);
+
+      // Set centro de servicio
+      if (centroRes.result) {
+        const cs = centroRes.result as any;
+        setCentroServicio({ id: cs.id, nombre: cs.nombre, codigo: cs.codigo });
+      }
 
       // Fetch client history count
       if (incData.cliente) {
         const { results: allIncidentes } = await apiBackendAction("incidentes.list", { limit: 1000 });
-        const clienteIncidentes = (allIncidentes || []).filter((i: any) => i.cliente?.id === (incData.cliente as any).id);
+        const clienteIncidentes = (allIncidentes || []).filter(
+          (i: any) => i.cliente?.id === (incData.cliente as any).id
+        );
         setClienteHistorial(clienteIncidentes.length);
       }
 
-      // Fetch technician
-      const incTecData = incTecRes.results?.[0] as any;
-      if (incTecData?.tecnico_id) {
-        const { result: tecData } = await apiBackendAction("usuarios.get", { id: incTecData.tecnico_id });
-        if (tecData) {
-          setTecnico({
-            id: (tecData as any).id,
-            nombre: (tecData as any).nombre,
-            apellido: (tecData as any).apellido,
-            email: (tecData as any).email,
-          });
-        }
-      }
+      // Set guias
+      setGuiasEnvio(
+        (guiasRes.results || []).map((g: any) => ({
+          id: g.id,
+          numero_guia: g.numero_guia,
+          estado: g.estado,
+          fecha_guia: g.fecha_guia,
+        }))
+      );
 
-      // Set diagnostico
-      const diagData = diagRes.results?.[0];
-      if (diagData) {
-        setDiagnostico({
-          id: diagData.id,
-          estado: diagData.estado,
-          es_reparable: diagData.es_reparable,
-          recomendaciones: diagData.recomendaciones,
+      // Build eventos from observaciones and created_at
+      const eventosBuilt: EventoHistorial[] = [];
+
+      // Evento de creación
+      if (incData.created_at) {
+        eventosBuilt.push({
+          id: "creacion",
+          tipo: "creacion",
+          titulo: "Creación de Incidente",
+          descripcion: "Incidente creado",
+          usuario: "Sistema",
+          fecha: new Date(incData.created_at),
         });
       }
 
-      // Set guias
-      setGuiasEnvio((guiasRes.results || []).map((g: any) => ({
-        id: g.id,
-        numero_guia: g.numero_guia,
-        estado: g.estado,
-        fecha_guia: g.fecha_guia,
-      })));
-
-      // Fetch direccion de envio si existe
-      if (incidenteMapped.direccion_entrega_id) {
-        const { result: dirData } = await apiBackendAction("direcciones_envio.get", { id: incidenteMapped.direccion_entrega_id });
-        if (dirData) {
-          setDireccionEnvio({
-            id: (dirData as any).id,
-            direccion_completa: (dirData as any).direccion_completa,
-            nombre_contacto: (dirData as any).nombre_contacto,
-            telefono_contacto: (dirData as any).telefono_contacto,
-          });
-        }
-      }
+      setEventos(eventosBuilt);
     } catch (error) {
       console.error("Error fetching data:", error);
     } finally {
@@ -230,19 +238,19 @@ export default function SeguimientoIncidente() {
     }
   };
 
-  // Loading state
   if (loading) {
     return (
       <div className="space-y-6">
-        <Skeleton className="h-8 w-64" />
+        <Skeleton className="h-12 w-96" />
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
             <Skeleton className="h-48" />
+            <Skeleton className="h-32" />
             <Skeleton className="h-64" />
           </div>
           <div className="space-y-6">
             <Skeleton className="h-48" />
-            <Skeleton className="h-32" />
+            <Skeleton className="h-40" />
           </div>
         </div>
       </div>
@@ -273,24 +281,28 @@ export default function SeguimientoIncidente() {
     }
 
     try {
-      // Buscar el producto por código
-      const { result: newProdData } = await apiBackendAction("productos.getByCodigo", { codigo: editedProductCode.toUpperCase() });
+      const { result: newProdData } = await apiBackendAction("productos.getByCodigo", {
+        codigo: editedProductCode.toUpperCase(),
+      });
 
       if (!newProdData) {
         showError("Producto no encontrado");
         return;
       }
 
-      // Actualizar el incidente
       await apiBackendAction("incidentes.update", {
         id: incidente.id,
-        data: { producto_id: (newProdData as any).id }
+        data: { producto_id: (newProdData as any).id },
       } as any);
 
+      const p = newProdData as any;
       setProducto({
-        id: (newProdData as any).id,
-        codigo: (newProdData as any).codigo,
-        descripcion: (newProdData as any).descripcion,
+        id: p.id,
+        codigo: p.codigo,
+        descripcion: p.descripcion,
+        clave: p.clave,
+        descontinuado: p.descontinuado || false,
+        imagen_url: p.imagen_url,
       });
       setIsEditingProductCode(false);
       showSuccess("Código de producto actualizado");
@@ -327,246 +339,346 @@ export default function SeguimientoIncidente() {
     }
   };
 
-  const formatFechaCorta = (date: Date): string => {
-    return date.toLocaleDateString("es-GT", { day: "2-digit", month: "short", year: "numeric" });
+  const formatFechaLarga = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString("es-GT", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
   };
+
+  const formatFechaCorta = (date: Date): string => {
+    return date.toLocaleDateString("es-GT", { day: "2-digit", month: "short" });
+  };
+
+  const formatHora = (date: Date): string => {
+    return date.toLocaleTimeString("es-GT", { hour: "2-digit", minute: "2-digit" });
+  };
+
+  const getTipologiaLabel = (tipologia: string | null) => {
+    if (!tipologia) return "—";
+    const map: Record<string, string> = {
+      GARANTIA: "Garantía",
+      MANTENIMIENTO: "Mantenimiento",
+      REPARACION: "Reparación",
+    };
+    return map[tipologia] || tipologia;
+  };
+
+  const eventosFiltrados = eventos
+    .filter((e) => filtroEventos === "todos" || e.tipo === filtroEventos)
+    .sort((a, b) =>
+      ordenEventos === "reciente"
+        ? b.fecha.getTime() - a.fecha.getTime()
+        : a.fecha.getTime() - b.fecha.getTime()
+    );
+
+  const esReingreso = !!incidente.incidente_origen_id;
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-            <ArrowLeft className="h-5 w-5" />
+          <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="gap-2">
+            <ArrowLeft className="h-4 w-4" />
+            Volver
           </Button>
           <div>
-            <h1 className="text-2xl font-bold">{incidente.codigo}</h1>
-            <p className="text-muted-foreground">Seguimiento de incidente</p>
+            <div className="flex items-center gap-3">
+              <h1 className="text-3xl font-bold tracking-tight">{incidente.codigo}</h1>
+              <StatusBadge status={incidente.estado} />
+            </div>
+            <p className="text-muted-foreground">
+              Ingresado: {incidente.created_at ? formatFechaLarga(incidente.created_at) : "—"}
+            </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <StatusBadge status={incidente.estado} />
-          <Button variant="outline" size="sm" onClick={handlePrintIngreso}>
-            <Printer className="h-4 w-4 mr-2" />
-            Imprimir
-          </Button>
-        </div>
+        <Button variant="outline" onClick={handlePrintIngreso} className="gap-2">
+          <Printer className="h-4 w-4" />
+          Imprimir Hoja de Ingreso
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Content */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Producto Info */}
+          {/* Producto Card */}
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Package className="h-5 w-5" />
-                Información del Producto
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Código SKU</p>
-                  {isEditingProductCode ? (
-                    <div className="flex items-center gap-2 mt-1">
-                      <Input
-                        value={editedProductCode}
-                        onChange={(e) => setEditedProductCode(e.target.value.toUpperCase())}
-                        className="w-40"
-                      />
-                      <Button size="sm" onClick={handleSaveProductCode}>
-                        <Save className="h-4 w-4" />
-                      </Button>
-                    </div>
+            <CardContent className="p-6">
+              <div className="flex gap-6">
+                {/* Product Image */}
+                <div className="w-24 h-24 bg-muted rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
+                  {producto?.imagen_url ? (
+                    <img
+                      src={producto.imagen_url}
+                      alt={producto.descripcion || "Producto"}
+                      className="w-full h-full object-cover"
+                    />
                   ) : (
-                    <div className="flex items-center gap-2">
-                      <p className="font-semibold">{producto?.codigo || "Sin asignar"}</p>
-                      <Button variant="ghost" size="icon" onClick={handleEditProductCode}>
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                    </div>
+                    <Package className="h-10 w-10 text-muted-foreground" />
                   )}
                 </div>
+
+                {/* Product Info */}
+                <div className="flex-1 space-y-2">
+                  <h2 className="text-xl font-semibold">
+                    {producto?.descripcion || "Producto no asignado"}
+                  </h2>
+                  {producto?.clave && (
+                    <p className="text-muted-foreground">Clave: {producto.clave}</p>
+                  )}
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
+                      <span className="text-muted-foreground">SKU:</span>
+                      {isEditingProductCode ? (
+                        <div className="flex items-center gap-2">
+                          <Input
+                            value={editedProductCode}
+                            onChange={(e) => setEditedProductCode(e.target.value.toUpperCase())}
+                            className="w-28 h-8"
+                          />
+                          <Button size="sm" variant="ghost" onClick={handleSaveProductCode}>
+                            <Save className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <>
+                          <Badge variant="secondary" className="font-mono">
+                            {producto?.codigo || "—"}
+                          </Badge>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            onClick={handleEditProductCode}
+                          >
+                            <Edit className="h-3 w-3" />
+                          </Button>
+                          <span className="text-muted-foreground">{producto?.codigo || ""}</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  {producto?.descontinuado && (
+                    <Badge className="bg-orange-500 hover:bg-orange-600 text-white gap-1">
+                      <AlertTriangle className="h-3 w-3" />
+                      Producto Descontinuado
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Problema Reportado Card */}
+          <Card>
+            <CardContent className="p-6 space-y-6">
+              <div className="flex items-start gap-3">
+                <FileText className="h-5 w-5 text-muted-foreground mt-0.5" />
+                <div className="flex-1">
+                  <h3 className="font-medium mb-2">Problema Reportado</h3>
+                  <p className="text-foreground bg-muted/50 rounded-lg p-3">
+                    {incidente.descripcion_problema || "Sin descripción"}
+                  </p>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Metadata Grid */}
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
                 <div>
-                  <p className="text-sm text-muted-foreground">Descripción</p>
-                  <p className="font-semibold">{producto?.descripcion || "-"}</p>
+                  <p className="text-muted-foreground mb-1">Centro de Servicio</p>
+                  <p className="font-medium">{centroServicio?.nombre || "—"}</p>
                 </div>
-              </div>
-
-              <div>
-                <p className="text-sm text-muted-foreground">Problema Reportado</p>
-                <p className="mt-1">{incidente.descripcion_problema || "Sin descripción"}</p>
+                <div>
+                  <p className="text-muted-foreground mb-1">Tipología</p>
+                  <p className="font-medium">{getTipologiaLabel(incidente.tipologia)}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground mb-1">Garantía</p>
+                  <Badge
+                    variant="outline"
+                    className={
+                      incidente.aplica_garantia
+                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                        : "bg-muted"
+                    }
+                  >
+                    <Clock className="h-3 w-3 mr-1" />
+                    {incidente.aplica_garantia ? "En Garantía" : "Sin Garantía"}
+                  </Badge>
+                </div>
+                <div>
+                  <p className="text-muted-foreground mb-1">Reingreso</p>
+                  <p className="font-medium">{esReingreso ? "Sí" : "No"}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground mb-1">Envío</p>
+                  <div className="flex items-center gap-1">
+                    <MapPin className="h-4 w-4 text-muted-foreground" />
+                    <span className="font-medium">{incidente.quiere_envio ? "Envío" : "Recoge"}</span>
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
 
-          {/* Diagnóstico */}
-          {diagnostico && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="h-5 w-5" />
-                  Diagnóstico
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Estado</p>
-                    <Badge>{diagnostico.estado}</Badge>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Es Reparable</p>
-                    <p className="font-semibold">
-                      {diagnostico.es_reparable ? "Sí" : "No"}
-                    </p>
-                  </div>
+          {/* Timeline Card */}
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Clock className="h-5 w-5 text-muted-foreground" />
                 </div>
-                {diagnostico.recomendaciones && (
-                  <div>
-                    <p className="text-sm text-muted-foreground">Recomendaciones</p>
-                    <p className="mt-1">{diagnostico.recomendaciones}</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Historial */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <History className="h-5 w-5" />
-                Historial y Observaciones
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-sm text-muted-foreground">
-                {incidente.observaciones || "Sin observaciones registradas"}
+                <div className="flex items-center gap-2">
+                  <Select value={filtroEventos} onValueChange={setFiltroEventos}>
+                    <SelectTrigger className="w-32 h-8">
+                      <SelectValue placeholder="Filtrar" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="todos">Todos</SelectItem>
+                      <SelectItem value="creacion">Creación</SelectItem>
+                      <SelectItem value="asignacion">Asignación</SelectItem>
+                      <SelectItem value="diagnostico">Diagnóstico</SelectItem>
+                      <SelectItem value="observacion">Observación</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1"
+                    onClick={() => setOrdenEventos(ordenEventos === "reciente" ? "antiguo" : "reciente")}
+                  >
+                    <ArrowUpDown className="h-3 w-3" />
+                    {ordenEventos === "reciente" ? "Reciente" : "Antiguo"}
+                  </Button>
+                </div>
               </div>
-            </CardContent>
-          </Card>
 
-          {/* Fotos */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Eye className="h-5 w-5" />
-                Fotos del Incidente
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <CompactPhotoGallery incidenteId={String(incidente.id)} />
+              {/* Timeline Table */}
+              <div className="border rounded-lg overflow-hidden">
+                <div className="grid grid-cols-2 bg-muted/50 text-sm font-medium text-muted-foreground">
+                  <div className="px-4 py-2">Evento</div>
+                  <div className="px-4 py-2">Observación</div>
+                </div>
+                <div className="divide-y">
+                  {eventosFiltrados.length === 0 ? (
+                    <div className="p-8 text-center text-muted-foreground">
+                      No hay eventos registrados
+                    </div>
+                  ) : (
+                    eventosFiltrados.map((evento) => (
+                      <div key={evento.id} className="grid grid-cols-2">
+                        <div className="px-4 py-3">
+                          <div className="flex items-start gap-3">
+                            <div className="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                              <Plus className="h-3 w-3 text-emerald-600" />
+                            </div>
+                            <div>
+                              <p className="font-medium">{evento.titulo}</p>
+                              <p className="text-sm text-muted-foreground">{evento.descripcion}</p>
+                              <p className="text-xs text-primary mt-1">{evento.usuario}</p>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="px-4 py-3 flex items-start justify-between">
+                          <p className="text-muted-foreground">{evento.observacion || "—"}</p>
+                          <p className="text-xs text-muted-foreground whitespace-nowrap">
+                            {formatFechaCorta(evento.fecha)} {formatHora(evento.fecha)}
+                          </p>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>
 
         {/* Sidebar */}
         <div className="space-y-6">
-          {/* Cliente Info */}
+          {/* Cliente Card */}
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <User className="h-5 w-5" />
-                Cliente
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div>
-                <p className="font-semibold">{cliente?.nombre || "Desconocido"}</p>
-                <p className="text-sm text-muted-foreground">Código: {cliente?.codigo}</p>
+            <CardContent className="p-6 space-y-4">
+              <div className="flex items-start gap-3">
+                <User className="h-5 w-5 text-orange-500 mt-1" />
+                <div>
+                  <h3 className="font-semibold text-lg">{cliente?.nombre || "Cliente desconocido"}</h3>
+                  <p className="text-sm text-muted-foreground">
+                    {cliente?.codigo}
+                    {cliente?.nit && ` • NIT: ${cliente.nit}`}
+                  </p>
+                </div>
               </div>
-              {cliente?.telefono_principal && (
-                <div className="flex items-center gap-2 text-sm">
-                  <Phone className="h-4 w-4 text-muted-foreground" />
-                  <span>{cliente.telefono_principal}</span>
+
+              <div className="space-y-3 text-sm">
+                {(cliente?.telefono_principal || cliente?.celular) && (
+                  <div className="flex items-center gap-2">
+                    <Phone className="h-4 w-4 text-muted-foreground" />
+                    <span>{cliente.telefono_principal || cliente.celular}</span>
+                  </div>
+                )}
+                {cliente?.correo && (
+                  <div className="flex items-center gap-2">
+                    <Mail className="h-4 w-4 text-muted-foreground" />
+                    <span>{cliente.correo}</span>
+                  </div>
+                )}
+                {(cliente?.municipio || cliente?.departamento || cliente?.direccion) && (
+                  <div className="flex items-center gap-2">
+                    <MapPin className="h-4 w-4 text-muted-foreground" />
+                    <span>
+                      {cliente.municipio || cliente.departamento || cliente.direccion}
+                    </span>
+                  </div>
+                )}
+                <div className="flex items-center gap-2 text-primary">
+                  <Clock className="h-4 w-4" />
+                  <span>{clienteHistorial} incidentes en historial</span>
                 </div>
-              )}
-              {cliente?.correo && (
-                <div className="flex items-center gap-2 text-sm">
-                  <Mail className="h-4 w-4 text-muted-foreground" />
-                  <span>{cliente.correo}</span>
-                </div>
-              )}
-              {cliente?.direccion && (
-                <div className="flex items-center gap-2 text-sm">
-                  <Home className="h-4 w-4 text-muted-foreground" />
-                  <span>{cliente.direccion}</span>
-                </div>
-              )}
-              <Separator />
-              <div className="text-sm text-muted-foreground">
-                {clienteHistorial} incidentes en historial
               </div>
             </CardContent>
           </Card>
 
-          {/* Técnico */}
-          {tecnico && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Wrench className="h-5 w-5" />
-                  Técnico Asignado
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="font-semibold">{tecnico.nombre} {tecnico.apellido}</p>
-                <p className="text-sm text-muted-foreground">{tecnico.email}</p>
-              </CardContent>
-            </Card>
-          )}
+          {/* Fotos Card */}
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <Camera className="h-5 w-5 text-orange-500" />
+              </div>
+              <CompactPhotoGallery incidenteId={String(incidente.id)} />
+            </CardContent>
+          </Card>
 
-          {/* Dirección de Envío */}
-          {direccionEnvio && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <MapPin className="h-5 w-5" />
-                  Dirección de Envío
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <p>{direccionEnvio.direccion_completa}</p>
-                {direccionEnvio.nombre_contacto && (
-                  <p className="text-sm">Contacto: {direccionEnvio.nombre_contacto}</p>
-                )}
-                {direccionEnvio.telefono_contacto && (
-                  <p className="text-sm">Tel: {direccionEnvio.telefono_contacto}</p>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Guías de Envío */}
-          {guiasEnvio.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Truck className="h-5 w-5" />
-                  Guías de Envío
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {guiasEnvio.map((guia) => (
-                  <div
-                    key={guia.id}
-                    className="p-3 border rounded-lg cursor-pointer hover:bg-muted/50"
-                    onClick={() => setGuiaSeleccionada(guia)}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium">{guia.numero_guia || "Sin número"}</span>
-                      <Badge variant="outline">{guia.estado}</Badge>
+          {/* Guías Card */}
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center gap-2 mb-4">
+                <Link2 className="h-5 w-5 text-orange-500" />
+                <span className="text-muted-foreground">—</span>
+              </div>
+              {guiasEnvio.length > 0 ? (
+                <div className="space-y-2">
+                  {guiasEnvio.map((guia) => (
+                    <div
+                      key={guia.id}
+                      className="p-3 border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors"
+                      onClick={() => setGuiaSeleccionada(guia)}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium">{guia.numero_guia || "Sin número"}</span>
+                        <Badge variant="outline">{guia.estado}</Badge>
+                      </div>
                     </div>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {guia.fecha_guia ? formatFechaCorta(new Date(guia.fecha_guia)) : "-"}
-                    </p>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          )}
+                  ))}
+                </div>
+              ) : null}
+            </CardContent>
+          </Card>
         </div>
       </div>
 
@@ -575,17 +687,23 @@ export default function SeguimientoIncidente() {
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Vista Previa de Impresión</DialogTitle>
-            <DialogDescription>
-              Hoja de ingreso para el incidente {incidente.codigo}
-            </DialogDescription>
+            <DialogDescription>Hoja de ingreso para el incidente {incidente.codigo}</DialogDescription>
           </DialogHeader>
           <div ref={printRef} className="p-4 bg-white text-black">
             <h2 className="text-xl font-bold mb-4">Hoja de Ingreso - {incidente.codigo}</h2>
             <div className="grid grid-cols-2 gap-4 text-sm">
-              <div><strong>Cliente:</strong> {cliente?.nombre || "N/A"}</div>
-              <div><strong>Código:</strong> {cliente?.codigo || "N/A"}</div>
-              <div><strong>Producto:</strong> {producto?.descripcion || "N/A"}</div>
-              <div><strong>Estado:</strong> {incidente.estado}</div>
+              <div>
+                <strong>Cliente:</strong> {cliente?.nombre || "N/A"}
+              </div>
+              <div>
+                <strong>Código:</strong> {cliente?.codigo || "N/A"}
+              </div>
+              <div>
+                <strong>Producto:</strong> {producto?.descripcion || "N/A"}
+              </div>
+              <div>
+                <strong>Estado:</strong> {incidente.estado}
+              </div>
             </div>
             <div className="mt-4">
               <strong>Problema:</strong>
@@ -612,9 +730,18 @@ export default function SeguimientoIncidente() {
               <DialogTitle>Detalle de Guía - {guiaSeleccionada.numero_guia}</DialogTitle>
             </DialogHeader>
             <div className="p-4">
-              <p><strong>Número:</strong> {guiaSeleccionada.numero_guia}</p>
-              <p><strong>Estado:</strong> {guiaSeleccionada.estado}</p>
-              <p><strong>Fecha:</strong> {guiaSeleccionada.fecha_guia ? formatFechaCorta(new Date(guiaSeleccionada.fecha_guia)) : "-"}</p>
+              <p>
+                <strong>Número:</strong> {guiaSeleccionada.numero_guia}
+              </p>
+              <p>
+                <strong>Estado:</strong> {guiaSeleccionada.estado}
+              </p>
+              <p>
+                <strong>Fecha:</strong>{" "}
+                {guiaSeleccionada.fecha_guia
+                  ? formatFechaCorta(new Date(guiaSeleccionada.fecha_guia))
+                  : "—"}
+              </p>
             </div>
           </DialogContent>
         </Dialog>
