@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, PackageCheck, User, Calendar, FileSignature, FileCheck, Printer, Wrench, X } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { OutlinedInput } from "@/components/ui/outlined-input";
@@ -22,6 +23,7 @@ type IncidenteData = {
   quiere_envio: boolean | null;
   aplica_garantia: boolean | null;
   observaciones: string | null;
+  tracking_token?: string;
 };
 
 type ClienteData = {
@@ -658,6 +660,28 @@ export default function DetalleEntrega() {
                         )}
                       </div>
                     )}
+
+                    {/* Códigos QR */}
+                    <div className="mt-4 pt-3 border-t-2 border-dashed border-gray-300">
+                      <div className="flex justify-around items-center">
+                        <div className="text-center">
+                          <QRCodeSVG 
+                            value={`${window.location.origin}/incidente/${incidente.id}/fotos`}
+                            size={80}
+                            level="M"
+                          />
+                          <p className="text-xs mt-1 font-medium text-gray-700">Fotos del Diagnóstico</p>
+                        </div>
+                        <div className="text-center">
+                          <QRCodeSVG 
+                            value={`${window.location.origin}/encuesta/${incidente.tracking_token}`}
+                            size={80}
+                            level="M"
+                          />
+                          <p className="text-xs mt-1 font-medium text-gray-700">Encuesta de Satisfacción</p>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
