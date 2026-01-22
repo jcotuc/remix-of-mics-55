@@ -781,7 +781,6 @@ export default function SeguimientoIncidente() {
                           >
                             <Edit className="h-3 w-3" />
                           </Button>
-                          <span className="text-muted-foreground">{producto?.codigo || ""}</span>
                         </>
                       )}
                     </div>
