@@ -1,11 +1,17 @@
 import { useState, useEffect } from "react";
 import { apiBackendAction } from "@/lib/api-backend";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Users, FolderTree, X, Save } from "lucide-react";
+import { Loader2, Users, FolderTree, X, Save, AlertTriangle, CheckCircle2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
+import {
+  AlertBanner,
+  MetricCard,
+  ProgressBarWithLabel,
+  WorkloadChart,
+} from "@/components/shared/dashboard";
 
 interface FamiliaAbuelo {
   id: number;
@@ -46,11 +52,9 @@ export default function AsignacionTecnicos() {
 
   const fetchData = async () => {
     try {
-      // Fetch familias abuelas using apiBackendAction
       const familiasResult = await apiBackendAction("familias_producto.list", {});
       const familiasData = (familiasResult.results || []).filter((f: any) => f.parent_id === null);
 
-      // Fetch users with taller role using apiBackendAction
       const usuariosResult = await apiBackendAction("usuarios.list", {});
       const usuariosData = (usuariosResult.results || [])
         .filter((u: any) => u.rol === "tecnico" && u.activo);
@@ -62,7 +66,6 @@ export default function AsignacionTecnicos() {
         email: u.email || ""
       })));
 
-      // Fetch centros de servicio using apiBackendAction
       const centrosResult = await apiBackendAction("centros_de_servicio.list", {});
       const centrosData = ((centrosResult as any).results || (centrosResult as any).data || []).filter((c: any) => c.activo);
 
@@ -100,7 +103,6 @@ export default function AsignacionTecnicos() {
         activo: true 
       });
 
-      // Map to our interface
       const mapped: AsignacionTecnico[] = ((result as any).results || []).map((d: any) => ({
         id: d.id,
         user_id: d.updated_by || 0,
@@ -180,85 +182,169 @@ export default function AsignacionTecnicos() {
     );
   }
 
+  // Calculate metrics
+  const familiasConTecnicos = familias.filter(f => getTecnicosForFamilia(f.id).length > 0).length;
+  const familiasSinCobertura = familias.filter(f => getTecnicosForFamilia(f.id).length === 0);
+  const utilizacion = familias.length > 0 ? Math.round((familiasConTecnicos / familias.length) * 100) : 0;
+
+  // Workload data per technician
+  const tecnicoWorkload = tecnicos.map(t => {
+    const asignacionesCount = asignaciones.filter(a => a.user_id === t.id).length;
+    return {
+      name: `${t.nombre.split(' ')[0]} ${t.apellido?.charAt(0) || ''}`.trim(),
+      value: asignacionesCount,
+      max: familias.length
+    };
+  }).filter(t => t.value > 0).sort((a, b) => b.value - a.value);
+
   return (
     <div className="container mx-auto p-4 space-y-6">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Asignación de Técnicos a Familias</h1>
+          <h1 className="text-2xl font-bold text-foreground">Asignación de Técnicos</h1>
           <p className="text-muted-foreground">
-            Asigna técnicos a las diferentes familias de productos
+            Configura qué técnicos atienden cada familia de productos
           </p>
         </div>
-        <Select value={selectedCentro} onValueChange={setSelectedCentro}>
-          <SelectTrigger className="w-64">
-            <SelectValue placeholder="Seleccionar centro" />
-          </SelectTrigger>
-          <SelectContent>
-            {centros.map(centro => (
-              <SelectItem key={centro.id} value={String(centro.id)}>
-                {centro.nombre}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-3">
+          <Select value={selectedCentro} onValueChange={setSelectedCentro}>
+            <SelectTrigger className="w-64">
+              <SelectValue placeholder="Seleccionar centro" />
+            </SelectTrigger>
+            <SelectContent>
+              {centros.map(centro => (
+                <SelectItem key={centro.id} value={String(centro.id)}>
+                  {centro.nombre}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button variant="outline" size="icon" onClick={fetchAsignaciones}>
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card>
-          <CardContent className="pt-6">
+      {/* Alert for uncovered families */}
+      {familiasSinCobertura.length > 0 && (
+        <AlertBanner
+          variant="warning"
+          title={`${familiasSinCobertura.length} familia${familiasSinCobertura.length > 1 ? 's' : ''} sin técnicos asignados`}
+          description={familiasSinCobertura.slice(0, 3).map(f => f.nombre).join(", ") + (familiasSinCobertura.length > 3 ? "..." : "")}
+        />
+      )}
+
+      {/* Capacity Dashboard */}
+      <Card className="bg-gradient-to-r from-primary/5 to-primary/10 border-primary/20">
+        <CardContent className="pt-6">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
-              <div className="p-3 bg-primary/10 rounded-full">
-                <Users className="h-6 w-6 text-primary" />
+              <div className="p-4 bg-primary/10 rounded-full">
+                <Users className="h-8 w-8 text-primary" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Técnicos Disponibles</p>
-                <p className="text-2xl font-bold">{tecnicos.length}</p>
+                <h3 className="text-lg font-semibold">Capacidad del Equipo</h3>
+                <p className="text-muted-foreground text-sm">
+                  {tecnicos.length} técnicos disponibles • {asignaciones.length} asignaciones • {familias.length} familias
+                </p>
               </div>
             </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-secondary/10 rounded-full">
-                <FolderTree className="h-6 w-6 text-secondary-foreground" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Familias de Productos</p>
-                <p className="text-2xl font-bold">{familias.length}</p>
-              </div>
+            <div className="w-full md:w-64">
+              <ProgressBarWithLabel
+                value={familiasConTecnicos}
+                max={familias.length}
+                label="Cobertura"
+                showPercentage
+                size="lg"
+              />
             </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-green-500/10 rounded-full">
-                <Save className="h-6 w-6 text-green-500" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Asignaciones Activas</p>
-                <p className="text-2xl font-bold">{asignaciones.length}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Metrics Row */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <MetricCard
+          title="Técnicos Activos"
+          value={tecnicos.length}
+          icon={<Users className="h-5 w-5" />}
+          iconColor="bg-primary/10 text-primary"
+        />
+        <MetricCard
+          title="Familias de Producto"
+          value={familias.length}
+          icon={<FolderTree className="h-5 w-5" />}
+          iconColor="bg-blue-500/10 text-blue-500"
+        />
+        <MetricCard
+          title="Familias Cubiertas"
+          value={familiasConTecnicos}
+          subtitle={`${utilizacion}% cobertura`}
+          icon={<CheckCircle2 className="h-5 w-5" />}
+          iconColor="bg-green-500/10 text-green-500"
+        />
+        <MetricCard
+          title="Sin Cobertura"
+          value={familiasSinCobertura.length}
+          icon={<AlertTriangle className="h-5 w-5" />}
+          iconColor="bg-orange-500/10 text-orange-500"
+          alert={familiasSinCobertura.length > 0}
+        />
       </div>
+
+      {/* Workload Chart */}
+      {tecnicoWorkload.length > 0 && (
+        <WorkloadChart
+          title="Carga de Trabajo por Técnico (Familias Asignadas)"
+          data={tecnicoWorkload}
+          maxValue={familias.length}
+          height={Math.max(150, tecnicoWorkload.length * 35)}
+          horizontal
+        />
+      )}
+
+      {/* Assignment Matrix Header */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FolderTree className="h-5 w-5" />
+            Matriz de Asignaciones
+          </CardTitle>
+          <CardDescription>
+            Haz clic para asignar o eliminar técnicos de cada familia
+          </CardDescription>
+        </CardHeader>
+      </Card>
 
       {/* Grid de familias con técnicos */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {familias.map((familia) => {
           const tecnicosAsignados = getTecnicosForFamilia(familia.id);
           const tecnicosDisponibles = getTecnicosNoAsignados(familia.id);
+          const hasTecnicos = tecnicosAsignados.length > 0;
 
           return (
-            <Card key={familia.id}>
+            <Card 
+              key={familia.id}
+              className={!hasTecnicos ? "border-orange-500/50 bg-orange-50/50 dark:bg-orange-950/10" : ""}
+            >
               <CardHeader className="pb-3">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <FolderTree className="h-5 w-5 text-primary" />
-                  {familia.nombre}
-                </CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <FolderTree className="h-4 w-4 text-primary" />
+                    {familia.nombre}
+                  </CardTitle>
+                  <Badge variant={hasTecnicos ? "secondary" : "outline"} className={!hasTecnicos ? "text-orange-600" : ""}>
+                    {tecnicosAsignados.length} técnico{tecnicosAsignados.length !== 1 ? 's' : ''}
+                  </Badge>
+                </div>
+                <ProgressBarWithLabel
+                  value={tecnicosAsignados.length}
+                  max={Math.max(3, tecnicosAsignados.length)}
+                  size="sm"
+                  colorByProgress={false}
+                />
               </CardHeader>
               <CardContent className="space-y-3">
                 {/* Técnicos asignados */}
@@ -267,18 +353,18 @@ export default function AsignacionTecnicos() {
                     tecnicosAsignados.map((tec: any) => (
                       <div
                         key={tec.id}
-                        className="flex items-center justify-between p-2 bg-muted rounded-lg"
+                        className="flex items-center justify-between p-2 bg-muted rounded-lg group hover:bg-muted/80"
                       >
-                        <div>
-                          <p className="font-medium text-sm">
+                        <div className="min-w-0">
+                          <p className="font-medium text-sm truncate">
                             {tec.nombre} {tec.apellido}
                           </p>
-                          <p className="text-xs text-muted-foreground">{tec.email}</p>
+                          <p className="text-xs text-muted-foreground truncate">{tec.email}</p>
                         </div>
                         <Button
                           size="icon"
                           variant="ghost"
-                          className="h-8 w-8 text-destructive hover:bg-destructive/10"
+                          className="h-7 w-7 text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
                           onClick={() => handleRemover(tec.asignacionId)}
                         >
                           <X className="h-4 w-4" />
@@ -286,9 +372,12 @@ export default function AsignacionTecnicos() {
                       </div>
                     ))
                   ) : (
-                    <p className="text-sm text-muted-foreground text-center py-2">
-                      Sin técnicos asignados
-                    </p>
+                    <div className="flex items-center gap-2 p-3 bg-orange-100 dark:bg-orange-900/20 rounded-lg">
+                      <AlertTriangle className="h-4 w-4 text-orange-500" />
+                      <p className="text-sm text-orange-700 dark:text-orange-400">
+                        Sin técnicos asignados
+                      </p>
+                    </div>
                   )}
                 </div>
 
@@ -298,7 +387,7 @@ export default function AsignacionTecnicos() {
                     onValueChange={(userId) => handleAsignar(Number(userId), familia.id)}
                   >
                     <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Agregar técnico..." />
+                      <SelectValue placeholder="+ Agregar técnico" />
                     </SelectTrigger>
                     <SelectContent>
                       {tecnicosDisponibles.map((tec) => (

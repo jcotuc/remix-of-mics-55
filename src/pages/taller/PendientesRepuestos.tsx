@@ -1,13 +1,14 @@
 import { useState, useEffect } from "react";
 import { apiBackendAction } from "@/lib/api-backend";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, Package, Search, Clock, Eye, Truck, AlertTriangle, DollarSign } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Loader2, Package, Search, Clock, Eye, Truck, AlertTriangle, DollarSign, RefreshCw } from "lucide-react";
 import { differenceInDays } from "date-fns";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
@@ -15,7 +16,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import type { Database } from "@/integrations/supabase/types";
-import type { IncidenteSchema } from "@/generated/actions.d";
+import {
+  AlertBanner,
+  MetricCard,
+  PriorityIndicator,
+  getPriorityLevel,
+  ProgressBarWithLabel,
+  DaysDistributionChart,
+  DistributionPieChart,
+} from "@/components/shared/dashboard";
 
 type SolicitudRepuestoDB = Database['public']['Tables']['solicitudes_repuestos']['Row'];
 
@@ -47,6 +56,7 @@ export default function PendientesRepuestos() {
   const [pedidoNotas, setPedidoNotas] = useState("");
   const [showPedidoDialog, setShowPedidoDialog] = useState(false);
   const [vistaActiva, setVistaActiva] = useState<"garantia" | "presupuesto">("garantia");
+  const [showCriticalAlert, setShowCriticalAlert] = useState(true);
   const navigate = useNavigate();
   const { user } = useAuth();
 
@@ -56,17 +66,14 @@ export default function PendientesRepuestos() {
 
   const fetchIncidentes = async () => {
     try {
-      // Fetch incidentes using apiBackendAction
       const { results: allIncidentes } = await apiBackendAction("incidentes.list", { limit: 1000 });
       
-      // Filter only ESPERA_REPUESTOS
       const data = allIncidentes
         .filter(i => i.estado === "ESPERA_REPUESTOS")
         .sort((a, b) => new Date(a.updated_at || "").getTime() - new Date(b.updated_at || "").getTime());
 
       const incidenteIds = data.map(i => i.id);
 
-      // Fetch clientes and productos
       const [clientesResult, productosResult] = await Promise.all([
         apiBackendAction("clientes.list", { limit: 5000 }),
         apiBackendAction("productos.list", { limit: 2000 }),
@@ -75,7 +82,6 @@ export default function PendientesRepuestos() {
       const clientesMap = new Map(clientesResult.results.map(c => [c.id, c]));
       const productosMap = new Map(productosResult.results.map(p => [p.id, p]));
 
-      // Fetch existing pedidos for these incidentes using apiBackendAction
       const pedidosSearchResults = await Promise.all(
         incidenteIds.map(id => apiBackendAction("pedidos_bodega_central.search", { incidente_id: id }))
       );
@@ -85,7 +91,6 @@ export default function PendientesRepuestos() {
         (pedidosData || []).map((p: any) => [p.incidente_id, { id: p.id, estado: p.estado, created_at: p.created_at }])
       );
 
-      // Fetch solicitudes_repuestos using apiBackendAction
       const solicitudesResult = await apiBackendAction("solicitudes_repuestos.list", {});
       const solicitudesData = (solicitudesResult as any).data || (solicitudesResult as any).results || [];
 
@@ -98,7 +103,6 @@ export default function PendientesRepuestos() {
         }
       });
 
-      // Fetch technician names using apiBackendAction
       const { results: asignaciones } = await apiBackendAction("incidente_tecnico.list", { es_principal: true });
       const filteredAsignaciones = (asignaciones as any[]).filter(a => incidenteIds.includes(a.incidente_id));
 
@@ -112,7 +116,6 @@ export default function PendientesRepuestos() {
         });
       }
 
-      // Map asignaciones to incidentes
       const asignacionesMap = new Map(
         filteredAsignaciones.map(a => [a.incidente_id, a.tecnico_id])
       );
@@ -137,7 +140,6 @@ export default function PendientesRepuestos() {
 
       setIncidentes(formattedData);
 
-      // Extract unique technician names
       const uniqueTecnicos = [...new Set(formattedData.map(i => 
         i.tecnico ? `${i.tecnico.nombre} ${i.tecnico.apellido || ''}`.trim() : null
       ).filter(Boolean))] as string[];
@@ -150,7 +152,6 @@ export default function PendientesRepuestos() {
     }
   };
 
-  // Separar incidentes por tipo (usando aplica_garantia)
   const incidentesGarantia = incidentes.filter(inc => inc.aplica_garantia);
   const incidentesPresupuesto = incidentes.filter(inc => !inc.aplica_garantia);
 
@@ -171,15 +172,9 @@ export default function PendientesRepuestos() {
     ? getFilteredIncidentes(incidentesGarantia)
     : getFilteredIncidentes(incidentesPresupuesto);
 
-  const getDaysWaiting = (date: string) => {
+  const getDaysWaiting = (date: string | null) => {
+    if (!date) return 0;
     return differenceInDays(new Date(), new Date(date));
-  };
-
-  const getPriorityInfo = (days: number) => {
-    if (days >= 8) return { color: "bg-red-500", textColor: "text-red-700", bgLight: "bg-red-50 dark:bg-red-950", label: "CXG Automático", urgent: true };
-    if (days > 5) return { color: "bg-orange-500", textColor: "text-orange-700", bgLight: "bg-orange-50 dark:bg-orange-950", label: "Urgente", urgent: false };
-    if (days > 3) return { color: "bg-yellow-500", textColor: "text-yellow-700", bgLight: "bg-yellow-50 dark:bg-yellow-950", label: "Alto", urgent: false };
-    return { color: "bg-muted", textColor: "text-muted-foreground", bgLight: "bg-muted/30", label: "Normal", urgent: false };
   };
 
   const handleCrearPedido = async () => {
@@ -187,7 +182,6 @@ export default function PendientesRepuestos() {
 
     setIsCreatingPedido(true);
     try {
-      // Get user's info to get centro_servicio_id
       const { data: usuario } = await (supabase as any)
         .from("usuarios")
         .select("id, centro_de_servicio_id")
@@ -198,15 +192,6 @@ export default function PendientesRepuestos() {
         toast.error("No se encontró tu centro de servicio asignado");
         return;
       }
-
-      // Build repuestos array from solicitudes
-      const repuestos = selectedIncidente.solicitudes_repuestos?.flatMap(sol => 
-        Array.isArray(sol.repuestos) ? (sol.repuestos as any[]).map((rep: any) => ({
-          codigo: rep.codigo || rep.codigo_repuesto,
-          cantidad: rep.cantidad,
-          descripcion: rep.descripcion || ""
-        })) : []
-      ) || [];
 
       const { error } = await supabase
         .from("pedidos_bodega_central")
@@ -250,108 +235,6 @@ export default function PendientesRepuestos() {
     }
   };
 
-  const renderIncidentCard = (inc: IncidentePendiente, esPresupuesto: boolean) => {
-    const days = getDaysWaiting(inc.updated_at);
-    const priority = getPriorityInfo(days);
-
-    return (
-      <Card 
-        key={inc.id}
-        className={`relative overflow-hidden ${priority.urgent ? "ring-2 ring-red-500" : ""}`}
-      >
-        {priority.urgent && (
-          <div className="absolute top-0 left-0 right-0 h-1 bg-red-500" />
-        )}
-        
-        <CardHeader className="pb-2">
-          <div className="flex justify-between items-start gap-2">
-            <div className="min-w-0">
-              <CardTitle className="text-base truncate">{inc.codigo}</CardTitle>
-              <CardDescription className="truncate">
-                {inc.producto?.descripcion || `Producto #${inc.producto?.id || "N/A"}`}
-              </CardDescription>
-            </div>
-            <div className="flex flex-col items-end gap-1">
-              <Badge variant="outline" className={`font-mono text-xs ${priority.textColor}`}>
-                {days}d
-              </Badge>
-              {priority.urgent && (
-                <Badge variant="destructive" className="text-xs">
-                  <AlertTriangle className="h-3 w-3 mr-1" />
-                  CXG
-                </Badge>
-              )}
-            </div>
-          </div>
-        </CardHeader>
-
-        <CardContent className="space-y-3">
-          <div className="grid grid-cols-2 gap-2 text-sm">
-            <div>
-              <p className="text-muted-foreground text-xs">Cliente</p>
-              <p className="font-medium truncate">{inc.cliente?.nombre || "N/A"}</p>
-            </div>
-            <div>
-              <p className="text-muted-foreground text-xs">Técnico</p>
-              <p className="font-medium truncate">
-                {inc.tecnico ? `${inc.tecnico.nombre} ${inc.tecnico.apellido || ''}`.trim() : "Sin asignar"}
-              </p>
-            </div>
-          </div>
-
-          {inc.pedido_bodega ? (
-            <Badge variant="secondary" className="bg-green-50 text-green-700 border-green-200">
-              <Truck className="h-3 w-3 mr-1" />
-              Pedido creado
-            </Badge>
-          ) : (
-            <Badge variant="outline" className="text-orange-600 border-orange-300">
-              <Clock className="h-3 w-3 mr-1" />
-              Sin pedido
-            </Badge>
-          )}
-
-          <div className="flex gap-2 pt-2">
-            <Button 
-              size="sm" 
-              variant="ghost"
-              className="flex-1"
-              onClick={() => navigate(`/mostrador/seguimiento/${inc.id}`)}
-            >
-              <Eye className="h-4 w-4 mr-1" />
-              Ver
-            </Button>
-
-            {!inc.pedido_bodega && (
-              <Button 
-                size="sm" 
-                variant="default"
-                className="flex-1"
-                onClick={() => {
-                  setSelectedIncidente(inc);
-                  setShowPedidoDialog(true);
-                }}
-              >
-                <Truck className="h-4 w-4 mr-1" />
-                Pedir
-              </Button>
-            )}
-
-            {priority.urgent && !esPresupuesto && (
-              <Button 
-                size="sm" 
-                variant="destructive"
-                onClick={() => handleConvertirCXG(inc)}
-              >
-                CXG
-              </Button>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-    );
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -360,18 +243,43 @@ export default function PendientesRepuestos() {
     );
   }
 
+  // Calculate metrics
   const criticalCount = incidentes.filter(i => getDaysWaiting(i.updated_at) >= 8).length;
-  const urgentCount = incidentes.filter(i => getDaysWaiting(i.updated_at) > 5 && getDaysWaiting(i.updated_at) < 8).length;
+  const urgentCount = incidentes.filter(i => {
+    const days = getDaysWaiting(i.updated_at);
+    return days >= 6 && days < 8;
+  }).length;
+  const highCount = incidentes.filter(i => {
+    const days = getDaysWaiting(i.updated_at);
+    return days >= 4 && days < 6;
+  }).length;
+  const normalCount = incidentes.filter(i => getDaysWaiting(i.updated_at) < 4).length;
   const withPedidoCount = incidentes.filter(i => i.pedido_bodega).length;
-  const presupuestoCount = incidentesPresupuesto.length;
+
+  // Days distribution data
+  const daysDistributionData = [
+    { range: "0-3 días", count: normalCount, color: "#22c55e" },
+    { range: "4-5 días", count: highCount, color: "#eab308" },
+    { range: "6-7 días", count: urgentCount, color: "#f97316" },
+    { range: "8+ días", count: criticalCount, color: "#ef4444" },
+  ];
+
+  // Type distribution data
+  const typeDistributionData = [
+    { name: "Garantía", value: incidentesGarantia.length, color: "#22c55e" },
+    { name: "Presupuesto", value: incidentesPresupuesto.length, color: "#3b82f6" },
+  ];
+
+  const criticalIncidentes = incidentes.filter(i => getDaysWaiting(i.updated_at) >= 8 && i.aplica_garantia);
 
   return (
     <div className="container mx-auto p-4 space-y-6">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Pendientes por Repuestos</h1>
           <p className="text-muted-foreground">
-            {incidentes.length} incidentes esperando repuestos
+            Dashboard de control y seguimiento
           </p>
         </div>
         <div className="flex gap-2">
@@ -379,207 +287,311 @@ export default function PendientesRepuestos() {
             <Truck className="h-4 w-4 mr-2" />
             Ver Pedidos
           </Button>
-          <Button onClick={fetchIncidentes} variant="outline">
-            Actualizar
+          <Button onClick={fetchIncidentes} variant="outline" size="icon">
+            <RefreshCw className="h-4 w-4" />
           </Button>
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-primary/10 rounded-full">
-                <Package className="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Total Pendientes</p>
-                <p className="text-2xl font-bold">{incidentes.length}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className={criticalCount > 0 ? "border-red-500" : ""}>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-red-500/10 rounded-full">
-                <AlertTriangle className="h-6 w-6 text-red-500" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">CXG Automático (≥8d)</p>
-                <p className="text-2xl font-bold text-red-500">{criticalCount}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-orange-500/10 rounded-full">
-                <Clock className="h-6 w-6 text-orange-500" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Urgentes (5-7d)</p>
-                <p className="text-2xl font-bold text-orange-500">{urgentCount}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-green-500/10 rounded-full">
-                <Truck className="h-6 w-6 text-green-500" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Con Pedido Creado</p>
-                <p className="text-2xl font-bold text-green-600">{withPedidoCount}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Critical Alert Banner */}
+      {criticalCount > 0 && showCriticalAlert && (
+        <AlertBanner
+          variant="error"
+          title={`⚠️ ${criticalCount} incidente${criticalCount > 1 ? 's' : ''} requiere${criticalCount === 1 ? '' : 'n'} CXG automático`}
+          description="Incidentes con 8+ días de espera necesitan acción inmediata"
+          action={{
+            label: "Ver Críticos",
+            onClick: () => {
+              setVistaActiva("garantia");
+              setSearch("");
+              setFilterTecnico("all");
+            },
+          }}
+          onDismiss={() => setShowCriticalAlert(false)}
+          pulse
+        />
+      )}
+
+      {/* Metric Cards Row */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <MetricCard
+          title="Total Pendientes"
+          value={incidentes.length}
+          icon={<Package className="h-5 w-5" />}
+          iconColor="bg-primary/10 text-primary"
+          subtitle={`${withPedidoCount} con pedido creado`}
+        />
+        <MetricCard
+          title="Críticos (≥8 días)"
+          value={criticalCount}
+          icon={<AlertTriangle className="h-5 w-5" />}
+          iconColor="bg-red-500/10 text-red-500"
+          alert={criticalCount > 0}
+          onClick={() => {
+            setVistaActiva("garantia");
+          }}
+        />
+        <MetricCard
+          title="Urgentes (6-7 días)"
+          value={urgentCount}
+          icon={<Clock className="h-5 w-5" />}
+          iconColor="bg-orange-500/10 text-orange-500"
+        />
+        <MetricCard
+          title="Presupuesto"
+          value={incidentesPresupuesto.length}
+          icon={<DollarSign className="h-5 w-5" />}
+          iconColor="bg-blue-500/10 text-blue-500"
+        />
       </div>
 
-      {/* Filters */}
+      {/* Charts Row */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <DaysDistributionChart
+          title="Distribución por Días de Espera"
+          data={daysDistributionData}
+          height={140}
+        />
+        <DistributionPieChart
+          title="Tipo de Incidente"
+          data={typeDistributionData}
+          height={180}
+        />
+      </div>
+
+      {/* Filters & Tabs */}
       <Card>
         <CardContent className="pt-6">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar por código o cliente..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-10"
-              />
+          <div className="flex flex-col gap-4">
+            <Tabs value={vistaActiva} onValueChange={(v) => setVistaActiva(v as "garantia" | "presupuesto")}>
+              <TabsList className="grid w-full grid-cols-2 max-w-md">
+                <TabsTrigger value="garantia" className="gap-2">
+                  <span className="w-2 h-2 rounded-full bg-green-500" />
+                  Garantía ({incidentesGarantia.length})
+                </TabsTrigger>
+                <TabsTrigger value="presupuesto" className="gap-2">
+                  <span className="w-2 h-2 rounded-full bg-blue-500" />
+                  Presupuesto ({incidentesPresupuesto.length})
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar por código o cliente..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              <Select value={filterTecnico} onValueChange={setFilterTecnico}>
+                <SelectTrigger className="w-full sm:w-48">
+                  <SelectValue placeholder="Filtrar por técnico" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos los técnicos</SelectItem>
+                  {tecnicos.map((tec) => (
+                    <SelectItem key={tec} value={tec}>{tec}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-            <Select value={filterTecnico} onValueChange={setFilterTecnico}>
-              <SelectTrigger className="w-full sm:w-48">
-                <SelectValue placeholder="Filtrar por técnico" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos los técnicos</SelectItem>
-                {tecnicos.map(tec => (
-                  <SelectItem key={tec} value={tec}>{tec}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
         </CardContent>
       </Card>
 
-      {/* Tabs para separar Garantía vs Presupuesto */}
-      <Tabs value={vistaActiva} onValueChange={(v) => setVistaActiva(v as "garantia" | "presupuesto")} className="w-full">
-        <TabsList className="mb-4">
-          <TabsTrigger value="garantia" className="gap-2">
-            <Package className="h-4 w-4" />
-            Garantía ({incidentesGarantia.length})
-          </TabsTrigger>
-          <TabsTrigger value="presupuesto" className="gap-2">
-            <DollarSign className="h-4 w-4" />
-            Presupuesto ({presupuestoCount})
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="garantia" className="mt-0">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {getFilteredIncidentes(incidentesGarantia).map((inc) => renderIncidentCard(inc, false))}
-            
-            {getFilteredIncidentes(incidentesGarantia).length === 0 && (
-              <div className="col-span-full text-center py-12 text-muted-foreground">
-                <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>No hay incidentes de garantía pendientes por repuestos</p>
-              </div>
-            )}
+      {/* Data Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            <span>Incidentes en Espera</span>
+            <Badge variant="secondary">{filteredIncidentes.length} resultados</Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[50px]">Prioridad</TableHead>
+                  <TableHead>Código</TableHead>
+                  <TableHead>Producto</TableHead>
+                  <TableHead>Cliente</TableHead>
+                  <TableHead>Técnico</TableHead>
+                  <TableHead>Días</TableHead>
+                  <TableHead>Progreso</TableHead>
+                  <TableHead>Estado Pedido</TableHead>
+                  <TableHead className="text-right">Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredIncidentes.map((inc) => {
+                  const days = getDaysWaiting(inc.updated_at);
+                  const priority = getPriorityLevel(days);
+                  const isCritical = days >= 8;
+                  
+                  return (
+                    <TableRow 
+                      key={inc.id}
+                      className={isCritical ? "bg-red-50 dark:bg-red-950/20" : ""}
+                    >
+                      <TableCell>
+                        <PriorityIndicator level={priority} size="lg" />
+                      </TableCell>
+                      <TableCell>
+                        <span className="font-mono font-medium">{inc.codigo}</span>
+                      </TableCell>
+                      <TableCell>
+                        <div className="max-w-[200px]">
+                          <p className="font-medium text-sm truncate">
+                            {inc.producto?.descripcion || `#${inc.producto?.id}`}
+                          </p>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-sm">{inc.cliente?.nombre || "N/A"}</span>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-sm">
+                          {inc.tecnico 
+                            ? `${inc.tecnico.nombre} ${inc.tecnico.apellido || ''}`.trim() 
+                            : "Sin asignar"}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <Badge 
+                          variant={isCritical ? "destructive" : "outline"}
+                          className="font-mono"
+                        >
+                          {days}d
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="w-[120px]">
+                        <ProgressBarWithLabel
+                          value={days}
+                          max={8}
+                          size="sm"
+                          colorByProgress
+                        />
+                      </TableCell>
+                      <TableCell>
+                        {inc.pedido_bodega ? (
+                          <Badge className="bg-green-500/10 text-green-600 border-green-200">
+                            <Truck className="h-3 w-3 mr-1" />
+                            Creado
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-orange-600">
+                            <Clock className="h-3 w-3 mr-1" />
+                            Pendiente
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex justify-end gap-1">
+                          <Button 
+                            size="sm" 
+                            variant="ghost"
+                            onClick={() => navigate(`/mostrador/seguimiento/${inc.id}`)}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          {!inc.pedido_bodega && (
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => {
+                                setSelectedIncidente(inc);
+                                setShowPedidoDialog(true);
+                              }}
+                            >
+                              <Truck className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {isCritical && vistaActiva === "garantia" && (
+                            <Button 
+                              size="sm" 
+                              variant="destructive"
+                              onClick={() => handleConvertirCXG(inc)}
+                            >
+                              CXG
+                            </Button>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+                {filteredIncidentes.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                      No hay incidentes pendientes
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
           </div>
-        </TabsContent>
-
-        <TabsContent value="presupuesto" className="mt-0">
-          <div className="space-y-4">
-            {presupuestoCount > 0 && (
-              <Card className="border-emerald-400 bg-emerald-50/30 dark:bg-emerald-950/20">
-                <CardContent className="pt-4">
-                  <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400">
-                    <DollarSign className="h-5 w-5" />
-                    <p className="text-sm font-medium">
-                      Estos incidentes son de presupuesto (no garantía). El técnico verificó que no hay stock local.
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {getFilteredIncidentes(incidentesPresupuesto).map((inc) => renderIncidentCard(inc, true))}
-              
-              {getFilteredIncidentes(incidentesPresupuesto).length === 0 && (
-                <div className="col-span-full text-center py-12 text-muted-foreground">
-                  <DollarSign className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>No hay incidentes con presupuesto pendientes por repuestos</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </TabsContent>
-      </Tabs>
+        </CardContent>
+      </Card>
 
       {/* Create Pedido Dialog */}
       <Dialog open={showPedidoDialog} onOpenChange={setShowPedidoDialog}>
-        <DialogContent className="max-w-lg">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>Crear Pedido a Bodega Central</DialogTitle>
             <DialogDescription>
-              Se solicitarán los repuestos para el incidente {selectedIncidente?.codigo}
+              Se creará un pedido para el incidente {selectedIncidente?.codigo}
             </DialogDescription>
           </DialogHeader>
           
           {selectedIncidente && (
-            <div className="space-y-4">
-              {!selectedIncidente.aplica_garantia && (
-                <Badge className="bg-emerald-500/20 text-emerald-700 border-emerald-400/50">
-                  Incidente de presupuesto
-                </Badge>
-              )}
-              <div className="p-3 bg-muted rounded-lg">
-                <p className="text-sm font-medium mb-2">Repuestos a solicitar:</p>
-                <div className="space-y-1 text-sm">
-                  {selectedIncidente.solicitudes_repuestos?.flatMap(sol => 
-                    Array.isArray(sol.repuestos) ? (sol.repuestos as any[]).map((rep: any, idx: number) => (
-                      <p key={`${sol.id}-${idx}`} className="flex justify-between">
-                        <span>{rep.codigo || rep.codigo_repuesto}</span>
-                        <span className="text-muted-foreground">x{rep.cantidad}</span>
-                      </p>
-                    )) : []
-                  )}
-                  {(!selectedIncidente.solicitudes_repuestos || selectedIncidente.solicitudes_repuestos.length === 0) && (
-                    <p className="text-muted-foreground">No hay repuestos especificados en las solicitudes</p>
-                  )}
+            <div className="space-y-4 py-4">
+              <div className="p-3 bg-muted rounded-lg space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-sm text-muted-foreground">Incidente:</span>
+                  <span className="font-medium">{selectedIncidente.codigo}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-muted-foreground">Días esperando:</span>
+                  <Badge variant={getDaysWaiting(selectedIncidente.updated_at) >= 8 ? "destructive" : "secondary"}>
+                    {getDaysWaiting(selectedIncidente.updated_at)} días
+                  </Badge>
                 </div>
               </div>
 
-              <div>
+              <div className="space-y-2">
                 <label className="text-sm font-medium">Notas adicionales (opcional)</label>
                 <Textarea
-                  placeholder="Agregar notas..."
                   value={pedidoNotas}
                   onChange={(e) => setPedidoNotas(e.target.value)}
-                  rows={2}
-                  className="mt-1"
+                  placeholder="Agregar notas sobre el pedido..."
+                  rows={3}
                 />
               </div>
-
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setShowPedidoDialog(false)} disabled={isCreatingPedido}>
-                  Cancelar
-                </Button>
-                <Button onClick={handleCrearPedido} disabled={isCreatingPedido}>
-                  {isCreatingPedido ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Truck className="h-4 w-4 mr-2" />}
-                  Crear Pedido
-                </Button>
-              </DialogFooter>
             </div>
           )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPedidoDialog(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleCrearPedido} disabled={isCreatingPedido}>
+              {isCreatingPedido ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Creando...
+                </>
+              ) : (
+                <>
+                  <Truck className="h-4 w-4 mr-2" />
+                  Crear Pedido
+                </>
+              )}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
