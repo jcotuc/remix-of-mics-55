@@ -9,7 +9,7 @@ import { formatFechaLarga } from "@/utils/dateFormatters";
 interface IncidentPhoto {
   id: string;
   url: string;
-  tipo: 'ingreso' | 'diagnostico' | 'salida';
+  tipo: 'ingreso' | 'diagnostico' | 'depuracion' | 'salida';
   created_at: string;
   orden: number;
 }
@@ -22,6 +22,7 @@ interface CompactPhotoGalleryProps {
 const tipoLabels: Record<string, { label: string; color: string; bgSection: string; borderColor: string }> = {
   ingreso: { label: "Ingreso", color: "bg-blue-200 text-blue-900", bgSection: "bg-blue-50", borderColor: "border-blue-200" },
   diagnostico: { label: "Diagnóstico", color: "bg-amber-200 text-amber-900", bgSection: "bg-amber-50", borderColor: "border-amber-200" },
+  depuracion: { label: "Depuración", color: "bg-purple-200 text-purple-900", bgSection: "bg-purple-50", borderColor: "border-purple-200" },
   salida: { label: "Salida", color: "bg-green-200 text-green-900", bgSection: "bg-green-50", borderColor: "border-green-200" },
 };
 
@@ -120,7 +121,7 @@ export function CompactPhotoGallery({ incidenteId, headerVariant = "default" }: 
           ) : (
             <div className="divide-y divide-border">
               {/* Always show all 3 sections */}
-              {(['ingreso', 'diagnostico', 'salida'] as const).map((tipo) => {
+              {(['ingreso', 'diagnostico', 'depuracion', 'salida'] as const).map((tipo) => {
                 const typePhotos = photosByType[tipo] || [];
                 const config = tipoLabels[tipo];
                 
