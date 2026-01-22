@@ -1,12 +1,9 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { OutlinedInput } from "@/components/ui/outlined-input";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Wrench, CheckCircle2, Eye, EyeOff, Settings2, AlertTriangle, Loader2 } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Button } from "@/components/ui/button";
+import { Wrench, Eye, Plus, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useActiveIncidents, MAX_ASSIGNMENTS } from "@/contexts/ActiveIncidentsContext";
@@ -41,38 +38,38 @@ interface GrupoColaFifo {
   familias: number[];
 }
 
-// Colores disponibles para los grupos
-const COLORES_CLASES: Record<string, string> = {
-  orange: 'bg-orange-500/20 hover:bg-orange-500/30 border-orange-400/50 shadow-orange-500/10',
-  blue: 'bg-blue-500/20 hover:bg-blue-500/30 border-blue-400/50 shadow-blue-500/10',
-  green: 'bg-green-500/20 hover:bg-green-500/30 border-green-400/50 shadow-green-500/10',
-  purple: 'bg-purple-500/20 hover:bg-purple-500/30 border-purple-400/50 shadow-purple-500/10',
-  red: 'bg-red-500/20 hover:bg-red-500/30 border-red-400/50 shadow-red-500/10',
-  yellow: 'bg-yellow-500/20 hover:bg-yellow-500/30 border-yellow-400/50 shadow-yellow-500/10',
-  cyan: 'bg-cyan-500/20 hover:bg-cyan-500/30 border-cyan-400/50 shadow-cyan-500/10',
-  pink: 'bg-pink-500/20 hover:bg-pink-500/30 border-pink-400/50 shadow-pink-500/10'
+// Colores para grupos con incidentes pendientes
+const COLORES_FONDO: Record<string, string> = {
+  orange: "bg-orange-100 border-orange-300 hover:bg-orange-200",
+  green: "bg-green-100 border-green-300 hover:bg-green-200",
+  blue: "bg-blue-100 border-blue-300 hover:bg-blue-200",
+  purple: "bg-purple-100 border-purple-300 hover:bg-purple-200",
+  red: "bg-red-100 border-red-300 hover:bg-red-200",
+  yellow: "bg-yellow-100 border-yellow-300 hover:bg-yellow-200",
+  cyan: "bg-cyan-100 border-cyan-300 hover:bg-cyan-200",
+  pink: "bg-pink-100 border-pink-300 hover:bg-pink-200",
 };
 
 const COLORES_TEXTO: Record<string, string> = {
-  orange: 'text-orange-600',
-  blue: 'text-blue-600',
-  green: 'text-green-600',
-  purple: 'text-purple-600',
-  red: 'text-red-600',
-  yellow: 'text-yellow-600',
-  cyan: 'text-cyan-600',
-  pink: 'text-pink-600'
+  orange: "text-orange-600",
+  green: "text-green-600",
+  blue: "text-blue-600",
+  purple: "text-purple-600",
+  red: "text-red-600",
+  yellow: "text-yellow-600",
+  cyan: "text-cyan-600",
+  pink: "text-pink-600",
 };
 
 const COLORES_BADGE: Record<string, string> = {
-  orange: 'bg-orange-500/30 text-orange-700',
-  blue: 'bg-blue-500/30 text-blue-700',
-  green: 'bg-green-500/30 text-green-700',
-  purple: 'bg-purple-500/30 text-purple-700',
-  red: 'bg-red-500/30 text-red-700',
-  yellow: 'bg-yellow-500/30 text-yellow-700',
-  cyan: 'bg-cyan-500/30 text-cyan-700',
-  pink: 'bg-pink-500/30 text-pink-700'
+  orange: "bg-orange-500 text-white",
+  green: "bg-green-500 text-white",
+  blue: "bg-blue-500 text-white",
+  purple: "bg-purple-500 text-white",
+  red: "bg-red-500 text-white",
+  yellow: "bg-yellow-500 text-white",
+  cyan: "bg-cyan-500 text-white",
+  pink: "bg-pink-500 text-white",
 };
 
 export default function Asignaciones() {
@@ -82,8 +79,7 @@ export default function Asignaciones() {
   const [familias, setFamilias] = useState<FamiliaDB[]>([]);
   const [grupos, setGrupos] = useState<GrupoColaFifo[]>([]);
   const [centroServicioId, setCentroServicioId] = useState<number | null>(null);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [expandedGrupos, setExpandedGrupos] = useState<Record<number, boolean>>({});
+  const [centroServicioNombre, setCentroServicioNombre] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [loadingConfig, setLoadingConfig] = useState(true);
 
@@ -97,7 +93,7 @@ export default function Asignaciones() {
         const user = userData.user ?? null;
         const effectiveEmail = user?.email ?? (isDevBypassEnabled() ? DEV_BYPASS_AUTH.email : null);
 
-        // 2) Obtener centro de servicio del usuario (fallback por email; la tabla `usuarios` no siempre tiene auth_uid)
+        // 2) Obtener centro de servicio del usuario
         let userProfile: any = null;
         try {
           if (user?.id) {
@@ -125,22 +121,31 @@ export default function Asignaciones() {
           return;
         }
 
-        console.log('Centro de servicio del usuario:', userCentroId);
+        console.log("Centro de servicio del usuario:", userCentroId);
         setCentroServicioId(userCentroId);
 
-        // Cargar TODOS los grupos activos y filtrar por centro en el cliente
-        // (el filtro en servidor puede no estar funcionando)
-        const { results: allGruposData } = await apiBackendAction("grupos_cola_fifo.list", { centro_servicio_id: userCentroId } as any);
-        console.log('Todos los grupos:', allGruposData);
-        
+        // Obtener nombre del centro de servicio
+        const { data: centroData } = await (supabase as any)
+          .from("centros_de_servicio")
+          .select("nombre")
+          .eq("id", userCentroId)
+          .maybeSingle();
+        setCentroServicioNombre(centroData?.nombre || `Centro ${userCentroId}`);
+
+        // Cargar grupos activos del centro
+        const { results: allGruposData } = await apiBackendAction("grupos_cola_fifo.list", {
+          centro_servicio_id: userCentroId,
+        } as any);
+        console.log("Todos los grupos:", allGruposData);
+
         // Filtrar por centro de servicio del usuario
         const gruposDelCentro = (allGruposData || []).filter(
           (g: any) => Number(g.centro_servicio_id) === userCentroId
         );
-        console.log('Grupos del centro:', gruposDelCentro);
-        
+        console.log("Grupos del centro:", gruposDelCentro);
+
         const gruposActivos = gruposDelCentro.filter((g: any) => g.activo);
-        console.log('Grupos activos:', gruposActivos);
+        console.log("Grupos activos:", gruposActivos);
 
         if (gruposActivos.length === 0) {
           setGrupos([]);
@@ -148,15 +153,15 @@ export default function Asignaciones() {
           return;
         }
 
-        // Cargar familias de cada grupo via apiBackendAction
-        const familiasPromises = gruposActivos.map((g: any) => 
+        // Cargar familias de cada grupo
+        const familiasPromises = gruposActivos.map((g: any) =>
           apiBackendAction("grupos_cola_fifo_familias.list", { grupo_id: g.id } as any)
         );
         const familiasResults = await Promise.all(familiasPromises);
-        const allFamiliasGrupos = familiasResults.flatMap((r, i) => 
+        const allFamiliasGrupos = familiasResults.flatMap((r, i) =>
           (r.results || []).map((fg: any) => ({ ...fg, grupo_id: gruposActivos[i].id }))
         );
-        console.log('Familias de grupos:', allFamiliasGrupos);
+        console.log("Familias de grupos:", allFamiliasGrupos);
 
         // Construir grupos con sus familias
         const gruposConFamilias: GrupoColaFifo[] = gruposActivos.map((grupo: any) => ({
@@ -165,12 +170,15 @@ export default function Asignaciones() {
           orden: grupo.orden,
           activo: grupo.activo ?? true,
           color: grupo.color,
-          familias: allFamiliasGrupos.filter((fg: any) => fg.grupo_id === grupo.id).map((fg: any) => fg.familia_abuelo_id) || []
+          familias:
+            allFamiliasGrupos
+              .filter((fg: any) => fg.grupo_id === grupo.id)
+              .map((fg: any) => fg.familia_abuelo_id) || [],
         }));
-        console.log('Grupos con familias:', gruposConFamilias);
+        console.log("Grupos con familias:", gruposConFamilias);
         setGrupos(gruposConFamilias);
       } catch (error) {
-        console.error('Error cargando configuración:', error);
+        console.error("Error cargando configuración:", error);
       } finally {
         setLoadingConfig(false);
       }
@@ -193,11 +201,13 @@ export default function Asignaciones() {
     try {
       const result = await apiBackendAction("familias_producto.list", {});
       const data = result.results || [];
-      setFamilias(data.map((f: any) => ({
-        id: f.id,
-        nombre: f.nombre,
-        parent_id: f.parent_id
-      })));
+      setFamilias(
+        data.map((f: any) => ({
+          id: f.id,
+          nombre: f.nombre,
+          parent_id: f.parent_id,
+        }))
+      );
     } catch (error) {
       console.error("Error fetching familias:", error);
     }
@@ -206,8 +216,18 @@ export default function Asignaciones() {
   // Obtener el ID del abuelo (categoría general) desde familia_padre_id
   const getAbueloId = (familiaPadreId: number | null): number | null => {
     if (!familiaPadreId) return null;
-    const familia = familias.find(f => f.id === familiaPadreId);
+    const familia = familias.find((f) => f.id === familiaPadreId);
     return familia?.parent_id || null;
+  };
+
+  // Obtener nombres de familias para un grupo
+  const getFamiliasNombres = (grupo: GrupoColaFifo): string => {
+    const nombres = grupo.familias
+      .map((fid) => familias.find((f) => f.id === fid)?.nombre)
+      .filter(Boolean);
+    if (nombres.length === 0) return "";
+    if (nombres.length <= 2) return nombres.join(" + ");
+    return `${nombres.slice(0, 2).join(" + ")} +${nombres.length - 2}`;
   };
 
   const fetchIncidentes = async () => {
@@ -218,19 +238,16 @@ export default function Asignaciones() {
     try {
       setLoading(true);
 
-      // Use apiBackendAction for incidents
       const response = await apiBackendAction("incidentes.list", { limit: 1000 });
-      
-      // Filter by status (REGISTRADO is used for pending assignment) and service center, then sort by created_at
+
+      // Filtrar por estado REGISTRADO y centro de servicio, ordenar por fecha
       const filtered = response.results
-        .filter(inc => 
-          inc.estado === "REGISTRADO" && 
-          inc.centro_de_servicio_id === centroServicioId
+        .filter(
+          (inc) => inc.estado === "REGISTRADO" && inc.centro_de_servicio_id === centroServicioId
         )
         .sort((a, b) => new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime());
 
-      // Transform the data to match our interface
-      const transformed: IncidenteConProducto[] = filtered.map(inc => ({
+      const transformed: IncidenteConProducto[] = filtered.map((inc) => ({
         id: inc.id,
         codigo: inc.codigo,
         estado: inc.estado,
@@ -242,28 +259,31 @@ export default function Asignaciones() {
               familia_padre_id: inc.producto.familia_padre_id || null,
               familia_abuelo_id: inc.producto.familia_abuelo_id ?? null,
             }
-          : null
+          : null,
       }));
 
       setIncidentes(transformed);
     } catch (error) {
-      console.error('Error:', error);
-      toast.error('Error al cargar incidentes');
+      console.error("Error:", error);
+      toast.error("Error al cargar incidentes");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleAsignar = async (incidenteId: number, grupo: GrupoColaFifo) => {
+  const handleAsignarPrimero = async (grupo: GrupoColaFifo) => {
     const incidentesGrupo = getIncidentesPorGrupo(grupo);
-    const primerIncidente = incidentesGrupo[0];
-    if (primerIncidente?.id !== incidenteId) {
-      toast.error('Solo puedes asignar el primer incidente de la fila (FIFO)');
+    if (incidentesGrupo.length === 0) {
+      toast.info("No hay incidentes pendientes en esta cola");
       return;
     }
 
+    const primerIncidente = incidentesGrupo[0];
+
     if (!canTakeMoreAssignments) {
-      toast.error(`Ya tienes ${MAX_ASSIGNMENTS} máquinas asignadas. Completa un diagnóstico antes de tomar otra.`);
+      toast.error(
+        `Ya tienes ${MAX_ASSIGNMENTS} máquinas asignadas. Completa un diagnóstico antes de tomar otra.`
+      );
       return;
     }
 
@@ -295,55 +315,46 @@ export default function Asignaciones() {
         profile = data;
       }
 
-      const codigoTecnico =
-        profile?.codigo_empleado ||
-        `${profile?.nombre || ""} ${profile?.apellido || ""}`.trim() ||
-        effectiveEmail ||
-        user?.id ||
-        "";
-
       // Update incident status
       const { error } = await supabase
-        .from('incidentes')
+        .from("incidentes")
         .update({
-          estado: 'EN_DIAGNOSTICO' as const,
+          estado: "EN_DIAGNOSTICO" as const,
           propietario_id: profile?.id || null,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         })
-        .eq('id', incidenteId);
+        .eq("id", primerIncidente.id);
 
       if (error) throw error;
 
-      toast.success('Incidente asignado');
+      toast.success("Incidente asignado");
       refreshIncidents();
-      navigate(`/taller/diagnostico/${incidenteId}`);
+      navigate(`/taller/diagnostico/${primerIncidente.id}`);
     } catch (error) {
-      console.error('Error:', error);
-      toast.error('Error al asignar');
+      console.error("Error:", error);
+      toast.error("Error al asignar");
     }
   };
 
-  // Obtener incidentes para un grupo (puede tener múltiples familias)
+  // Obtener incidentes para un grupo
   const getIncidentesPorGrupo = (grupo: GrupoColaFifo) => {
-    return incidentes.filter(inc => {
+    return incidentes.filter((inc) => {
       const abueloId =
-        inc.producto?.familia_abuelo_id ??
-        getAbueloId(inc.producto?.familia_padre_id ?? null);
+        inc.producto?.familia_abuelo_id ?? getAbueloId(inc.producto?.familia_padre_id ?? null);
       return abueloId !== null && grupo.familias.includes(abueloId);
     });
   };
 
-  const getDiasDesdeIngreso = (createdAt: string | null | undefined) => {
-    if (!createdAt) return 0;
-    const dias = Math.floor((Date.now() - new Date(createdAt).getTime()) / (1000 * 60 * 60 * 24));
-    return dias;
-  };
+  // Calcular estadísticas
+  const totalPendientes = incidentes.length;
+  const gruposActivos = grupos.length;
+  const diaMaximo = incidentes.reduce((max, inc) => {
+    if (!inc.created_at) return max;
+    const dias = Math.floor((Date.now() - new Date(inc.created_at).getTime()) / (1000 * 60 * 60 * 24));
+    return dias > max ? dias : max;
+  }, 0);
 
-  const toggleGrupo = (grupoId: number) => {
-    setExpandedGrupos(prev => ({ ...prev, [grupoId]: !prev[grupoId] }));
-  };
-
-  if (loadingConfig) {
+  if (loadingConfig || loading) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -351,163 +362,148 @@ export default function Asignaciones() {
     );
   }
 
-  if (grupos.length === 0) {
-    return (
-      <div className="container mx-auto p-6">
+  return (
+    <div className="container mx-auto p-4 sm:p-6 space-y-6">
+      {/* Header */}
+      <div>
+        <h1 className="text-2xl sm:text-3xl font-bold text-foreground flex items-center gap-2">
+          Cola de reparación <Wrench className="h-6 w-6 sm:h-8 sm:w-8 text-orange-500" />
+        </h1>
+        <p className="text-muted-foreground">
+          Centro de servicio: <span className="font-medium text-foreground">{centroServicioNombre}</span>
+        </p>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+        <Card className="border">
+          <CardContent className="p-4">
+            <p className="text-sm text-muted-foreground">Mis Asignaciones</p>
+            <p className="text-2xl font-bold">
+              <span className="text-orange-500">{currentAssignments}</span>
+              <span className="text-muted-foreground text-lg"> / {MAX_ASSIGNMENTS}</span>
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="border">
+          <CardContent className="p-4">
+            <p className="text-sm text-muted-foreground">Pendientes</p>
+            <p className="text-2xl font-bold">{totalPendientes}</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border">
+          <CardContent className="p-4">
+            <p className="text-sm text-muted-foreground">Día máximo</p>
+            <p className="text-2xl font-bold">{diaMaximo} días</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border">
+          <CardContent className="p-4">
+            <p className="text-sm text-muted-foreground">Grupos activos</p>
+            <p className="text-2xl font-bold">{gruposActivos}</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border">
+          <CardContent className="p-4">
+            <p className="text-sm text-muted-foreground">Productividad (7d)</p>
+            <p className="text-2xl font-bold">0</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Queue Groups Grid */}
+      {grupos.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
-            <Settings2 className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <Wrench className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <h2 className="text-xl font-semibold mb-2">Sin configuración de colas</h2>
             <p className="text-muted-foreground mb-4">
               No hay grupos de cola FIFO configurados para tu centro de servicio.
             </p>
-            <Button variant="outline" onClick={() => navigate('/taller/configuracion-colas')}>
+            <Button variant="outline" onClick={() => navigate("/taller/configuracion-colas")}>
               Configurar Colas
             </Button>
           </CardContent>
         </Card>
-      </div>
-    );
-  }
-
-  return (
-    <div className="container mx-auto p-4 space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Asignaciones</h1>
-          <p className="text-muted-foreground">
-            Cola FIFO de incidentes pendientes de diagnóstico
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Badge variant={currentAssignments >= MAX_ASSIGNMENTS ? "destructive" : "secondary"}>
-            {currentAssignments}/{MAX_ASSIGNMENTS} asignaciones
-          </Badge>
-        </div>
-      </div>
-
-      {/* Alert if at max capacity */}
-      {!canTakeMoreAssignments && (
-        <Alert variant="destructive">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertDescription>
-            Has alcanzado el máximo de {MAX_ASSIGNMENTS} asignaciones. Completa un diagnóstico para poder tomar más.
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {/* Search */}
-      <div className="w-full max-w-md">
-        <OutlinedInput
-          label="Buscar incidente"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          placeholder="Código o descripción..."
-        />
-      </div>
-
-      {/* Loading */}
-      {loading ? (
-        <div className="flex items-center justify-center h-32">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
       ) : (
-        /* Grupos de Cola */
-        <div className="space-y-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 sm:gap-4">
           {grupos.map((grupo) => {
             const incidentesGrupo = getIncidentesPorGrupo(grupo);
-            const filteredIncidentes = searchTerm
-              ? incidentesGrupo.filter(inc => 
-                  inc.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                  inc.descripcion_problema?.toLowerCase().includes(searchTerm.toLowerCase())
-                )
-              : incidentesGrupo;
-            const isExpanded = expandedGrupos[grupo.id] ?? true;
-            const colorClass = COLORES_CLASES[grupo.color || 'blue'] || COLORES_CLASES.blue;
-            const textClass = COLORES_TEXTO[grupo.color || 'blue'] || COLORES_TEXTO.blue;
-            const badgeClass = COLORES_BADGE[grupo.color || 'blue'] || COLORES_BADGE.blue;
+            const count = incidentesGrupo.length;
+            const hasItems = count > 0;
+            const color = grupo.color || "orange";
+            const fondoClass = hasItems
+              ? COLORES_FONDO[color] || COLORES_FONDO.orange
+              : "bg-muted/50 border-border hover:bg-muted";
+            const textoClass = hasItems
+              ? COLORES_TEXTO[color] || COLORES_TEXTO.orange
+              : "text-muted-foreground";
+            const badgeClass = hasItems
+              ? COLORES_BADGE[color] || COLORES_BADGE.orange
+              : "bg-muted text-muted-foreground";
+            const familiasStr = getFamiliasNombres(grupo);
 
             return (
-              <Card key={grupo.id} className={`border ${colorClass}`}>
-                <CardHeader 
-                  className="cursor-pointer pb-3"
-                  onClick={() => toggleGrupo(grupo.id)}
-                >
-                  <div className="flex items-center justify-between">
-                    <CardTitle className={`text-lg flex items-center gap-2 ${textClass}`}>
-                      <Wrench className="h-5 w-5" />
-                      {grupo.nombre}
-                      <Badge className={badgeClass}>{incidentesGrupo.length}</Badge>
-                    </CardTitle>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            {isExpanded ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          {isExpanded ? 'Contraer' : 'Expandir'}
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </div>
-                </CardHeader>
-                
-                {isExpanded && (
-                  <CardContent>
-                    {filteredIncidentes.length === 0 ? (
-                      <p className="text-center text-muted-foreground py-4">
-                        No hay incidentes pendientes en esta cola
-                      </p>
-                    ) : (
-                      <div className="space-y-2">
-                        {filteredIncidentes.map((incidente, index) => {
-                          const dias = getDiasDesdeIngreso(incidente.created_at);
-                          const esPrimero = index === 0;
+              <Card
+                key={grupo.id}
+                className={`cursor-pointer transition-all border-2 ${fondoClass} ${
+                  hasItems ? "shadow-md" : ""
+                }`}
+                onClick={() => hasItems && handleAsignarPrimero(grupo)}
+              >
+                <CardContent className="p-4 space-y-2 relative">
+                  {/* Eye icon */}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute top-2 right-2 h-6 w-6 opacity-60 hover:opacity-100"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate(`/taller/cola/${grupo.id}`);
+                    }}
+                  >
+                    <Eye className="h-4 w-4" />
+                  </Button>
 
-                          return (
-                            <div
-                              key={incidente.id}
-                              className={`p-3 rounded-lg border flex items-center justify-between ${
-                                esPrimero 
-                                  ? 'bg-primary/5 border-primary/30' 
-                                  : 'bg-muted/30'
-                              }`}
-                            >
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2">
-                                  <span className="font-mono font-semibold">{incidente.codigo}</span>
-                                  {esPrimero && (
-                                    <Badge variant="default" className="text-xs">
-                                      Siguiente
-                                    </Badge>
-                                  )}
-                                  <Badge variant={dias > 5 ? "destructive" : dias > 2 ? "secondary" : "outline"}>
-                                    {dias} días
-                                  </Badge>
-                                </div>
-                                <p className="text-sm text-muted-foreground mt-1 line-clamp-1">
-                                  {incidente.descripcion_problema || 'Sin descripción'}
-                                </p>
-                              </div>
-                              {esPrimero && canTakeMoreAssignments && (
-                                <Button 
-                                  size="sm"
-                                  onClick={() => handleAsignar(incidente.id, grupo)}
-                                >
-                                  <CheckCircle2 className="h-4 w-4 mr-1" />
-                                  Tomar
-                                </Button>
-                              )}
-                            </div>
-                          );
-                        })}
-                      </div>
+                  {/* Group name */}
+                  <h3 className="font-semibold text-foreground pr-6">{grupo.nombre}</h3>
+
+                  {/* Familias subtitle */}
+                  {familiasStr && (
+                    <p className="text-xs text-muted-foreground line-clamp-1">{familiasStr}</p>
+                  )}
+
+                  {/* Action link */}
+                  {hasItems ? (
+                    <p className={`text-sm font-medium ${textoClass}`}>Toca para asignarme</p>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">0 en cola</p>
+                  )}
+
+                  {/* Bottom row: badge + plus button */}
+                  <div className="flex items-center justify-between pt-1">
+                    {hasItems ? (
+                      <Badge className={`text-xs ${badgeClass}`}>{count} en cola</Badge>
+                    ) : (
+                      <span />
                     )}
-                  </CardContent>
-                )}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 opacity-60 hover:opacity-100"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/taller/cola/${grupo.id}`);
+                      }}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </CardContent>
               </Card>
             );
           })}
