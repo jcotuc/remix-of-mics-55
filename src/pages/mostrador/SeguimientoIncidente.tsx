@@ -303,15 +303,19 @@ export default function SeguimientoIncidente() {
           }
         }
 
-        // Fetch prices for repuestos
+        // Fetch prices for repuestos from inventario (costo_unitario)
         if (repuestosFromSolicitudes.length > 0) {
           const codigos = repuestosFromSolicitudes.map(r => r.codigo);
-          const { data: repuestosConPrecio } = await supabase
-            .from("repuestos")
-            .select("codigo, precio")
-            .in("codigo", codigos);
+          const centroId = (incData as any).centro_de_servicio_id;
           
-          const precioMap = new Map((repuestosConPrecio || []).map((r: any) => [r.codigo, r.precio || 0]));
+          // Get prices from inventario table
+          const { data: inventarioData } = await supabase
+            .from("inventario")
+            .select("codigo_repuesto, costo_unitario")
+            .in("codigo_repuesto", codigos)
+            .eq("centro_servicio_id", centroId);
+          
+          const precioMap = new Map((inventarioData || []).map((r: any) => [r.codigo_repuesto, r.costo_unitario || 0]));
           repuestosFromSolicitudes.forEach(r => {
             r.precioUnitario = precioMap.get(r.codigo) || 0;
           });
