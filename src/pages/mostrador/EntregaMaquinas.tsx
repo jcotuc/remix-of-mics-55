@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { apiBackendAction } from "@/lib/api-backend";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { StatusBadge } from "@/components/shared";
 import type { Database } from "@/integrations/supabase/types";
@@ -29,6 +30,62 @@ export default function EntregaMaquinas() {
   const [searching, setSearching] = useState(false);
   const [loading, setLoading] = useState(true);
   const [incidentesReparados, setIncidentesReparados] = useState<IncidenteConRelaciones[]>([]);
+
+  const autoFixReparadoEnGarantiaSinRepuestos = async (incidentes: IncidenteSchema[]) => {
+    const candidatosIds = incidentes
+      .filter((i) => i.estado === "ESPERA_REPUESTOS")
+      .map((i) => i.id)
+      .filter((id): id is number => typeof id === "number");
+
+    if (candidatosIds.length === 0) return { incidentes, fixedIds: [] as number[] };
+
+    // 1) Diagnósticos de reparación en garantía para esos incidentes
+    const { data: diagnosticos, error: diagError } = await supabase
+      .from("diagnosticos")
+      .select("incidente_id,tipo_resolucion")
+      .in("incidente_id", candidatosIds)
+      .eq("tipo_resolucion", "REPARAR_EN_GARANTIA");
+    if (diagError) throw diagError;
+
+    const garantiaIds = Array.from(
+      new Set(
+        (diagnosticos || [])
+          .map((d: any) => d.incidente_id)
+          .filter((id: any): id is number => typeof id === "number")
+      )
+    );
+    if (garantiaIds.length === 0) return { incidentes, fixedIds: [] as number[] };
+
+    // 2) Ver si existen solicitudes de repuestos
+    const { data: solicitudes, error: solError } = await supabase
+      .from("solicitudes_repuestos")
+      .select("incidente_id")
+      .in("incidente_id", garantiaIds);
+    if (solError) throw solError;
+
+    const conSolicitud = new Set(
+      (solicitudes || [])
+        .map((s: any) => s.incidente_id)
+        .filter((id: any): id is number => typeof id === "number")
+    );
+
+    const idsParaCorregir = garantiaIds.filter((id) => !conSolicitud.has(id));
+    if (idsParaCorregir.length === 0) return { incidentes, fixedIds: [] as number[] };
+
+    // 3) Corregir estado del incidente
+    const { error: updError } = await supabase
+      .from("incidentes")
+      .update({ estado: "REPARADO" })
+      .in("id", idsParaCorregir);
+    if (updError) throw updError;
+
+    const idsSet = new Set(idsParaCorregir);
+    const incidentesCorregidos = incidentes.map((inc) =>
+      idsSet.has(inc.id) ? ({ ...inc, estado: "REPARADO" } as IncidenteSchema) : inc
+    );
+
+    return { incidentes: incidentesCorregidos, fixedIds: idsParaCorregir };
+  };
   
   // Filtros
   const [filtroTexto, setFiltroTexto] = useState("");
@@ -49,8 +106,21 @@ export default function EntregaMaquinas() {
         apiBackendAction("productos.list", { limit: 2000 }),
       ]);
 
+      // Hotfix: si es REPARAR_EN_GARANTIA y NO hay solicitudes_repuestos, debe pasar a REPARADO
+      let incidentesNormalizados = incidentesResult.results;
+      try {
+        const { incidentes, fixedIds } = await autoFixReparadoEnGarantiaSinRepuestos(incidentesResult.results);
+        incidentesNormalizados = incidentes;
+        if (fixedIds.length > 0) {
+          toast.success(`Se corrigieron ${fixedIds.length} incidente(s) a REPARADO (sin repuestos solicitados)`);
+        }
+      } catch (e) {
+        console.warn("No se pudo auto-corregir REPARAR_EN_GARANTIA sin repuestos:", e);
+        toast.error("No se pudo auto-corregir a REPARADO (revisa permisos/RLS). Igual se cargó la lista.");
+      }
+
       // Filtrar solo los REPARADOS
-      const incidentesData = incidentesResult.results.filter(i => i.estado === "REPARADO");
+      const incidentesData = incidentesNormalizados.filter((i) => i.estado === "REPARADO");
       
       // Crear mapas para búsqueda rápida
       const clientesMap = new Map(clientesResult.results.map(c => [c.id, c]));
