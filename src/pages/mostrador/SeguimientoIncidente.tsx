@@ -78,7 +78,7 @@ type ProductoData = {
   descripcion: string | null;
   clave?: string | null;
   descontinuado?: boolean;
-  imagen_url?: string | null;
+  url_foto?: string | null;
 };
 
 type CentroServicioData = {
@@ -178,7 +178,7 @@ export default function SeguimientoIncidente() {
           descripcion: p.descripcion,
           clave: p.clave,
           descontinuado: p.descontinuado || false,
-          imagen_url: p.imagen_url,
+          url_foto: p.url_foto,
         });
       }
 
@@ -302,7 +302,7 @@ export default function SeguimientoIncidente() {
         descripcion: p.descripcion,
         clave: p.clave,
         descontinuado: p.descontinuado || false,
-        imagen_url: p.imagen_url,
+        url_foto: p.url_foto,
       });
       setIsEditingProductCode(false);
       showSuccess("Código de producto actualizado");
@@ -410,9 +410,9 @@ export default function SeguimientoIncidente() {
               <div className="flex gap-6">
                 {/* Product Image */}
                 <div className="w-24 h-24 bg-muted rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden">
-                  {producto?.imagen_url ? (
+                  {producto?.url_foto ? (
                     <img
-                      src={producto.imagen_url}
+                      src={producto.url_foto}
                       alt={producto.descripcion || "Producto"}
                       className="w-full h-full object-cover"
                     />
