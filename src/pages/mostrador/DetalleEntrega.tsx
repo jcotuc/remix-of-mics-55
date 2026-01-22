@@ -60,6 +60,8 @@ export default function DetalleEntrega() {
   const [centroServicio, setCentroServicio] = useState<string>("HPC Centro de Servicio");
   const [repuestosConPrecios, setRepuestosConPrecios] = useState<Array<{codigo: string; descripcion: string; cantidad: number; precioUnitario: number}>>([]);
   const [showDiagnosticoPreview, setShowDiagnosticoPreview] = useState(false);
+  const [fallasNombres, setFallasNombres] = useState<string[]>([]);
+  const [causasNombres, setCausasNombres] = useState<string[]>([]);
   const signatureRef = useRef<SignatureCanvasRef>(null);
   const printRef = useRef<HTMLDivElement>(null);
 
@@ -159,6 +161,22 @@ export default function DetalleEntrega() {
           recomendaciones: diagData.recomendaciones,
           descuento_porcentaje: diagData.descuento_porcentaje,
         });
+
+        // Cargar fallas y causas del diagnóstico
+        try {
+          const [fallasRes, causasRes] = await Promise.all([
+            apiBackendAction("diagnostico_fallas.list", { diagnostico_id: diagData.id }),
+            apiBackendAction("diagnostico_causas.list", { diagnostico_id: diagData.id }),
+          ]);
+          
+          const fallasData = (fallasRes as any).results || [];
+          const causasData = (causasRes as any).results || [];
+          
+          setFallasNombres(fallasData.map((f: any) => f.falla?.nombre || f.nombre || 'Falla').filter(Boolean));
+          setCausasNombres(causasData.map((c: any) => c.causa?.nombre || c.nombre || 'Causa').filter(Boolean));
+        } catch (err) {
+          console.error("Error loading fallas/causas:", err);
+        }
       }
 
       if (centroRes.result) {
@@ -591,13 +609,40 @@ export default function DetalleEntrega() {
                             <p className="text-xs">{previewData.aplicaGarantia ? 'Sí' : 'No'}</p>
                           </div>
                         </div>
+                        
+                        {/* Fallas y Causas */}
+                        <div className="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-gray-200">
+                          <div>
+                            <p className="font-semibold text-gray-600 text-xs">Fallas Detectadas:</p>
+                            {fallasNombres.length > 0 ? (
+                              <ul className="text-xs list-disc list-inside">
+                                {fallasNombres.map((f, i) => <li key={i}>{f}</li>)}
+                              </ul>
+                            ) : (
+                              <p className="text-xs text-gray-400">Sin fallas registradas</p>
+                            )}
+                          </div>
+                          <div>
+                            <p className="font-semibold text-gray-600 text-xs">Causas Identificadas:</p>
+                            {causasNombres.length > 0 ? (
+                              <ul className="text-xs list-disc list-inside">
+                                {causasNombres.map((c, i) => <li key={i}>{c}</li>)}
+                              </ul>
+                            ) : (
+                              <p className="text-xs text-gray-400">Sin causas registradas</p>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Observación del Técnico */}
                         {diagnostico.recomendaciones && (
-                          <>
-                            <p className="font-semibold text-gray-600 text-xs mt-1">Recomendaciones:</p>
+                          <div className="mt-2 pt-2 border-t border-gray-200">
+                            <p className="font-semibold text-gray-600 text-xs">Observación del Técnico:</p>
                             <p className="bg-gray-50 p-1 rounded text-xs">{diagnostico.recomendaciones}</p>
-                          </>
+                          </div>
                         )}
-                        <p className="text-xs mt-1 pt-1 border-t">Centro de Servicio: <strong>{centroServicio}</strong></p>
+                        
+                        <p className="text-xs mt-2 pt-1 border-t">Centro de Servicio: <strong>{centroServicio}</strong></p>
                       </div>
                     </div>
 

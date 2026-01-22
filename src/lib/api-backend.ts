@@ -654,7 +654,10 @@ const incidenteTecnicoHandlers: Record<string, ActionHandler<any>> = {
 const diagnosticoAsociacionesHandlers: Record<string, ActionHandler<any>> = {
   "diagnostico_fallas.list": async (input) => {
     const { diagnostico_id } = input;
-    const { data, error } = await supabase.from("diagnostico_fallas").select("*").eq("diagnostico_id", diagnostico_id);
+    const { data, error } = await supabase
+      .from("diagnostico_fallas")
+      .select("*, falla:fallas(id, nombre)")
+      .eq("diagnostico_id", diagnostico_id);
     if (error) throw error;
     return { results: data || [] };
   },
@@ -684,7 +687,10 @@ const diagnosticoAsociacionesHandlers: Record<string, ActionHandler<any>> = {
   },
   "diagnostico_causas.list": async (input) => {
     const { diagnostico_id } = input;
-    const { data, error } = await supabase.from("diagnostico_causas").select("*").eq("diagnostico_id", diagnostico_id);
+    const { data, error } = await supabase
+      .from("diagnostico_causas")
+      .select("*, causa:causas(id, nombre)")
+      .eq("diagnostico_id", diagnostico_id);
     if (error) throw error;
     return { results: data || [] };
   },
