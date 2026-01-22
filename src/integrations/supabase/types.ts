@@ -2018,6 +2018,7 @@ export type Database = {
       inventario: {
         Row: {
           bodega: string | null
+          bodega_id: number | null
           cantidad: number
           centro_servicio_id: number
           codigo_repuesto: string
@@ -2031,6 +2032,7 @@ export type Database = {
         }
         Insert: {
           bodega?: string | null
+          bodega_id?: number | null
           cantidad: number
           centro_servicio_id: number
           codigo_repuesto: string
@@ -2044,6 +2046,7 @@ export type Database = {
         }
         Update: {
           bodega?: string | null
+          bodega_id?: number | null
           cantidad?: number
           centro_servicio_id?: number
           codigo_repuesto?: string
@@ -2056,6 +2059,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "inventario_bodega_id_fkey"
+            columns: ["bodega_id"]
+            isOneToOne: false
+            referencedRelation: "bodegas"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "inventario_centro_servicio_id_fkey"
             columns: ["centro_servicio_id"]
@@ -3670,6 +3680,7 @@ export type Database = {
         Row: {
           activo: boolean | null
           bodega_id: number | null
+          caja: string | null
           codigo: string | null
           created_at: string | null
           id: number
@@ -3681,6 +3692,7 @@ export type Database = {
         Insert: {
           activo?: boolean | null
           bodega_id?: number | null
+          caja?: string | null
           codigo?: string | null
           created_at?: string | null
           id?: number
@@ -3692,6 +3704,7 @@ export type Database = {
         Update: {
           activo?: boolean | null
           bodega_id?: number | null
+          caja?: string | null
           codigo?: string | null
           created_at?: string | null
           id?: number
@@ -3870,8 +3883,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      generar_codigo_hpc: { Args: never; Returns: string }
-      generar_codigo_incidente: { Args: never; Returns: string }
+      [_ in never]: never
     }
     Enums: {
       clasificacionabc: "A" | "B" | "C"
