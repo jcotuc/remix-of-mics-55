@@ -320,7 +320,7 @@ export default function Asignaciones() {
   const getIncidentesPorGrupo = (grupo: GrupoColaFifo) => {
     return incidentes.filter(inc => {
       const abueloId =
-        (inc.producto?.familia_abuelo_id ?? null) ??
+        inc.producto?.familia_abuelo_id ??
         getAbueloId(inc.producto?.familia_padre_id ?? null);
       return abueloId !== null && grupo.familias.includes(abueloId);
     });
