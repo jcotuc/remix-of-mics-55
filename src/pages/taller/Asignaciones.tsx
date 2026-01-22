@@ -107,7 +107,7 @@ export default function Asignaciones() {
           return;
         }
         
-        const userCentroId = (userProfile as any).centro_de_servicio_id;
+        const userCentroId = Number((userProfile as any).centro_de_servicio_id);
         console.log('Centro de servicio del usuario:', userCentroId);
         setCentroServicioId(userCentroId);
 
@@ -118,7 +118,7 @@ export default function Asignaciones() {
         
         // Filtrar por centro de servicio del usuario
         const gruposDelCentro = (allGruposData || []).filter(
-          (g: any) => g.centro_servicio_id === userCentroId
+          (g: any) => Number(g.centro_servicio_id) === userCentroId
         );
         console.log('Grupos del centro:', gruposDelCentro);
         

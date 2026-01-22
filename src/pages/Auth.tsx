@@ -7,8 +7,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Wrench } from "lucide-react";
-// Note: Auth functionality is currently disabled (commented out)
-// When re-enabled, import supabase for auth operations only
+import { supabase } from "@/integrations/supabase/client";
+import { apiBackendAction } from "@/lib/api-backend";
 
 export default function Auth() {
   const navigate = useNavigate();
@@ -20,33 +20,56 @@ export default function Auth() {
   const [nombre, setNombre] = useState("");
   const [apellido, setApellido] = useState("");
 
-  // Note: Session check is disabled while auth is commented out
-  // When re-enabling, import supabase and check session
+  useEffect(() => {
+    let mounted = true;
+    supabase.auth.getSession().then(async ({ data, error }) => {
+      if (!mounted) return;
+      if (error) {
+        // Limpia tokens corruptos (ej. "token is malformed")
+        await supabase.auth.signOut({ scope: "local" });
+      }
+      if (data.session) navigate("/");
+    });
+    return () => {
+      mounted = false;
+    };
+  }, [navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      console.log("LOGIN!!");
-      // const { data, error } = await supabase.auth.signInWithPassword({
-      //   email: loginEmail,
-      //   password: loginPassword,
-      // });
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: loginEmail.trim(),
+        password: loginPassword,
+      });
 
-      // if (error) {
-      //   if (error.message.includes("Invalid login credentials")) {
-      //     toast.error("Credenciales inválidas");
-      //   } else {
-      //     toast.error(error.message);
-      //   }
-      //   return;
-      // }
+      if (error) {
+        if (error.message.toLowerCase().includes("invalid login credentials")) {
+          toast.error("Credenciales inválidas");
+        } else {
+          toast.error(error.message);
+        }
+        return;
+      }
 
-      // if (data.session) {
-      //   toast.success("¡Sesión iniciada!");
-      //   navigate("/");
-      // }
+      // Verificar que el usuario exista/mapee en la tabla interna `usuarios`
+      // (la app depende de centro_de_servicio_id, permisos, etc.)
+      if (data.user?.id) {
+        const { result: usuario } = await apiBackendAction("usuarios.getByAuthUid", {
+          auth_uid: data.user.id,
+        });
+
+        if (!usuario) {
+          await supabase.auth.signOut();
+          toast.error("Tu usuario no está habilitado en el sistema.");
+          return;
+        }
+      }
+
+      toast.success("¡Sesión iniciada!");
+      navigate("/");
     } catch (error) {
       toast.error("Error al iniciar sesión");
     } finally {
@@ -59,47 +82,9 @@ export default function Auth() {
     setLoading(true);
 
     try {
-      console.log("SIGNUP!!!");
-      // const redirectUrl = `${window.location.origin}/`;
-
-      // const { data, error } = await supabase.auth.signUp({
-      //   email: signupEmail,
-      //   password: signupPassword,
-      //   options: {
-      //     emailRedirectTo: redirectUrl,
-      //     data: { nombre, apellido },
-      //   },
-      // });
-
-      // if (error) {
-      //   if (error.message.includes("already registered")) {
-      //     toast.error("Este correo ya está registrado");
-      //   } else {
-      //     toast.error(error.message);
-      //   }
-      //   return;
-      // }
-
-      // if (data.user) {
-      //   const { error: profileError } = await supabase
-      //     .from("profiles")
-      //     .insert({
-      //       user_id: data.user.id,
-      //       nombre,
-      //       apellido,
-      //       email: signupEmail,
-      //     });
-
-      //   if (profileError) {
-      //     console.error("Error creando perfil:", profileError);
-      //   }
-
-      //   toast.success("Cuenta creada. Verifica tu correo.");
-      //   setSignupEmail("");
-      //   setSignupPassword("");
-      //   setNombre("");
-      //   setApellido("");
-      // }
+      // Por ahora: el alta de usuarios se gestiona desde administración.
+      // (evita crear usuarios sin registro en la tabla `usuarios`)
+      toast.info("El registro está deshabilitado. Solicita acceso a administración.");
     } catch (error) {
       toast.error("Error al crear cuenta");
     } finally {
