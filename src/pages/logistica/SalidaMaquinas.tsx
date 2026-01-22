@@ -20,9 +20,10 @@ import {
   CheckCircle
 } from "lucide-react";
 import { apiBackendAction } from "@/lib/api-backend";
+import { DetalleDespachoSheet } from "@/components/features/logistica";
 import type { IncidenteSchema, ClienteSchema, GuiaInDBSchema } from "@/generated/entities";
 
-type IncidenteEnriquecido = IncidenteSchema & {
+export type IncidenteEnriquecido = IncidenteSchema & {
   clienteNombre: string;
   clienteCelular: string;
   clienteDireccion: string;
@@ -42,6 +43,8 @@ export default function SalidaMaquinas() {
   const [activeTab, setActiveTab] = useState<TabType>(
     (searchParams.get("tab") as TabType) || "por_despachar"
   );
+  const [selectedIncidente, setSelectedIncidente] = useState<IncidenteEnriquecido | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
 
   // Calcular días de espera
   const calcularDiasEspera = (updatedAt: string | null | undefined): number => {
@@ -215,7 +218,14 @@ export default function SalidaMaquinas() {
           </TableHeader>
           <TableBody>
             {filtrados.map((incidente) => (
-              <TableRow key={incidente.id} className="hover:bg-muted/30">
+              <TableRow 
+                key={incidente.id} 
+                className="hover:bg-muted/30 cursor-pointer"
+                onClick={() => {
+                  setSelectedIncidente(incidente);
+                  setSheetOpen(true);
+                }}
+              >
                 <TableCell className="font-mono font-medium text-primary">
                   {incidente.codigo}
                 </TableCell>
@@ -451,6 +461,13 @@ export default function SalidaMaquinas() {
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Sheet de Detalle */}
+      <DetalleDespachoSheet
+        incidente={selectedIncidente}
+        open={sheetOpen}
+        onOpenChange={setSheetOpen}
+      />
     </div>
   );
 }
