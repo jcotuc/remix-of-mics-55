@@ -18,6 +18,10 @@ import {
   ArrowUpDown,
   ImageOff,
   Package,
+  Wrench,
+  UserCheck,
+  MessageSquare,
+  Truck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -96,7 +100,7 @@ type GuiaData = {
 
 type EventoHistorial = {
   id: string;
-  tipo: "creacion" | "asignacion" | "diagnostico" | "reparacion" | "observacion";
+  tipo: "creacion" | "asignacion" | "diagnostico" | "reparacion" | "observacion" | "foto" | "guia" | "estado";
   titulo: string;
   descripcion: string;
   usuario: string;
@@ -191,26 +195,60 @@ export default function SeguimientoIncidente() {
       // Fetch guias
       const guiasRes = await apiBackendAction("guias.search", { incidente_codigo: incData.codigo });
 
-      // Fetch client history count
+      // Fetch additional data for timeline in parallel
+      const { supabase } = await import("@/integrations/supabase/client");
+      const incidenteIdNum = Number(id);
+      
+      const [
+        comentariosRes,
+        tecnicosRes,
+        diagnosticosRes,
+        fotosRes,
+        clientHistoryRes,
+      ] = await Promise.all([
+        supabase
+          .from("comentarios")
+          .select("*, usuarios:autor_id(nombre)")
+          .eq("incidente_id", incidenteIdNum)
+          .order("created_at", { ascending: true }),
+        supabase
+          .from("incidente_tecnico")
+          .select("*, usuarios:tecnico_id(nombre)")
+          .eq("incidente_id", incidenteIdNum)
+          .order("created_at", { ascending: true }),
+        supabase
+          .from("diagnosticos")
+          .select("*, usuarios:tecnico_id(nombre)")
+          .eq("incidente_id", incidenteIdNum)
+          .order("created_at", { ascending: true }),
+        supabase
+          .from("incidente_fotos")
+          .select("*, usuarios:created_by(nombre)")
+          .eq("incidente_id", incidenteIdNum)
+          .order("created_at", { ascending: true }),
+        incData.cliente
+          ? apiBackendAction("incidentes.list", { limit: 1000 })
+          : Promise.resolve({ results: [] }),
+      ]);
+
+      // Set client history count
       if (incData.cliente) {
-        const { results: allIncidentes } = await apiBackendAction("incidentes.list", { limit: 1000 });
-        const clienteIncidentes = (allIncidentes || []).filter(
+        const clienteIncidentes = (clientHistoryRes.results || []).filter(
           (i: any) => i.cliente?.id === (incData.cliente as any).id
         );
         setClienteHistorial(clienteIncidentes.length);
       }
 
       // Set guias
-      setGuiasEnvio(
-        (guiasRes.results || []).map((g: any) => ({
-          id: g.id,
-          numero_guia: g.numero_guia,
-          estado: g.estado,
-          fecha_guia: g.fecha_guia,
-        }))
-      );
+      const guiasData = (guiasRes.results || []).map((g: any) => ({
+        id: g.id,
+        numero_guia: g.numero_guia,
+        estado: g.estado,
+        fecha_guia: g.fecha_guia,
+      }));
+      setGuiasEnvio(guiasData);
 
-      // Build eventos from observaciones and created_at
+      // Build eventos from all sources
       const eventosBuilt: EventoHistorial[] = [];
 
       // Evento de creación
@@ -218,12 +256,94 @@ export default function SeguimientoIncidente() {
         eventosBuilt.push({
           id: "creacion",
           tipo: "creacion",
-          titulo: "Creación de Incidente",
-          descripcion: "Incidente creado",
+          titulo: "Incidente Creado",
+          descripcion: `Incidente ${incData.codigo} registrado en el sistema`,
           usuario: "Sistema",
           fecha: new Date(incData.created_at),
         });
       }
+
+      // Eventos de asignación de técnicos
+      (tecnicosRes.data || []).forEach((t: any, idx: number) => {
+        eventosBuilt.push({
+          id: `tecnico-${t.id || idx}`,
+          tipo: "asignacion",
+          titulo: "Técnico Asignado",
+          descripcion: `${t.usuarios?.nombre || "Técnico"} asignado al incidente${t.es_principal ? " (Principal)" : ""}`,
+          usuario: "Sistema",
+          fecha: new Date(t.created_at),
+        });
+      });
+
+      // Eventos de diagnósticos
+      (diagnosticosRes.data || []).forEach((d: any, idx: number) => {
+        const estadoLabel = d.estado === "COMPLETADO" ? "completado" : "en progreso";
+        eventosBuilt.push({
+          id: `diagnostico-${d.id || idx}`,
+          tipo: "diagnostico",
+          titulo: "Diagnóstico Realizado",
+          descripcion: `Diagnóstico ${estadoLabel} por ${d.usuarios?.nombre || "Técnico"}`,
+          usuario: d.usuarios?.nombre || "Técnico",
+          fecha: new Date(d.created_at),
+          observacion: d.recomendaciones,
+        });
+      });
+
+      // Eventos de comentarios/observaciones
+      (comentariosRes.data || []).forEach((c: any, idx: number) => {
+        eventosBuilt.push({
+          id: `comentario-${c.id || idx}`,
+          tipo: "observacion",
+          titulo: c.tipo === "INTERNO" ? "Nota Interna" : "Observación",
+          descripcion: c.contenido,
+          usuario: c.usuarios?.nombre || "Usuario",
+          fecha: new Date(c.created_at),
+        });
+      });
+
+      // Eventos de fotos
+      const fotosTipoCount: Record<string, number> = {};
+      (fotosRes.data || []).forEach((f: any) => {
+        fotosTipoCount[f.tipo] = (fotosTipoCount[f.tipo] || 0) + 1;
+      });
+      
+      // Agrupar fotos por tipo y fecha (solo mostrar un evento por tipo)
+      const fotosAgrupadas = (fotosRes.data || []).reduce((acc: Record<string, any>, f: any) => {
+        const key = f.tipo;
+        if (!acc[key] || new Date(f.created_at) < new Date(acc[key].created_at)) {
+          acc[key] = f;
+        }
+        return acc;
+      }, {});
+
+      Object.entries(fotosAgrupadas).forEach(([tipo, f]: [string, any]) => {
+        const tipoLabels: Record<string, string> = {
+          ingreso: "Ingreso",
+          diagnostico: "Diagnóstico", 
+          depuracion: "Depuración",
+          salida: "Salida",
+        };
+        eventosBuilt.push({
+          id: `foto-${tipo}`,
+          tipo: "foto",
+          titulo: `Fotos de ${tipoLabels[tipo] || tipo}`,
+          descripcion: `${fotosTipoCount[tipo]} foto(s) agregada(s)`,
+          usuario: f.usuarios?.nombre || "Usuario",
+          fecha: new Date(f.created_at),
+        });
+      });
+
+      // Eventos de guías
+      guiasData.forEach((g: any, idx: number) => {
+        eventosBuilt.push({
+          id: `guia-${g.id || idx}`,
+          tipo: "guia",
+          titulo: "Guía de Envío",
+          descripcion: `Guía ${g.numero_guia || "sin número"} - ${g.estado}`,
+          usuario: "Logística",
+          fecha: new Date(g.fecha_guia || new Date()),
+        });
+      });
 
       setEventos(eventosBuilt);
     } catch (error) {
@@ -520,7 +640,7 @@ export default function SeguimientoIncidente() {
                 </div>
                 <div className="flex items-center gap-2">
                   <Select value={filtroEventos} onValueChange={setFiltroEventos}>
-                    <SelectTrigger className="w-32 h-8">
+                    <SelectTrigger className="w-36 h-8">
                       <SelectValue placeholder="Filtrar" />
                     </SelectTrigger>
                     <SelectContent>
@@ -529,6 +649,8 @@ export default function SeguimientoIncidente() {
                       <SelectItem value="asignacion">Asignación</SelectItem>
                       <SelectItem value="diagnostico">Diagnóstico</SelectItem>
                       <SelectItem value="observacion">Observación</SelectItem>
+                      <SelectItem value="foto">Fotos</SelectItem>
+                      <SelectItem value="guia">Guías</SelectItem>
                     </SelectContent>
                   </Select>
                   <Button
@@ -555,28 +677,50 @@ export default function SeguimientoIncidente() {
                       No hay eventos registrados
                     </div>
                   ) : (
-                    eventosFiltrados.map((evento) => (
-                      <div key={evento.id} className="grid grid-cols-2">
-                        <div className="px-4 py-3">
-                          <div className="flex items-start gap-3">
-                            <div className="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-                              <Plus className="h-3 w-3 text-emerald-600" />
-                            </div>
-                            <div>
-                              <p className="font-medium">{evento.titulo}</p>
-                              <p className="text-sm text-muted-foreground">{evento.descripcion}</p>
-                              <p className="text-xs text-primary mt-1">{evento.usuario}</p>
+                    eventosFiltrados.map((evento) => {
+                      const getEventoIcon = () => {
+                        switch (evento.tipo) {
+                          case "creacion":
+                            return { icon: Plus, bg: "bg-emerald-100", color: "text-emerald-600" };
+                          case "asignacion":
+                            return { icon: UserCheck, bg: "bg-blue-100", color: "text-blue-600" };
+                          case "diagnostico":
+                            return { icon: Wrench, bg: "bg-amber-100", color: "text-amber-600" };
+                          case "observacion":
+                            return { icon: MessageSquare, bg: "bg-purple-100", color: "text-purple-600" };
+                          case "foto":
+                            return { icon: Camera, bg: "bg-orange-100", color: "text-orange-600" };
+                          case "guia":
+                            return { icon: Truck, bg: "bg-indigo-100", color: "text-indigo-600" };
+                          default:
+                            return { icon: Clock, bg: "bg-gray-100", color: "text-gray-600" };
+                        }
+                      };
+                      const { icon: IconComponent, bg, color } = getEventoIcon();
+
+                      return (
+                        <div key={evento.id} className="grid grid-cols-2">
+                          <div className="px-4 py-3">
+                            <div className="flex items-start gap-3">
+                              <div className={`w-6 h-6 rounded-full ${bg} flex items-center justify-center flex-shrink-0 mt-0.5`}>
+                                <IconComponent className={`h-3 w-3 ${color}`} />
+                              </div>
+                              <div>
+                                <p className="font-medium">{evento.titulo}</p>
+                                <p className="text-sm text-muted-foreground">{evento.descripcion}</p>
+                                <p className="text-xs text-primary mt-1">{evento.usuario}</p>
+                              </div>
                             </div>
                           </div>
+                          <div className="px-4 py-3 flex items-start justify-between">
+                            <p className="text-muted-foreground text-sm">{evento.observacion || "—"}</p>
+                            <p className="text-xs text-muted-foreground whitespace-nowrap ml-2">
+                              {formatFechaCorta(evento.fecha)} {formatHora(evento.fecha)}
+                            </p>
+                          </div>
                         </div>
-                        <div className="px-4 py-3 flex items-start justify-between">
-                          <p className="text-muted-foreground">{evento.observacion || "—"}</p>
-                          <p className="text-xs text-muted-foreground whitespace-nowrap">
-                            {formatFechaCorta(evento.fecha)} {formatHora(evento.fecha)}
-                          </p>
-                        </div>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
               </div>
