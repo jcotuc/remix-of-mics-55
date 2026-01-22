@@ -7,7 +7,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Wrench, Clock, Bell, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { useActiveIncidents } from "@/contexts/ActiveIncidentsContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { apiBackendAction } from "@/lib/api-backend";
 
 type NotificacionDB = {
@@ -33,7 +33,7 @@ type IncidenteDB = {
 
 export default function MisAsignaciones() {
   const navigate = useNavigate();
-  const { currentAssignments, maxAssignments, canTakeMoreAssignments, refreshIncidents } = useActiveIncidents();
+  const { user, loading: authLoading } = useAuth();
   const [incidentes, setIncidentes] = useState<IncidenteDB[]>([]);
   const [notificaciones, setNotificaciones] = useState<NotificacionDB[]>([]);
   const [loading, setLoading] = useState(true);
@@ -41,45 +41,30 @@ export default function MisAsignaciones() {
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [codigoEmpleado, setCodigoEmpleado] = useState<string | null>(null);
 
-  useEffect(() => {
-    const init = async () => {
-      try {
-        const { data: { user }, error } = await supabase.auth.getUser();
-        if (error) {
-          console.error('Error getting user:', error);
-          setLoading(false);
-          return;
-        }
-        if (!user) {
-          console.log('No user found');
-          setLoading(false);
-          return;
-        }
-
-        setUserId(user.id);
-        setUserEmail(user.email || null);
-
-        // Buscar usuario en tabla usuarios via apiBackendAction
-        const { results } = await apiBackendAction("usuarios.search", { email: user.email });
-        const usuario = results?.[0];
-
-        if (usuario) {
-          setCodigoEmpleado((usuario as any).id.toString());
-        } else {
-          console.log('Usuario no encontrado en tabla usuarios');
-          setLoading(false);
-        }
-      } catch (err) {
-        console.error('Error in init:', err);
-        setLoading(false);
-      }
-    };
-    init();
-  }, []);
+  // El contexto ActiveIncidents está deshabilitado; usamos el estado local para métricas.
+  const maxAssignments = 3;
+  const currentAssignments = incidentes.length;
+  const canTakeMoreAssignments = currentAssignments < maxAssignments;
 
   useEffect(() => {
-    if (userId && userEmail) {
-      refreshIncidents();
+    // No dependemos de supabase.auth.getUser() porque en DEV_BYPASS_AUTH no hay sesión.
+    if (authLoading) return;
+
+    if (!user?.email) {
+      setUserId(null);
+      setUserEmail(null);
+      setCodigoEmpleado(null);
+      setLoading(false);
+      navigate("/auth");
+      return;
+    }
+
+    setUserId(user.id);
+    setUserEmail(user.email);
+  }, [authLoading, user?.id, user?.email, navigate]);
+
+  useEffect(() => {
+    if (userEmail) {
       fetchAsignaciones();
       fetchNotificaciones();
     }
@@ -101,19 +86,17 @@ export default function MisAsignaciones() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [userId, userEmail]);
+  }, [userEmail]);
 
   const fetchAsignaciones = async () => {
-    if (!userId) {
+    if (!userEmail) {
       setLoading(false);
       return;
     }
 
     try {
       setLoading(true);
-      // Buscar usuario_id numérico via apiBackendAction
-      const { results: usuarioResults } = await apiBackendAction("usuarios.search", { email: userEmail });
-      const usuario = usuarioResults?.[0] as { id: number } | undefined;
+      const { result: usuario } = await apiBackendAction("usuarios.getByEmail", { email: userEmail });
 
       if (!usuario) {
         setIncidentes([]);
@@ -121,9 +104,11 @@ export default function MisAsignaciones() {
         return;
       }
 
+      setCodigoEmpleado(String((usuario as any).id));
+
       // Buscar asignaciones via apiBackendAction
       const { results: asignaciones } = await apiBackendAction("incidente_tecnico.list", { 
-        tecnico_id: usuario.id 
+        tecnico_id: (usuario as any).id 
       });
 
       if (!asignaciones || asignaciones.length === 0) {
@@ -145,7 +130,15 @@ export default function MisAsignaciones() {
       // Fetch diagnosticos for these incidentes
       const incidentesWithDiag = await Promise.all(
         filteredIncidentes.map(async (inc: any) => {
-          const { results: diagResults } = await apiBackendAction("diagnosticos.search", { incidente_id: inc.id });
+          // No bloquear toda la lista si diagnosticos.search falla
+          let diagResults: any[] = [];
+          try {
+            const resp = await apiBackendAction("diagnosticos.search", { incidente_id: inc.id });
+            diagResults = (resp as any).results || [];
+          } catch (e) {
+            console.warn("diagnosticos.search failed", { incidente_id: inc.id, error: e });
+            diagResults = [];
+          }
           return {
             ...inc,
             diagnosticos: diagResults || [],
@@ -169,18 +162,15 @@ export default function MisAsignaciones() {
 
   const fetchNotificaciones = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!userEmail) return;
 
-      // Buscar usuario_id via apiBackendAction
-      const { results: usuarioResults } = await apiBackendAction("usuarios.search", { email: user.email });
-      const usuario = usuarioResults?.[0] as { id: number } | undefined;
+      const { result: usuario } = await apiBackendAction("usuarios.getByEmail", { email: userEmail });
 
       if (!usuario) return;
 
       // Buscar asignaciones via apiBackendAction
       const { results: asignaciones } = await apiBackendAction("incidente_tecnico.list", { 
-        tecnico_id: usuario.id 
+        tecnico_id: (usuario as any).id 
       });
 
       if (!asignaciones || asignaciones.length === 0) {
@@ -275,13 +265,11 @@ export default function MisAsignaciones() {
   const [reingresos, setReingresos] = useState(0);
 
   useEffect(() => {
-    if (!userId) return;
+    if (!userEmail) return;
     
     const fetchMetricas = async () => {
       try {
-        // Buscar usuario_id via apiBackendAction
-        const { results: usuarioResults } = await apiBackendAction("usuarios.search", { email: userEmail });
-        const usuario = usuarioResults?.[0] as { id: number } | undefined;
+        const { result: usuario } = await apiBackendAction("usuarios.getByEmail", { email: userEmail });
 
         if (!usuario) return;
 
@@ -289,7 +277,7 @@ export default function MisAsignaciones() {
         const { results: allDiagnosticos } = await apiBackendAction("diagnosticos.list", { limit: 1000 });
         const diagHoy = (allDiagnosticos || []).filter((d: any) => 
           d.estado === 'COMPLETADO' && 
-          d.tecnico_id === usuario.id &&
+          d.tecnico_id === (usuario as any).id &&
           new Date(d.updated_at || 0) >= hoy
         );
         
@@ -297,7 +285,7 @@ export default function MisAsignaciones() {
 
         // Reingresos: incidentes marcados como reingreso asignados a este técnico
         const { results: asignaciones } = await apiBackendAction("incidente_tecnico.list", { 
-          tecnico_id: usuario.id 
+          tecnico_id: (usuario as any).id 
         });
 
         if (asignaciones && asignaciones.length > 0) {
@@ -316,7 +304,7 @@ export default function MisAsignaciones() {
       }
     };
     fetchMetricas();
-  }, [userId, codigoEmpleado]);
+  }, [userEmail, codigoEmpleado]);
 
   return (
     <div className="container mx-auto py-8 space-y-6">
