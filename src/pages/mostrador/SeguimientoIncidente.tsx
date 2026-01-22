@@ -55,6 +55,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { DiagnosticoPrintSheet, type DiagnosticoPrintData } from "@/components/features/diagnostico";
+import { IncidentePrintSheet } from "@/components/features/incidentes";
 type IncidenteData = {
   id: number;
   codigo: string;
@@ -586,6 +587,43 @@ export default function SeguimientoIncidente() {
     };
   };
 
+  const getIngresoPrintData = () => {
+    if (!incidente || !cliente || !producto) return null;
+    
+    // Parse observaciones to extract "Entrega:" person
+    let personaDeja = "";
+    if (incidente.observaciones) {
+      const entregaMatch = incidente.observaciones.match(/Entrega:\s*([^|]+)/);
+      if (entregaMatch) personaDeja = entregaMatch[1].trim();
+    }
+
+    const tipologiaMap: Record<string, string> = {
+      GARANTIA: "Garantía",
+      MANTENIMIENTO: "Mantenimiento",
+      REPARACION: "Reparación",
+    };
+
+    return {
+      codigo: incidente.codigo,
+      codigoCliente: cliente.codigo,
+      nombreCliente: cliente.nombre,
+      telefonoCliente: cliente.telefono_principal || cliente.celular || undefined,
+      direccionCliente: cliente.direccion || undefined,
+      tipoCliente: "Mostrador",
+      codigoProducto: producto.codigo,
+      descripcionProducto: producto.descripcion || "",
+      skuMaquina: producto.clave || producto.codigo,
+      descripcionProblema: incidente.descripcion_problema || "Sin descripción",
+      accesorios: accesoriosIncidente.join(", ") || "Ninguno",
+      fechaIngreso: new Date(incidente.created_at || new Date()),
+      centroServicio: centroServicio?.nombre || "Centro de Servicio",
+      personaDejaMaquina: personaDeja || cliente.nombre,
+      tipologia: tipologiaMap[incidente.tipologia || ""] || incidente.tipologia || "Servicio",
+      esReingreso: !!incidente.incidente_origen_id,
+      coberturaGarantia: incidente.aplica_garantia || false,
+    };
+  };
+
   const formatFechaLarga = (dateStr: string) => {
     const date = new Date(dateStr);
     return date.toLocaleDateString("es-GT", {
@@ -960,33 +998,17 @@ export default function SeguimientoIncidente() {
         </div>
       </div>
 
-      {/* Print Preview Dialog */}
+      {/* Print Preview Dialog - Hoja de Ingreso */}
       <Dialog open={showPrintPreview} onOpenChange={setShowPrintPreview}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Vista Previa de Impresión</DialogTitle>
+            <DialogTitle>Vista Previa - Hoja de Ingreso</DialogTitle>
             <DialogDescription>Hoja de ingreso para el incidente {incidente.codigo}</DialogDescription>
           </DialogHeader>
-          <div ref={printRef} className="p-4 bg-white text-black">
-            <h2 className="text-xl font-bold mb-4">Hoja de Ingreso - {incidente.codigo}</h2>
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <strong>Cliente:</strong> {cliente?.nombre || "N/A"}
-              </div>
-              <div>
-                <strong>Código:</strong> {cliente?.codigo || "N/A"}
-              </div>
-              <div>
-                <strong>Producto:</strong> {producto?.descripcion || "N/A"}
-              </div>
-              <div>
-                <strong>Estado:</strong> {incidente.estado}
-              </div>
-            </div>
-            <div className="mt-4">
-              <strong>Problema:</strong>
-              <p>{incidente.descripcion_problema || "Sin descripción"}</p>
-            </div>
+          <div ref={printRef}>
+            {getIngresoPrintData() && (
+              <IncidentePrintSheet data={getIngresoPrintData()!} />
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowPrintPreview(false)}>
