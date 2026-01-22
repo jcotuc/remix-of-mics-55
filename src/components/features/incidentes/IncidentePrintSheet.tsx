@@ -104,13 +104,9 @@ const IncidentePrintSheet = forwardRef<HTMLDivElement, Props>(({ data }, ref) =>
             <p className="text-gray-500 text-[8px] uppercase">SKU Producto</p>
             <p className="font-mono font-bold text-[10px]">{data.codigoProducto}</p>
           </div>
-          <div className="col-span-2 border-r border-b border-gray-300 p-1.5">
+          <div className="col-span-3 border-b border-gray-300 p-1.5">
             <p className="text-gray-500 text-[8px] uppercase">Descripción</p>
             <p className="font-semibold truncate">{data.descripcionProducto}</p>
-          </div>
-          <div className="border-b border-gray-300 p-1.5">
-            <p className="text-gray-500 text-[8px] uppercase">SKU Máquina</p>
-            <p className="font-mono font-bold">{data.skuMaquina || 'N/A'}</p>
           </div>
         </div>
 
