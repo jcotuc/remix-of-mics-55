@@ -600,26 +600,20 @@ export default function DetalleEntrega() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="nombreRecibe">Nombre de quien recibe *</Label>
-                <OutlinedInput
-                  id="nombreRecibe"
-                  label="Nombre de quien recibe"
-                  value={nombreRecibe}
-                  onChange={(e) => setNombreRecibe(e.target.value)}
-                  placeholder="Nombre completo"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="dpiRecibe">DPI / Identificación *</Label>
-                <OutlinedInput
-                  id="dpiRecibe"
-                  label="DPI / Identificación"
-                  value={dpiRecibe}
-                  onChange={(e) => setDpiRecibe(e.target.value)}
-                  placeholder="Número de identificación"
-                />
-              </div>
+              <OutlinedInput
+                id="nombreRecibe"
+                label="Nombre de quien recibe *"
+                value={nombreRecibe}
+                onChange={(e) => setNombreRecibe(e.target.value)}
+                placeholder="Nombre completo"
+              />
+              <OutlinedInput
+                id="dpiRecibe"
+                label="DPI / Identificación *"
+                value={dpiRecibe}
+                onChange={(e) => setDpiRecibe(e.target.value)}
+                placeholder="Número de identificación"
+              />
               <div className="space-y-2">
                 <Label>Firma del Cliente *</Label>
                 <div className="border rounded-lg p-2 bg-white">
