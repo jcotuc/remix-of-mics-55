@@ -313,6 +313,9 @@ export default function SeguimientoIncidente() {
 
       // Build eventos from all sources
       const eventosBuilt: EventoHistorial[] = [];
+      
+      // Get propietario name if available
+      const propietarioNombre = (incData as any).propietario?.nombre || "Sistema";
 
       // Evento de creación
       if (incData.created_at) {
@@ -321,7 +324,7 @@ export default function SeguimientoIncidente() {
           tipo: "creacion",
           titulo: "Incidente Creado",
           descripcion: `Incidente ${incData.codigo} registrado en el sistema`,
-          usuario: "Sistema",
+          usuario: propietarioNombre,
           fecha: new Date(incData.created_at),
         });
       }
