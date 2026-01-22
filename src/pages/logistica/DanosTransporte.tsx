@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Search, AlertCircle, Calculator, DollarSign } from "lucide-react";
 import { toast } from "sonner";
-import { apiBackendAction } from "@/lib/api";
+import { apiBackendAction } from "@/lib/api-backend";
 import type { IncidenteSchema } from "@/generated/actions.d";
 
 interface DanoTransporte {
