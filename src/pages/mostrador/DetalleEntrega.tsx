@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { apiBackendAction } from "@/lib/api-backend";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { SignatureCanvasComponent, SignatureCanvasRef, StatusBadge } from "@/components/shared";
 import { SidebarMediaCapture, SidebarPhoto } from "@/components/features/media";
@@ -57,7 +58,8 @@ export default function DetalleEntrega() {
   const [nombreRecibe, setNombreRecibe] = useState("");
   const [dpiRecibe, setDpiRecibe] = useState("");
   const [fotosSalida, setFotosSalida] = useState<SidebarPhoto[]>([]);
-  const [productoInfo, setProductoInfo] = useState<{ descripcion: string } | null>(null);
+  const [productoInfo, setProductoInfo] = useState<{ sku: string; descripcion: string; descontinuado: boolean } | null>(null);
+  const [accesoriosIngreso, setAccesoriosIngreso] = useState<string[]>([]);
   const [centroServicio, setCentroServicio] = useState<string>("HPC Centro de Servicio");
   const [repuestosConPrecios, setRepuestosConPrecios] = useState<Array<{codigo: string; descripcion: string; cantidad: number; precioUnitario: number}>>([]);
   const [showDiagnosticoPreview, setShowDiagnosticoPreview] = useState(false);
@@ -132,11 +134,25 @@ export default function DetalleEntrega() {
         });
       }
 
-      // Extract producto from incidente response
       if (incidenteData.producto) {
         setProductoInfo({
+          sku: incidenteData.producto.sku || incidenteData.producto.codigo || "",
           descripcion: incidenteData.producto.descripcion || "",
+          descontinuado: incidenteData.producto.descontinuado ?? false,
         });
+      }
+
+      // Cargar accesorios del incidente
+      try {
+        const { data: accesoriosData } = await supabase
+          .from('incidente_accesorios')
+          .select('accesorio:accesorios(nombre)')
+          .eq('incidente_id', Number(incidenteId));
+        
+        const nombres = (accesoriosData || []).map((a: any) => a.accesorio?.nombre).filter(Boolean);
+        setAccesoriosIngreso(nombres);
+      } catch (err) {
+        console.error("Error loading accesorios:", err);
       }
 
       // Cargar diagnóstico, centro de servicio y solicitudes de repuestos en paralelo
@@ -591,8 +607,18 @@ export default function DetalleEntrega() {
                       </div>
                       <div className="border rounded p-2">
                         <h3 className="font-bold text-xs mb-1 border-b pb-1">Equipo</h3>
-                        <p className="text-xs"><span className="text-gray-500">Producto ID:</span> {incidente.producto_id || 'N/A'}</p>
-                        <p className="text-xs"><span className="text-gray-500">Accesorios:</span> {previewData.accesorios}</p>
+                        <p className="text-xs"><span className="text-gray-500">SKU:</span> {productoInfo?.sku || 'N/A'}</p>
+                        <p className="text-xs"><span className="text-gray-500">Descripción:</span> {productoInfo?.descripcion || 'N/A'}</p>
+                        <p className="text-xs">
+                          <span className="text-gray-500">Estado:</span>{' '}
+                          <span className={productoInfo?.descontinuado ? 'text-red-600 font-medium' : 'text-green-600 font-medium'}>
+                            {productoInfo?.descontinuado ? 'Descontinuado' : 'Vigente'}
+                          </span>
+                        </p>
+                        <p className="text-xs">
+                          <span className="text-gray-500">Accesorios de ingreso:</span>{' '}
+                          {accesoriosIngreso.length > 0 ? accesoriosIngreso.join(', ') : 'Ninguno'}
+                        </p>
                       </div>
                     </div>
 
