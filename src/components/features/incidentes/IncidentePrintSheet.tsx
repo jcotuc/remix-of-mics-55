@@ -7,6 +7,7 @@ interface IncidentePrintData {
   codigoCliente: string;
   nombreCliente: string;
   telefonoCliente?: string;
+  tipoCliente?: string; // alianza, mostrador, canal
   codigoProducto: string;
   descripcionProducto: string;
   skuMaquina: string;
@@ -83,7 +84,7 @@ const IncidentePrintSheet = forwardRef<HTMLDivElement, Props>(({ data }, ref) =>
         {/* Grid de información compacto */}
         <div className="grid grid-cols-4 text-[9px]">
           <div className="border-r border-b border-gray-300 p-1.5 bg-gray-50">
-            <p className="text-gray-500 text-[8px] uppercase">Cliente</p>
+            <p className="text-gray-500 text-[8px] uppercase">Cliente ({data.tipoCliente || 'Mostrador'})</p>
             <p className="font-bold text-[10px]">{data.codigoCliente}</p>
           </div>
           <div className="border-r border-b border-gray-300 p-1.5 bg-gray-50">
