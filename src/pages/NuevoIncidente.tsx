@@ -39,6 +39,22 @@ import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/contexts/AuthContext";
 import { IncidentePrintSheet } from "@/components/features/incidentes";
 const tipologias = ["Mantenimiento", "Reparación", "Daños por transporte", "Venta de repuestos"];
+
+function mapTipologiaToEnum(value: string): Database["public"]["Enums"]["tipoincidente"] {
+  // En BD solo existen: MANTENIMIENTO | REPARACION
+  // Mapeamos las opciones extendidas a la más cercana para evitar errores al insertar.
+  switch ((value || "").toLowerCase()) {
+    case "mantenimiento":
+      return "MANTENIMIENTO";
+    case "reparación":
+    case "reparacion":
+    case "daños por transporte":
+    case "danos por transporte":
+    case "venta de repuestos":
+    default:
+      return "REPARACION";
+  }
+}
 const DEPARTAMENTOS = [
   "Guatemala",
   "Alta Verapaz",
@@ -976,6 +992,7 @@ export default function NuevoIncidente() {
     setGuardando(true);
     try {
       let codigoCliente = clienteSeleccionado?.codigo;
+      let clienteId: number | null = clienteSeleccionado?.id ?? null;
       let direccionEnvioId: string | null = null;
 
       // Si hay una dirección seleccionada que no es temporal, usarla
@@ -1006,13 +1023,13 @@ export default function NuevoIncidente() {
           .single();
         if (clienteError) throw clienteError;
         codigoCliente = clienteData.codigo;
+        clienteId = clienteData.id;
         if (nuevoCliente.direccion && nuevoCliente.direccion.trim()) {
-          const { data: dirData, error: dirError } = await (supabase as any)
-            .from("direcciones_envio")
+          const { data: dirData, error: dirError } = await supabase
+            .from("direcciones")
             .insert({
-              codigo_cliente: nuevoCodigoHPC,
+              cliente_id: clienteData.id,
               direccion: nuevoCliente.direccion,
-              nombre_referencia: "Dirección Principal",
               es_principal: true,
             })
             .select()
@@ -1043,16 +1060,19 @@ export default function NuevoIncidente() {
           .eq("codigo", clienteSeleccionado!.codigo);
         if (updateError) throw updateError;
       }
+
+      if (!clienteId) {
+        throw new Error("No se pudo determinar el cliente para crear el incidente");
+      }
+
       // Si hay una nueva dirección escrita, crearla
       if (nuevaDireccion.trim() && opcionEnvio !== "recoger") {
-        const { data: dirData, error: dirError } = await (supabase as any)
-          .from("direcciones_envio")
+        const { data: dirData, error: dirError } = await supabase
+          .from("direcciones")
           .insert({
-            codigo_cliente: codigoCliente,
+            cliente_id: clienteId,
             direccion: nuevaDireccion,
-            nombre_referencia: `Dirección ${new Date().toLocaleDateString()}`,
             es_principal: direccionesEnvio.length === 0,
-            telefono_contacto: telefonoEnvio || null,
           })
           .select()
           .single();
@@ -1063,14 +1083,12 @@ export default function NuevoIncidente() {
       else if (direccionSeleccionada && direccionSeleccionada.startsWith("temp-") && opcionEnvio !== "recoger") {
         const direccionTemp = direccionesEnvio.find((d: any) => d.id === direccionSeleccionada);
         if (direccionTemp) {
-          const { data: dirData, error: dirError } = await (supabase as any)
-            .from("direcciones_envio")
+          const { data: dirData, error: dirError } = await supabase
+            .from("direcciones")
             .insert({
-              codigo_cliente: codigoCliente,
+              cliente_id: clienteId,
               direccion: direccionTemp.direccion,
-              nombre_referencia: "Dirección Principal",
               es_principal: true,
-              telefono_contacto: telefonoEnvio || null,
             })
             .select()
             .single();
@@ -1078,29 +1096,13 @@ export default function NuevoIncidente() {
           direccionEnvioId = String(dirData.id);
         }
       }
-      // Si se seleccionó una dirección existente y hay teléfono, actualizar
-      else if (
-        direccionSeleccionada &&
-        !direccionSeleccionada.startsWith("temp-") &&
-        telefonoEnvio &&
-        opcionEnvio !== "recoger"
-      ) {
-        await (supabase as any)
-          .from("direcciones_envio")
-          .update({
-            telefono_contacto: telefonoEnvio,
-          })
-          .eq("id", parseInt(direccionSeleccionada, 10));
-      }
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+
       const { data: codigoIncidente, error: codigoError } = await (supabase as any).rpc("generar_codigo_incidente");
       if (codigoError) throw codigoError;
 
-      // Determinar código de producto y familia según si es manual o seleccionado
+      // Determinar producto según si es manual o seleccionado
       let codigoProductoFinal: string | null = null;
-      let familiaPadreId: number | null = null;
+      let productoId: number | null = null;
       let skuMaquinaFinal = skuMaquina;
       let descripcionProductoFinal = "";
       let productoDescontinuado = false;
@@ -1112,44 +1114,51 @@ export default function NuevoIncidente() {
         descripcionProductoFinal = productoManual.descripcion;
         productoDescontinuado = false;
       } else if (productoSeleccionado) {
-        const { data: productoData, error: productoError } = await supabase
-          .from("productos")
-          .select("familia_padre_id")
-          .eq("codigo", productoSeleccionado.codigo)
-          .single();
-        if (productoError) throw productoError;
-
+        productoId = productoSeleccionado.id;
         codigoProductoFinal = productoSeleccionado.codigo;
-        familiaPadreId = productoData?.familia_padre_id || null;
-        descripcionProductoFinal = productoSeleccionado.descripcion;
-        productoDescontinuado = productoSeleccionado.descontinuado;
+        descripcionProductoFinal = productoSeleccionado.descripcion || "";
+        productoDescontinuado = !!productoSeleccionado.descontinuado;
       }
 
-      const { data: incidenteData, error: incidenteError } = await (supabase as any)
+      const tipologiaEnum = mapTipologiaToEnum(tipologia);
+      const trackingToken = crypto.randomUUID();
+      const direccionEntregaId =
+        opcionEnvio !== "recoger" && direccionEnvioId && !Number.isNaN(parseInt(direccionEnvioId, 10))
+          ? parseInt(direccionEnvioId, 10)
+          : null;
+
+      const observacionesCompuestas = [
+        logObservaciones?.trim() ? logObservaciones.trim() : null,
+        skuMaquinaFinal?.trim() ? `SKU: ${skuMaquinaFinal.trim()}` : null,
+        personaDejaMaquina?.trim() ? `Entrega: ${personaDejaMaquina.trim()}` : null,
+        dpiPersonaDeja?.trim() ? `DPI: ${dpiPersonaDeja.trim()}` : null,
+        accesoriosSeleccionados.length ? `Accesorios: ${accesoriosSeleccionados.join(", ")}` : null,
+        opcionEnvio !== "recoger" && telefonoEnvio?.trim() ? `Tel. envío: ${telefonoEnvio.trim()}` : null,
+        modoManualProducto ? `Producto manual: ${productoManual.codigo} - ${productoManual.descripcion}` : null,
+        !modoManualProducto && codigoProductoFinal ? `Producto: ${codigoProductoFinal}` : null,
+      ]
+        .filter(Boolean)
+        .join(" | ");
+
+      const { data: incidenteData, error: incidenteError } = await supabase
         .from("incidentes")
-        .insert({
+        .insert([
+          {
           codigo: codigoIncidente,
-          codigo_cliente: codigoCliente,
-          producto_codigo: codigoProductoFinal,
-          familia_padre_id: familiaPadreId,
-          sku_maquina: skuMaquinaFinal,
-          descripcion_problema: descripcionProblema,
-          persona_deja_maquina: personaDejaMaquina,
-          accesorios: accesoriosSeleccionados.join(", ") || null,
-          centro_de_servicio_id: centroServicio,
+          cliente_id: clienteId,
+          producto_id: productoId,
+          centro_de_servicio_id: centroServicio as number,
           quiere_envio: opcionEnvio !== "recoger",
-          direccion_entrega_id: direccionEnvioId ? parseInt(direccionEnvioId, 10) : null,
-          ingresado_en_mostrador: ingresadoMostrador,
-          es_reingreso: esReingreso,
-          incidente_reingreso_de: esReingreso ? incidenteReingresoId : null,
-          es_stock_cemaco: esStockCemaco,
-          observaciones: logObservaciones || null,
-          tipologia: tipologia,
+          direccion_entrega_id: direccionEntregaId,
+          incidente_origen_id: esReingreso ? incidenteReingresoId : null,
+          descripcion_problema: descripcionProblema || null,
+          observaciones: observacionesCompuestas || null,
+          tipologia: tipologiaEnum,
           estado: ingresadoMostrador ? "REGISTRADO" : "EN_ENTREGA",
           aplica_garantia: false,
-          producto_descontinuado: productoDescontinuado,
-          created_by: user?.id || null,
-        })
+          tracking_token: trackingToken,
+          },
+        ])
         .select()
         .single();
       if (incidenteError) throw incidenteError;
