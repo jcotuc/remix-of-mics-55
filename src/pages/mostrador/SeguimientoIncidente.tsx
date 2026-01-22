@@ -182,19 +182,14 @@ export default function SeguimientoIncidente() {
         });
       }
 
-      // Fetch parallel data
-      const [guiasRes, centroRes] = await Promise.all([
-        apiBackendAction("guias.search", { incidente_codigo: incData.codigo }),
-        incidenteMapped.centro_de_servicio_id
-          ? apiBackendAction("centros_de_servicio.get", { id: incidenteMapped.centro_de_servicio_id })
-          : Promise.resolve({ result: null }),
-      ]);
-
-      // Set centro de servicio
-      if (centroRes.result) {
-        const cs = centroRes.result as any;
+      // Extract centro de servicio directly from incData
+      if ((incData as any).centro_de_servicio) {
+        const cs = (incData as any).centro_de_servicio;
         setCentroServicio({ id: cs.id, nombre: cs.nombre, codigo: cs.codigo });
       }
+
+      // Fetch guias
+      const guiasRes = await apiBackendAction("guias.search", { incidente_codigo: incData.codigo });
 
       // Fetch client history count
       if (incData.cliente) {
