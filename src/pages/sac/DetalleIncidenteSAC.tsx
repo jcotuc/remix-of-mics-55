@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/client"; // Only for auth
 import { apiBackendAction } from "@/lib/api-backend";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -46,43 +46,34 @@ export default function DetalleIncidenteSAC() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Get user profile
-      const { data: userProfile } = await (supabase as any)
-        .from('usuarios')
-        .select('id')
-        .eq('auth_uid', user.id)
-        .maybeSingle();
+      // Get user profile via apiBackendAction
+      const { result: userProfile } = await apiBackendAction("usuarios.getByAuthUid", { auth_uid: user.id });
 
       if (!userProfile) return;
 
-      // Check if already assigned to someone
-      const { data: existingAssignment } = await supabase
-        .from("asignaciones_sac")
-        .select("*")
-        .eq("incidente_id", Number(id))
-        .eq("activo", true)
-        .maybeSingle();
+      // Check if already assigned to someone via apiBackendAction
+      const { results: existingAssignments } = await apiBackendAction("asignaciones_sac.list", { 
+        incidente_id: Number(id),
+        activo: true 
+      });
+
+      const existingAssignment = existingAssignments?.[0] as any;
 
       if (existingAssignment) {
-        if (existingAssignment.user_id !== userProfile.id) {
+        if (existingAssignment.user_id !== (userProfile as any).id) {
           toast.error("Este incidente está siendo atendido por otro agente");
           navigate("/sac/incidentes");
           return;
         }
         setAsignacion(existingAssignment);
       } else {
-        // Assign to current user
-        const { data: newAssignment, error } = await supabase
-          .from("asignaciones_sac")
-          .insert({
-            incidente_id: Number(id),
-            user_id: userProfile.id,
-            activo: true
-          })
-          .select()
-          .single();
+        // Assign to current user via apiBackendAction
+        const newAssignment = await apiBackendAction("asignaciones_sac.create", {
+          incidente_id: Number(id),
+          user_id: (userProfile as any).id,
+          activo: true
+        });
 
-        if (error) throw error;
         setAsignacion(newAssignment);
         toast.success("Incidente asignado exitosamente");
       }
@@ -168,12 +159,11 @@ export default function DetalleIncidenteSAC() {
   const handleReleaseIncident = async () => {
     try {
       if (asignacion) {
-        const { error } = await supabase
-          .from("asignaciones_sac")
-          .update({ activo: false })
-          .eq("id", asignacion.id);
+        await apiBackendAction("asignaciones_sac.update", {
+          id: asignacion.id,
+          data: { activo: false }
+        });
 
-        if (error) throw error;
         toast.success("Incidente liberado");
         navigate("/sac/incidentes");
       }
@@ -189,16 +179,14 @@ export default function DetalleIncidenteSAC() {
     try {
       setProcessingDecision(true);
 
-      // Update to En Reparación
-      const { error } = await supabase
-        .from("incidentes")
-        .update({ 
-          estado: "EN_REPARACION" as const,
+      // Update to En Reparación via apiBackendAction
+      await apiBackendAction("incidentes.update", {
+        id: incidente.id,
+        data: { 
+          estado: "EN_REPARACION",
           updated_at: new Date().toISOString()
-        })
-        .eq("id", incidente.id);
-
-      if (error) throw error;
+        }
+      } as any);
 
       toast.success("Cliente aprobó. El incidente pasa a reparación.");
       await handleReleaseIncident();
@@ -217,16 +205,14 @@ export default function DetalleIncidenteSAC() {
     try {
       setProcessingDecision(true);
 
-      // Update to En Entrega (for return)
-      const { error } = await supabase
-        .from("incidentes")
-        .update({ 
-          estado: "EN_ENTREGA" as const,
+      // Update to En Entrega (for return) via apiBackendAction
+      await apiBackendAction("incidentes.update", {
+        id: incidente.id,
+        data: { 
+          estado: "EN_ENTREGA",
           updated_at: new Date().toISOString()
-        })
-        .eq("id", incidente.id);
-
-      if (error) throw error;
+        }
+      } as any);
 
       toast.success("Cliente rechazó. El incidente pasa a entrega.");
       await handleReleaseIncident();

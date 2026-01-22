@@ -752,6 +752,38 @@ const centrosSupervisorHandlers: Record<string, ActionHandler<any>> = {
 };
 
 // =============================================================================
+// SOLICITUDES TRANSFERENCIA MAQUINAS
+// =============================================================================
+const solicitudesTransferenciaHandlers: Record<string, ActionHandler<any>> = {
+  "solicitudes_transferencia_maquinas.list": async (input) => {
+    const { estado, centro_origen_id, centro_destino_id } = input || {};
+    let query = (supabase as any).from("solicitudes_transferencia_maquinas").select(`*, incidentes:incidente_id(codigo, producto_id)`);
+    if (estado) query = query.eq("estado", estado);
+    if (centro_origen_id) query = query.eq("centro_origen_id", centro_origen_id);
+    if (centro_destino_id) query = query.eq("centro_destino_id", centro_destino_id);
+    const { data, error } = await query.order("created_at", { ascending: false });
+    if (error) throw error;
+    return { results: data || [] };
+  },
+  "solicitudes_transferencia_maquinas.get": async (input) => {
+    const { data, error } = await (supabase as any).from("solicitudes_transferencia_maquinas").select("*").eq("id", input.id).maybeSingle();
+    if (error) throw error;
+    return { result: data };
+  },
+  "solicitudes_transferencia_maquinas.create": async (input) => {
+    const { data, error } = await (supabase as any).from("solicitudes_transferencia_maquinas").insert(input).select().single();
+    if (error) throw error;
+    return data;
+  },
+  "solicitudes_transferencia_maquinas.update": async (input) => {
+    const { id, data: updateData } = input as any;
+    const { data, error } = await (supabase as any).from("solicitudes_transferencia_maquinas").update(updateData).eq("id", id).select().single();
+    if (error) throw error;
+    return data;
+  },
+};
+
+// =============================================================================
 // USER ROLES HANDLERS
 // =============================================================================
 const userRolesHandlers: Record<string, ActionHandler<any>> = {
@@ -807,6 +839,7 @@ const handlers: Partial<Record<ActionName, ActionHandler<any>>> = {
   ...usuariosExtendedHandlers,
   ...transitosExtendedHandlers,
   ...centrosSupervisorHandlers,
+  ...solicitudesTransferenciaHandlers,
   ...userRolesHandlers,
   ...diagnosticosWriteHandlers,
 };
