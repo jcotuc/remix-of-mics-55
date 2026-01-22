@@ -12,6 +12,7 @@ import { apiBackendAction } from "@/lib/api-backend";
 import { toast } from "sonner";
 import { SignatureCanvasComponent, SignatureCanvasRef, StatusBadge } from "@/components/shared";
 import { SidebarMediaCapture, SidebarPhoto } from "@/components/features/media";
+import { getResolutionLabel, RESOLUTION_LABELS } from "@/constants/status";
 
 type IncidenteData = {
   id: number;
@@ -602,11 +603,15 @@ export default function DetalleEntrega() {
                         <div className="grid grid-cols-2 gap-2">
                           <div>
                             <p className="font-semibold text-gray-600 text-xs">Resolución:</p>
-                            <p className="text-xs">{previewData.tipoResolucion}</p>
+                            <p className={`text-xs font-medium ${RESOLUTION_LABELS[previewData.tipoResolucion]?.color || 'text-gray-800'}`}>
+                              {RESOLUTION_LABELS[previewData.tipoResolucion]?.icon} {getResolutionLabel(previewData.tipoResolucion)}
+                            </p>
                           </div>
                           <div>
                             <p className="font-semibold text-gray-600 text-xs">Aplica Garantía:</p>
-                            <p className="text-xs">{previewData.aplicaGarantia ? 'Sí' : 'No'}</p>
+                            <p className={`text-xs font-medium ${previewData.aplicaGarantia ? 'text-green-700' : 'text-gray-600'}`}>
+                              {previewData.aplicaGarantia ? '✓ Sí' : 'No'}
+                            </p>
                           </div>
                         </div>
                         
