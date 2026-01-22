@@ -358,13 +358,28 @@ const mostradorHandlers: Record<string, ActionHandler<any>> = {
   },
   // Guias - with filters
   "guias.search": async (input) => {
-    const { incidente_codigo, estado, limit = 50 } = input as any;
+    const { incidente_codigo, incidente_id, estado, limit = 50 } = input as any;
     let query = supabase.from("guias").select("*");
-    if (incidente_codigo) query = query.contains("incidentes_codigos", [incidente_codigo]);
+    // Filter by incidente_id (preferred) or fallback to incidente_codigo text search
+    if (incidente_id) {
+      query = query.eq("incidente_id", incidente_id);
+    } else if (incidente_codigo) {
+      // Use textual search in the jsonb array since contains has issues with text arrays
+      query = query.or(`incidente_id.not.is.null`);
+    }
     if (estado) query = query.eq("estado", estado);
     const { data, error } = await query.order("fecha_guia", { ascending: false }).limit(limit);
     if (error) throw error;
-    return { results: data || [] };
+    // If filtering by codigo, do it client-side since JSONB array contains is problematic
+    let results = data || [];
+    if (incidente_codigo && !incidente_id) {
+      results = results.filter((g: any) => {
+        const codigos = g.incidentes_codigos;
+        if (Array.isArray(codigos)) return codigos.includes(incidente_codigo);
+        return false;
+      });
+    }
+    return { results };
   },
   // Clientes - get by codigo
   "clientes.getByCodigo": async (input) => {
