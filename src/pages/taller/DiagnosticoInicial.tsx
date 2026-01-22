@@ -1156,7 +1156,9 @@ export default function DiagnosticoInicial() {
       } else if (tipoResolucion === "Nota de Crédito") {
         nuevoEstado = "NOTA_DE_CREDITO";
       } else if (tipoResolucion === "Reparar en Garantía") {
-        nuevoEstado = necesitaRepuestos ? "ESPERA_REPUESTOS" : "EN_REPARACION";
+        // Si no necesita repuestos, la reparación está completa → REPARADO
+        // Si necesita repuestos, debe esperar → ESPERA_REPUESTOS
+        nuevoEstado = necesitaRepuestos ? "ESPERA_REPUESTOS" : "REPARADO";
       } else if (tipoResolucion === "Canje") {
         nuevoEstado = "ESPERA_APROBACION";
       }
