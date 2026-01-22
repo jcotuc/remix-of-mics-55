@@ -242,3 +242,51 @@ export const CLOSED_STATUSES: StatusIncidente[] = [
   "Cambio aprobado",
   "Cambio rechazado"
 ];
+
+/**
+ * Configuración de tipos de resolución de diagnóstico
+ */
+export const RESOLUTION_LABELS: Record<string, { label: string; icon: string; color: string }> = {
+  "REPARAR_EN_GARANTIA": { 
+    label: "Reparación en Garantía", 
+    icon: "✓", 
+    color: "text-green-700" 
+  },
+  "REPARAR_FUERA_GARANTIA": { 
+    label: "Reparación Fuera de Garantía", 
+    icon: "🔧", 
+    color: "text-orange-700" 
+  },
+  "CAMBIO_EN_GARANTIA": { 
+    label: "Cambio por Garantía", 
+    icon: "🔄", 
+    color: "text-blue-700" 
+  },
+  "CAMBIO_FUERA_GARANTIA": { 
+    label: "Cambio Fuera de Garantía", 
+    icon: "🔄", 
+    color: "text-purple-700" 
+  },
+  "NOTA_CREDITO": { 
+    label: "Nota de Crédito", 
+    icon: "💰", 
+    color: "text-emerald-700" 
+  },
+  "DEVOLUCION": { 
+    label: "Devolución", 
+    icon: "↩", 
+    color: "text-gray-700" 
+  },
+  "NO_REPARABLE": { 
+    label: "No Reparable", 
+    icon: "✗", 
+    color: "text-red-700" 
+  },
+};
+
+/**
+ * Obtiene la etiqueta legible de un tipo de resolución
+ */
+export const getResolutionLabel = (resolution: string): string => {
+  return RESOLUTION_LABELS[resolution]?.label || resolution.replace(/_/g, ' ');
+};
