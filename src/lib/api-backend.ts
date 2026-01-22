@@ -232,12 +232,26 @@ const simpleHandlers: Record<string, ActionHandler<any>> = {
   "presupuestos.delete": notImplemented("presupuestos.delete"),
   "familias_producto.list": async () => { const { data, error } = await supabase.from("familias_producto").select("id, nombre, parent_id, created_at").is("parent_id", null).order("nombre"); if (error) throw error; return { results: data || [], total: data?.length || 0 }; },
   "centros_de_servicio.list": async () => { const { data, error } = await supabase.from("centros_de_servicio").select("*").eq("activo", true).order("nombre"); if (error) throw error; return { items: data || [] }; },
-  "grupos_cola_fifo.list": async () => { const { data, error } = await supabase.from("grupos_cola_fifo").select("*").order("orden"); if (error) throw error; return { results: data || [], total: data?.length || 0 }; },
+  "grupos_cola_fifo.list": async (input) => { 
+    const { centro_servicio_id } = (input || {}) as any;
+    let query = supabase.from("grupos_cola_fifo").select("*").order("orden"); 
+    if (centro_servicio_id) query = query.eq("centro_servicio_id", centro_servicio_id);
+    const { data, error } = await query; 
+    if (error) throw error; 
+    return { results: data || [], total: data?.length || 0 }; 
+  },
   "grupos_cola_fifo.get": async (input) => { const { data, error } = await supabase.from("grupos_cola_fifo").select("*").eq("id", input.id).maybeSingle(); if (error) throw error; return { result: data }; },
   "grupos_cola_fifo.create": async (input) => { const { data, error } = await supabase.from("grupos_cola_fifo").insert(input as any).select().single(); if (error) throw error; return data; },
   "grupos_cola_fifo.update": async (input) => { const { id, data: updateData } = input as any; const { data, error } = await supabase.from("grupos_cola_fifo").update(updateData).eq("id", id).select().single(); if (error) throw error; return data; },
   "grupos_cola_fifo.delete": async (input) => { const { error } = await supabase.from("grupos_cola_fifo").delete().eq("id", input.id); if (error) throw error; return { status: "deleted", id: input.id }; },
-  "grupos_cola_fifo_familias.list": async () => { const { data, error } = await supabase.from("grupos_cola_fifo_familias").select("*"); if (error) throw error; return { results: data || [], total: data?.length || 0 }; },
+  "grupos_cola_fifo_familias.list": async (input) => { 
+    const { grupo_id } = (input || {}) as any;
+    let query = supabase.from("grupos_cola_fifo_familias").select("*"); 
+    if (grupo_id) query = query.eq("grupo_id", grupo_id);
+    const { data, error } = await query; 
+    if (error) throw error; 
+    return { results: data || [], total: data?.length || 0 }; 
+  },
   "grupos_cola_fifo_familias.get": async (input) => { const { data, error } = await supabase.from("grupos_cola_fifo_familias").select("*").eq("id", input.id).maybeSingle(); if (error) throw error; return { result: data }; },
   "grupos_cola_fifo_familias.create": async (input) => { const { data, error } = await supabase.from("grupos_cola_fifo_familias").insert(input as any).select().single(); if (error) throw error; return data; },
   "grupos_cola_fifo_familias.update": async (input) => { const { id, data: updateData } = input as any; const { data, error } = await supabase.from("grupos_cola_fifo_familias").update(updateData).eq("id", id).select().single(); if (error) throw error; return data; },
