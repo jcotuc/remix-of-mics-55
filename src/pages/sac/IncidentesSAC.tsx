@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/client"; // Only for auth
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -47,13 +47,10 @@ export default function IncidentesSAC() {
       
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        const { data: perfil } = await (supabase as any)
-          .from("usuarios")
-          .select("id")
-          .eq("auth_uid", user.id)
-          .maybeSingle();
+        // Get user profile via apiBackendAction
+        const { result: perfil } = await apiBackendAction("usuarios.getByAuthUid", { auth_uid: user.id });
         if (perfil) {
-          setCurrentUserId(perfil.id);
+          setCurrentUserId((perfil as any).id);
         }
       }
 
@@ -65,16 +62,11 @@ export default function IncidentesSAC() {
         .filter(inc => inc.estado === "ESPERA_APROBACION" || inc.estado === "REPARADO")
         .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
 
-      // Fetch SAC assignments (keep direct Supabase for junction table not in registry)
-      const { data: asignacionesData, error: asignacionesError } = await supabase
-        .from("asignaciones_sac")
-        .select("*")
-        .eq("activo", true);
-
-      if (asignacionesError) throw asignacionesError;
+      // Fetch SAC assignments via apiBackendAction
+      const { results: asignacionesData } = await apiBackendAction("asignaciones_sac.list", { activo: true });
 
       setIncidentesList(filtered);
-      setAsignaciones(asignacionesData || []);
+      setAsignaciones((asignacionesData || []) as AsignacionSAC[]);
     } catch (error: any) {
       console.error("Error fetching data:", error);
       toast.error("Error al cargar los datos");

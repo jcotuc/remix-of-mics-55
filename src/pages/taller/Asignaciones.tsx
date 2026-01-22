@@ -93,48 +93,48 @@ export default function Asignaciones() {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
 
-        // Obtener centro de servicio del usuario
-        const { data: userProfile } = await (supabase as any)
-          .from('usuarios')
-          .select('centro_de_servicio_id')
-          .eq('auth_uid', user.id)
-          .maybeSingle();
+        // Obtener centro de servicio del usuario via apiBackendAction
+        const { result: userProfile } = await apiBackendAction("usuarios.getByAuthUid", { auth_uid: user.id });
 
-        if (!userProfile?.centro_de_servicio_id) {
+        if (!(userProfile as any)?.centro_de_servicio_id) {
           console.warn('Usuario sin centro de servicio asignado');
           setLoadingConfig(false);
           return;
         }
-        setCentroServicioId(userProfile.centro_de_servicio_id);
+        setCentroServicioId((userProfile as any).centro_de_servicio_id);
 
-        // Cargar grupos activos para este centro
-        const { data: gruposData } = await supabase
-          .from('grupos_cola_fifo')
-          .select('*')
-          .eq('centro_servicio_id', userProfile.centro_de_servicio_id)
-          .eq('activo', true)
-          .order('orden');
+        // Cargar grupos activos para este centro via apiBackendAction
+        // Cast input as any since the generated types don't include centro_servicio_id filter
+        const { results: gruposData } = await apiBackendAction("grupos_cola_fifo.list", { 
+          centro_servicio_id: (userProfile as any).centro_de_servicio_id 
+        } as any);
 
-        if (!gruposData || gruposData.length === 0) {
+        const gruposActivos = (gruposData || []).filter((g: any) => g.activo);
+
+        if (gruposActivos.length === 0) {
           setGrupos([]);
           setLoadingConfig(false);
           return;
         }
 
-        // Cargar familias de cada grupo
-        const { data: familiasGrupos } = await supabase
-          .from('grupos_cola_fifo_familias')
-          .select('grupo_id, familia_abuelo_id')
-          .in('grupo_id', gruposData.map(g => g.id));
+        // Cargar familias de cada grupo via apiBackendAction
+        // Cast input as any since the generated types don't include grupo_id filter
+        const familiasPromises = gruposActivos.map((g: any) => 
+          apiBackendAction("grupos_cola_fifo_familias.list", { grupo_id: g.id } as any)
+        );
+        const familiasResults = await Promise.all(familiasPromises);
+        const allFamiliasGrupos = familiasResults.flatMap((r, i) => 
+          (r.results || []).map((fg: any) => ({ ...fg, grupo_id: gruposActivos[i].id }))
+        );
 
         // Construir grupos con sus familias
-        const gruposConFamilias: GrupoColaFifo[] = gruposData.map(grupo => ({
+        const gruposConFamilias: GrupoColaFifo[] = gruposActivos.map((grupo: any) => ({
           id: grupo.id,
           nombre: grupo.nombre,
           orden: grupo.orden,
           activo: grupo.activo ?? true,
           color: grupo.color,
-          familias: familiasGrupos?.filter(fg => fg.grupo_id === grupo.id).map(fg => fg.familia_abuelo_id) || []
+          familias: allFamiliasGrupos.filter((fg: any) => fg.grupo_id === grupo.id).map((fg: any) => fg.familia_abuelo_id) || []
         }));
         setGrupos(gruposConFamilias);
       } catch (error) {

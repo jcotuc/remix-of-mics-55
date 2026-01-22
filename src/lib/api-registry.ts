@@ -568,6 +568,14 @@ export interface ActionRegistry {
   "centros_supervisor.delete": { input: { id?: number; supervisor_id?: number }; output: { status: string } };
 
   // =============================================================================
+  // SOLICITUDES TRANSFERENCIA MAQUINAS
+  // =============================================================================
+  "solicitudes_transferencia_maquinas.list": { input: { estado?: string; centro_origen_id?: number; centro_destino_id?: number }; output: { results: unknown[] } };
+  "solicitudes_transferencia_maquinas.get": { input: { id: number }; output: { result: unknown | null } };
+  "solicitudes_transferencia_maquinas.create": { input: Record<string, unknown>; output: unknown };
+  "solicitudes_transferencia_maquinas.update": { input: { id: number; data: Record<string, unknown> }; output: unknown };
+
+  // =============================================================================
   // USER ROLES
   // =============================================================================
   "user_roles.list": { input: { user_id?: number; role?: string }; output: { results: unknown[] } };

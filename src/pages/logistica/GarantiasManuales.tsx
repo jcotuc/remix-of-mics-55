@@ -8,11 +8,12 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search, Plus, Camera, Paperclip } from "lucide-react";
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client"; // Still needed for storage uploads and complex writes
+import { supabase } from "@/integrations/supabase/client"; // Only for storage uploads and RPC
 import { PhotoGalleryWithDescriptions, type PhotoWithDescription } from "@/components/shared";
 import { toast } from "sonner";
 import { OutlinedInput, OutlinedTextarea, OutlinedSelect } from "@/components/ui/outlined-input";
-import { apiBackendAction } from "@/lib/api";
+import { apiBackendAction } from "@/lib/api-backend";
+
 type GarantiaManuaDB = {
   id: number;
   codigo_cliente: string;
@@ -31,6 +32,7 @@ type GarantiaManuaDB = {
     apellido: string;
   } | null;
 };
+
 const ESTATUS_OPTIONS = [{
   value: "pendiente_resolucion",
   label: "Pendiente Resolución"
@@ -50,6 +52,7 @@ const ESTATUS_OPTIONS = [{
   value: "enviar_centro_servicio",
   label: "Enviar a Centro de Servicio"
 }];
+
 export default function GarantiasManuales() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filtroEstatus, setFiltroEstatus] = useState<string>("todos");
@@ -73,36 +76,25 @@ export default function GarantiasManuales() {
     comentarios_logistica: "",
     numero_incidente: ""
   });
+
   useEffect(() => {
     fetchGarantias();
   }, []);
+
   const fetchGarantias = async () => {
     try {
-      const {
-        data: garantiasData,
-        error
-      } = await supabase
-        .from("garantias_manuales")
-        .select("*")
-        .order("created_at", {
-          ascending: false
-        });
+      // Fetch garantias via apiBackendAction
+      const { results: garantiasData } = await apiBackendAction("garantias_manuales.list", { limit: 500 });
       
-      if (error) throw error;
-      
-      // Fetch user data for each garantia from usuarios table
+      // Fetch user data for each garantia via apiBackendAction
       const garantiasWithProfiles = await Promise.all(
-        (garantiasData || []).map(async (garantia) => {
+        (garantiasData || []).map(async (garantia: any) => {
           if (garantia.created_by) {
-            const { data: usuarioData } = await (supabase as any)
-              .from("usuarios")
-              .select("nombre, apellido")
-              .eq("id", garantia.created_by)
-              .single();
+            const { result: usuarioData } = await apiBackendAction("usuarios.get", { id: garantia.created_by });
             
             return {
               ...garantia,
-              profiles: usuarioData
+              profiles: usuarioData ? { nombre: (usuarioData as any).nombre, apellido: (usuarioData as any).apellido } : null
             } as GarantiaManuaDB;
           }
           return garantia as GarantiaManuaDB;
@@ -119,7 +111,7 @@ export default function GarantiasManuales() {
   };
   const handleCreateGarantia = async () => {
     try {
-      // Upload photos to storage and get URLs
+      // Upload photos to storage and get URLs (keep supabase.storage)
       const fotosUrls: string[] = [];
       
       for (const foto of fotosNuevaSolicitud) {
@@ -143,14 +135,13 @@ export default function GarantiasManuales() {
         fotosUrls.push(publicUrl);
       }
       
-      const {
-        error
-      } = await supabase.from("garantias_manuales").insert([{
+      // Create garantia via apiBackendAction
+      await apiBackendAction("garantias_manuales.create", {
         ...formData,
         fotos_urls: fotosUrls.length > 0 ? fotosUrls : null,
         estatus: 'pendiente_resolucion'
-      }]);
-      if (error) throw error;
+      } as any);
+
       toast.success("Garantía creada exitosamente");
       setShowNewDialog(false);
       setFormData({
@@ -185,7 +176,7 @@ export default function GarantiasManuales() {
       let incidenteId: number | null = null;
       let codigoIncidente: string | null = null;
 
-      // Generar código de incidente
+      // Generar código de incidente (keep RPC as exception)
       const { data: codigoData, error: codigoError } = await (supabase as any)
         .rpc("generar_codigo_incidente");
       
@@ -204,51 +195,40 @@ export default function GarantiasManuales() {
         coberturaGarantia = false;
       }
 
-      // Buscar cliente por código
-      const { data: clienteData } = await supabase
-        .from("clientes")
-        .select("id")
-        .eq("codigo", selectedGarantia.codigo_cliente)
-        .single();
+      // Buscar cliente por código via apiBackendAction
+      const { result: clienteData } = await apiBackendAction("clientes.getByCodigo", { codigo: selectedGarantia.codigo_cliente });
 
       if (!clienteData) {
         toast.error("No se encontró el cliente");
         return;
       }
 
-      // Crear el incidente
-      const { data: incidenteData, error: incidenteError } = await supabase
-        .from("incidentes")
-        .insert([{
-          codigo: codigoIncidente,
-          cliente_id: clienteData.id,
-          centro_de_servicio_id: 1, // Default center
-          descripcion_problema: selectedGarantia.descripcion_problema,
-          estado: estadoIncidente,
-          tipologia: "REPARACION" as const,
-          aplica_garantia: coberturaGarantia,
-          observaciones: updateData.comentarios_logistica,
-          tracking_token: crypto.randomUUID()
-        }])
-        .select()
-        .single();
+      // Crear el incidente via apiBackendAction
+      const incidenteData = await apiBackendAction("incidentes.create", {
+        codigo: codigoIncidente,
+        cliente_id: (clienteData as any).id,
+        centro_de_servicio_id: 1, // Default center
+        descripcion_problema: selectedGarantia.descripcion_problema,
+        estado: estadoIncidente,
+        tipologia: "REPARACION",
+        aplica_garantia: coberturaGarantia,
+        observaciones: updateData.comentarios_logistica,
+        tracking_token: crypto.randomUUID()
+      } as any);
 
-      if (incidenteError) throw incidenteError;
-      incidenteId = incidenteData.id;
+      incidenteId = (incidenteData as any).id;
 
-      // Actualizar la garantía con referencia al incidente
-      const { error } = await supabase
-        .from("garantias_manuales")
-        .update({
+      // Actualizar la garantía con referencia al incidente via apiBackendAction
+      await apiBackendAction("garantias_manuales.update", {
+        id: selectedGarantia.id,
+        data: {
           estatus: updateData.estatus,
           comentarios_logistica: updateData.comentarios_logistica,
           numero_incidente: codigoIncidente,
           incidente_id: incidenteId,
           origen: 'asesor'
-        })
-        .eq("id", selectedGarantia.id);
-      
-      if (error) throw error;
+        }
+      });
       
       toast.success(`Garantía actualizada e incidente ${codigoIncidente} creado`);
       setShowDetailDialog(false);

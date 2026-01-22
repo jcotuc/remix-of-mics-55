@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/client"; // Only for auth
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -60,16 +60,8 @@ export default function Transferencias() {
 
   const fetchData = async () => {
     try {
-      // Fetch transferencias (not in registry yet, using Supabase)
-      const { data: transferenciasData, error: transferenciasError } = await supabase
-        .from("solicitudes_transferencia_maquinas")
-        .select(`
-          *,
-          incidentes:incidente_id(codigo, producto_id)
-        `)
-        .order("created_at", { ascending: false });
-
-      if (transferenciasError) throw transferenciasError;
+      // Fetch transferencias via apiBackendAction
+      const transferenciasRes = await apiBackendAction("solicitudes_transferencia_maquinas.list", {});
 
       // Fetch centros via Registry
       const centrosRes = await apiBackendAction("centros_de_servicio.list", {});
@@ -88,7 +80,7 @@ export default function Transferencias() {
       // Process transferencias with centro names
       const centrosMap = new Map(allCentros.map((c: any) => [c.id, c.nombre]));
       
-      const processedTransferencias: Transferencia[] = (transferenciasData || []).map((t: any) => ({
+      const processedTransferencias: Transferencia[] = (transferenciasRes.results || []).map((t: any) => ({
         ...t,
         incidente: t.incidentes as { codigo: string; producto_id: number | null } | null,
         centro_origen: centrosMap.get(t.centro_origen_id) ? { nombre: centrosMap.get(t.centro_origen_id) } : null,
@@ -124,27 +116,19 @@ export default function Transferencias() {
 
     setSubmitting(true);
     try {
-      // Get user's info (still using Supabase for auth-related queries)
-      const usuarioQuery = await (supabase as any)
-        .from("usuarios")
-        .select("id, centro_de_servicio_id")
-        .eq("auth_uid", user.id)
-        .maybeSingle();
-      
-      const usuario = usuarioQuery.data as { id: number; centro_de_servicio_id: number | null } | null;
+      // Get user's info via apiBackendAction
+      const { result: usuario } = await apiBackendAction("usuarios.getByAuthUid", { auth_uid: user.id });
 
-      const centroOrigenId = usuario?.centro_de_servicio_id || centros[0]?.id;
+      const centroOrigenId = (usuario as any)?.centro_de_servicio_id || centros[0]?.id;
 
-      const insertResult = await supabase.from("solicitudes_transferencia_maquinas").insert({
+      await apiBackendAction("solicitudes_transferencia_maquinas.create", {
         incidente_id: parseInt(selectedIncidente),
         centro_origen_id: centroOrigenId,
         centro_destino_id: parseInt(selectedCentroDestino),
         motivo: motivo.trim(),
-        solicitado_por: usuario?.id || 0,
+        solicitado_por: (usuario as any)?.id || 0,
         estado: "PENDIENTE",
       });
-
-      if (insertResult.error) throw insertResult.error;
 
       toast.success("Solicitud de transferencia creada");
       setIsDialogOpen(false);
@@ -157,7 +141,6 @@ export default function Transferencias() {
       setSubmitting(false);
     }
   };
-
   const resetForm = () => {
     setSelectedIncidente("");
     setSelectedCentroDestino("");
