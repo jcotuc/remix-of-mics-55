@@ -86,6 +86,7 @@ export default function DetalleIncidenteSAC() {
   const [fallas, setFallas] = useState<string[]>([]);
   const [causas, setCausas] = useState<string[]>([]);
   const [repuestos, setRepuestos] = useState<RepuestoSolicitud[]>([]);
+  const [accesorios, setAccesorios] = useState<string[]>([]);
   const [productoAlternativo, setProductoAlternativo] = useState<ProductoAlternativo | null>(null);
   const [centroServicio, setCentroServicio] = useState<string>("");
   
@@ -246,6 +247,14 @@ export default function DetalleIncidenteSAC() {
           }
         }
       }
+
+      // Fetch accesorios del incidente
+      const { data: accesoriosData } = await supabase
+        .from("incidente_accesorios")
+        .select("accesorios:accesorio_id(nombre)")
+        .eq("incidente_id", Number(id));
+      
+      setAccesorios((accesoriosData || []).map((a: any) => a.accesorios?.nombre).filter(Boolean));
 
       // Fetch centro de servicio
       if (incData.centro_de_servicio_id) {
@@ -667,6 +676,16 @@ export default function DetalleIncidenteSAC() {
                   <p className="text-sm text-muted-foreground">Problema Reportado</p>
                   <p className="text-sm mt-1">{incidente.descripcion_problema || "Sin descripción"}</p>
                 </div>
+                {accesorios.length > 0 && (
+                  <div className="pt-2 border-t">
+                    <p className="text-sm text-muted-foreground mb-1">Accesorios de Ingreso</p>
+                    <div className="flex flex-wrap gap-1">
+                      {accesorios.map((acc, idx) => (
+                        <Badge key={idx} variant="secondary" className="text-xs">{acc}</Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
