@@ -118,88 +118,524 @@ const DiagnosticoPrintSheet = forwardRef<HTMLDivElement, Props>(({ data }, ref) 
     }
   };
 
+  // Inline styles for print compatibility
+  const styles = {
+    container: {
+      backgroundColor: '#ffffff',
+      color: '#000000',
+      padding: '24px',
+      width: '100%',
+      maxWidth: '8.5in',
+      margin: '0 auto',
+      fontFamily: 'Arial, sans-serif',
+      fontSize: '11px',
+      lineHeight: '1.4',
+    } as React.CSSProperties,
+    header: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      borderBottom: '2px solid #000',
+      paddingBottom: '16px',
+      marginBottom: '16px',
+    } as React.CSSProperties,
+    headerLeft: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '16px',
+    } as React.CSSProperties,
+    logo: {
+      width: '64px',
+      height: '64px',
+      backgroundColor: '#f97316',
+      borderRadius: '8px',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      color: '#fff',
+      fontWeight: 'bold',
+      fontSize: '20px',
+    } as React.CSSProperties,
+    headerTitle: {
+      fontWeight: 'bold',
+      fontSize: '20px',
+      margin: '0',
+    } as React.CSSProperties,
+    headerSubtitle: {
+      fontSize: '14px',
+      color: '#666',
+      margin: '4px 0 0 0',
+    } as React.CSSProperties,
+    headerAddress: {
+      fontSize: '12px',
+      color: '#888',
+      margin: '2px 0 0 0',
+    } as React.CSSProperties,
+    headerRight: {
+      textAlign: 'right' as const,
+    } as React.CSSProperties,
+    resolutionTitle: {
+      fontWeight: 'bold',
+      fontSize: '18px',
+      color: '#ea580c',
+      margin: '0',
+    } as React.CSSProperties,
+    incidentCode: {
+      fontFamily: 'monospace',
+      fontSize: '18px',
+      fontWeight: 'bold',
+      margin: '4px 0',
+    } as React.CSSProperties,
+    dateText: {
+      fontSize: '12px',
+      color: '#888',
+    } as React.CSSProperties,
+    grid2Col: {
+      display: 'grid',
+      gridTemplateColumns: '1fr 1fr',
+      gap: '16px',
+      marginBottom: '16px',
+    } as React.CSSProperties,
+    infoBox: {
+      border: '1px solid #d1d5db',
+      borderRadius: '8px',
+      padding: '12px',
+    } as React.CSSProperties,
+    infoTitle: {
+      fontWeight: 'bold',
+      fontSize: '13px',
+      marginBottom: '8px',
+      color: '#374151',
+      textTransform: 'uppercase' as const,
+      borderBottom: '1px solid #e5e7eb',
+      paddingBottom: '4px',
+    } as React.CSSProperties,
+    infoRow: {
+      marginBottom: '4px',
+    } as React.CSSProperties,
+    infoLabel: {
+      color: '#6b7280',
+    } as React.CSSProperties,
+    infoValue: {
+      fontWeight: '600',
+    } as React.CSSProperties,
+    monoText: {
+      fontFamily: 'monospace',
+    } as React.CSSProperties,
+    accesoriosBox: {
+      border: '1px solid #d1d5db',
+      borderRadius: '8px',
+      padding: '12px',
+      marginBottom: '16px',
+    } as React.CSSProperties,
+    accesoriosTitle: {
+      fontWeight: 'bold',
+      fontSize: '13px',
+      marginBottom: '8px',
+      color: '#374151',
+      textTransform: 'uppercase' as const,
+    } as React.CSSProperties,
+    accesoriosFlex: {
+      display: 'flex',
+      flexWrap: 'wrap' as const,
+      gap: '8px',
+    } as React.CSSProperties,
+    accesorioTag: {
+      backgroundColor: '#f3f4f6',
+      padding: '4px 8px',
+      borderRadius: '4px',
+      fontSize: '12px',
+    } as React.CSSProperties,
+    diagnosticoBox: {
+      border: '2px solid #fed7aa',
+      borderRadius: '8px',
+      overflow: 'hidden',
+      marginBottom: '16px',
+    } as React.CSSProperties,
+    diagnosticoHeader: {
+      backgroundColor: '#ffedd5',
+      padding: '8px 12px',
+    } as React.CSSProperties,
+    diagnosticoTitle: {
+      fontWeight: 'bold',
+      fontSize: '13px',
+      color: '#9a3412',
+      textTransform: 'uppercase' as const,
+      margin: 0,
+    } as React.CSSProperties,
+    diagnosticoContent: {
+      padding: '12px',
+    } as React.CSSProperties,
+    sectionLabel: {
+      fontSize: '11px',
+      fontWeight: '600',
+      color: '#6b7280',
+      textTransform: 'uppercase' as const,
+      marginBottom: '4px',
+    } as React.CSSProperties,
+    list: {
+      listStyleType: 'disc',
+      listStylePosition: 'inside' as const,
+      margin: '0 0 12px 0',
+      padding: 0,
+    } as React.CSSProperties,
+    listItem: {
+      fontSize: '13px',
+      marginBottom: '2px',
+    } as React.CSSProperties,
+    recomendacionesBox: {
+      backgroundColor: '#f9fafb',
+      padding: '8px',
+      borderRadius: '4px',
+      fontSize: '13px',
+    } as React.CSSProperties,
+    tecnicoRow: {
+      paddingTop: '8px',
+      borderTop: '1px solid #e5e7eb',
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginTop: '12px',
+    } as React.CSSProperties,
+    tipoTrabajoBadge: {
+      fontSize: '11px',
+      backgroundColor: '#dbeafe',
+      color: '#1e40af',
+      padding: '2px 8px',
+      borderRadius: '4px',
+    } as React.CSSProperties,
+    resolucionBox: {
+      border: '2px solid #bbf7d0',
+      borderRadius: '8px',
+      overflow: 'hidden',
+      marginBottom: '16px',
+    } as React.CSSProperties,
+    resolucionHeader: {
+      backgroundColor: '#dcfce7',
+      padding: '8px 12px',
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    } as React.CSSProperties,
+    resolucionHeaderTitle: {
+      fontWeight: 'bold',
+      fontSize: '13px',
+      color: '#166534',
+      textTransform: 'uppercase' as const,
+      margin: 0,
+    } as React.CSSProperties,
+    resolucionBadge: {
+      backgroundColor: '#16a34a',
+      color: '#fff',
+      padding: '4px 12px',
+      borderRadius: '999px',
+      fontSize: '11px',
+      fontWeight: '600',
+    } as React.CSSProperties,
+    resolucionContent: {
+      padding: '12px',
+    } as React.CSSProperties,
+    resolucionMessage: {
+      fontSize: '13px',
+      color: '#374151',
+      margin: 0,
+    } as React.CSSProperties,
+    productoAltBox: {
+      border: '2px solid #e9d5ff',
+      borderRadius: '8px',
+      overflow: 'hidden',
+      marginBottom: '16px',
+    } as React.CSSProperties,
+    productoAltHeader: {
+      backgroundColor: '#f3e8ff',
+      padding: '8px 12px',
+    } as React.CSSProperties,
+    productoAltTitle: {
+      fontWeight: 'bold',
+      fontSize: '13px',
+      color: '#6b21a8',
+      textTransform: 'uppercase' as const,
+      margin: 0,
+    } as React.CSSProperties,
+    productoAltContent: {
+      padding: '12px',
+    } as React.CSSProperties,
+    costosTitle: {
+      fontWeight: 'bold',
+      fontSize: '13px',
+      marginBottom: '8px',
+      color: '#374151',
+      textTransform: 'uppercase' as const,
+    } as React.CSSProperties,
+    table: {
+      width: '100%',
+      borderCollapse: 'collapse' as const,
+      border: '1px solid #d1d5db',
+      fontSize: '13px',
+    } as React.CSSProperties,
+    th: {
+      border: '1px solid #d1d5db',
+      padding: '8px 12px',
+      backgroundColor: '#f3f4f6',
+      textAlign: 'left' as const,
+      fontWeight: '600',
+    } as React.CSSProperties,
+    thCenter: {
+      border: '1px solid #d1d5db',
+      padding: '8px',
+      backgroundColor: '#f3f4f6',
+      textAlign: 'center' as const,
+      fontWeight: '600',
+      width: '60px',
+    } as React.CSSProperties,
+    thRight: {
+      border: '1px solid #d1d5db',
+      padding: '8px 12px',
+      backgroundColor: '#f3f4f6',
+      textAlign: 'right' as const,
+      fontWeight: '600',
+      width: '100px',
+    } as React.CSSProperties,
+    td: {
+      border: '1px solid #d1d5db',
+      padding: '6px 12px',
+    } as React.CSSProperties,
+    tdCenter: {
+      border: '1px solid #d1d5db',
+      padding: '6px 8px',
+      textAlign: 'center' as const,
+    } as React.CSSProperties,
+    tdRight: {
+      border: '1px solid #d1d5db',
+      padding: '6px 12px',
+      textAlign: 'right' as const,
+    } as React.CSSProperties,
+    subtotalRow: {
+      backgroundColor: '#f9fafb',
+    } as React.CSSProperties,
+    descuentoRow: {
+      backgroundColor: '#f0fdf4',
+    } as React.CSSProperties,
+    totalRow: {
+      backgroundColor: '#ffedd5',
+    } as React.CSSProperties,
+    tdSubtotal: {
+      border: '1px solid #d1d5db',
+      padding: '8px 12px',
+      textAlign: 'right' as const,
+      fontWeight: '600',
+    } as React.CSSProperties,
+    tdDescuento: {
+      border: '1px solid #d1d5db',
+      padding: '8px 12px',
+      textAlign: 'right' as const,
+      fontWeight: '600',
+      color: '#15803d',
+    } as React.CSSProperties,
+    tdTotal: {
+      border: '1px solid #d1d5db',
+      padding: '8px 12px',
+      textAlign: 'right' as const,
+      fontWeight: 'bold',
+      fontSize: '16px',
+    } as React.CSSProperties,
+    tdTotalValue: {
+      border: '1px solid #d1d5db',
+      padding: '8px 12px',
+      textAlign: 'right' as const,
+      fontWeight: 'bold',
+      fontSize: '16px',
+      color: '#c2410c',
+    } as React.CSSProperties,
+    noteBox: {
+      marginTop: '8px',
+      padding: '8px',
+      borderRadius: '4px',
+      fontSize: '11px',
+    } as React.CSSProperties,
+    noteGreen: {
+      backgroundColor: '#f0fdf4',
+      border: '1px solid #bbf7d0',
+      color: '#15803d',
+    } as React.CSSProperties,
+    noteYellow: {
+      backgroundColor: '#fefce8',
+      border: '1px solid #fef08a',
+      color: '#a16207',
+    } as React.CSSProperties,
+    noteBlue: {
+      marginBottom: '16px',
+      padding: '16px',
+      backgroundColor: '#eff6ff',
+      border: '1px solid #bfdbfe',
+      borderRadius: '8px',
+    } as React.CSSProperties,
+    noteBlueText: {
+      fontSize: '13px',
+      color: '#1d4ed8',
+      margin: 0,
+    } as React.CSSProperties,
+    firmasGrid: {
+      display: 'grid',
+      gridTemplateColumns: '1fr 1fr',
+      gap: '32px',
+      marginTop: '32px',
+      marginBottom: '24px',
+    } as React.CSSProperties,
+    firmaBox: {
+      textAlign: 'center' as const,
+    } as React.CSSProperties,
+    firmaLine: {
+      borderTop: '2px solid #000',
+      width: '192px',
+      margin: '0 auto 4px auto',
+      paddingTop: '8px',
+    } as React.CSSProperties,
+    firmaLabel: {
+      fontSize: '11px',
+      color: '#6b7280',
+    } as React.CSSProperties,
+    firmaName: {
+      fontSize: '13px',
+      fontWeight: '600',
+    } as React.CSSProperties,
+    firmaPlaceholder: {
+      fontSize: '13px',
+      color: '#9ca3af',
+    } as React.CSSProperties,
+    footer: {
+      borderTop: '1px solid #e5e7eb',
+      paddingTop: '16px',
+      fontSize: '10px',
+      color: '#6b7280',
+    } as React.CSSProperties,
+    footerTitle: {
+      fontWeight: '600',
+      color: '#374151',
+      marginBottom: '4px',
+    } as React.CSSProperties,
+    footerList: {
+      listStyleType: 'disc',
+      listStylePosition: 'inside' as const,
+      margin: 0,
+      padding: 0,
+    } as React.CSSProperties,
+    footerItem: {
+      marginBottom: '2px',
+    } as React.CSSProperties,
+    footerDate: {
+      marginTop: '8px',
+      textAlign: 'center' as const,
+      color: '#9ca3af',
+    } as React.CSSProperties,
+    repuestoCode: {
+      fontFamily: 'monospace',
+      fontSize: '11px',
+      color: '#6b7280',
+      marginRight: '8px',
+    } as React.CSSProperties,
+  };
+
   return (
-    <div ref={ref} className="print-sheet bg-white text-black p-6 w-full max-w-[8.5in] mx-auto font-sans text-[11px]">
+    <div ref={ref} style={styles.container}>
       {/* Header */}
-      <div className="flex justify-between items-start border-b-2 border-black pb-4 mb-4">
-        <div className="flex items-center gap-4">
-          <div className="w-16 h-16 bg-orange-500 rounded-lg flex items-center justify-center text-white font-bold text-xl">
-            HPC
-          </div>
+      <div style={styles.header}>
+        <div style={styles.headerLeft}>
+          <div style={styles.logo}>HPC</div>
           <div>
-            <h1 className="font-bold text-xl">HPC Centro de Servicio</h1>
-            <p className="text-sm text-gray-600">{data.centroServicio}</p>
-            <p className="text-xs text-gray-500">27 Calle 41-55 Zona 5 | Tel: 2499-5000</p>
+            <h1 style={styles.headerTitle}>HPC Centro de Servicio</h1>
+            <p style={styles.headerSubtitle}>{data.centroServicio}</p>
+            <p style={styles.headerAddress}>27 Calle 41-55 Zona 5 | Tel: 2499-5000</p>
           </div>
         </div>
-        <div className="text-right">
-          <h2 className="font-bold text-lg text-orange-600">{getTituloResolucion()}</h2>
-          <p className="font-mono text-lg font-bold">{data.codigo}</p>
-          <p className="text-xs text-gray-500">Fecha diagnóstico: {fechaDiagnosticoFormateada}</p>
+        <div style={styles.headerRight}>
+          <h2 style={styles.resolutionTitle}>{getTituloResolucion()}</h2>
+          <p style={styles.incidentCode}>{data.codigo}</p>
+          <p style={styles.dateText}>Fecha diagnóstico: {fechaDiagnosticoFormateada}</p>
         </div>
       </div>
 
       {/* Información del Cliente y Equipo */}
-      <div className="grid grid-cols-2 gap-4 mb-4">
+      <div style={styles.grid2Col}>
         {/* Cliente */}
-        <div className="border border-gray-300 rounded-lg p-3">
-          <h3 className="font-bold text-sm mb-2 text-gray-700 uppercase border-b pb-1">Información del Cliente</h3>
-          <div className="space-y-1">
-            <p><span className="text-gray-500">Código:</span> <span className="font-semibold">{data.codigoCliente}</span></p>
-            <p><span className="text-gray-500">Nombre:</span> <span className="font-semibold">{data.nombreCliente}</span></p>
-            <p><span className="text-gray-500">Teléfono:</span> {data.telefonoCliente}</p>
-            {data.direccionEnvio && (
-              <p><span className="text-gray-500">Dirección envío:</span> {data.direccionEnvio}</p>
-            )}
+        <div style={styles.infoBox}>
+          <h3 style={styles.infoTitle}>Información del Cliente</h3>
+          <div style={styles.infoRow}>
+            <span style={styles.infoLabel}>Código: </span>
+            <span style={styles.infoValue}>{data.codigoCliente}</span>
           </div>
+          <div style={styles.infoRow}>
+            <span style={styles.infoLabel}>Nombre: </span>
+            <span style={styles.infoValue}>{data.nombreCliente}</span>
+          </div>
+          <div style={styles.infoRow}>
+            <span style={styles.infoLabel}>Teléfono: </span>
+            <span>{data.telefonoCliente}</span>
+          </div>
+          {data.direccionEnvio && (
+            <div style={styles.infoRow}>
+              <span style={styles.infoLabel}>Dirección envío: </span>
+              <span>{data.direccionEnvio}</span>
+            </div>
+          )}
         </div>
 
         {/* Equipo */}
-        <div className="border border-gray-300 rounded-lg p-3">
-          <h3 className="font-bold text-sm mb-2 text-gray-700 uppercase border-b pb-1">Información del Equipo</h3>
-          <div className="space-y-1">
-            <p><span className="text-gray-500">Código:</span> <span className="font-semibold">{data.codigoProducto}</span></p>
-            <p><span className="text-gray-500">Descripción:</span> {data.descripcionProducto}</p>
-            <p><span className="text-gray-500">SKU/Serie:</span> <span className="font-mono">{data.skuMaquina || 'N/A'}</span></p>
-            <p><span className="text-gray-500">Fecha ingreso:</span> {fechaIngresoFormateada}</p>
+        <div style={styles.infoBox}>
+          <h3 style={styles.infoTitle}>Información del Equipo</h3>
+          <div style={styles.infoRow}>
+            <span style={styles.infoLabel}>Código: </span>
+            <span style={styles.infoValue}>{data.codigoProducto}</span>
+          </div>
+          <div style={styles.infoRow}>
+            <span style={styles.infoLabel}>Descripción: </span>
+            <span>{data.descripcionProducto}</span>
+          </div>
+          <div style={styles.infoRow}>
+            <span style={styles.infoLabel}>SKU/Serie: </span>
+            <span style={styles.monoText}>{data.skuMaquina || 'N/A'}</span>
+          </div>
+          <div style={styles.infoRow}>
+            <span style={styles.infoLabel}>Fecha ingreso: </span>
+            <span>{fechaIngresoFormateada}</span>
           </div>
         </div>
       </div>
 
       {/* Accesorios */}
       {data.accesorios.length > 0 && (
-        <div className="mb-4 border border-gray-300 rounded-lg p-3">
-          <h3 className="font-bold text-sm mb-2 text-gray-700 uppercase">Accesorios Ingresados</h3>
-          <div className="flex flex-wrap gap-2">
+        <div style={styles.accesoriosBox}>
+          <h3 style={styles.accesoriosTitle}>Accesorios Ingresados</h3>
+          <div style={styles.accesoriosFlex}>
             {data.accesorios.map((acc, idx) => (
-              <span key={idx} className="bg-gray-100 px-2 py-1 rounded text-xs">{acc}</span>
+              <span key={idx} style={styles.accesorioTag}>{acc}</span>
             ))}
           </div>
         </div>
       )}
 
       {/* Diagnóstico Técnico */}
-      <div className="mb-4 border-2 border-orange-200 rounded-lg overflow-hidden">
-        <div className="bg-orange-100 px-3 py-2">
-          <h3 className="font-bold text-sm text-orange-800 uppercase">Diagnóstico Técnico</h3>
+      <div style={styles.diagnosticoBox}>
+        <div style={styles.diagnosticoHeader}>
+          <h3 style={styles.diagnosticoTitle}>Diagnóstico Técnico</h3>
         </div>
-        <div className="p-3 space-y-3">
+        <div style={styles.diagnosticoContent}>
           {/* Fallas */}
           <div>
-            <p className="text-xs font-semibold text-gray-600 uppercase mb-1">Fallas Detectadas:</p>
-            <ul className="list-disc list-inside space-y-0.5">
+            <p style={styles.sectionLabel}>Fallas Detectadas:</p>
+            <ul style={styles.list}>
               {data.fallas.map((falla, idx) => (
-                <li key={idx} className="text-sm">{falla}</li>
+                <li key={idx} style={styles.listItem}>{falla}</li>
               ))}
             </ul>
           </div>
 
           {/* Causas */}
           <div>
-            <p className="text-xs font-semibold text-gray-600 uppercase mb-1">Causas Identificadas:</p>
-            <ul className="list-disc list-inside space-y-0.5">
+            <p style={styles.sectionLabel}>Causas Identificadas:</p>
+            <ul style={styles.list}>
               {data.causas.map((causa, idx) => (
-                <li key={idx} className="text-sm">{causa}</li>
+                <li key={idx} style={styles.listItem}>{causa}</li>
               ))}
             </ul>
           </div>
@@ -207,19 +643,19 @@ const DiagnosticoPrintSheet = forwardRef<HTMLDivElement, Props>(({ data }, ref) 
           {/* Recomendaciones */}
           {data.recomendaciones && (
             <div>
-              <p className="text-xs font-semibold text-gray-600 uppercase mb-1">Recomendaciones:</p>
-              <p className="text-sm bg-gray-50 p-2 rounded">{data.recomendaciones}</p>
+              <p style={styles.sectionLabel}>Recomendaciones:</p>
+              <p style={styles.recomendacionesBox}>{data.recomendaciones}</p>
             </div>
           )}
 
           {/* Técnico */}
-          <div className="pt-2 border-t flex justify-between items-center">
-            <p className="text-xs">
-              <span className="text-gray-500">Técnico responsable:</span> 
-              <span className="font-semibold ml-1">{data.tecnicoNombre}</span>
+          <div style={styles.tecnicoRow}>
+            <p style={{ margin: 0, fontSize: '12px' }}>
+              <span style={styles.infoLabel}>Técnico responsable: </span>
+              <span style={styles.infoValue}>{data.tecnicoNombre}</span>
             </p>
             {data.tipoTrabajo && (
-              <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded">
+              <span style={styles.tipoTrabajoBadge}>
                 {data.tipoTrabajo === 'mantenimiento' ? 'Mantenimiento' : 'Reparación'}
               </span>
             )}
@@ -228,117 +664,117 @@ const DiagnosticoPrintSheet = forwardRef<HTMLDivElement, Props>(({ data }, ref) 
       </div>
 
       {/* Resolución y Mensaje */}
-      <div className="mb-4 border-2 border-green-200 rounded-lg overflow-hidden">
-        <div className="bg-green-100 px-3 py-2 flex justify-between items-center">
-          <h3 className="font-bold text-sm text-green-800 uppercase">Resolución</h3>
-          <span className="bg-green-600 text-white px-3 py-1 rounded-full text-xs font-semibold">
-            {data.tipoResolucion}
-          </span>
+      <div style={styles.resolucionBox}>
+        <div style={styles.resolucionHeader}>
+          <h3 style={styles.resolucionHeaderTitle}>Resolución</h3>
+          <span style={styles.resolucionBadge}>{data.tipoResolucion}</span>
         </div>
-        <div className="p-3">
-          <p className="text-sm text-gray-700">{getMensajeResolucion()}</p>
+        <div style={styles.resolucionContent}>
+          <p style={styles.resolucionMessage}>{getMensajeResolucion()}</p>
         </div>
       </div>
 
       {/* Producto Alternativo (para Canje) */}
       {data.tipoResolucion === 'Canje' && data.productoAlternativo && (
-        <div className="mb-4 border-2 border-purple-200 rounded-lg overflow-hidden">
-          <div className="bg-purple-100 px-3 py-2">
-            <h3 className="font-bold text-sm text-purple-800 uppercase">Producto Alternativo Sugerido</h3>
+        <div style={styles.productoAltBox}>
+          <div style={styles.productoAltHeader}>
+            <h3 style={styles.productoAltTitle}>Producto Alternativo Sugerido</h3>
           </div>
-          <div className="p-3">
-            <p><span className="text-gray-500">Código:</span> <span className="font-mono font-semibold">{data.productoAlternativo.codigo}</span></p>
-            <p><span className="text-gray-500">Descripción:</span> {data.productoAlternativo.descripcion}</p>
+          <div style={styles.productoAltContent}>
+            <p style={styles.infoRow}>
+              <span style={styles.infoLabel}>Código: </span>
+              <span style={{ ...styles.monoText, fontWeight: '600' }}>{data.productoAlternativo.codigo}</span>
+            </p>
+            <p style={styles.infoRow}>
+              <span style={styles.infoLabel}>Descripción: </span>
+              <span>{data.productoAlternativo.descripcion}</span>
+            </p>
           </div>
         </div>
       )}
 
       {/* Detalle de Costos */}
       {(data.repuestos.length > 0 || data.costoManoObra > 0) && (
-        <div className="mb-4">
-          <h3 className="font-bold text-sm mb-2 text-gray-700 uppercase">Detalle de Costos</h3>
-          <table className="w-full border-collapse border border-gray-300 text-sm">
+        <div style={{ marginBottom: '16px' }}>
+          <h3 style={styles.costosTitle}>Detalle de Costos</h3>
+          <table style={styles.table}>
             <thead>
-              <tr className="bg-gray-100">
-                <th className="border border-gray-300 px-3 py-2 text-left">Concepto</th>
-                <th className="border border-gray-300 px-2 py-2 text-center w-16">Cant.</th>
-                <th className="border border-gray-300 px-3 py-2 text-right w-24">Precio Unit.</th>
-                <th className="border border-gray-300 px-3 py-2 text-right w-24">Subtotal</th>
+              <tr>
+                <th style={styles.th}>Concepto</th>
+                <th style={styles.thCenter}>Cant.</th>
+                <th style={styles.thRight}>Precio Unit.</th>
+                <th style={styles.thRight}>Subtotal</th>
               </tr>
             </thead>
             <tbody>
               {/* Repuestos */}
               {data.repuestos.map((repuesto, idx) => (
                 <tr key={idx}>
-                  <td className="border border-gray-300 px-3 py-1.5">
-                    <span className="font-mono text-xs text-gray-500 mr-2">{repuesto.codigo}</span>
+                  <td style={styles.td}>
+                    <span style={styles.repuestoCode}>{repuesto.codigo}</span>
                     {repuesto.descripcion}
                   </td>
-                  <td className="border border-gray-300 px-2 py-1.5 text-center">{repuesto.cantidad}</td>
-                  <td className="border border-gray-300 px-3 py-1.5 text-right">{formatCurrency(repuesto.precioUnitario)}</td>
-                  <td className="border border-gray-300 px-3 py-1.5 text-right">{formatCurrency(repuesto.cantidad * repuesto.precioUnitario)}</td>
+                  <td style={styles.tdCenter}>{repuesto.cantidad}</td>
+                  <td style={styles.tdRight}>{formatCurrency(repuesto.precioUnitario)}</td>
+                  <td style={styles.tdRight}>{formatCurrency(repuesto.cantidad * repuesto.precioUnitario)}</td>
                 </tr>
               ))}
               
               {/* Mano de Obra */}
               {data.costoManoObra > 0 && (
                 <tr>
-                  <td className="border border-gray-300 px-3 py-1.5">Mano de Obra</td>
-                  <td className="border border-gray-300 px-2 py-1.5 text-center">1</td>
-                  <td className="border border-gray-300 px-3 py-1.5 text-right">{formatCurrency(data.costoManoObra)}</td>
-                  <td className="border border-gray-300 px-3 py-1.5 text-right">{formatCurrency(data.costoManoObra)}</td>
+                  <td style={styles.td}>Mano de Obra</td>
+                  <td style={styles.tdCenter}>1</td>
+                  <td style={styles.tdRight}>{formatCurrency(data.costoManoObra)}</td>
+                  <td style={styles.tdRight}>{formatCurrency(data.costoManoObra)}</td>
                 </tr>
               )}
 
               {/* Envío */}
               {data.costoEnvio && data.costoEnvio > 0 && (
                 <tr>
-                  <td className="border border-gray-300 px-3 py-1.5">Servicio de Envío</td>
-                  <td className="border border-gray-300 px-2 py-1.5 text-center">1</td>
-                  <td className="border border-gray-300 px-3 py-1.5 text-right">{formatCurrency(data.costoEnvio)}</td>
-                  <td className="border border-gray-300 px-3 py-1.5 text-right">{formatCurrency(data.costoEnvio)}</td>
+                  <td style={styles.td}>Servicio de Envío</td>
+                  <td style={styles.tdCenter}>1</td>
+                  <td style={styles.tdRight}>{formatCurrency(data.costoEnvio)}</td>
+                  <td style={styles.tdRight}>{formatCurrency(data.costoEnvio)}</td>
                 </tr>
               )}
 
               {/* Subtotal */}
-              <tr className="bg-gray-50">
-                <td colSpan={3} className="border border-gray-300 px-3 py-2 text-right font-semibold">SUBTOTAL</td>
-                <td className="border border-gray-300 px-3 py-2 text-right font-semibold">{formatCurrency(subtotalGeneral)}</td>
+              <tr style={styles.subtotalRow}>
+                <td colSpan={3} style={styles.tdSubtotal}>SUBTOTAL</td>
+                <td style={styles.tdSubtotal}>{formatCurrency(subtotalGeneral)}</td>
               </tr>
 
               {/* Descuento */}
               {descuento > 0 && (
-                <tr className="bg-green-50">
-                  <td colSpan={3} className="border border-gray-300 px-3 py-2 text-right font-semibold text-green-700">
+                <tr style={styles.descuentoRow}>
+                  <td colSpan={3} style={styles.tdDescuento}>
                     DESCUENTO ({porcentajeDescuentoAplicado}%)
-                    {data.aplicaGarantia && <span className="ml-2 text-xs font-normal">(Cubierto por Garantía)</span>}
+                    {data.aplicaGarantia && <span style={{ marginLeft: '8px', fontWeight: 'normal', fontSize: '11px' }}>(Cubierto por Garantía)</span>}
                   </td>
-                  <td className="border border-gray-300 px-3 py-2 text-right font-semibold text-green-700">
-                    -{formatCurrency(descuento)}
-                  </td>
+                  <td style={styles.tdDescuento}>-{formatCurrency(descuento)}</td>
                 </tr>
               )}
 
               {/* Total */}
-              <tr className="bg-orange-100">
-                <td colSpan={3} className="border border-gray-300 px-3 py-2 text-right font-bold text-lg">TOTAL A PAGAR</td>
-                <td className="border border-gray-300 px-3 py-2 text-right font-bold text-lg text-orange-700">
-                  {formatCurrency(totalFinal)}
-                </td>
+              <tr style={styles.totalRow}>
+                <td colSpan={3} style={styles.tdTotal}>TOTAL A PAGAR</td>
+                <td style={styles.tdTotalValue}>{formatCurrency(totalFinal)}</td>
               </tr>
             </tbody>
           </table>
 
           {/* Nota de Garantía */}
           {data.aplicaGarantia && data.tipoResolucion === 'Reparar en Garantía' && (
-            <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-xs text-green-700">
+            <div style={{ ...styles.noteBox, ...styles.noteGreen }}>
               <strong>✓ Reparación cubierta por garantía.</strong> Los costos mostrados representan el valor del servicio que fue cubierto sin costo para el cliente.
             </div>
           )}
 
           {/* Nota de Presupuesto */}
           {data.tipoResolucion === 'Presupuesto' && (
-            <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-700">
+            <div style={{ ...styles.noteBox, ...styles.noteYellow }}>
               <strong>⚠ Presupuesto pendiente de aprobación.</strong> Este presupuesto tiene una vigencia de 15 días. Para aprobar, comuníquese al teléfono 2499-5000.
             </div>
           )}
@@ -347,15 +783,15 @@ const DiagnosticoPrintSheet = forwardRef<HTMLDivElement, Props>(({ data }, ref) 
 
       {/* Sin costos para Cambio por Garantía o Nota de Crédito */}
       {(data.tipoResolucion === 'Cambio por Garantía' || data.tipoResolucion === 'Nota de Crédito') && (
-        <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-          <p className="text-sm text-blue-700">
+        <div style={styles.noteBlue}>
+          <p style={styles.noteBlueText}>
             {data.tipoResolucion === 'Cambio por Garantía' 
               ? 'El equipo será reemplazado sin costo adicional. Se coordinará la entrega del nuevo equipo.'
               : 'Se procesará una nota de crédito por el valor del equipo. Un asesor se comunicará con usted para más detalles.'
             }
           </p>
           {data.costoEnvio && data.costoEnvio > 0 && (
-            <p className="text-sm text-blue-700 mt-2">
+            <p style={{ ...styles.noteBlueText, marginTop: '8px' }}>
               <strong>Costo de envío aplicable:</strong> {formatCurrency(data.costoEnvio)}
             </p>
           )}
@@ -363,29 +799,29 @@ const DiagnosticoPrintSheet = forwardRef<HTMLDivElement, Props>(({ data }, ref) 
       )}
 
       {/* Firmas */}
-      <div className="grid grid-cols-2 gap-8 mt-8 mb-6">
-        <div className="text-center">
-          <div className="border-t-2 border-black w-48 mx-auto mb-1 pt-2"></div>
-          <p className="text-xs text-gray-600">Técnico Responsable</p>
-          <p className="text-sm font-semibold">{data.tecnicoNombre}</p>
+      <div style={styles.firmasGrid}>
+        <div style={styles.firmaBox}>
+          <div style={styles.firmaLine}></div>
+          <p style={styles.firmaLabel}>Técnico Responsable</p>
+          <p style={styles.firmaName}>{data.tecnicoNombre}</p>
         </div>
-        <div className="text-center">
-          <div className="border-t-2 border-black w-48 mx-auto mb-1 pt-2"></div>
-          <p className="text-xs text-gray-600">Cliente / Autorizado</p>
-          <p className="text-sm text-gray-400">Firma de recibido</p>
+        <div style={styles.firmaBox}>
+          <div style={styles.firmaLine}></div>
+          <p style={styles.firmaLabel}>Cliente / Autorizado</p>
+          <p style={styles.firmaPlaceholder}>Firma de recibido</p>
         </div>
       </div>
 
       {/* Políticas y Notas */}
-      <div className="border-t pt-4 text-[10px] text-gray-500 space-y-1">
-        <p className="font-semibold text-gray-700">Políticas y Condiciones:</p>
-        <ul className="list-disc list-inside space-y-0.5">
-          <li>En toda reparación se garantiza el trabajo realizado sobre el problema reportado, solo en mano de obra por 30 días.</li>
-          <li>La garantía no cubre mantenimientos preventivos ni correctivos, daños por mal uso, accidentes o variaciones de voltaje.</li>
-          <li>Los presupuestos tienen vigencia de 15 días. Después de este período, los precios pueden variar.</li>
-          <li>Para recoger el equipo, presente este documento o su número de incidente.</li>
+      <div style={styles.footer}>
+        <p style={styles.footerTitle}>Políticas y Condiciones:</p>
+        <ul style={styles.footerList}>
+          <li style={styles.footerItem}>En toda reparación se garantiza el trabajo realizado sobre el problema reportado, solo en mano de obra por 30 días.</li>
+          <li style={styles.footerItem}>La garantía no cubre mantenimientos preventivos ni correctivos, daños por mal uso, accidentes o variaciones de voltaje.</li>
+          <li style={styles.footerItem}>Los presupuestos tienen vigencia de 15 días. Después de este período, los precios pueden variar.</li>
+          <li style={styles.footerItem}>Para recoger el equipo, presente este documento o su número de incidente.</li>
         </ul>
-        <p className="mt-2 text-center text-gray-400">
+        <p style={styles.footerDate}>
           Documento generado automáticamente el {formatFechaHora(new Date())}
         </p>
       </div>
