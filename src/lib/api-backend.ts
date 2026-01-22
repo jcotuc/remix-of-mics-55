@@ -799,6 +799,97 @@ const userRolesHandlers: Record<string, ActionHandler<any>> = {
 };
 
 // =============================================================================
+// REPUESTOS RELACIONES HANDLERS
+// =============================================================================
+const repuestosRelacionesHandlers: Record<string, ActionHandler<any>> = {
+  "repuestos_relaciones.list": async (input) => {
+    const { limit = 1000, offset = 0 } = input || {};
+    const { data, error } = await (supabase as any)
+      .from("repuestos_relaciones")
+      .select("*")
+      .range(offset, offset + limit - 1);
+    if (error) throw error;
+    return { results: data || [] };
+  },
+};
+
+// =============================================================================
+// CONFIGURACION FIFO CENTRO HANDLERS
+// =============================================================================
+const configuracionFifoHandlers: Record<string, ActionHandler<any>> = {
+  "configuracion_fifo_centro.list": async (input) => {
+    const { centro_servicio_id, activo } = input || {};
+    let query = (supabase as any).from("configuracion_fifo_centro").select("*");
+    if (centro_servicio_id) query = query.eq("centro_servicio_id", centro_servicio_id);
+    if (activo !== undefined) query = query.eq("activo", activo);
+    const { data, error } = await query;
+    if (error) throw error;
+    return { results: data || [] };
+  },
+  "configuracion_fifo_centro.create": async (input) => {
+    const { data, error } = await (supabase as any).from("configuracion_fifo_centro").insert(input).select().single();
+    if (error) throw error;
+    return data;
+  },
+  "configuracion_fifo_centro.update": async (input) => {
+    const { id, data: updateData } = input as any;
+    const { data, error } = await (supabase as any).from("configuracion_fifo_centro").update(updateData).eq("id", id).select().single();
+    if (error) throw error;
+    return data;
+  },
+  "configuracion_fifo_centro.delete": async (input) => {
+    const { error } = await (supabase as any).from("configuracion_fifo_centro").delete().eq("id", input.id);
+    if (error) throw error;
+    return { status: "deleted", id: input.id };
+  },
+};
+
+// =============================================================================
+// MEDIA HANDLERS
+// =============================================================================
+const mediaHandlers: Record<string, ActionHandler<any>> = {
+  "media.list": async (input) => {
+    const { incidente_id } = input || {};
+    let query = supabase.from("media").select("*");
+    if (incidente_id) query = query.eq("incidente_id", incidente_id);
+    const { data, error } = await query.order("created_at", { ascending: false });
+    if (error) throw error;
+    return { results: data || [] };
+  },
+  "media.create": async (input) => {
+    const { data, error } = await supabase.from("media").insert(input as any).select().single();
+    if (error) throw error;
+    return data;
+  },
+};
+
+// =============================================================================
+// PEDIDOS BODEGA CENTRAL EXTENDED HANDLERS
+// =============================================================================
+const pedidosBodegaExtendedHandlers: Record<string, ActionHandler<any>> = {
+  "pedidos_bodega_central.create": async (input) => {
+    const { data, error } = await supabase.from("pedidos_bodega_central").insert(input as any).select().single();
+    if (error) throw error;
+    return data;
+  },
+  "pedidos_bodega_central.update": async (input) => {
+    const { id, data: updateData } = input as any;
+    const { data, error } = await supabase.from("pedidos_bodega_central").update(updateData).eq("id", id).select().single();
+    if (error) throw error;
+    return data;
+  },
+  "pedidos_bodega_central.search": async (input) => {
+    const { incidente_id, estado } = input || {};
+    let query = supabase.from("pedidos_bodega_central").select("*");
+    if (incidente_id) query = query.eq("incidente_id", incidente_id);
+    if (estado) query = query.eq("estado", estado);
+    const { data, error } = await query.order("created_at", { ascending: false });
+    if (error) throw error;
+    return { results: data || [] };
+  },
+};
+
+// =============================================================================
 // DIAGNOSTICOS CRUD HANDLERS (implementar los que faltan)
 // =============================================================================
 const diagnosticosWriteHandlers: Record<string, ActionHandler<any>> = {
@@ -841,6 +932,10 @@ const handlers: Partial<Record<ActionName, ActionHandler<any>>> = {
   ...centrosSupervisorHandlers,
   ...solicitudesTransferenciaHandlers,
   ...userRolesHandlers,
+  ...repuestosRelacionesHandlers,
+  ...configuracionFifoHandlers,
+  ...mediaHandlers,
+  ...pedidosBodegaExtendedHandlers,
   ...diagnosticosWriteHandlers,
 };
 

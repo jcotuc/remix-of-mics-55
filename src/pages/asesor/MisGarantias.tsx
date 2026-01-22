@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import { apiBackendAction } from "@/lib/api-backend";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -16,7 +16,6 @@ import { PhotoGalleryWithDescriptions } from "@/components/shared";
 import { uploadMediaToStorage } from "@/lib/uploadMedia";
 import { MediaFile } from "@/components/features/media";
 
-// Type for garantias_manuales table (not yet in generated types)
 interface GarantiaManual {
   id: number;
   codigo_cliente: string;
@@ -75,15 +74,10 @@ export default function MisGarantias() {
   const fetchGarantias = async () => {
     try {
       setLoading(true);
-      // Using any cast because garantias_manuales types are not yet generated
-      const { data, error } = await (supabase as any)
-        .from("garantias_manuales")
-        .select("*")
-        .eq("created_by", user?.id)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      setGarantias(data || []);
+      const { results } = await apiBackendAction("garantias_manuales.list", { 
+        created_by: user?.id 
+      });
+      setGarantias((results || []) as GarantiaManual[]);
     } catch (error) {
       console.error("Error fetching garantías:", error);
       toast.error("Error al cargar garantías");
@@ -104,7 +98,7 @@ export default function MisGarantias() {
     }
 
     try {
-      // Upload photos if any
+      // Upload photos if any (storage upload still uses supabase directly - legitimate use)
       let fotosUrls: string[] = [];
       if (fotosGarantia.length > 0) {
         const mediaFiles: MediaFile[] = fotosGarantia.map(p => ({
@@ -118,21 +112,16 @@ export default function MisGarantias() {
         fotosUrls = uploadedMedia.map(m => m.url);
       }
 
-      // Using any cast because garantias_manuales types are not yet generated
-      const { error } = await (supabase as any)
-        .from("garantias_manuales")
-        .insert([{
-          codigo_cliente: codigoCliente,
-          sku_reportado: skuReportado,
-          descripcion_sku: descripcionSku,
-          cantidad_sku: cantidadSku,
-          descripcion_problema: descripcionProblema,
-          fotos_urls: fotosUrls,
-          created_by: user?.id,
-          estatus: "pendiente_resolucion"
-        }]);
-
-      if (error) throw error;
+      await apiBackendAction("garantias_manuales.create", {
+        codigo_cliente: codigoCliente,
+        sku_reportado: skuReportado,
+        descripcion_sku: descripcionSku,
+        cantidad_sku: cantidadSku,
+        descripcion_problema: descripcionProblema,
+        fotos_urls: fotosUrls,
+        created_by: user?.id,
+        estatus: "pendiente_resolucion"
+      });
 
       toast.success("Garantía creada exitosamente");
       setShowCreateDialog(false);
@@ -447,13 +436,13 @@ export default function MisGarantias() {
               {selectedGarantia.comentarios_logistica && (
                 <div className="bg-muted p-4 rounded-lg">
                   <Label className="text-muted-foreground">Comentarios de Logística</Label>
-                  <p className="font-medium mt-1">{selectedGarantia.comentarios_logistica}</p>
+                  <p className="font-medium whitespace-pre-wrap">{selectedGarantia.comentarios_logistica}</p>
                 </div>
               )}
               {selectedGarantia.numero_incidente && (
-                <div className="bg-primary/10 p-4 rounded-lg">
+                <div>
                   <Label className="text-muted-foreground">Número de Incidente</Label>
-                  <p className="font-medium font-mono mt-1">{selectedGarantia.numero_incidente}</p>
+                  <p className="font-medium font-mono">{selectedGarantia.numero_incidente}</p>
                 </div>
               )}
               {selectedGarantia.fotos_urls && selectedGarantia.fotos_urls.length > 0 && (
@@ -462,7 +451,7 @@ export default function MisGarantias() {
                   <div className="grid grid-cols-3 gap-2 mt-2">
                     {selectedGarantia.fotos_urls.map((url, idx) => (
                       <a key={idx} href={url} target="_blank" rel="noopener noreferrer">
-                        <img src={url} alt={`Foto ${idx + 1}`} className="rounded-lg object-cover aspect-square" />
+                        <img src={url} alt={`Foto ${idx + 1}`} className="rounded-lg object-cover h-24 w-full" />
                       </a>
                     ))}
                   </div>

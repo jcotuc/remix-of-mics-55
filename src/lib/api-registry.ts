@@ -579,6 +579,30 @@ export interface ActionRegistry {
   // USER ROLES
   // =============================================================================
   "user_roles.list": { input: { user_id?: number; role?: string }; output: { results: unknown[] } };
+
+  // =============================================================================
+  // REPUESTOS RELACIONES (padre/hijo relationships)
+  // =============================================================================
+  "repuestos_relaciones.list": { input: { limit?: number; offset?: number }; output: { results: unknown[] } };
+
+  // =============================================================================
+  // CONFIGURACION FIFO CENTRO (technician assignments)
+  // =============================================================================
+  "configuracion_fifo_centro.list": { input: { centro_servicio_id?: number; activo?: boolean }; output: { results: unknown[] } };
+  "configuracion_fifo_centro.create": { input: Record<string, unknown>; output: unknown };
+  "configuracion_fifo_centro.update": { input: { id: number; data: Record<string, unknown> }; output: unknown };
+  "configuracion_fifo_centro.delete": { input: { id: number }; output: { status: string; id: number } };
+
+  // =============================================================================
+  // MEDIA (incident photos/videos)
+  // =============================================================================
+  "media.list": { input: { incidente_id?: number }; output: { results: unknown[] } };
+  "media.create": { input: Record<string, unknown>; output: unknown };
+
+  // =============================================================================
+  // PEDIDOS BODEGA CENTRAL (extended operations)
+  // =============================================================================
+  "pedidos_bodega_central.search": { input: { incidente_id?: number; estado?: string }; output: { results: unknown[] } };
 }
 
 export type ActionName = keyof ActionRegistry;

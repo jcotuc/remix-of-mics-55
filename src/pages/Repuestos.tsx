@@ -1,16 +1,19 @@
 import { useState, useEffect, useMemo } from "react";
-import { Plus, Search, Edit, Trash2, Package, RefreshCw, Upload, GitBranch } from "lucide-react";
+import { Plus, Search, Edit, Trash2, Package, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { supabase } from "@/integrations/supabase/client";
+import { apiBackendAction } from "@/lib/api-backend";
 import { TablePagination } from "@/components/shared";
-import type { Database } from "@/integrations/supabase/types";
 
-type Producto = Database["public"]["Tables"]["productos"]["Row"];
+interface Producto {
+  id: number;
+  codigo: string;
+  descripcion?: string;
+}
 
 interface RepuestoExtendido {
   numero: string;
@@ -31,8 +34,6 @@ export default function Repuestos() {
   const [repuestosList, setRepuestosList] = useState<RepuestoExtendido[]>([]);
   const [productosList, setProductosList] = useState<Producto[]>([]);
   const [loading, setLoading] = useState(true);
-  const [importing, setImporting] = useState(false);
-  const [importingSustitutos, setImportingSustitutos] = useState(false);
   const [hijoPadreMap, setHijoPadreMap] = useState<Map<string, string>>(new Map());
   const [padreHijosMap, setPadreHijosMap] = useState<Map<string, string[]>>(new Map());
   const [currentPage, setCurrentPage] = useState(1);
@@ -51,27 +52,23 @@ export default function Repuestos() {
     try {
       setLoading(true);
       
+      // Fetch all relaciones in batches using apiBackendAction
       let allRelaciones: any[] = [];
-      let relFrom = 0;
+      let relOffset = 0;
       const relPageSize = 1000;
       
       while (true) {
-        const { data: relacionesData, error: relacionesError } = await supabase
-          .from('repuestos_relaciones')
-          .select('*')
-          .range(relFrom, relFrom + relPageSize - 1);
-
-        if (relacionesError) {
-          console.error('Error fetching relaciones:', relacionesError);
-          break;
-        }
+        const { results: relacionesData } = await apiBackendAction("repuestos_relaciones.list", { 
+          limit: relPageSize, 
+          offset: relOffset 
+        });
 
         if (!relacionesData || relacionesData.length === 0) break;
         
         allRelaciones = [...allRelaciones, ...relacionesData];
         
         if (relacionesData.length < relPageSize) break;
-        relFrom += relPageSize;
+        relOffset += relPageSize;
       }
       
       console.log('Total relaciones cargadas:', allRelaciones.length);
@@ -95,55 +92,26 @@ export default function Repuestos() {
       setHijoPadreMap(newHijoPadreMap);
       setPadreHijosMap(newPadreHijosMap);
       
-      let allRepuestos: any[] = [];
-      let from = 0;
-      const pageSize = 1000;
-      
-      while (true) {
-        const { data: repuestosData, error: repuestosError } = await supabase
-          .from('repuestos')
-          .select('*')
-          .order('codigo')
-          .range(from, from + pageSize - 1);
+      // Fetch repuestos using existing handler
+      const { results: repuestosData } = await apiBackendAction("repuestos.list", {});
 
-        if (repuestosError) {
-          console.error('Error fetching repuestos:', repuestosError);
-          return;
-        }
-
-        if (!repuestosData || repuestosData.length === 0) break;
-        
-        allRepuestos = [...allRepuestos, ...repuestosData];
-        
-        if (repuestosData.length < pageSize) break;
-        from += pageSize;
-      }
-
-      const { data: productosData, error: productosError } = await supabase
-        .from('productos')
-        .select('*')
-        .order('descripcion');
-
-      if (productosError) {
-        console.error('Error fetching productos:', productosError);
-        return;
-      }
+      // Fetch productos using apiBackendAction
+      const { results: productosData } = await apiBackendAction("productos.list", { limit: 2000 });
 
       const codigosHijo = new Set(newHijoPadreMap.keys());
       
       // Create a map of producto id -> producto for quick lookup
       const productosMap = new Map<string, any>();
       productosData?.forEach((p: any) => {
-        productosMap.set(p.id, p);
-        productosMap.set(p.codigo, p); // Also map by codigo for backward compatibility
+        productosMap.set(String(p.id), p);
+        productosMap.set(p.codigo, p);
       });
 
-      const transformedRepuestos: RepuestoExtendido[] = allRepuestos
+      const transformedRepuestos: RepuestoExtendido[] = (repuestosData || [])
         .filter((r: any) => !codigosHijo.has(r.codigo))
         .map((r: any) => {
-          // Use producto_id if available, fallback to codigo_producto
           const producto = r.producto_id 
-            ? productosMap.get(r.producto_id)
+            ? productosMap.get(String(r.producto_id))
             : productosMap.get(r.codigo_producto);
           
           return {
@@ -203,7 +171,7 @@ export default function Repuestos() {
 
   const getProductDescription = (codigoProducto: string) => {
     const producto = productosList.find(p => p.codigo === codigoProducto);
-    return producto ? producto.descripcion : "Producto no encontrado";
+    return producto?.descripcion || "Producto no encontrado";
   };
 
   if (loading) {

@@ -75,53 +75,46 @@ export default function PendientesRepuestos() {
       const clientesMap = new Map(clientesResult.results.map(c => [c.id, c]));
       const productosMap = new Map(productosResult.results.map(p => [p.id, p]));
 
-      // Fetch existing pedidos for these incidentes
-      const { data: pedidosData } = await supabase
-        .from("pedidos_bodega_central")
-        .select("id, incidente_id, estado, created_at")
-        .in("incidente_id", incidenteIds);
+      // Fetch existing pedidos for these incidentes using apiBackendAction
+      const pedidosSearchResults = await Promise.all(
+        incidenteIds.map(id => apiBackendAction("pedidos_bodega_central.search", { incidente_id: id }))
+      );
+      const pedidosData = pedidosSearchResults.flatMap(r => r.results || []);
 
       const pedidosMap = new Map(
-        (pedidosData || []).map(p => [p.incidente_id, { id: p.id, estado: p.estado, created_at: p.created_at }])
+        (pedidosData || []).map((p: any) => [p.incidente_id, { id: p.id, estado: p.estado, created_at: p.created_at }])
       );
 
-      // Fetch solicitudes_repuestos
-      const { data: solicitudesData } = await supabase
-        .from("solicitudes_repuestos")
-        .select("*")
-        .in("incidente_id", incidenteIds);
+      // Fetch solicitudes_repuestos using apiBackendAction
+      const solicitudesResult = await apiBackendAction("solicitudes_repuestos.list", {});
+      const solicitudesData = (solicitudesResult as any).data || (solicitudesResult as any).results || [];
 
-      const solicitudesMap = new Map<number, SolicitudRepuestoDB[]>();
-      (solicitudesData || []).forEach(sol => {
-        const existing = solicitudesMap.get(sol.incidente_id) || [];
-        existing.push(sol);
-        solicitudesMap.set(sol.incidente_id, existing);
+      const solicitudesMap = new Map<number, any[]>();
+      (solicitudesData || []).forEach((sol: any) => {
+        if (incidenteIds.includes(sol.incidente_id)) {
+          const existing = solicitudesMap.get(sol.incidente_id) || [];
+          existing.push(sol);
+          solicitudesMap.set(sol.incidente_id, existing);
+        }
       });
 
-      // Fetch technician names from incidente_tecnico junction
-      const { data: asignaciones } = await supabase
-        .from("incidente_tecnico")
-        .select("incidente_id, tecnico_id")
-        .in("incidente_id", incidenteIds)
-        .eq("es_principal", true);
+      // Fetch technician names using apiBackendAction
+      const { results: asignaciones } = await apiBackendAction("incidente_tecnico.list", { es_principal: true });
+      const filteredAsignaciones = (asignaciones as any[]).filter(a => incidenteIds.includes(a.incidente_id));
 
-      const tecnicoIds = [...new Set((asignaciones || []).map(a => a.tecnico_id).filter(Boolean))] as number[];
+      const tecnicoIds = [...new Set(filteredAsignaciones.map(a => a.tecnico_id).filter(Boolean))] as number[];
       
       let tecnicosMap = new Map<number, { nombre: string; apellido: string | null }>();
       if (tecnicoIds.length > 0) {
-        const { data: usuariosData } = await supabase
-          .from("usuarios")
-          .select("id, nombre, apellido")
-          .in("id", tecnicoIds);
-
-        tecnicosMap = new Map(
-          (usuariosData || []).map(u => [u.id, { nombre: u.nombre, apellido: u.apellido }])
-        );
+        const { results: usuariosData } = await apiBackendAction("usuarios.list", {});
+        (usuariosData as any[]).filter(u => tecnicoIds.includes(u.id)).forEach(u => {
+          tecnicosMap.set(u.id, { nombre: u.nombre, apellido: u.apellido });
+        });
       }
 
       // Map asignaciones to incidentes
       const asignacionesMap = new Map(
-        (asignaciones || []).map(a => [a.incidente_id, a.tecnico_id])
+        filteredAsignaciones.map(a => [a.incidente_id, a.tecnico_id])
       );
 
       const formattedData: IncidentePendiente[] = data.map(item => {

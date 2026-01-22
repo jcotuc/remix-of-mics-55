@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { apiBackendAction } from "@/lib/api-backend";
 import { toast } from "sonner";
 import { Search, Eye, Edit, Users, Truck, Phone, Mail, MapPin, Home, X, Filter } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -11,9 +11,23 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { OutlinedInput, OutlinedTextarea, OutlinedSelect } from "@/components/ui/outlined-input";
 import { TablePagination } from "@/components/shared";
-import type { Database } from "@/integrations/supabase/types";
 
-type ClienteRow = Database['public']['Tables']['clientes']['Row'];
+interface ClienteRow {
+  id: number;
+  codigo: string;
+  nombre: string;
+  nit: string | null;
+  celular: string | null;
+  correo: string | null;
+  direccion: string | null;
+  direccion_envio: string | null;
+  departamento: string | null;
+  municipio: string | null;
+  telefono_principal: string | null;
+  telefono_secundario: string | null;
+  nombre_facturacion: string | null;
+  created_at: string | null;
+}
 
 interface Filtros {
   conTelefono: boolean;
@@ -96,18 +110,12 @@ export default function ClientesUnificado({
 
   const fetchCounts = async () => {
     try {
-      const { count: mostradorCount } = await supabase
-        .from("clientes")
-        .select("*", { count: "exact", head: true })
-        .like("codigo", "HPS-%");
-      setTotalMostrador(mostradorCount || 0);
-
-      const { count: logisticaCount } = await supabase
-        .from("clientes")
-        .select("*", { count: "exact", head: true })
-        .like("codigo", "HPC%")
-        .not("codigo", "like", "HPC-%");
-      setTotalLogistica(logisticaCount || 0);
+      // Fetch all clients and count locally
+      const { results } = await apiBackendAction("clientes.list", { limit: 50000 });
+      const mostradorCount = results.filter((c: any) => c.codigo?.startsWith("HPS-")).length;
+      const logisticaCount = results.filter((c: any) => c.codigo?.startsWith("HPC") && !c.codigo?.startsWith("HPC-")).length;
+      setTotalMostrador(mostradorCount);
+      setTotalLogistica(logisticaCount);
     } catch (error) {
       console.error("Error fetching counts:", error);
     }
@@ -116,50 +124,61 @@ export default function ClientesUnificado({
   const fetchClientes = async () => {
     setLoading(true);
     try {
-      const from = (currentPage - 1) * itemsPerPage;
-      const to = from + itemsPerPage - 1;
-
-      let query = supabase.from("clientes").select("*", { count: "exact" });
+      // Fetch all clients and filter locally (server-side filtering not supported via apiBackendAction)
+      const { results: allClientes } = await apiBackendAction("clientes.list", { limit: 50000 });
       
-      if (activeTab === 'mostrador') {
-        query = query.like("codigo", "HPS-%");
-      } else {
-        query = query.like("codigo", "HPC%").not("codigo", "like", "HPC-%");
-      }
+      // Filter by tab
+      let filtered = (allClientes as ClienteRow[]).filter(c => {
+        if (activeTab === 'mostrador') {
+          return c.codigo?.startsWith("HPS-");
+        } else {
+          return c.codigo?.startsWith("HPC") && !c.codigo?.startsWith("HPC-");
+        }
+      });
 
+      // Search filter
       if (debouncedSearch) {
-        query = query.or(`codigo.ilike.%${debouncedSearch}%,nombre.ilike.%${debouncedSearch}%,nit.ilike.%${debouncedSearch}%,celular.ilike.%${debouncedSearch}%`);
+        const search = debouncedSearch.toLowerCase();
+        filtered = filtered.filter(c => 
+          c.codigo?.toLowerCase().includes(search) ||
+          c.nombre?.toLowerCase().includes(search) ||
+          c.nit?.toLowerCase().includes(search) ||
+          c.celular?.toLowerCase().includes(search)
+        );
       }
 
+      // Apply boolean filters
       if (filtros.conTelefono) {
-        query = query.or('celular.neq.,telefono_principal.neq.');
+        filtered = filtered.filter(c => c.celular || c.telefono_principal);
       }
       if (filtros.conCorreo) {
-        query = query.not('correo', 'is', null).neq('correo', '');
+        filtered = filtered.filter(c => c.correo && c.correo !== '');
       }
       if (filtros.conUbicacion) {
-        query = query.or('departamento.neq.,municipio.neq.');
+        filtered = filtered.filter(c => c.departamento || c.municipio);
       }
       if (filtros.conDireccion) {
-        query = query.or('direccion.neq.,direccion_envio.neq.');
+        filtered = filtered.filter(c => c.direccion || c.direccion_envio);
       }
 
+      // Sort
       if (activeTab === 'mostrador') {
-        query = query.order("created_at", { ascending: false });
+        filtered.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
       } else {
-        query = query.order("nombre", { ascending: true });
+        filtered.sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
       }
 
-      const { data, count, error } = await query.range(from, to);
-      
-      if (error) throw error;
+      setTotalFiltered(filtered.length);
+
+      // Paginate
+      const from = (currentPage - 1) * itemsPerPage;
+      const paginated = filtered.slice(from, from + itemsPerPage);
       
       if (activeTab === 'mostrador') {
-        setClientesMostrador(data || []);
+        setClientesMostrador(paginated);
       } else {
-        setClientesLogistica(data || []);
+        setClientesLogistica(paginated);
       }
-      setTotalFiltered(count || 0);
     } catch (error) {
       console.error("Error fetching clients:", error);
       toast.error("Error al cargar los clientes");
@@ -188,23 +207,20 @@ export default function ClientesUnificado({
     if (!editingCliente) return;
     setIsSaving(true);
     try {
-      const { error } = await supabase
-        .from("clientes")
-        .update({
+      await apiBackendAction("clientes.update", {
+        id: editingCliente.id,
+        data: {
           nombre: editingCliente.nombre,
           nit: editingCliente.nit,
           celular: editingCliente.celular,
           correo: editingCliente.correo,
           direccion: editingCliente.direccion,
-          direccion_envio: editingCliente.direccion_envio,
           departamento: editingCliente.departamento,
           municipio: editingCliente.municipio,
           telefono_principal: editingCliente.telefono_principal,
-          telefono_secundario: editingCliente.telefono_secundario,
-          nombre_facturacion: editingCliente.nombre_facturacion
-        })
-        .eq("id", editingCliente.id);
-      if (error) throw error;
+          telefono_secundario: editingCliente.telefono_secundario
+        }
+      });
       toast.success("Cliente actualizado correctamente");
       setIsEditDialogOpen(false);
       setEditingCliente(null);
@@ -225,11 +241,7 @@ export default function ClientesUnificado({
   const handleDelete = async () => {
     if (!deletingCliente) return;
     try {
-      const { error } = await supabase
-        .from("clientes")
-        .delete()
-        .eq("id", deletingCliente.id);
-      if (error) throw error;
+      await apiBackendAction("clientes.delete", { id: deletingCliente.id });
       toast.success("Cliente eliminado correctamente");
       setIsDeleteDialogOpen(false);
       setDeletingCliente(null);
@@ -440,13 +452,13 @@ export default function ClientesUnificado({
                           </div>
                         </TableCell>
                         <TableCell>
-                          {(cliente.departamento || cliente.municipio) ? (
-                            <div className="flex items-center gap-1 text-sm">
-                              <MapPin className="h-3 w-3 text-muted-foreground" />
-                              {[cliente.municipio, cliente.departamento].filter(Boolean).join(', ')}
+                          {(cliente.departamento || cliente.municipio) && (
+                            <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                              <MapPin className="h-3 w-3" />
+                              <span className="truncate max-w-[150px]">
+                                {[cliente.municipio, cliente.departamento].filter(Boolean).join(", ")}
+                              </span>
                             </div>
-                          ) : (
-                            <span className="text-muted-foreground text-sm">-</span>
                           )}
                         </TableCell>
                         <TableCell className="text-right">
@@ -467,98 +479,82 @@ export default function ClientesUnificado({
             )}
           </TabsContent>
 
-          {totalPages > 1 && (
-            <div className="mt-4">
-            <TablePagination
-              totalItems={totalFiltered}
-                currentPage={currentPage}
-                totalPages={totalPages}
-                onPageChange={setCurrentPage}
-                itemsPerPage={itemsPerPage}
-                onItemsPerPageChange={setItemsPerPage}
-              />
-            </div>
-          )}
+          <TablePagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={totalFiltered}
+            itemsPerPage={itemsPerPage}
+            onPageChange={setCurrentPage}
+            onItemsPerPageChange={(val) => {
+              setItemsPerPage(val);
+              setCurrentPage(1);
+            }}
+          />
         </Tabs>
       </div>
 
       {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Editar Cliente</DialogTitle>
           </DialogHeader>
           {editingCliente && (
-            <div className="grid grid-cols-2 gap-4">
-              <OutlinedInput
-                label="Nombre"
-                value={editingCliente.nombre}
-                onChange={e => setEditingCliente({ ...editingCliente, nombre: e.target.value })}
+            <div className="space-y-4 py-4">
+              <OutlinedInput 
+                label="Nombre" 
+                value={editingCliente.nombre} 
+                onChange={e => setEditingCliente({ ...editingCliente, nombre: e.target.value })} 
               />
-              <OutlinedInput
-                label="NIT"
-                value={editingCliente.nit || ''}
-                onChange={e => setEditingCliente({ ...editingCliente, nit: e.target.value })}
+              <OutlinedInput 
+                label="NIT" 
+                value={editingCliente.nit || ""} 
+                onChange={e => setEditingCliente({ ...editingCliente, nit: e.target.value })} 
               />
-              <OutlinedInput
-                label="Celular"
-                value={editingCliente.celular || ''}
-                onChange={e => setEditingCliente({ ...editingCliente, celular: e.target.value })}
+              <OutlinedInput 
+                label="Celular" 
+                value={editingCliente.celular || ""} 
+                onChange={e => setEditingCliente({ ...editingCliente, celular: e.target.value })} 
               />
-              <OutlinedInput
-                label="Correo"
-                value={editingCliente.correo || ''}
-                onChange={e => setEditingCliente({ ...editingCliente, correo: e.target.value })}
+              <OutlinedInput 
+                label="Correo" 
+                value={editingCliente.correo || ""} 
+                onChange={e => setEditingCliente({ ...editingCliente, correo: e.target.value })} 
               />
-              <OutlinedInput
-                label="Teléfono Principal"
-                value={editingCliente.telefono_principal || ''}
-                onChange={e => setEditingCliente({ ...editingCliente, telefono_principal: e.target.value })}
+              <OutlinedInput 
+                label="Dirección" 
+                value={editingCliente.direccion || ""} 
+                onChange={e => setEditingCliente({ ...editingCliente, direccion: e.target.value })} 
               />
-              <OutlinedInput
-                label="Teléfono Secundario"
-                value={editingCliente.telefono_secundario || ''}
-                onChange={e => setEditingCliente({ ...editingCliente, telefono_secundario: e.target.value })}
+              <OutlinedInput 
+                label="Dirección de Envío" 
+                value={editingCliente.direccion_envio || ""} 
+                onChange={e => setEditingCliente({ ...editingCliente, direccion_envio: e.target.value })} 
               />
-              <OutlinedInput
-                label="Dirección"
-                value={editingCliente.direccion || ''}
-                onChange={e => setEditingCliente({ ...editingCliente, direccion: e.target.value })}
-              />
-              <OutlinedInput
-                label="Dirección de Envío"
-                value={editingCliente.direccion_envio || ''}
-                onChange={e => setEditingCliente({ ...editingCliente, direccion_envio: e.target.value })}
-              />
-              <OutlinedInput
-                label="Departamento"
-                value={editingCliente.departamento || ''}
-                onChange={e => setEditingCliente({ ...editingCliente, departamento: e.target.value })}
-              />
-              <OutlinedInput
-                label="Municipio"
-                value={editingCliente.municipio || ''}
-                onChange={e => setEditingCliente({ ...editingCliente, municipio: e.target.value })}
-              />
-              <OutlinedInput
-                label="Nombre Facturación"
-                value={editingCliente.nombre_facturacion || ''}
-                onChange={e => setEditingCliente({ ...editingCliente, nombre_facturacion: e.target.value })}
-              />
+              <div className="grid grid-cols-2 gap-4">
+                <OutlinedInput 
+                  label="Departamento" 
+                  value={editingCliente.departamento || ""} 
+                  onChange={e => setEditingCliente({ ...editingCliente, departamento: e.target.value })} 
+                />
+                <OutlinedInput 
+                  label="Municipio" 
+                  value={editingCliente.municipio || ""} 
+                  onChange={e => setEditingCliente({ ...editingCliente, municipio: e.target.value })} 
+                />
+              </div>
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
-              Cancelar
-            </Button>
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancelar</Button>
             <Button onClick={handleSaveEdit} disabled={isSaving}>
-              {isSaving ? "Guardando..." : "Guardar"}
+              {isSaving ? "Guardando..." : "Guardar Cambios"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation */}
+      {/* Delete Dialog */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -569,7 +565,7 @@ export default function ClientesUnificado({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
               Eliminar
             </AlertDialogAction>
           </AlertDialogFooter>
