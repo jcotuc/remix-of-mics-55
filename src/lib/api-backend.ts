@@ -1011,19 +1011,20 @@ const inventarioGeneralHandlers: Record<string, ActionHandler<any>> = {
 // =============================================================================
 const cdsHandlers: Record<string, ActionHandler<any>> = {
   "cds_fallas.list": async () => {
-    const { data, error } = await (supabase as any).from("CDS_Fallas").select("id, nombre, familia_id").order("nombre");
+    const { data, error } = await supabase.from("fallas").select("id, nombre, familia_id").order("nombre");
     if (error) throw error;
     return { results: data || [] };
   },
   "cds_causas.list": async () => {
-    const { data, error } = await (supabase as any).from("CDS_Causas").select("id, nombre, familia_id").order("nombre");
+    const { data, error } = await supabase.from("causas").select("id, nombre, familia_id").order("nombre");
     if (error) throw error;
     return { results: data || [] };
   },
   "cds_familias.list": async () => {
-    const { data, error } = await (supabase as any).from("CDS_Familias").select("id, Categoria, Padre");
+    const { data, error } = await supabase.from("familias_producto").select("id, nombre, parent_id");
     if (error) throw error;
-    return { results: data || [] };
+    // Map to expected format for compatibility
+    return { results: (data || []).map((f: any) => ({ id: f.id, Categoria: f.nombre, Padre: f.parent_id })) };
   },
 };
 
