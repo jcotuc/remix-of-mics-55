@@ -3,7 +3,13 @@ import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Wrench, Eye, Plus, Loader2 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Wrench, Eye, Plus, Loader2, Clock, FileText } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useActiveIncidents, MAX_ASSIGNMENTS } from "@/contexts/ActiveIncidentsContext";
@@ -82,6 +88,8 @@ export default function Asignaciones() {
   const [centroServicioNombre, setCentroServicioNombre] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [loadingConfig, setLoadingConfig] = useState(true);
+  const [selectedGrupo, setSelectedGrupo] = useState<GrupoColaFifo | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   // Cargar centro de servicio del usuario y configuración de grupos
   useEffect(() => {
@@ -463,7 +471,8 @@ export default function Asignaciones() {
                     className="absolute top-2 right-2 h-6 w-6 opacity-60 hover:opacity-100"
                     onClick={(e) => {
                       e.stopPropagation();
-                      navigate(`/taller/cola/${grupo.id}`);
+                      setSelectedGrupo(grupo);
+                      setDialogOpen(true);
                     }}
                   >
                     <Eye className="h-4 w-4" />
@@ -497,7 +506,8 @@ export default function Asignaciones() {
                       className="h-6 w-6 opacity-60 hover:opacity-100"
                       onClick={(e) => {
                         e.stopPropagation();
-                        navigate(`/taller/cola/${grupo.id}`);
+                        setSelectedGrupo(grupo);
+                        setDialogOpen(true);
                       }}
                     >
                       <Plus className="h-4 w-4" />
@@ -509,6 +519,78 @@ export default function Asignaciones() {
           })}
         </div>
       )}
+
+      {/* Dialog para ver incidentes de un grupo */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Wrench className="h-5 w-5" />
+              {selectedGrupo?.nombre} - Incidentes en cola
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 mt-4">
+            {selectedGrupo && getIncidentesPorGrupo(selectedGrupo).length === 0 ? (
+              <p className="text-muted-foreground text-center py-4">
+                No hay incidentes pendientes en esta cola
+              </p>
+            ) : (
+              selectedGrupo &&
+              getIncidentesPorGrupo(selectedGrupo).map((inc, index) => {
+                const dias = inc.created_at
+                  ? Math.floor(
+                      (Date.now() - new Date(inc.created_at).getTime()) / (1000 * 60 * 60 * 24)
+                    )
+                  : 0;
+                const esPrimero = index === 0;
+
+                return (
+                  <div
+                    key={inc.id}
+                    className={`p-3 rounded-lg border flex items-center justify-between ${
+                      esPrimero
+                        ? "bg-primary/10 border-primary/30"
+                        : "bg-muted/50 border-border"
+                    }`}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                        <span className="font-medium text-sm truncate">{inc.codigo}</span>
+                        {esPrimero && (
+                          <Badge variant="default" className="text-xs shrink-0">
+                            Siguiente
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1 line-clamp-1">
+                        {inc.descripcion_problema || "Sin descripción"}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 ml-2 shrink-0">
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Clock className="h-3 w-3" />
+                        {dias}d
+                      </div>
+                      {esPrimero && canTakeMoreAssignments && (
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            setDialogOpen(false);
+                            handleAsignarPrimero(selectedGrupo);
+                          }}
+                        >
+                          Asignarme
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
