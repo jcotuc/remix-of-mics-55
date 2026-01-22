@@ -438,80 +438,65 @@ export default function Asignaciones() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-3 sm:gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
           {grupos.map((grupo) => {
             const incidentesGrupo = getIncidentesPorGrupo(grupo);
             const count = incidentesGrupo.length;
             const hasItems = count > 0;
-            const color = grupo.color || "orange";
-            const fondoClass = hasItems
-              ? COLORES_FONDO[color] || COLORES_FONDO.orange
-              : "bg-muted/50 border-border hover:bg-muted";
-            const textoClass = hasItems
-              ? COLORES_TEXTO[color] || COLORES_TEXTO.orange
-              : "text-muted-foreground";
-            const badgeClass = hasItems
-              ? COLORES_BADGE[color] || COLORES_BADGE.orange
-              : "bg-muted text-muted-foreground";
-            const familiasStr = getFamiliasNombres(grupo);
 
             return (
               <Card
                 key={grupo.id}
-                className={`cursor-pointer transition-all border-2 ${fondoClass} ${
-                  hasItems ? "shadow-md" : ""
+                className={`relative overflow-hidden transition-all ${
+                  hasItems
+                    ? "bg-green-50 border-l-4 border-l-green-500 border-green-200"
+                    : "bg-white border border-gray-200"
                 }`}
-                onClick={() => hasItems && handleAsignarPrimero(grupo)}
               >
-                <CardContent className="p-4 space-y-2 relative">
-                  {/* Eye icon */}
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="absolute top-2 right-2 h-6 w-6 opacity-60 hover:opacity-100"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSelectedGrupo(grupo);
-                      setDialogOpen(true);
-                    }}
-                  >
-                    <Eye className="h-4 w-4" />
-                  </Button>
-
-                  {/* Group name */}
-                  <h3 className="font-semibold text-foreground pr-6">{grupo.nombre}</h3>
-
-                  {/* Familias subtitle */}
-                  {familiasStr && (
-                    <p className="text-xs text-muted-foreground line-clamp-1">{familiasStr}</p>
-                  )}
-
-                  {/* Action link */}
-                  {hasItems ? (
-                    <p className={`text-sm font-medium ${textoClass}`}>Toca para asignarme</p>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">0 en cola</p>
-                  )}
-
-                  {/* Bottom row: badge + plus button */}
-                  <div className="flex items-center justify-between pt-1">
-                    {hasItems ? (
-                      <Badge className={`text-xs ${badgeClass}`}>{count} en cola</Badge>
-                    ) : (
-                      <span />
+                <CardContent className="p-4">
+                  {/* Header with name and eye icon */}
+                  <div className="flex items-center justify-between mb-1">
+                    <h3 className={`font-semibold text-base ${hasItems ? "text-gray-800" : "text-gray-500"}`}>
+                      {grupo.nombre}
+                    </h3>
+                    {hasItems && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 text-green-600 hover:text-green-700 hover:bg-green-100"
+                        onClick={() => {
+                          setSelectedGrupo(grupo);
+                          setDialogOpen(true);
+                        }}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
                     )}
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6 opacity-60 hover:opacity-100"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedGrupo(grupo);
-                        setDialogOpen(true);
-                      }}
+                  </div>
+
+                  {/* Toca para asignarme text */}
+                  {hasItems && (
+                    <p className="text-xs text-green-600 mb-3">Toca para asignarme</p>
+                  )}
+
+                  {/* Queue count badge and plus button */}
+                  <div className="flex items-center justify-between">
+                    <span
+                      className={`text-xs px-2 py-1 rounded-full ${
+                        hasItems ? "bg-green-500 text-white font-medium" : "text-gray-400"
+                      }`}
                     >
-                      <Plus className="h-4 w-4" />
-                    </Button>
+                      {count} en cola
+                    </span>
+                    {hasItems && (
+                      <Button
+                        size="icon"
+                        className="h-6 w-6 bg-green-500 hover:bg-green-600 text-white rounded-full"
+                        onClick={() => handleAsignarPrimero(grupo)}
+                      >
+                        <Plus className="h-3 w-3" />
+                      </Button>
+                    )}
                   </div>
                 </CardContent>
               </Card>
