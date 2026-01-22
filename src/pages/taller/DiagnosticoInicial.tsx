@@ -1170,6 +1170,34 @@ export default function DiagnosticoInicial() {
       const { error: incidenteError } = await (supabase as any).from("incidentes").update(updateData).eq("id", Number(id));
       if (incidenteError) throw incidenteError;
 
+      // Si necesita repuestos, crear la solicitud de repuestos
+      if (necesitaRepuestos && repuestosSolicitados.length > 0) {
+        const repuestosData = repuestosSolicitados.map(r => ({
+          codigo: r.codigo,
+          descripcion: r.descripcion,
+          cantidad: r.cantidad,
+          ubicacion: r.ubicacion || null
+        }));
+
+        const solicitudData = {
+          incidente_id: Number(id),
+          tecnico_solicitante_id: usuario.id,
+          estado: "PENDIENTE",
+          repuestos: repuestosData,
+          tipo_resolucion: tipoResolucionEnum,
+          notas: observaciones || null
+        };
+
+        const { error: solicitudError } = await (supabase as any)
+          .from("solicitudes_repuestos")
+          .insert(solicitudData);
+        
+        if (solicitudError) {
+          console.warn("Error al crear solicitud de repuestos:", solicitudError);
+          // No lanzamos error aquí para no bloquear el flujo principal
+        }
+      }
+
       // Si es Nota de Crédito, crear solicitud de cambio para aprobación
       if (tipoResolucion === "Nota de Crédito" && user) {
         // Get user profile for name
