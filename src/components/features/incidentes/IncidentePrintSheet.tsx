@@ -20,6 +20,7 @@ interface IncidentePrintData {
   tipologia: string;
   esReingreso: boolean;
   coberturaGarantia?: boolean;
+  firmaClienteDataUrl?: string;
 }
 
 interface Props {
@@ -285,6 +286,32 @@ const IncidentePrintSheet = forwardRef<HTMLDivElement, Props>(({ data }, ref) =>
             <p className="mb-0.5">• No cubre daños por mal uso, accidentes o variaciones de voltaje.</p>
             <p className="mb-0.5">• Presupuestos vigentes por 15 días.</p>
             <p className="mb-0.5">• Reporte extravío de contraseña inmediatamente.</p>
+          </div>
+        </div>
+
+        {/* Firma Digital del Cliente */}
+        <div className="p-2 border-t border-gray-300 bg-gray-50">
+          <p className="text-[8px] text-gray-500 mb-2">Autorizo el diagnóstico/reparación y acepto los términos y condiciones.</p>
+          <div className="flex justify-around items-end">
+            <div className="text-center">
+              {data.firmaClienteDataUrl ? (
+                <div className="border border-gray-300 rounded bg-white p-1 mb-1">
+                  <img 
+                    src={data.firmaClienteDataUrl} 
+                    alt="Firma del cliente" 
+                    className="h-12 w-32 object-contain"
+                  />
+                </div>
+              ) : (
+                <div className="border-b-2 border-black h-12 w-32 mb-1"></div>
+              )}
+              <p className="text-[8px] font-bold">FIRMA CLIENTE</p>
+              <p className="text-[7px] text-gray-500">Entrega de equipo</p>
+            </div>
+            <div className="text-center text-[8px] text-gray-500">
+              <p className="font-bold">{fechaFormateada}</p>
+              <p>{horaFormateada}</p>
+            </div>
           </div>
         </div>
 
