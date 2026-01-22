@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, PackageCheck, User, Calendar, FileSignature, FileCheck, Printer, Wrench, X } from "lucide-react";
+import { ArrowLeft, PackageCheck, User, Calendar, FileSignature, FileCheck, Printer, Wrench, X, Phone, Mail, MapPin, FileText } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -26,6 +26,8 @@ type IncidenteData = {
   aplica_garantia: boolean | null;
   observaciones: string | null;
   tracking_token?: string;
+  fecha_ingreso?: string | null;
+  descripcion_problema?: string | null;
 };
 
 type ClienteData = {
@@ -33,6 +35,10 @@ type ClienteData = {
   codigo: string;
   nombre: string;
   celular?: string | null;
+  nit?: string | null;
+  correo?: string | null;
+  direccion?: string | null;
+  telefono_principal?: string | null;
 };
 
 type DiagnosticoData = {
@@ -121,16 +127,24 @@ export default function DetalleEntrega() {
         quiere_envio: incidenteData.quiere_envio,
         aplica_garantia: incidenteData.aplica_garantia,
         observaciones: incidenteData.observaciones,
+        tracking_token: incidenteData.tracking_token,
+        fecha_ingreso: (incidenteData as any).fecha_ingreso || incidenteData.created_at,
+        descripcion_problema: incidenteData.descripcion_problema,
       };
       setIncidente(incidenteMapped);
 
       // Extract cliente from incidente response
       if (incidenteData.cliente) {
+        const c = incidenteData.cliente as any;
         setCliente({
-          id: (incidenteData.cliente as any).id,
-          codigo: (incidenteData.cliente as any).codigo,
-          nombre: (incidenteData.cliente as any).nombre,
-          celular: (incidenteData.cliente as any).celular,
+          id: c.id,
+          codigo: c.codigo,
+          nombre: c.nombre,
+          celular: c.celular,
+          nit: c.nit,
+          correo: c.correo,
+          direccion: c.direccion,
+          telefono_principal: c.telefono_principal,
         });
       }
 
@@ -407,7 +421,7 @@ export default function DetalleEntrega() {
           {/* Incidente Info Card */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2 text-primary">
                 <PackageCheck className="h-5 w-5" />
                 Información del Incidente
               </CardTitle>
@@ -415,18 +429,36 @@ export default function DetalleEntrega() {
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-muted-foreground">Código</Label>
-                  <p className="font-medium">{incidente.codigo}</p>
+                  <Label className="text-xs text-muted-foreground">Código Incidente</Label>
+                  <p className="font-semibold text-lg">{incidente.codigo}</p>
                 </div>
                 <div>
-                  <Label className="text-muted-foreground">Estado</Label>
-                  <StatusBadge status={incidente.estado} />
+                  <Label className="text-xs text-muted-foreground">Estado</Label>
+                  <div className="mt-1">
+                    <StatusBadge status={incidente.estado} />
+                  </div>
                 </div>
               </div>
-              {productoInfo && (
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-muted-foreground">Producto</Label>
-                  <p className="font-medium">{productoInfo.descripcion}</p>
+                  <Label className="text-xs text-muted-foreground">Código Producto</Label>
+                  <p className="font-medium">{productoInfo?.sku || productoInfo?.descripcion || "N/A"}</p>
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Calendar className="h-3 w-3" /> Fecha Ingreso
+                  </Label>
+                  <p className="font-medium">
+                    {incidente.fecha_ingreso
+                      ? new Date(incidente.fecha_ingreso).toLocaleDateString("es-GT", { day: "2-digit", month: "2-digit", year: "numeric" })
+                      : "N/A"}
+                  </p>
+                </div>
+              </div>
+              {incidente.descripcion_problema && (
+                <div>
+                  <Label className="text-xs text-muted-foreground">Descripción del Problema</Label>
+                  <p className="text-sm mt-1 bg-muted/30 p-2 rounded">{incidente.descripcion_problema}</p>
                 </div>
               )}
             </CardContent>
@@ -435,7 +467,7 @@ export default function DetalleEntrega() {
           {/* Cliente Info Card */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2 text-primary">
                 <User className="h-5 w-5" />
                 Información del Cliente
               </CardTitle>
@@ -443,60 +475,113 @@ export default function DetalleEntrega() {
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-muted-foreground">Código</Label>
-                  <p className="font-medium">{cliente.codigo}</p>
+                  <Label className="text-xs text-muted-foreground">Nombre</Label>
+                  <p className="font-semibold">{cliente.nombre}</p>
                 </div>
                 <div>
-                  <Label className="text-muted-foreground">Nombre</Label>
-                  <p className="font-medium">{cliente.nombre}</p>
+                  <Label className="text-xs text-muted-foreground">NIT</Label>
+                  <p className="font-medium">{cliente.nit || "C/F"}</p>
                 </div>
               </div>
-              {cliente.celular && (
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-muted-foreground">Teléfono</Label>
-                  <p className="font-medium">{cliente.celular}</p>
+                  <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Phone className="h-3 w-3" /> Teléfono
+                  </Label>
+                  <p className="font-medium">{cliente.celular || cliente.telefono_principal || "N/A"}</p>
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Mail className="h-3 w-3" /> Correo
+                  </Label>
+                  <p className="font-medium">{cliente.correo || "N/A"}</p>
+                </div>
+              </div>
+              {cliente.direccion && (
+                <div>
+                  <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                    <MapPin className="h-3 w-3" /> Dirección
+                  </Label>
+                  <p className="font-medium">{cliente.direccion}</p>
                 </div>
               )}
             </CardContent>
           </Card>
 
-          {/* Diagnóstico Summary Card */}
+          {/* Diagnóstico Técnico Card */}
           {diagnostico && (
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Wrench className="h-5 w-5" />
-                  Resumen de Diagnóstico
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="flex items-center gap-2 text-primary">
+                  <FileText className="h-5 w-5" />
+                  Diagnóstico Técnico
                 </CardTitle>
+                <Button variant="outline" size="sm" onClick={handlePrintDiagnostico}>
+                  <Printer className="h-4 w-4 mr-2" />
+                  Imprimir
+                </Button>
               </CardHeader>
               <CardContent className="space-y-4">
+                {/* Fallas y Causas */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label className="text-muted-foreground">Tipo de Resolución</Label>
-                    <p className="font-medium">{diagnostico.tipo_resolucion || 'N/A'}</p>
+                    <Label className="text-xs text-muted-foreground">Fallas Detectadas</Label>
+                    <div className="mt-1">
+                      {fallasNombres.length > 0 ? (
+                        <ul className="text-sm list-disc list-inside space-y-1">
+                          {fallasNombres.map((f, i) => (
+                            <li key={i}>{f}</li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="text-sm text-muted-foreground italic">Sin fallas registradas</p>
+                      )}
+                    </div>
                   </div>
                   <div>
-                    <Label className="text-muted-foreground">Aplica Garantía</Label>
-                    <p className="font-medium">{diagnostico.aplica_garantia ? 'Sí' : 'No'}</p>
+                    <Label className="text-xs text-muted-foreground">Causas Identificadas</Label>
+                    <div className="mt-1">
+                      {causasNombres.length > 0 ? (
+                        <ul className="text-sm list-disc list-inside space-y-1">
+                          {causasNombres.map((c, i) => (
+                            <li key={i}>{c}</li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="text-sm text-muted-foreground italic">Sin causas registradas</p>
+                      )}
+                    </div>
                   </div>
                 </div>
+
+                {/* Resolución con badge de garantía */}
+                <div>
+                  <Label className="text-xs text-muted-foreground">Resolución</Label>
+                  <div className="flex items-center gap-2 mt-1">
+                    <p className="font-medium">{getResolutionLabel(diagnostico.tipo_resolucion || "")}</p>
+                    {diagnostico.aplica_garantia && (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700 border border-green-300">
+                        Sí
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Recomendaciones */}
                 {diagnostico.recomendaciones && (
                   <div>
-                    <Label className="text-muted-foreground">Recomendaciones</Label>
-                    <p className="text-sm">{diagnostico.recomendaciones}</p>
+                    <Label className="text-xs text-muted-foreground">Recomendaciones</Label>
+                    <p className="text-sm mt-1 bg-muted/30 p-2 rounded">{diagnostico.recomendaciones}</p>
                   </div>
                 )}
+
+                {/* Técnico */}
                 {tecnicoNombre && (
                   <div>
-                    <Label className="text-muted-foreground">Técnico</Label>
+                    <Label className="text-xs text-muted-foreground">Técnico Responsable</Label>
                     <p className="font-medium">{tecnicoNombre}</p>
                   </div>
                 )}
-                <Separator />
-                <Button variant="outline" onClick={handlePrintDiagnostico}>
-                  <Printer className="h-4 w-4 mr-2" />
-                  Imprimir Diagnóstico
-                </Button>
               </CardContent>
             </Card>
           )}
