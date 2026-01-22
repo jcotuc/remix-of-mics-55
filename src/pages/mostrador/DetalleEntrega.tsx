@@ -666,20 +666,11 @@ export default function DetalleEntrega() {
                               </tr>
                             ))}
                             {/* Consumibles */}
-                            <tr className="bg-blue-50">
-                              <td colSpan={4} className="border px-2 py-1 font-semibold text-blue-800 text-xs">Consumibles</td>
-                            </tr>
                             <tr>
-                              <td className="border px-2 py-1 pl-4 text-gray-600">Lubricantes y aceites</td>
+                              <td className="border px-2 py-1">Consumibles</td>
                               <td className="border px-1 py-1 text-center">1</td>
-                              <td className="border px-2 py-1 text-right">Q 0.00</td>
-                              <td className="border px-2 py-1 text-right">Q 0.00</td>
-                            </tr>
-                            <tr>
-                              <td className="border px-2 py-1 pl-4 text-gray-600">Materiales de limpieza</td>
-                              <td className="border px-1 py-1 text-center">1</td>
-                              <td className="border px-2 py-1 text-right">Q 0.00</td>
-                              <td className="border px-2 py-1 text-right">Q 0.00</td>
+                              <td className="border px-2 py-1 text-right">Q 20.00</td>
+                              <td className="border px-2 py-1 text-right">Q 20.00</td>
                             </tr>
                             {/* Mano de Obra */}
                             <tr>
