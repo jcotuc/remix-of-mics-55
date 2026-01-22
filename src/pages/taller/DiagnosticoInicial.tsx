@@ -28,6 +28,8 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { supabase } from "@/integrations/supabase/client";
+import { apiBackendAction } from "@/lib/api-backend";
+import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 // Fallas y Causas ahora se cargan desde la base de datos
 import { Textarea } from "@/components/ui/textarea";
@@ -42,7 +44,9 @@ import {
 } from "@/components/ui/dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { SidebarMediaCapture, SidebarPhoto } from "@/components/features/media";
+
 export default function DiagnosticoInicial() {
+  const { user } = useAuth();
   const { id } = useParams();
   const navigate = useNavigate();
   const [incidente, setIncidente] = useState<any>(null);
@@ -86,27 +90,13 @@ export default function DiagnosticoInicial() {
   const [estadoSolicitud, setEstadoSolicitud] = useState<string | null>(null);
 
   // Fallas y Causas desde base de datos
-  const [fallasDB, setFallasDB] = useState<
-    Array<{
-      id: number;
-      nombre: string;
-      familia_id: number | null;
-    }>
-  >([]);
-  const [causasDB, setCausasDB] = useState<
-    Array<{
-      id: number;
-      nombre: string;
-      familia_id: number | null;
-    }>
-  >([]);
-  const [familiasDB, setFamiliasDB] = useState<
-    Array<{
-      id: number;
-      Categoria: string | null;
-      Padre: number | null;
-    }>
-  >([]);
+  type FallaDB = { id: number; nombre: string; familia_id: number | null };
+  type CausaDB = { id: number; nombre: string; familia_id: number | null };
+  type FamiliaDB = { id: number; Categoria: string | null; Padre: number | null };
+  
+  const [fallasDB, setFallasDB] = useState<FallaDB[]>([]);
+  const [causasDB, setCausasDB] = useState<CausaDB[]>([]);
+  const [familiasDB, setFamiliasDB] = useState<FamiliaDB[]>([]);
 
   // Paso 3: Fotos y Observaciones
   const [fotos, setFotos] = useState<File[]>([]);
@@ -212,13 +202,13 @@ export default function DiagnosticoInicial() {
   const fetchFallasYCausas = async () => {
     try {
       const [fallasRes, causasRes, familiasRes] = await Promise.all([
-        supabase.from("CDS_Fallas").select("id, nombre, familia_id").order("nombre"),
-        supabase.from("CDS_Causas").select("id, nombre, familia_id").order("nombre"),
-        supabase.from("CDS_Familias").select("id, Categoria, Padre"),
+        apiBackendAction("cds_fallas.list", {}),
+        apiBackendAction("cds_causas.list", {}),
+        apiBackendAction("cds_familias.list", {}),
       ]);
-      if (fallasRes.data) setFallasDB(fallasRes.data);
-      if (causasRes.data) setCausasDB(causasRes.data);
-      if (familiasRes.data) setFamiliasDB(familiasRes.data);
+      setFallasDB(fallasRes.results);
+      setCausasDB(causasRes.results);
+      setFamiliasDB(familiasRes.results);
     } catch (error) {
       console.error("Error cargando fallas y causas:", error);
     }
@@ -242,10 +232,10 @@ export default function DiagnosticoInicial() {
   // Cargar borrador existente
   const cargarBorradorDiagnostico = async () => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("diagnosticos")
         .select("*")
-        .eq("incidente_id", id)
+        .eq("incidente_id", Number(id))
         .eq("estado", "borrador")
         .maybeSingle();
       if (error) throw error;
@@ -286,23 +276,17 @@ export default function DiagnosticoInicial() {
     }
   };
   const guardarBorradorSilencioso = async () => {
-    if (!incidente) return;
+    if (!incidente || !user) return;
     console.log("🔄 Auto-guardando diagnóstico...", {
       paso,
       fallas: fallas.length,
       causas: causas.length,
     });
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("nombre, apellido")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      const tecnicoNombre = profile ? `${profile.nombre} ${profile.apellido}` : user.email || "Técnico";
+      // Get user profile for name
+      const { results } = await apiBackendAction("usuarios.search", { auth_uid: user.id });
+      const usuario = results?.[0] as any;
+      const tecnicoNombre = usuario ? `${usuario.nombre} ${usuario.apellido}` : user.email || "Técnico";
 
       // Guardar metadata en el campo resolucion como JSON
       const metadata = {
@@ -317,7 +301,7 @@ export default function DiagnosticoInicial() {
         porcentajeDescuento,
       };
       const borradorData = {
-        incidente_id: id,
+        incidente_id: Number(id),
         tecnico_codigo: incidente.codigo_tecnico || "TEMP",
         fallas,
         causas,
@@ -329,19 +313,19 @@ export default function DiagnosticoInicial() {
       };
 
       // Verificar si ya existe un borrador
-      const { data: existingDraft } = await supabase
+      const { data: existingDraft } = await (supabase as any)
         .from("diagnosticos")
         .select("id")
-        .eq("incidente_id", id)
+        .eq("incidente_id", Number(id))
         .eq("estado", "borrador")
         .maybeSingle();
       if (existingDraft) {
         // Actualizar borrador existente
-        await supabase.from("diagnosticos").update(borradorData).eq("id", existingDraft.id);
+        await (supabase as any).from("diagnosticos").update(borradorData).eq("id", existingDraft.id);
         console.log("✅ Borrador actualizado automáticamente");
       } else {
         // Crear nuevo borrador
-        await supabase.from("diagnosticos").insert(borradorData);
+        await (supabase as any).from("diagnosticos").insert(borradorData);
         console.log("✅ Borrador creado automáticamente");
       }
     } catch (error) {
@@ -358,26 +342,16 @@ export default function DiagnosticoInicial() {
   const verificarSolicitudRepuestos = async () => {
     try {
       console.log("🔍 Verificando solicitudes de repuestos para incidente:", id);
-      const { data, error } = await supabase
-        .from("solicitudes_repuestos")
-        .select("*")
-        .eq("incidente_id", id)
-        .order("created_at", {
-          ascending: false,
-        });
-      if (error) {
-        console.error("Error verificando solicitud:", error);
-        throw error;
-      }
-      if (data && data.length > 0) {
-        console.log("✅ Solicitudes encontradas:", data.length);
+      const { results } = await apiBackendAction("solicitudes_repuestos.search", { incidente_id: Number(id) });
+      if (results && results.length > 0) {
+        console.log("✅ Solicitudes encontradas:", results.length);
 
         // Guardar todas las solicitudes anteriores
-        setSolicitudesAnteriores(data);
+        setSolicitudesAnteriores(results as any[]);
 
         // La más reciente para referencia
-        const solicitudMasReciente = data[0];
-        setSolicitudRepuestosId(solicitudMasReciente.id);
+        const solicitudMasReciente = results[0] as any;
+        setSolicitudRepuestosId(String(solicitudMasReciente.id));
         setEstadoSolicitud(solicitudMasReciente.estado);
         console.log("📦 Solicitud más reciente:", solicitudMasReciente);
       } else {
@@ -396,17 +370,10 @@ export default function DiagnosticoInicial() {
       let from = 0;
       const pageSize = 1000;
       while (true) {
-        const { data: relacionesData, error: relError } = await supabase
-          .from("repuestos_relaciones")
-          .select("*")
-          .range(from, from + pageSize - 1);
-        if (relError) {
-          console.error("Error cargando relaciones:", relError);
-          break;
-        }
-        if (!relacionesData || relacionesData.length === 0) break;
-        allRelaciones = [...allRelaciones, ...relacionesData];
-        if (relacionesData.length < pageSize) break;
+        const { results } = await apiBackendAction("repuestos_relaciones.list", { limit: pageSize, offset: from });
+        if (!results || results.length === 0) break;
+        allRelaciones = [...allRelaciones, ...results];
+        if (results.length < pageSize) break;
         from += pageSize;
       }
       console.log("Total relaciones cargadas:", allRelaciones.length);
@@ -474,27 +441,21 @@ export default function DiagnosticoInicial() {
       const todosLosCodigos = [...new Set([...codigosRepuestos, ...codigosPadre])];
 
       // 2.6. Obtener centro_servicio_id del usuario y consultar inventario SOLO para los códigos necesarios
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
       let stockMap = new Map<string, { cantidad: number; ubicacion: string }>();
 
       if (user && todosLosCodigos.length > 0) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("centro_servicio_id")
-          .eq("user_id", user.id)
-          .maybeSingle();
+        // Get user's centro_servicio_id from usuarios table
+        const { results: usuarios } = await apiBackendAction("usuarios.search", { auth_uid: user.id });
+        const usuario = usuarios?.[0] as any;
 
-        if (profile?.centro_servicio_id) {
-          const { data: inventarioData } = await supabase
-            .from("inventario")
-            .select("codigo_repuesto, cantidad, ubicacion_legacy")
-            .eq("centro_servicio_id", profile.centro_servicio_id)
-            .in("codigo_repuesto", todosLosCodigos);
+        if (usuario?.centro_servicio_id) {
+          const { results: inventarioData } = await apiBackendAction("inventarios.listByCodigos", {
+            centro_servicio_id: usuario.centro_servicio_id,
+            codigos: todosLosCodigos,
+          });
 
           // Crear mapa de stock (sumando si hay múltiples ubicaciones)
-          inventarioData?.forEach((item) => {
+          (inventarioData || []).forEach((item: any) => {
             const existing = stockMap.get(item.codigo_repuesto);
             if (existing) {
               stockMap.set(item.codigo_repuesto, {
@@ -560,23 +521,19 @@ export default function DiagnosticoInicial() {
   };
   const fetchIncidente = async () => {
     try {
-      const { data, error } = await supabase.from("incidentes").select("*").eq("id", id).single();
+      const { data, error } = await (supabase as any).from("incidentes").select("*").eq("id", Number(id)).single();
       if (error) throw error;
       setIncidente(data);
 
       // Registrar timestamp de inicio de diagnóstico si no existe
-      if (data && !data.fecha_inicio_diagnostico && data.status === "En diagnostico") {
-        await supabase.from("incidentes").update({ fecha_inicio_diagnostico: new Date().toISOString() }).eq("id", id);
+      if (data && !data.fecha_inicio_diagnostico && data.estado === "EN_DIAGNOSTICO") {
+        await (supabase as any).from("incidentes").update({ fecha_inicio_diagnostico: new Date().toISOString() }).eq("id", Number(id));
         console.log("✅ Timestamp de inicio de diagnóstico registrado");
       }
 
       // Obtener información del producto
       if (data?.codigo_producto) {
-        const { data: producto } = await supabase
-          .from("productos")
-          .select("*")
-          .eq("codigo", data.codigo_producto)
-          .maybeSingle();
+        const { result: producto } = await apiBackendAction("productos.getByCodigo", { codigo: data.codigo_producto });
         if (producto) setProductoInfo(producto);
       }
     } catch (error) {
@@ -841,39 +798,27 @@ export default function DiagnosticoInicial() {
       // CASO ESPECIAL: Si es Presupuesto, crear solicitud de todas formas (bloqueada)
       if (tipoResolucion === "Presupuesto") {
         try {
-          const {
-            data: { user },
-          } = await supabase.auth.getUser();
           if (!user) throw new Error("No user found");
 
-          const { data: profile } = await supabase
-            .from("profiles")
-            .select("nombre, apellido")
-            .eq("user_id", user.id)
-            .maybeSingle();
-
-          const tecnicoNombre = profile ? `${profile.nombre} ${profile.apellido}` : user.email || "Técnico";
+          // Get user profile for name
+          const { results: usuarios } = await apiBackendAction("usuarios.search", { auth_uid: user.id });
+          const usuario = usuarios?.[0] as any;
+          const tecnicoNombre = usuario ? `${usuario.nombre} ${usuario.apellido}` : user.email || "Técnico";
 
           // Crear solicitud con TODOS los repuestos (con y sin stock)
           // Marcarla como presupuesto pendiente de aprobación
           const notaSinStock = repuestosSinStock.map((r) => `${r.codigo} (stock: ${r.stockActual})`).join(", ");
 
-          const { data, error } = await supabase
-            .from("solicitudes_repuestos")
-            .insert({
-              incidente_id: id,
-              tecnico_solicitante: tecnicoNombre,
-              repuestos: repuestosSolicitados, // Todos los repuestos
-              estado: "pendiente",
-              tipo_despacho: tipoDespacho,
-              tipo_resolucion: "Presupuesto",
-              presupuesto_aprobado: false,
-              notas: `⚠️ Repuestos sin stock suficiente: ${notaSinStock}`,
-            })
-            .select()
-            .single();
-
-          if (error) throw error;
+          const data = await (supabase as any).from("solicitudes_repuestos").insert({
+            incidente_id: Number(id),
+            tecnico_solicitante: tecnicoNombre,
+            repuestos: repuestosSolicitados,
+            estado: "pendiente",
+            tipo_despacho: tipoDespacho,
+            tipo_resolucion: "Presupuesto",
+            presupuesto_aprobado: false,
+            notas: `⚠️ Repuestos sin stock suficiente: ${notaSinStock}`,
+          }).select().single();
 
           // Limpiar la lista de repuestos seleccionados
           setRepuestosSolicitados([]);
@@ -905,24 +850,18 @@ export default function DiagnosticoInicial() {
       );
 
       try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
         if (!user) throw new Error("No user found");
 
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("nombre, apellido")
-          .eq("user_id", user.id)
-          .maybeSingle();
-
-        const tecnicoNombre = profile ? `${profile.nombre} ${profile.apellido}` : user.email || "Técnico";
+        // Get user profile for name
+        const { results: usuarios } = await apiBackendAction("usuarios.search", { auth_uid: user.id });
+        const usuario = usuarios?.[0] as any;
+        const tecnicoNombre = usuario ? `${usuario.nombre} ${usuario.apellido}` : user.email || "Técnico";
 
         // Guardar repuestos pendientes en el diagnóstico (no crear solicitud a bodega)
-        const { data: existingDiag } = await supabase
+        const { data: existingDiag } = await (supabase as any)
           .from("diagnosticos")
           .select("id, repuestos_utilizados")
-          .eq("incidente_id", id)
+          .eq("incidente_id", Number(id))
           .maybeSingle();
 
         const repuestosPendientesData = {
@@ -937,7 +876,7 @@ export default function DiagnosticoInicial() {
         };
 
         if (existingDiag) {
-          await supabase
+          await (supabase as any)
             .from("diagnosticos")
             .update({
               repuestos_utilizados: repuestosPendientesData,
@@ -946,13 +885,13 @@ export default function DiagnosticoInicial() {
         }
 
         // Cambiar estado del incidente a "Pendiente por repuestos"
-        await supabase
+        await (supabase as any)
           .from("incidentes")
           .update({
-            status: "Pendiente por repuestos",
+            estado: "PENDIENTE_REPUESTOS",
             updated_at: new Date().toISOString(),
           })
-          .eq("id", id);
+          .eq("id", Number(id));
 
         // Limpiar repuestos solicitados
         setRepuestosSolicitados([]);
@@ -973,33 +912,25 @@ export default function DiagnosticoInicial() {
 
     // Si todos tienen stock, continuar con el flujo normal
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
       if (!user) throw new Error("No user found");
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("nombre, apellido")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      const tecnicoNombre = profile ? `${profile.nombre} ${profile.apellido}` : user.email || "Técnico";
+
+      // Get user profile for name
+      const { results: usuarios } = await apiBackendAction("usuarios.search", { auth_uid: user.id });
+      const usuario = usuarios?.[0] as any;
+      const tecnicoNombre = usuario ? `${usuario.nombre} ${usuario.apellido}` : user.email || "Técnico";
 
       // Determinar si es presupuesto para bloquear el despacho hasta aprobación
       const esPresupuesto = tipoResolucion === "Presupuesto";
 
-      const { data, error } = await supabase
-        .from("solicitudes_repuestos")
-        .insert({
-          incidente_id: id,
-          tecnico_solicitante: tecnicoNombre,
-          repuestos: repuestosConStock,
-          estado: "pendiente",
-          tipo_despacho: tipoDespacho,
-          tipo_resolucion: tipoResolucion || null,
-          presupuesto_aprobado: esPresupuesto ? false : null,
-        })
-        .select()
-        .single();
+      const { data, error } = await (supabase as any).from("solicitudes_repuestos").insert({
+        incidente_id: Number(id),
+        tecnico_solicitante: tecnicoNombre,
+        repuestos: repuestosConStock,
+        estado: "pendiente",
+        tipo_despacho: tipoDespacho,
+        tipo_resolucion: tipoResolucion || null,
+        presupuesto_aprobado: esPresupuesto ? false : null,
+      }).select().single();
       if (error) throw error;
 
       // Limpiar la lista de repuestos seleccionados para nueva solicitud
@@ -1024,10 +955,10 @@ export default function DiagnosticoInicial() {
     if (!solicitudRepuestosId) return;
     try {
       console.log("🔄 Actualizando estado de solicitud:", solicitudRepuestosId);
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("solicitudes_repuestos")
         .select("estado, repuestos")
-        .eq("id", solicitudRepuestosId)
+        .eq("id", Number(solicitudRepuestosId))
         .single();
       if (error) throw error;
       console.log("✅ Estado actualizado:", data.estado);
@@ -1073,7 +1004,7 @@ export default function DiagnosticoInicial() {
         );
       }
       const diagnosticoData = {
-        incidente_id: id,
+        incidente_id: Number(id),
         tecnico_codigo: incidente.codigo_tecnico || "TEMP",
         fallas,
         causas,
@@ -1096,15 +1027,15 @@ export default function DiagnosticoInicial() {
       };
 
       // Actualizar o crear diagnóstico final
-      const { data: existingDraft } = await supabase
+      const { data: existingDraft } = await (supabase as any)
         .from("diagnosticos")
         .select("id")
-        .eq("incidente_id", id)
+        .eq("incidente_id", Number(id))
         .maybeSingle();
       if (existingDraft) {
-        await supabase.from("diagnosticos").update(diagnosticoData).eq("id", existingDraft.id);
+        await (supabase as any).from("diagnosticos").update(diagnosticoData).eq("id", existingDraft.id);
       } else {
-        await supabase.from("diagnosticos").insert(diagnosticoData);
+        await (supabase as any).from("diagnosticos").insert(diagnosticoData);
       }
 
       // Actualizar el incidente - cambiar status según el tipo de resolución
@@ -1156,59 +1087,51 @@ export default function DiagnosticoInicial() {
       if (tipoResolucion === "Canje" && productoSeleccionado) {
         updateData.producto_sugerido_alternativo = productoSeleccionado.codigo;
       }
-      const { error: incidenteError } = await supabase.from("incidentes").update(updateData).eq("id", id);
+      const { error: incidenteError } = await (supabase as any).from("incidentes").update(updateData).eq("id", Number(id));
       if (incidenteError) throw incidenteError;
 
       // Si es Nota de Crédito, crear solicitud de cambio para aprobación
-      if (tipoResolucion === "Nota de Crédito") {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        if (user) {
-          const { data: profile } = await supabase
-            .from("profiles")
-            .select("nombre, apellido, centro_servicio_id")
-            .eq("user_id", user.id)
-            .maybeSingle();
+      if (tipoResolucion === "Nota de Crédito" && user) {
+        // Get user profile for name
+        const { results: usuarios } = await apiBackendAction("usuarios.search", { auth_uid: user.id });
+        const usuario = usuarios?.[0] as any;
+        const tecnicoNombre = usuario ? `${usuario.nombre} ${usuario.apellido}` : user.email || "Técnico";
 
-          const tecnicoNombre = profile ? `${profile.nombre} ${profile.apellido}` : user.email || "Técnico";
+        // Crear solicitud de cambio
+        const { data: solicitud } = await (supabase as any)
+          .from("solicitudes_cambio")
+          .insert({
+            incidente_id: Number(id),
+            tipo_cambio: "nota_credito",
+            justificacion: `Solicitud de Nota de Crédito. Fallas: ${fallas.join(", ")}. Causas: ${causas.join(", ")}.`,
+            tecnico_solicitante: tecnicoNombre,
+            estado: "pendiente",
+            fotos_urls: [],
+          })
+          .select()
+          .single();
 
-          // Crear solicitud de cambio
-          const { data: solicitud } = await supabase
-            .from("solicitudes_cambio")
-            .insert({
-              incidente_id: id,
-              tipo_cambio: "nota_credito",
-              justificacion: `Solicitud de Nota de Crédito. Fallas: ${fallas.join(", ")}. Causas: ${causas.join(", ")}.`,
-              tecnico_solicitante: tecnicoNombre,
-              estado: "pendiente",
-              fotos_urls: [],
-            })
-            .select()
-            .single();
+        // Obtener supervisores y crear notificaciones
+        const centroId = incidente?.centro_de_servicio_id || usuario?.centro_servicio_id;
+        if (centroId && solicitud) {
+          const { data: supervisores } = await supabase
+            .from("centros_supervisor")
+            .select("supervisor_id")
+            .eq("centro_servicio_id", centroId);
 
-          // Obtener supervisores y crear notificaciones
-          const centroId = incidente?.centro_servicio || profile?.centro_servicio_id;
-          if (centroId && solicitud) {
-            const { data: supervisores } = await supabase
-              .from("centros_supervisor")
-              .select("supervisor_id")
-              .eq("centro_servicio_id", centroId);
+          if (supervisores && supervisores.length > 0) {
+            const notificaciones = supervisores.map((s: any) => ({
+              user_id: s.supervisor_id,
+              tipo: "aprobacion_nc",
+              mensaje: `Nueva solicitud de Nota de Crédito - Incidente ${incidente?.codigo}`,
+              incidente_id: Number(id),
+              metadata: {
+                solicitud_id: solicitud.id,
+                tipo_cambio: "nota_credito",
+              },
+            }));
 
-            if (supervisores && supervisores.length > 0) {
-              const notificaciones = supervisores.map((s) => ({
-                user_id: s.supervisor_id,
-                tipo: "aprobacion_nc",
-                mensaje: `Nueva solicitud de Nota de Crédito - Incidente ${incidente?.codigo}`,
-                incidente_id: id,
-                metadata: {
-                  solicitud_id: solicitud.id,
-                  tipo_cambio: "nota_credito",
-                },
-              }));
-
-              await supabase.from("notificaciones").insert(notificaciones);
-            }
+            await (supabase as any).from("notificaciones").insert(notificaciones);
           }
         }
       }
@@ -1235,56 +1158,38 @@ export default function DiagnosticoInicial() {
 
   // Función para desasignar el incidente y devolverlo a la cola
   const handleDesasignar = async () => {
-    if (!incidente) return;
+    if (!incidente || !user) return;
     setDesasignando(true);
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) throw new Error("No se pudo obtener el usuario");
-
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("nombre, apellido, email")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      const tecnicoNombre = profile ? `${profile.nombre} ${profile.apellido}` : user.email || "Técnico";
-      const userEmail = profile?.email || user.email || "";
+      // Get user profile for name
+      const { results: usuarios } = await apiBackendAction("usuarios.search", { auth_uid: user.id });
+      const usuario = usuarios?.[0] as any;
+      const tecnicoNombre = usuario ? `${usuario.nombre} ${usuario.apellido}` : user.email || "Técnico";
+      const userEmail = usuario?.email || user.email || "";
 
       // Actualizar incidente: cambiar status a Ingresado, limpiar técnico asignado
-      const { error: updateError } = await supabase
+      const { error: updateError } = await (supabase as any)
         .from("incidentes")
         .update({
-          status: "Ingresado",
+          estado: "REGISTRADO",
           tecnico_asignado_id: null,
           codigo_tecnico: null,
         })
-        .eq("id", id);
+        .eq("id", Number(id));
 
       if (updateError) throw updateError;
 
       // Insertar registro en audit_logs para el historial
-      await supabase.from("audit_logs").insert({
+      await (supabase as any).from("audit_logs").insert({
         tabla_afectada: "incidentes",
-        registro_id: id,
+        registro_id: String(id),
         accion: "UPDATE",
-        usuario_id: user.id,
-        usuario_email: userEmail,
-        valores_anteriores: {
-          status: incidente.status,
-          tecnico_asignado_id: incidente.tecnico_asignado_id,
-        },
-        valores_nuevos: {
-          status: "Ingresado",
-          tecnico_asignado_id: null,
-        },
-        campos_modificados: ["status", "tecnico_asignado_id"],
+        usuario_id: usuario?.id || null,
         motivo: `Desasignado por ${tecnicoNombre}`,
       });
 
       // Eliminar borrador del diagnóstico si existe
-      await supabase.from("diagnosticos").delete().eq("incidente_id", id).eq("estado", "borrador");
+      await (supabase as any).from("diagnosticos").delete().eq("incidente_id", Number(id)).eq("estado", "borrador");
 
       toast.success("Incidente desasignado correctamente");
       setShowDesasignarDialog(false);

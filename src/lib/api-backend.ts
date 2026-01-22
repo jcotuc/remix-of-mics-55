@@ -985,6 +985,11 @@ const solicitudesRepuestosExtendedHandlers: Record<string, ActionHandler<any>> =
     if (error) throw error;
     return { results: data || [] };
   },
+  "solicitudes_repuestos.create": async (input) => {
+    const { data, error } = await supabase.from("solicitudes_repuestos").insert(input as any).select().single();
+    if (error) throw error;
+    return data;
+  },
 };
 
 // =============================================================================
@@ -996,6 +1001,70 @@ const inventarioGeneralHandlers: Record<string, ActionHandler<any>> = {
     let query = (supabase as any).from("inventario").select("*");
     if (centro_servicio_id) query = query.eq("centro_servicio_id", centro_servicio_id);
     const { data, error } = await query;
+    if (error) throw error;
+    return { results: data || [] };
+  },
+};
+
+// =============================================================================
+// CDS TABLES HANDLERS (CDS_Fallas, CDS_Causas, CDS_Familias)
+// =============================================================================
+const cdsHandlers: Record<string, ActionHandler<any>> = {
+  "cds_fallas.list": async () => {
+    const { data, error } = await (supabase as any).from("CDS_Fallas").select("id, nombre, familia_id").order("nombre");
+    if (error) throw error;
+    return { results: data || [] };
+  },
+  "cds_causas.list": async () => {
+    const { data, error } = await (supabase as any).from("CDS_Causas").select("id, nombre, familia_id").order("nombre");
+    if (error) throw error;
+    return { results: data || [] };
+  },
+  "cds_familias.list": async () => {
+    const { data, error } = await (supabase as any).from("CDS_Familias").select("id, Categoria, Padre");
+    if (error) throw error;
+    return { results: data || [] };
+  },
+};
+
+// =============================================================================
+// REPUESTOS EXTENDED HANDLERS
+// =============================================================================
+const repuestosExtendedHandlers: Record<string, ActionHandler<any>> = {
+  "repuestos.listByProducto": async (input) => {
+    const { codigo_producto } = input as any;
+    const { data, error } = await supabase.from("repuestos").select("*").eq("codigo_producto", codigo_producto).order("descripcion");
+    if (error) throw error;
+    return { results: data || [] };
+  },
+};
+
+// =============================================================================
+// INVENTARIOS EXTENDED HANDLERS
+// =============================================================================
+const inventariosExtendedHandlers: Record<string, ActionHandler<any>> = {
+  "inventarios.listByCodigos": async (input) => {
+    const { centro_servicio_id, codigos } = input as any;
+    if (!codigos?.length) return { results: [] };
+    const { data, error } = await supabase
+      .from("inventario")
+      .select("codigo_repuesto, cantidad, ubicacion_legacy")
+      .eq("centro_servicio_id", centro_servicio_id)
+      .in("codigo_repuesto", codigos);
+    if (error) throw error;
+    return { results: data || [] };
+  },
+};
+
+// =============================================================================
+// PRODUCTOS EXTENDED HANDLERS
+// =============================================================================
+const productosExtendedHandlers: Record<string, ActionHandler<any>> = {
+  "productos.listAlternativos": async (input) => {
+    const { exclude_familia_id, descontinuado = false } = input as any;
+    let query = (supabase as any).from("productos").select("*, familia_padre:CDS_Familias!productos_familia_padre_id_fkey(id, Categoria, Padre)").eq("descontinuado", descontinuado);
+    if (exclude_familia_id) query = query.neq("familia_padre_id", exclude_familia_id);
+    const { data, error } = await query.order("descripcion");
     if (error) throw error;
     return { results: data || [] };
   },
@@ -1030,6 +1099,10 @@ const handlers: Partial<Record<ActionName, ActionHandler<any>>> = {
   ...guiasHandlers,
   ...solicitudesRepuestosExtendedHandlers,
   ...inventarioGeneralHandlers,
+  ...cdsHandlers,
+  ...repuestosExtendedHandlers,
+  ...inventariosExtendedHandlers,
+  ...productosExtendedHandlers,
 };
 
 // =============================================================================
