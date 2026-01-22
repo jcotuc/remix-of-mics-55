@@ -628,7 +628,7 @@ export default function SeguimientoIncidente() {
       aplicaGarantia: diagnosticoData.aplica_garantia || false,
       tipoTrabajo: diagnosticoData.tipo_trabajo || undefined,
       repuestos: diagnosticoData.repuestos || [],
-      costoManoObra: 0, // Mano de obra (si aplica)
+      costoManoObra: 20, // Mano de obra fijo Q20
       costoConsumibles: 20, // Consumibles fijo Q20
       costoEnvio: incidente.quiere_envio ? 50 : 0,
       productoAlternativo: diagnosticoData.producto_alternativo_id ? {
