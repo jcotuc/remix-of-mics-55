@@ -2,18 +2,18 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, Save, Wrench, AlertCircle, CheckCircle2, Package } from "lucide-react";
+import { ArrowLeft, Save, AlertCircle, CheckCircle2, Plus, RotateCcw, AlertTriangle, Check, X } from "lucide-react";
 import { toast } from "sonner";
 import { apiBackendAction } from "@/lib/api-backend";
 import { useAuth } from "@/contexts/AuthContext";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 type TipoResolucion = "REPARAR_EN_GARANTIA" | "PRESUPUESTO" | "CANJE" | "NOTA_DE_CREDITO";
 type EstadoDiagnostico = "PENDIENTE" | "EN_PROGRESO" | "COMPLETADO";
@@ -278,6 +278,9 @@ export default function DiagnosticoInicial() {
     }));
   };
 
+  // Check if product is discontinued (placeholder logic)
+  const isDiscontinued = incidente?.producto?.codigo?.includes("DISC");
+
   if (loadingIncidente) {
     return (
       <div className="container mx-auto p-6 space-y-6">
@@ -302,196 +305,297 @@ export default function DiagnosticoInicial() {
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div className="container mx-auto p-4 md:p-6 space-y-6 max-w-4xl">
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-          <ArrowLeft className="h-5 w-5" />
+      <div className="flex items-center gap-3">
+        <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="gap-2">
+          <ArrowLeft className="h-4 w-4" />
+          Volver
         </Button>
-        <div className="flex-1">
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Wrench className="h-6 w-6" />
-            Diagnóstico Inicial
-          </h1>
-          <p className="text-muted-foreground">Incidente: {incidente.codigo}</p>
-        </div>
-        {diagnosticoExistente && (
-          <Badge variant={diagnosticoExistente.estado === "COMPLETADO" ? "default" : "secondary"}>
-            {diagnosticoExistente.estado}
-          </Badge>
-        )}
+        <Button variant="outline" size="sm" className="gap-2 text-orange-600 border-orange-300 hover:bg-orange-50">
+          <RotateCcw className="h-4 w-4" />
+          Desasignar
+        </Button>
       </div>
 
-      {/* Incidente Info */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Package className="h-5 w-5" />
+      {/* Title */}
+      <div>
+        <h1 className="text-2xl font-bold text-foreground">Diagnóstico Técnico</h1>
+        <p className="text-sm text-orange-500">Incidente: {incidente.codigo}</p>
+      </div>
+
+      {/* Información del Incidente */}
+      <Card className="border-orange-200 bg-orange-50/30">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2 text-foreground">
+            <CheckCircle2 className="h-5 w-5 text-orange-500" />
             Información del Incidente
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-3">
-            <div>
-              <Label className="text-muted-foreground text-sm">Producto</Label>
-              <p className="font-medium">{incidente.producto?.descripcion || incidente.producto?.codigo || "N/A"}</p>
+        <CardContent className="space-y-4">
+          <div className="flex flex-col md:flex-row gap-6">
+            {/* Product Image */}
+            <div className="w-full md:w-48 h-40 bg-white rounded-lg border flex items-center justify-center overflow-hidden">
+              {incidente.producto?.url_foto ? (
+                <img 
+                  src={incidente.producto.url_foto} 
+                  alt={incidente.producto.descripcion || "Producto"} 
+                  className="max-w-full max-h-full object-contain"
+                />
+              ) : (
+                <div className="text-muted-foreground text-sm text-center p-4">
+                  Sin imagen
+                </div>
+              )}
             </div>
-            <div>
-              <Label className="text-muted-foreground text-sm">Cliente</Label>
-              <p className="font-medium">{incidente.cliente?.nombre || "N/A"}</p>
-              <p className="text-sm text-muted-foreground">{incidente.cliente?.codigo}</p>
-            </div>
-            <div>
-              <Label className="text-muted-foreground text-sm">Estado</Label>
-              <Badge variant="outline">{incidente.estado}</Badge>
+
+            {/* Product Details */}
+            <div className="flex-1 space-y-3">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-xs text-muted-foreground">Descripción de la Máquina</p>
+                  <p className="font-semibold text-foreground">
+                    {incidente.producto?.descripcion || incidente.producto?.codigo || "N/A"}
+                  </p>
+                </div>
+                {isDiscontinued && (
+                  <Badge variant="destructive" className="bg-orange-500 hover:bg-orange-600">
+                    <AlertTriangle className="h-3 w-3 mr-1" />
+                    Descontinuado
+                  </Badge>
+                )}
+              </div>
+
+              {isDiscontinued && (
+                <div className="bg-orange-100 border border-orange-200 rounded-lg p-3">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="h-4 w-4 text-orange-600 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-medium text-orange-800">Producto Descontinuado</p>
+                      <p className="text-xs text-orange-700">
+                        Este producto está descontinuado. Puedes intentar repararlo, pero si no hay repuestos disponibles, deberás optar por un Canje o Porcentaje.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-xs text-muted-foreground">Cliente</p>
+                  <p className="text-sm font-medium">{incidente.cliente?.codigo || "N/A"}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Código Producto</p>
+                  <p className="text-sm font-medium">{incidente.producto?.codigo || "N/A"}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Familia ID</p>
+                  <p className="text-sm font-medium">{String(incidente.producto?.familia_id ?? "N/A")}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Clave</p>
+                  <p className="text-sm font-medium">{incidente.producto?.clave || incidente.producto?.sku || "N/A"}</p>
+                </div>
+              </div>
             </div>
           </div>
-          {incidente.descripcion_problema && (
-            <div className="mt-4">
-              <Label className="text-muted-foreground text-sm">Problema Reportado</Label>
-              <p className="text-sm mt-1">{incidente.descripcion_problema}</p>
+
+          {/* Problem Description */}
+          <div>
+            <p className="text-xs text-muted-foreground mb-1">Descripción del Problema (Cliente)</p>
+            <div className="bg-white border rounded-lg p-3">
+              <p className="text-sm">{incidente.descripcion_problema || "Sin descripción"}</p>
             </div>
-          )}
+          </div>
         </CardContent>
       </Card>
 
-      {/* Diagnóstico Form */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Fallas */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Fallas Detectadas</CardTitle>
-            <CardDescription>Seleccione las fallas encontradas</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2 max-h-64 overflow-y-auto">
-              {fallas.map((falla) => (
-                <div key={falla.id} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`falla-${falla.id}`}
-                    checked={formData.fallas_seleccionadas.includes(falla.id)}
-                    onCheckedChange={() => toggleFalla(falla.id)}
-                  />
-                  <label
-                    htmlFor={`falla-${falla.id}`}
-                    className="text-sm cursor-pointer flex-1"
-                  >
-                    {falla.nombre}
-                  </label>
-                </div>
-              ))}
-              {fallas.length === 0 && (
-                <p className="text-sm text-muted-foreground">No hay fallas registradas</p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Causas */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Causas Identificadas</CardTitle>
-            <CardDescription>Seleccione las causas de las fallas</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2 max-h-64 overflow-y-auto">
-              {causas.map((causa) => (
-                <div key={causa.id} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`causa-${causa.id}`}
-                    checked={formData.causas_seleccionadas.includes(causa.id)}
-                    onCheckedChange={() => toggleCausa(causa.id)}
-                  />
-                  <label
-                    htmlFor={`causa-${causa.id}`}
-                    className="text-sm cursor-pointer flex-1"
-                  >
-                    {causa.nombre}
-                  </label>
-                </div>
-              ))}
-              {causas.length === 0 && (
-                <p className="text-sm text-muted-foreground">No hay causas registradas</p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Resolution Details */}
+      {/* Paso 1: Diagnóstico */}
       <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Resolución y Recomendaciones</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="pt-6">
+          <h2 className="text-lg font-semibold mb-4">Paso 1: Diagnóstico</h2>
+          
           <div className="grid gap-6 md:grid-cols-2">
-            {/* Switches */}
-            <div className="space-y-4">
+            {/* Fallas */}
+            <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <Label htmlFor="es_reparable">¿Es reparable?</Label>
-                <Switch
-                  id="es_reparable"
-                  checked={formData.es_reparable}
-                  onCheckedChange={(checked) => setFormData(prev => ({ ...prev, es_reparable: checked }))}
-                />
+                <h3 className="font-medium text-orange-600">Fallas</h3>
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <Plus className="h-4 w-4" />
+                </Button>
               </div>
-              <div className="flex items-center justify-between">
-                <Label htmlFor="aplica_garantia">¿Aplica garantía?</Label>
-                <Switch
-                  id="aplica_garantia"
-                  checked={formData.aplica_garantia}
-                  onCheckedChange={(checked) => setFormData(prev => ({ ...prev, aplica_garantia: checked }))}
-                />
-              </div>
+              <ScrollArea className="h-64 border rounded-lg p-2">
+                <div className="space-y-2">
+                  {fallas.map((falla) => (
+                    <div
+                      key={falla.id}
+                      onClick={() => toggleFalla(falla.id)}
+                      className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                        formData.fallas_seleccionadas.includes(falla.id)
+                          ? "bg-orange-50 border-orange-300"
+                          : "bg-white hover:bg-muted/50"
+                      }`}
+                    >
+                      <Checkbox
+                        checked={formData.fallas_seleccionadas.includes(falla.id)}
+                        onCheckedChange={() => toggleFalla(falla.id)}
+                        className="pointer-events-none"
+                      />
+                      <span className="text-sm flex-1">{falla.nombre}</span>
+                    </div>
+                  ))}
+                  {fallas.length === 0 && (
+                    <p className="text-sm text-muted-foreground text-center py-4">No hay fallas registradas</p>
+                  )}
+                </div>
+              </ScrollArea>
             </div>
 
-            {/* Selects */}
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Tipo de Resolución</Label>
-                <Select
-                  value={formData.tipo_resolucion || ""}
-                  onValueChange={(value) => setFormData(prev => ({ 
-                    ...prev, 
-                    tipo_resolucion: value as TipoResolucion 
-                  }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TIPOS_RESOLUCION.map((tipo) => (
-                      <SelectItem key={tipo.value} value={tipo.value}>
-                        {tipo.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            {/* Causas */}
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <h3 className="font-medium text-orange-600">Causas</h3>
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <Plus className="h-4 w-4" />
+                </Button>
               </div>
+              <ScrollArea className="h-64 border rounded-lg p-2">
+                <div className="space-y-2">
+                  {causas.map((causa) => (
+                    <div
+                      key={causa.id}
+                      onClick={() => toggleCausa(causa.id)}
+                      className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                        formData.causas_seleccionadas.includes(causa.id)
+                          ? "bg-orange-50 border-orange-300"
+                          : "bg-white hover:bg-muted/50"
+                      }`}
+                    >
+                      <Checkbox
+                        checked={formData.causas_seleccionadas.includes(causa.id)}
+                        onCheckedChange={() => toggleCausa(causa.id)}
+                        className="pointer-events-none"
+                      />
+                      <span className="text-sm flex-1">{causa.nombre}</span>
+                    </div>
+                  ))}
+                  {causas.length === 0 && (
+                    <p className="text-sm text-muted-foreground text-center py-4">No hay causas registradas</p>
+                  )}
+                </div>
+              </ScrollArea>
+            </div>
+          </div>
 
-              <div className="space-y-2">
-                <Label>Tipo de Trabajo</Label>
-                <Select
-                  value={formData.tipo_trabajo}
-                  onValueChange={(value) => setFormData(prev => ({ ...prev, tipo_trabajo: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TIPOS_TRABAJO.map((tipo) => (
-                      <SelectItem key={tipo} value={tipo}>
-                        {tipo}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+          {/* ¿Es Reparable? */}
+          <div className="mt-6">
+            <Label className="text-sm font-medium mb-3 block">¿Es Reparable?</Label>
+            <div className="flex gap-4">
+              <button
+                type="button"
+                onClick={() => setFormData(prev => ({ ...prev, es_reparable: true }))}
+                className={`flex-1 flex items-center justify-center gap-2 p-4 rounded-lg border-2 transition-colors ${
+                  formData.es_reparable
+                    ? "bg-green-50 border-green-500 text-green-700"
+                    : "bg-white border-muted hover:border-muted-foreground/50"
+                }`}
+              >
+                <Check className="h-5 w-5" />
+                <span className="font-medium">Sí</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setFormData(prev => ({ ...prev, es_reparable: false }))}
+                className={`flex-1 flex items-center justify-center gap-2 p-4 rounded-lg border-2 transition-colors ${
+                  !formData.es_reparable
+                    ? "bg-red-50 border-red-500 text-red-700"
+                    : "bg-white border-muted hover:border-muted-foreground/50"
+                }`}
+              >
+                <X className="h-5 w-5" />
+                <span className="font-medium">No</span>
+              </button>
+            </div>
+          </div>
+
+          {/* ¿Aplica Garantía? */}
+          <div className="mt-6">
+            <Label className="text-sm font-medium mb-3 block">¿Aplica Garantía?</Label>
+            <div className="flex gap-4">
+              <button
+                type="button"
+                onClick={() => setFormData(prev => ({ ...prev, aplica_garantia: true }))}
+                className={`flex-1 flex items-center justify-center gap-2 p-4 rounded-lg border-2 transition-colors ${
+                  formData.aplica_garantia
+                    ? "bg-green-50 border-green-500 text-green-700"
+                    : "bg-white border-muted hover:border-muted-foreground/50"
+                }`}
+              >
+                <Check className="h-5 w-5" />
+                <span className="font-medium">Sí</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setFormData(prev => ({ ...prev, aplica_garantia: false }))}
+                className={`flex-1 flex items-center justify-center gap-2 p-4 rounded-lg border-2 transition-colors ${
+                  !formData.aplica_garantia
+                    ? "bg-red-50 border-red-500 text-red-700"
+                    : "bg-white border-muted hover:border-muted-foreground/50"
+                }`}
+              >
+                <X className="h-5 w-5" />
+                <span className="font-medium">No</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Tipo de Resolución */}
+          <div className="mt-6 grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label>Tipo de Resolución</Label>
+              <Select
+                value={formData.tipo_resolucion || ""}
+                onValueChange={(value) => setFormData(prev => ({ 
+                  ...prev, 
+                  tipo_resolucion: value as TipoResolucion 
+                }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {TIPOS_RESOLUCION.map((tipo) => (
+                    <SelectItem key={tipo.value} value={tipo.value}>
+                      {tipo.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Tipo de Trabajo</Label>
+              <Select
+                value={formData.tipo_trabajo}
+                onValueChange={(value) => setFormData(prev => ({ ...prev, tipo_trabajo: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {TIPOS_TRABAJO.map((tipo) => (
+                    <SelectItem key={tipo} value={tipo}>
+                      {tipo}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
           {/* Recomendaciones */}
-          <div className="space-y-2">
+          <div className="mt-6 space-y-2">
             <Label htmlFor="recomendaciones">Recomendaciones</Label>
             <Textarea
               id="recomendaciones"
@@ -503,10 +607,11 @@ export default function DiagnosticoInicial() {
           </div>
 
           {/* Action Buttons */}
-          <div className="flex gap-4 pt-4">
+          <div className="flex gap-4 pt-6">
             <Button
               onClick={() => saveMutation.mutate()}
               disabled={saveMutation.isPending}
+              className="bg-orange-500 hover:bg-orange-600"
             >
               <Save className="h-4 w-4 mr-2" />
               {saveMutation.isPending ? "Guardando..." : "Guardar Diagnóstico"}
