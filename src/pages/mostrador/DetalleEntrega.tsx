@@ -600,19 +600,11 @@ export default function DetalleEntrega() {
                         <h3 className="font-bold text-orange-800 text-xs">DIAGNÓSTICO TÉCNICO</h3>
                       </div>
                       <div className="p-2">
-                        <div className="grid grid-cols-2 gap-2">
-                          <div>
-                            <p className="font-semibold text-gray-600 text-xs">Resolución:</p>
-                            <p className={`text-xs font-medium ${RESOLUTION_LABELS[previewData.tipoResolucion]?.color || 'text-gray-800'}`}>
-                              {RESOLUTION_LABELS[previewData.tipoResolucion]?.icon} {getResolutionLabel(previewData.tipoResolucion)}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="font-semibold text-gray-600 text-xs">Aplica Garantía:</p>
-                            <p className={`text-xs font-medium ${previewData.aplicaGarantia ? 'text-green-700' : 'text-gray-600'}`}>
-                              {previewData.aplicaGarantia ? '✓ Sí' : 'No'}
-                            </p>
-                          </div>
+                        <div>
+                          <p className="font-semibold text-gray-600 text-xs">Resolución:</p>
+                          <p className={`text-xs font-medium ${RESOLUTION_LABELS[previewData.tipoResolucion]?.color || 'text-gray-800'}`}>
+                            {RESOLUTION_LABELS[previewData.tipoResolucion]?.icon} {getResolutionLabel(previewData.tipoResolucion)}
+                          </p>
                         </div>
                         
                         {/* Fallas y Causas */}
