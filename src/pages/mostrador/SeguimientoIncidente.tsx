@@ -498,18 +498,8 @@ export default function SeguimientoIncidente() {
                   <p className="font-medium">{getTipologiaLabel(incidente.tipologia)}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground mb-1">Garantía</p>
-                  <Badge
-                    variant="outline"
-                    className={
-                      incidente.aplica_garantia
-                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                        : "bg-muted"
-                    }
-                  >
-                    <Clock className="h-3 w-3 mr-1" />
-                    {incidente.aplica_garantia ? "En Garantía" : "Sin Garantía"}
-                  </Badge>
+                  <p className="text-muted-foreground mb-1">Estado</p>
+                  <StatusBadge status={incidente.estado} />
                 </div>
                 <div>
                   <p className="text-muted-foreground mb-1">Reingreso</p>
