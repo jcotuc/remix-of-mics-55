@@ -608,6 +608,28 @@ export interface ActionRegistry {
   // INVENTARIO (general inventory queries)
   // =============================================================================
   "inventario.list": { input: { centro_servicio_id?: number }; output: { results: unknown[] } };
+
+  // =============================================================================
+  // CDS TABLES (Fallas, Causas, Familias from legacy CDS_* tables)
+  // =============================================================================
+  "cds_fallas.list": { input: Record<string, never>; output: { results: Array<{ id: number; nombre: string; familia_id: number | null }> } };
+  "cds_causas.list": { input: Record<string, never>; output: { results: Array<{ id: number; nombre: string; familia_id: number | null }> } };
+  "cds_familias.list": { input: Record<string, never>; output: { results: Array<{ id: number; Categoria: string | null; Padre: number | null }> } };
+
+  // =============================================================================
+  // REPUESTOS (extended)
+  // =============================================================================
+  "repuestos.listByProducto": { input: { codigo_producto: string }; output: { results: unknown[] } };
+
+  // =============================================================================
+  // INVENTARIOS (extended bulk query)
+  // =============================================================================  
+  "inventarios.listByCodigos": { input: { centro_servicio_id: number; codigos: string[] }; output: { results: Array<{ codigo_repuesto: string; cantidad: number; ubicacion_legacy: string }> } };
+
+  // =============================================================================
+  // PRODUCTOS (extended)
+  // =============================================================================
+  "productos.listAlternativos": { input: { exclude_familia_id?: number; descontinuado?: boolean }; output: { results: unknown[] } };
 }
 
 export type ActionName = keyof ActionRegistry;
