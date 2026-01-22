@@ -449,9 +449,10 @@ export default function Asignaciones() {
                 key={grupo.id}
                 className={`relative overflow-hidden transition-all ${
                   hasItems
-                    ? "bg-green-50 border-l-4 border-l-green-500 border-green-200"
+                    ? "bg-green-50 border-l-4 border-l-green-500 border-green-200 cursor-pointer hover:bg-green-100"
                     : "bg-white border border-gray-200"
                 }`}
+                onClick={() => hasItems && handleAsignarPrimero(grupo)}
               >
                 <CardContent className="p-4">
                   {/* Header with name and eye icon */}
@@ -464,7 +465,8 @@ export default function Asignaciones() {
                         variant="ghost"
                         size="icon"
                         className="h-6 w-6 text-green-600 hover:text-green-700 hover:bg-green-100"
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.stopPropagation();
                           setSelectedGrupo(grupo);
                           setDialogOpen(true);
                         }}
@@ -489,13 +491,9 @@ export default function Asignaciones() {
                       {count} en cola
                     </span>
                     {hasItems && (
-                      <Button
-                        size="icon"
-                        className="h-6 w-6 bg-green-500 hover:bg-green-600 text-white rounded-full"
-                        onClick={() => handleAsignarPrimero(grupo)}
-                      >
+                      <span className="h-6 w-6 bg-green-500 text-white rounded-full flex items-center justify-center">
                         <Plus className="h-3 w-3" />
-                      </Button>
+                      </span>
                     )}
                   </div>
                 </CardContent>
