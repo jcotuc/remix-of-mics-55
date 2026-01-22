@@ -5,7 +5,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { CheckCircle2, XCircle } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 import { apiBackendAction } from "@/lib/api-backend";
 
 interface RevisionDisplay {
@@ -70,16 +69,14 @@ export default function AprobacionesStockCemaco() {
     setSubmitting(true);
 
     try {
-      // Update status (using Supabase for updates - not in registry yet)
-      const { error: updateError } = await supabase
-        .from("incidentes")
-        .update({ 
-          estado: "EN_REPARACION" as const,
+      // Update status via apiBackendAction
+      await apiBackendAction("incidentes.update", {
+        id: selectedRevision.incidente_id,
+        data: { 
+          estado: "EN_REPARACION",
           updated_at: new Date().toISOString()
-        })
-        .eq("id", selectedRevision.incidente_id);
-
-      if (updateError) throw updateError;
+        }
+      } as any);
 
       toast.success(`Incidente ${selectedRevision.incidente_codigo} aprobado`);
 
@@ -104,16 +101,15 @@ export default function AprobacionesStockCemaco() {
     setSubmitting(true);
 
     try {
-      const { error: updateError } = await supabase
-        .from("incidentes")
-        .update({ 
-          estado: "EN_DIAGNOSTICO" as const,
+      // Update via apiBackendAction
+      await apiBackendAction("incidentes.update", {
+        id: selectedRevision.incidente_id,
+        data: { 
+          estado: "EN_DIAGNOSTICO",
           observaciones: observacionesRechazo,
           updated_at: new Date().toISOString()
-        })
-        .eq("id", selectedRevision.incidente_id);
-
-      if (updateError) throw updateError;
+        }
+      } as any);
 
       toast.success(`El incidente ${selectedRevision.incidente_codigo} fue devuelto para revisión`);
 

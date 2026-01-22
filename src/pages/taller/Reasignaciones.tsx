@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -65,14 +64,13 @@ export default function Reasignaciones() {
       
       const incidenteIds = filteredByEstado.map((i: any) => i.id);
 
-      // Fetch tecnico assignments from incidente_tecnico junction (not in registry yet)
-      const { data: asignaciones } = await supabase
-        .from("incidente_tecnico")
-        .select("incidente_id, tecnico_id")
-        .in("incidente_id", incidenteIds)
-        .eq("es_principal", true);
+      // Fetch tecnico assignments via apiBackendAction
+      const asignacionesRes = await apiBackendAction("incidente_tecnico.list", { es_principal: true });
+      const allAsignaciones = (asignacionesRes.results || []).filter((a: any) => 
+        incidenteIds.includes(a.incidente_id)
+      );
 
-      const tecnicoIds = [...new Set((asignaciones || []).map(a => a.tecnico_id).filter(Boolean))] as number[];
+      const tecnicoIds = [...new Set((allAsignaciones || []).map((a: any) => a.tecnico_id).filter(Boolean))] as number[];
       
       // Fetch usuarios via Registry
       const usuariosRes = await apiBackendAction("usuarios.list", {});
@@ -87,7 +85,7 @@ export default function Reasignaciones() {
 
       // Map asignaciones to incidentes
       const asignacionesMap = new Map(
-        (asignaciones || []).map(a => [a.incidente_id, a.tecnico_id])
+        (allAsignaciones || []).map((a: any) => [a.incidente_id, a.tecnico_id])
       );
 
       // Filter only incidentes that have technician assigned
@@ -141,34 +139,30 @@ export default function Reasignaciones() {
 
       const logEntry = formatLogEntry(`Reasignado de ${tecnicoAnterior} a ${tecnicoCodigo}${motivoReasignacion ? `. Motivo: ${motivoReasignacion}` : ""}`);
 
-      // Update junction table (still direct Supabase - not in registry)
+      // Update junction table via apiBackendAction
       if (selectedIncidente.tecnico_asignado_id_from_junction) {
-        await supabase
-          .from("incidente_tecnico")
-          .update({ tecnico_id: nuevoTecnicoId })
-          .eq("incidente_id", selectedIncidente.id)
-          .eq("es_principal", true);
+        await apiBackendAction("incidente_tecnico.update", {
+          incidente_id: selectedIncidente.id,
+          tecnico_id: nuevoTecnicoId,
+          es_principal: true
+        } as any);
       } else {
-        await supabase
-          .from("incidente_tecnico")
-          .insert({
-            incidente_id: selectedIncidente.id,
-            tecnico_id: nuevoTecnicoId,
-            es_principal: true,
-          });
+        await apiBackendAction("incidente_tecnico.create", {
+          incidente_id: selectedIncidente.id,
+          tecnico_id: nuevoTecnicoId,
+          es_principal: true,
+        } as any);
       }
 
-      // Update observaciones in incidente
+      // Update observaciones in incidente via apiBackendAction
       const currentObs = selectedIncidente.observaciones || "";
-      const { error } = await supabase
-        .from("incidentes")
-        .update({
+      await apiBackendAction("incidentes.update", {
+        id: selectedIncidente.id,
+        data: {
           observaciones: currentObs ? `${currentObs}\n${logEntry}` : logEntry,
           updated_at: new Date().toISOString(),
-        })
-        .eq("id", selectedIncidente.id);
-
-      if (error) throw error;
+        }
+      } as any);
 
       toast.success("Incidente reasignado correctamente");
       setIsDialogOpen(false);

@@ -6,7 +6,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { formatFechaLarga } from "@/utils/dateFormatters";
 import { format } from "date-fns";
@@ -130,16 +129,15 @@ export default function WaterspiderEntrega() {
       const currentObs = incidente.observaciones || "";
       const newObs = currentObs ? `${currentObs}\n${logEntry}` : logEntry;
 
-      const { error } = await supabase
-        .from("incidentes")
-        .update({ 
+      // Use apiBackendAction for update
+      await apiBackendAction("incidentes.update", {
+        id: incidente.id,
+        data: { 
           estado: nuevoEstado,
           observaciones: newObs,
           updated_at: fechaActual,
-        })
-        .eq("id", incidente.id);
-
-      if (error) throw error;
+        }
+      } as any);
 
       toast.success(
         `Incidente ${incidente.codigo} entregado a ${incidente.quiere_envio ? 'Logística' : 'Mostrador'}`,

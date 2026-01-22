@@ -438,7 +438,7 @@ export interface ActionRegistry {
   "incidente_fotos.create": { input: Record<string, unknown> | Record<string, unknown>[]; output: { results: unknown[] } };
 
   // Incidente Tecnico
-  "incidente_tecnico.list": { input: { incidente_id?: number; es_principal?: boolean }; output: { results: unknown[] } };
+  "incidente_tecnico.list": { input: { incidente_id?: number; es_principal?: boolean; tecnico_id?: number }; output: { results: unknown[] } };
 
   // Usuarios - get single
   "usuarios.get": { input: { id: number }; output: { result: unknown | null } };
@@ -540,10 +540,14 @@ export interface ActionRegistry {
   "diagnostico_fallas.list": { input: { diagnostico_id: number }; output: { results: unknown[] } };
   "diagnostico_fallas.create": { input: Record<string, unknown>; output: unknown };
   "diagnostico_fallas.delete": { input: { diagnostico_id: number; falla_id?: number }; output: { status: string } };
+  "diagnostico_fallas.deleteByDiagnostico": { input: { diagnostico_id: number }; output: { status: string } };
+  "diagnostico_fallas.createBatch": { input: Array<{ diagnostico_id: number; falla_id: number }>; output: unknown[] };
 
   "diagnostico_causas.list": { input: { diagnostico_id: number }; output: { results: unknown[] } };
   "diagnostico_causas.create": { input: Record<string, unknown>; output: unknown };
   "diagnostico_causas.delete": { input: { diagnostico_id: number; causa_id?: number }; output: { status: string } };
+  "diagnostico_causas.deleteByDiagnostico": { input: { diagnostico_id: number }; output: { status: string } };
+  "diagnostico_causas.createBatch": { input: Array<{ diagnostico_id: number; causa_id: number }>; output: unknown[] };
 
   // =============================================================================
   // USUARIOS (extended)

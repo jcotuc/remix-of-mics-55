@@ -129,20 +129,20 @@ export default function DiagnosticoInicial() {
 
   const loadAssociations = async (diagnosticoId: number) => {
     const [fallasRes, causasRes] = await Promise.all([
-      (supabase as any).from("diagnostico_fallas").select("falla_id").eq("diagnostico_id", diagnosticoId),
-      (supabase as any).from("diagnostico_causas").select("causa_id").eq("diagnostico_id", diagnosticoId),
+      apiBackendAction("diagnostico_fallas.list", { diagnostico_id: diagnosticoId }),
+      apiBackendAction("diagnostico_causas.list", { diagnostico_id: diagnosticoId }),
     ]);
 
-    if (fallasRes.data) {
+    if (fallasRes.results) {
       setFormData(prev => ({
         ...prev,
-        fallas_seleccionadas: fallasRes.data.map((f: any) => f.falla_id),
+        fallas_seleccionadas: fallasRes.results.map((f: any) => f.falla_id),
       }));
     }
-    if (causasRes.data) {
+    if (causasRes.results) {
       setFormData(prev => ({
         ...prev,
-        causas_seleccionadas: causasRes.data.map((c: any) => c.causa_id),
+        causas_seleccionadas: causasRes.results.map((c: any) => c.causa_id),
       }));
     }
   };
@@ -154,12 +154,9 @@ export default function DiagnosticoInicial() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("No autenticado");
 
-      // Get tecnico_id from usuarios
-      const { data: usuario } = await (supabase as any)
-        .from("usuarios")
-        .select("id")
-        .eq("auth_uid", user.id)
-        .single();
+      // Get tecnico_id from usuarios via apiBackendAction
+      const { results: usuarioResults } = await apiBackendAction("usuarios.search", { auth_uid: user.id });
+      const usuario = usuarioResults?.[0] as { id: number } | undefined;
 
       if (!usuario) throw new Error("Usuario no encontrado");
 
@@ -178,56 +175,41 @@ export default function DiagnosticoInicial() {
       let diagnosticoId: number;
 
       if (diagnosticoExistente) {
-        // Update existing
-        const { error } = await (supabase as any)
-          .from("diagnosticos")
-          .update(diagnosticoData)
-          .eq("id", diagnosticoExistente.id);
-        if (error) throw error;
+        // Update existing via apiBackendAction
+        await apiBackendAction("diagnosticos.update", {
+          id: diagnosticoExistente.id,
+          data: diagnosticoData
+        } as any);
         diagnosticoId = diagnosticoExistente.id;
       } else {
-        // Create new
-        const { data, error } = await (supabase as any)
-          .from("diagnosticos")
-          .insert({ ...diagnosticoData, created_at: new Date().toISOString() })
-          .select("id")
-          .single();
-        if (error) throw error;
-        diagnosticoId = data.id;
+        // Create new via apiBackendAction
+        const result = await apiBackendAction("diagnosticos.create", {
+          ...diagnosticoData,
+          created_at: new Date().toISOString()
+        } as any);
+        diagnosticoId = (result as any).id;
       }
 
-      // Update fallas associations
-      await (supabase as any)
-        .from("diagnostico_fallas")
-        .delete()
-        .eq("diagnostico_id", diagnosticoId);
+      // Update fallas associations via apiBackendAction
+      await apiBackendAction("diagnostico_fallas.deleteByDiagnostico", { diagnostico_id: diagnosticoId });
 
       if (formData.fallas_seleccionadas.length > 0) {
         const fallasInsert = formData.fallas_seleccionadas.map(falla_id => ({
           diagnostico_id: diagnosticoId,
           falla_id,
         }));
-        const { error: fallasError } = await (supabase as any)
-          .from("diagnostico_fallas")
-          .insert(fallasInsert);
-        if (fallasError) throw fallasError;
+        await apiBackendAction("diagnostico_fallas.createBatch", fallasInsert as any);
       }
 
-      // Update causas associations
-      await (supabase as any)
-        .from("diagnostico_causas")
-        .delete()
-        .eq("diagnostico_id", diagnosticoId);
+      // Update causas associations via apiBackendAction
+      await apiBackendAction("diagnostico_causas.deleteByDiagnostico", { diagnostico_id: diagnosticoId });
 
       if (formData.causas_seleccionadas.length > 0) {
         const causasInsert = formData.causas_seleccionadas.map(causa_id => ({
           diagnostico_id: diagnosticoId,
           causa_id,
         }));
-        const { error: causasError } = await (supabase as any)
-          .from("diagnostico_causas")
-          .insert(causasInsert);
-        if (causasError) throw causasError;
+        await apiBackendAction("diagnostico_causas.createBatch", causasInsert as any);
       }
 
       return diagnosticoId;
@@ -249,24 +231,23 @@ export default function DiagnosticoInicial() {
         throw new Error("Debe guardar el diagnóstico antes de completarlo");
       }
 
-      const { error } = await (supabase as any)
-        .from("diagnosticos")
-        .update({
+      // Update diagnostico via apiBackendAction
+      await apiBackendAction("diagnosticos.update", {
+        id: diagnosticoExistente.id,
+        data: {
           estado: "COMPLETADO" as EstadoDiagnostico,
           updated_at: new Date().toISOString(),
-        })
-        .eq("id", diagnosticoExistente.id);
+        }
+      } as any);
 
-      if (error) throw error;
-
-      // Update incidente estado
-      await (supabase as any)
-        .from("incidentes")
-        .update({
+      // Update incidente estado via apiBackendAction
+      await apiBackendAction("incidentes.update", {
+        id: incidenteId,
+        data: {
           estado: "DIAGNOSTICO_COMPLETADO",
           updated_at: new Date().toISOString(),
-        })
-        .eq("id", incidenteId);
+        }
+      } as any);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["diagnostico", incidenteId] });
