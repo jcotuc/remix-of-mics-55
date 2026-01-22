@@ -451,7 +451,7 @@ export interface ActionRegistry {
   "direcciones_envio.get": { input: { id: number }; output: { result: unknown | null } };
 
   // Guias - search with filters
-  "guias.search": { input: { incidente_codigo?: string; estado?: string; limit?: number }; output: { results: unknown[] } };
+  "guias.search": { input: { incidente_id?: number; incidente_codigo?: string; estado?: string; limit?: number }; output: { results: unknown[] } };
 
   // Clientes - get by codigo
   "clientes.getByCodigo": { input: { codigo: string }; output: { result: unknown | null } };

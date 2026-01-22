@@ -192,8 +192,13 @@ export default function SeguimientoIncidente() {
         setCentroServicio({ id: cs.id, nombre: cs.nombre, codigo: cs.codigo });
       }
 
-      // Fetch guias
-      const guiasRes = await apiBackendAction("guias.search", { incidente_codigo: incData.codigo });
+      // Fetch guias (wrapped in try-catch to not break the rest of the flow)
+      let guiasRes: any = { results: [] };
+      try {
+        guiasRes = await apiBackendAction("guias.search", { incidente_id: incData.id });
+      } catch (e) {
+        console.warn("Could not fetch guias:", e);
+      }
 
       // Fetch additional data for timeline in parallel
       const { supabase } = await import("@/integrations/supabase/client");
