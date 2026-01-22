@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { apiBackendAction } from "@/lib/api-backend";
-import type { IncidenteSchema, ClienteSchema } from "@/generated/actions.d";
+import type { IncidenteSchema } from "@/generated/actions.d";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -157,16 +156,13 @@ export default function VerificacionReincidencias() {
     setLoading(true);
 
     try {
-      // Use Supabase directly for update (no handler implemented yet)
-      const { error } = await supabase
-        .from("incidentes")
-        .update({ 
+      // Use apiBackendAction for update
+      await apiBackendAction("incidentes.update", {
+        id: selectedIncidente.id,
+        data: { 
           observaciones: `Verificación: ${esReincidenciaValida === "si" ? "Es reincidencia" : "No es reincidencia"}. ${justificacion}`,
-          updated_at: new Date().toISOString()
-        })
-        .eq("id", selectedIncidente.id);
-
-      if (error) throw error;
+        }
+      } as any);
 
       toast.success("Verificación guardada exitosamente");
       setModalOpen(false);

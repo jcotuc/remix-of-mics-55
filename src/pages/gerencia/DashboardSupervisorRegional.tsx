@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { supabase } from "@/integrations/supabase/client";
 import { apiBackendAction } from "@/lib/api-backend";
 import type { IncidenteSchema } from "@/generated/actions.d";
 import { Loader2, Building2, TrendingUp, Truck, Package, Users, Settings } from "lucide-react";
@@ -59,34 +58,36 @@ export default function DashboardSupervisorRegional() {
     try {
       setLoading(true);
 
-      // Use API for incidentes, Supabase for the rest (no handlers yet)
+      // Use apiBackendAction for all queries
       const [centrosRes, incidentesRes, inventarioRes, transitosRes] = await Promise.all([
-        supabase.from("centros_de_servicio").select("*").eq("activo", true),
+        apiBackendAction("centros_de_servicio.list", {}),
         apiBackendAction("incidentes.list", { limit: 5000 }),
-        supabase.from("inventario").select("centro_servicio_id, cantidad"),
-        supabase.from("transitos_bodega").select("*").eq("estado", "en_transito"),
+        apiBackendAction("inventario.list", {}),
+        apiBackendAction("transitos_bodega.list", { estado: "en_transito" }),
       ]);
 
-      const centrosData = centrosRes.data || [];
+      const centrosData = (centrosRes as any).results || [];
       const incidentes = incidentesRes.results || [];
-      const inventarioData = inventarioRes.data || [];
-      const transitos = transitosRes.data || [];
+      const inventarioData = (inventarioRes as any).results || [];
+      const transitos = (transitosRes as any).results || [];
 
-      const centroStats: CentroStats[] = centrosData.map((centro: any) => {
-        const incidentesCentro = incidentes.filter((i: IncidenteSchema) => 
-          i.centro_de_servicio_id === centro.id
-        ).length;
-        const stockCentro = inventarioData
-          .filter((s: any) => s.centro_servicio_id === centro.id)
-          .reduce((sum: number, s: any) => sum + (s.cantidad || 0), 0);
+      const centroStats: CentroStats[] = centrosData
+        .filter((c: any) => c.activo)
+        .map((centro: any) => {
+          const incidentesCentro = incidentes.filter((i: IncidenteSchema) => 
+            i.centro_de_servicio_id === centro.id
+          ).length;
+          const stockCentro = inventarioData
+            .filter((s: any) => s.centro_servicio_id === centro.id)
+            .reduce((sum: number, s: any) => sum + (s.cantidad || 0), 0);
 
-        return {
-          nombre: centro.nombre,
-          incidentes: incidentesCentro,
-          eficiencia: 0,
-          stock: stockCentro
-        };
-      }).sort((a: CentroStats, b: CentroStats) => b.incidentes - a.incidentes);
+          return {
+            nombre: centro.nombre,
+            incidentes: incidentesCentro,
+            eficiencia: 0,
+            stock: stockCentro
+          };
+        }).sort((a: CentroStats, b: CentroStats) => b.incidentes - a.incidentes);
 
       const stockConsolidado = inventarioData.reduce((sum: number, s: any) => sum + (s.cantidad || 0), 0);
 
@@ -107,18 +108,18 @@ export default function DashboardSupervisorRegional() {
     try {
       setLoadingSupervisores(true);
 
-      // Fetch via Supabase (no handlers for these tables yet)
+      // Fetch via apiBackendAction
       const [centrosRes, rolesRes, usuariosRes, asignacionesRes] = await Promise.all([
-        supabase.from("centros_de_servicio").select("id, nombre").eq("activo", true).order("nombre"),
-        (supabase as any).from("user_roles").select("user_id").eq("role", "supervisor_regional"),
-        supabase.from("usuarios").select("id, nombre, apellido, email"),
-        supabase.from("centros_supervisor").select("supervisor_id, centro_servicio_id"),
+        apiBackendAction("centros_de_servicio.list", {}),
+        apiBackendAction("user_roles.list", { role: "supervisor_regional" }),
+        apiBackendAction("usuarios.list", {}),
+        apiBackendAction("centros_supervisor.list", {}),
       ]);
 
-      const centrosData = centrosRes.data || [];
+      const centrosData = ((centrosRes as any).results || []).filter((c: any) => c.activo);
       setCentros(centrosData.map((c: any) => ({ id: c.id, nombre: c.nombre })));
 
-      const roles = rolesRes.data || [];
+      const roles = (rolesRes as any).results || [];
       const supervisorUserIds = roles.map((r: any) => r.user_id);
 
       if (supervisorUserIds.length === 0) {
@@ -126,8 +127,8 @@ export default function DashboardSupervisorRegional() {
         return;
       }
 
-      const usuarios = usuariosRes.data || [];
-      const asignaciones = asignacionesRes.data || [];
+      const usuarios = (usuariosRes as any).results || [];
+      const asignaciones = (asignacionesRes as any).results || [];
 
       const supervisoresConCentros: SupervisorRegional[] = usuarios
         .filter((u: any) => supervisorUserIds.includes(u.id))
@@ -183,24 +184,19 @@ export default function DashboardSupervisorRegional() {
     try {
       setSaving(true);
 
-      // Delete existing assignments
-      await supabase
-        .from('centros_supervisor')
-        .delete()
-        .eq('supervisor_id', selectedSupervisor.user_id);
+      // Delete existing assignments via apiBackendAction
+      await apiBackendAction("centros_supervisor.delete", { 
+        supervisor_id: selectedSupervisor.user_id 
+      });
 
       // Create new assignments
       if (selectedCentros.length > 0) {
-        const nuevasAsignaciones = selectedCentros.map(centroId => ({
-          supervisor_id: Number(selectedSupervisor.user_id),
-          centro_servicio_id: Number(centroId)
-        }));
-
-        const { error } = await supabase
-          .from('centros_supervisor')
-          .insert(nuevasAsignaciones);
-
-        if (error) throw error;
+        for (const centroId of selectedCentros) {
+          await apiBackendAction("centros_supervisor.create", {
+            supervisor_id: Number(selectedSupervisor.user_id),
+            centro_servicio_id: Number(centroId)
+          });
+        }
       }
 
       toast.success('Centros asignados correctamente');

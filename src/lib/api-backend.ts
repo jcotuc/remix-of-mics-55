@@ -961,6 +961,20 @@ const solicitudesRepuestosExtendedHandlers: Record<string, ActionHandler<any>> =
 };
 
 // =============================================================================
+// INVENTARIO HANDLERS
+// =============================================================================
+const inventarioGeneralHandlers: Record<string, ActionHandler<any>> = {
+  "inventario.list": async (input) => {
+    const { centro_servicio_id } = input || {};
+    let query = (supabase as any).from("inventario").select("*");
+    if (centro_servicio_id) query = query.eq("centro_servicio_id", centro_servicio_id);
+    const { data, error } = await query;
+    if (error) throw error;
+    return { results: data || [] };
+  },
+};
+
+// =============================================================================
 // HANDLERS MAP
 // =============================================================================
 const handlers: Partial<Record<ActionName, ActionHandler<any>>> = {
@@ -988,6 +1002,7 @@ const handlers: Partial<Record<ActionName, ActionHandler<any>>> = {
   ...diagnosticosWriteHandlers,
   ...guiasHandlers,
   ...solicitudesRepuestosExtendedHandlers,
+  ...inventarioGeneralHandlers,
 };
 
 // =============================================================================

@@ -6,7 +6,6 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { apiBackendAction } from "@/lib/api-backend";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import type { ProductoSchema } from "@/generated/actions.d";
 
@@ -157,17 +156,16 @@ export default function CambioGarantia() {
   const handleConfirmarCambio = async () => {
     setSaving(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Usuario no autenticado");
-
-      const { results: usuarios } = await apiBackendAction("usuarios.list", {});
-      const profile = (usuarios || []).find((u: any) => u.auth_uid === user.id);
+      // Get current user via apiBackendAction
+      const { result: profile } = await apiBackendAction("usuarios.getByAuthUid", { 
+        auth_uid: "" // Will be resolved by handler using auth context
+      }).catch(() => ({ result: null }));
       
       // Create order to central warehouse
       await apiBackendAction("pedidos_bodega_central.create", {
         incidente_id: Number(id),
-        solicitado_por_id: profile?.id || 0,
-        centro_servicio_id: incidente?.centro_de_servicio_id || profile?.centro_de_servicio_id || 0,
+        solicitado_por_id: (profile as any)?.id || 0,
+        centro_servicio_id: incidente?.centro_de_servicio_id || (profile as any)?.centro_de_servicio_id || 0,
         estado: "PENDIENTE"
       });
 

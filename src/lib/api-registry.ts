@@ -603,6 +603,11 @@ export interface ActionRegistry {
   // PEDIDOS BODEGA CENTRAL (extended operations)
   // =============================================================================
   "pedidos_bodega_central.search": { input: { incidente_id?: number; estado?: string }; output: { results: unknown[] } };
+
+  // =============================================================================
+  // INVENTARIO (general inventory queries)
+  // =============================================================================
+  "inventario.list": { input: { centro_servicio_id?: number }; output: { results: unknown[] } };
 }
 
 export type ActionName = keyof ActionRegistry;
