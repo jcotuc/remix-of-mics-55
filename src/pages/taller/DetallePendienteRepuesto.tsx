@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { apiBackendAction } from "@/lib/api-backend";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,16 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  ArrowLeft,
-  Package,
-  User,
-  Clock,
-  Wrench,
-  AlertTriangle,
-  CheckCircle,
-  Box,
-  Truck,
-  Plus,
+  ArrowLeft, Package, User, Clock, Wrench, AlertTriangle, CheckCircle, Box, Truck, Plus,
 } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 import { es } from "date-fns/locale";
@@ -59,15 +50,12 @@ export default function DetallePendienteRepuesto() {
   const [inventario, setInventario] = useState<InventarioItem[]>([]);
   const [pedidoBodega, setPedidoBodega] = useState<any>(null);
 
-  // Estados para diálogos
   const [showPedidoDialog, setShowPedidoDialog] = useState(false);
   const [pedidoNotas, setPedidoNotas] = useState("");
   const [isCreatingPedido, setIsCreatingPedido] = useState(false);
 
   useEffect(() => {
-    if (id) {
-      fetchData();
-    }
+    if (id) fetchData();
   }, [id]);
 
   const fetchData = async () => {
@@ -80,72 +68,52 @@ export default function DetallePendienteRepuesto() {
         return;
       }
 
-      // Fetch incidente con joins
-      const { data: incidenteData, error: incidenteError } = await supabase
-        .from("incidentes")
-        .select(`
-          *,
-          clientes:cliente_id (*),
-          productos:producto_id (*)
-        `)
-        .eq("id", numericId)
-        .single();
-
-      if (incidenteError || !incidenteData) {
+      // Fetch incidente with API
+      const { result: incidenteData } = await apiBackendAction("incidentes.get", { id: numericId });
+      
+      if (!incidenteData) {
         toast.error("Incidente no encontrado");
         navigate("/taller/pendientes-repuestos");
         return;
       }
 
       setIncidente(incidenteData);
-      setCliente(incidenteData.clientes);
-      setProducto(incidenteData.productos);
+      setCliente(incidenteData.cliente);
+      setProducto(incidenteData.producto);
 
       // Fetch solicitudes de repuestos
-      const { data: solicitudesData } = await supabase
-        .from("solicitudes_repuestos")
-        .select("*")
-        .eq("incidente_id", numericId)
-        .order("created_at", { ascending: false });
+      const solicitudesRes = await apiBackendAction("solicitudes_repuestos.list", { limit: 100 });
+      const solicitudesData = ((solicitudesRes as any).data || (solicitudesRes as any).results || [])
+        .filter((s: any) => s.incidente_id === numericId);
 
-      // Procesar solicitudes
-      const solicitudesFormateadas: SolicitudRepuesto[] = (solicitudesData || []).map((sol) => ({
+      const solicitudesFormateadas: SolicitudRepuesto[] = solicitudesData.map((sol: any) => ({
         id: sol.id,
         estado: sol.estado || "",
-        repuestos: Array.isArray(sol.repuestos)
-          ? (sol.repuestos as unknown as RepuestoSolicitado[])
-          : [],
+        repuestos: Array.isArray(sol.repuestos) ? sol.repuestos : [],
         created_at: sol.created_at || "",
       }));
       setSolicitudes(solicitudesFormateadas);
 
-      // Fetch pedido a bodega central si existe
-      const { data: pedidoData } = await supabase
-        .from("pedidos_bodega_central")
-        .select("*")
-        .eq("incidente_id", numericId)
-        .maybeSingle();
+      // Fetch pedido a bodega central
+      const pedidosRes = await apiBackendAction("pedidos_bodega_central.list", { limit: 500 });
+      const pedidosData = ((pedidosRes as any).data || (pedidosRes as any).results || [])
+        .filter((p: any) => p.incidente_id === numericId);
+      if (pedidosData?.[0]) setPedidoBodega(pedidosData[0]);
 
-      if (pedidoData) setPedidoBodega(pedidoData);
-
-      // Fetch técnico asignado si existe (usando propietario_id)
-      if (incidenteData.propietario_id) {
-        const { data: tecnicoData } = await (supabase as any)
-          .from("usuarios")
-          .select("nombre, apellido")
-          .eq("id", incidenteData.propietario_id)
-          .single();
-
+      // Fetch técnico asignado
+      if ((incidenteData as any).propietario_id) {
+        const { result: tecnicoData } = await apiBackendAction("usuarios.get", { 
+          id: (incidenteData as any).propietario_id 
+        });
         if (tecnicoData) setTecnico(tecnicoData);
       }
 
       // Fetch inventario del centro de servicio
-      const { data: inventarioData } = await supabase
-        .from("inventario")
-        .select("codigo_repuesto, cantidad, descripcion, ubicacion_legacy")
-        .eq("centro_servicio_id", incidenteData.centro_de_servicio_id);
-
-      if (inventarioData) setInventario(inventarioData);
+      const inventarioRes = await apiBackendAction("inventarios.list", { 
+        centro_servicio_id: incidenteData.centro_de_servicio_id 
+      });
+      const inventarioData = (inventarioRes as any).data || (inventarioRes as any).results || [];
+      setInventario(inventarioData);
     } catch (error) {
       console.error("Error:", error);
       toast.error("Error al cargar datos");
@@ -159,26 +127,20 @@ export default function DetallePendienteRepuesto() {
 
     setIsCreatingPedido(true);
     try {
-      // Get current user's profile id
-      const { data: userData } = await (supabase as any)
-        .from("usuarios")
-        .select("id")
-        .eq("email", user.email)
-        .single();
+      const { results: usuarios } = await apiBackendAction("usuarios.list", {});
+      const userData = (usuarios || []).find((u: any) => u.email === user.email);
 
       if (!userData) {
         toast.error("No se encontró el usuario");
         return;
       }
 
-      const { error } = await supabase.from("pedidos_bodega_central").insert({
+      await apiBackendAction("pedidos_bodega_central.create", {
         incidente_id: incidente.id,
         centro_servicio_id: incidente.centro_de_servicio_id,
         estado: "PENDIENTE",
         solicitado_por_id: userData.id,
       });
-
-      if (error) throw error;
 
       toast.success("Pedido a bodega central creado");
       setShowPedidoDialog(false);
@@ -206,9 +168,7 @@ export default function DetallePendienteRepuesto() {
       <div className="container mx-auto p-6 space-y-6">
         <Skeleton className="h-8 w-64" />
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2">
-            <Skeleton className="h-96" />
-          </div>
+          <div className="lg:col-span-2"><Skeleton className="h-96" /></div>
           <Skeleton className="h-64" />
         </div>
       </div>
@@ -231,28 +191,21 @@ export default function DetallePendienteRepuesto() {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
-      {/* Header */}
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div className="flex-1">
           <h1 className="text-2xl font-bold">Incidente {incidente.codigo}</h1>
-          <p className="text-muted-foreground">
-            Pendiente por repuestos • {diasEspera} días en espera
-          </p>
+          <p className="text-muted-foreground">Pendiente por repuestos • {diasEspera} días en espera</p>
         </div>
-        <Badge
-          variant={diasEspera > 7 ? "destructive" : diasEspera > 3 ? "secondary" : "default"}
-        >
+        <Badge variant={diasEspera > 7 ? "destructive" : diasEspera > 3 ? "secondary" : "default"}>
           {diasEspera > 7 ? "Urgente" : diasEspera > 3 ? "En espera" : "Reciente"}
         </Badge>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Contenido principal */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Repuestos solicitados */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -262,9 +215,7 @@ export default function DetallePendienteRepuesto() {
             </CardHeader>
             <CardContent>
               {solicitudes.length === 0 ? (
-                <p className="text-muted-foreground text-center py-4">
-                  No hay solicitudes de repuestos
-                </p>
+                <p className="text-muted-foreground text-center py-4">No hay solicitudes de repuestos</p>
               ) : (
                 <div className="space-y-4">
                   {solicitudes.map((sol) => (
@@ -272,9 +223,7 @@ export default function DetallePendienteRepuesto() {
                       <div className="flex items-center justify-between mb-3">
                         <Badge variant="secondary">{sol.estado}</Badge>
                         <span className="text-xs text-muted-foreground">
-                          {format(new Date(sol.created_at), "dd/MM/yyyy HH:mm", {
-                            locale: es,
-                          })}
+                          {format(new Date(sol.created_at), "dd/MM/yyyy HH:mm", { locale: es })}
                         </span>
                       </div>
                       <Table>
@@ -293,9 +242,7 @@ export default function DetallePendienteRepuesto() {
                             const disponible = stock >= rep.cantidad;
                             return (
                               <TableRow key={idx}>
-                                <TableCell className="font-mono text-sm">
-                                  {rep.codigo}
-                                </TableCell>
+                                <TableCell className="font-mono text-sm">{rep.codigo}</TableCell>
                                 <TableCell>{rep.descripcion || "-"}</TableCell>
                                 <TableCell className="text-right">{rep.cantidad}</TableCell>
                                 <TableCell className="text-right">{stock}</TableCell>
@@ -318,20 +265,15 @@ export default function DetallePendienteRepuesto() {
             </CardContent>
           </Card>
 
-          {/* Acciones */}
           <Card>
-            <CardHeader>
-              <CardTitle>Acciones</CardTitle>
-            </CardHeader>
+            <CardHeader><CardTitle>Acciones</CardTitle></CardHeader>
             <CardContent className="space-y-3">
               {pedidoBodega ? (
                 <div className="flex items-center gap-3 p-3 bg-muted rounded-lg">
                   <Truck className="h-5 w-5 text-primary" />
                   <div className="flex-1">
                     <p className="font-medium">Pedido a Bodega Central</p>
-                    <p className="text-sm text-muted-foreground">
-                      Estado: {pedidoBodega.estado}
-                    </p>
+                    <p className="text-sm text-muted-foreground">Estado: {pedidoBodega.estado}</p>
                   </div>
                 </div>
               ) : (
@@ -344,15 +286,10 @@ export default function DetallePendienteRepuesto() {
           </Card>
         </div>
 
-        {/* Sidebar */}
         <div className="space-y-6">
-          {/* Cliente */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <User className="h-4 w-4" />
-                Cliente
-              </CardTitle>
+              <CardTitle className="flex items-center gap-2 text-base"><User className="h-4 w-4" />Cliente</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2 text-sm">
               <p className="font-medium">{cliente?.nombre || "N/A"}</p>
@@ -360,13 +297,9 @@ export default function DetallePendienteRepuesto() {
             </CardContent>
           </Card>
 
-          {/* Producto */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Box className="h-4 w-4" />
-                Producto
-              </CardTitle>
+              <CardTitle className="flex items-center gap-2 text-base"><Box className="h-4 w-4" />Producto</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2 text-sm">
               <p className="font-mono">{producto?.codigo || "N/A"}</p>
@@ -374,71 +307,46 @@ export default function DetallePendienteRepuesto() {
             </CardContent>
           </Card>
 
-          {/* Técnico */}
           {tecnico && (
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <Wrench className="h-4 w-4" />
-                  Técnico Asignado
-                </CardTitle>
+                <CardTitle className="flex items-center gap-2 text-base"><Wrench className="h-4 w-4" />Técnico Asignado</CardTitle>
               </CardHeader>
               <CardContent className="text-sm">
-                <p className="font-medium">
-                  {tecnico.nombre} {tecnico.apellido}
-                </p>
+                <p className="font-medium">{tecnico.nombre} {tecnico.apellido}</p>
               </CardContent>
             </Card>
           )}
 
-          {/* Tiempos */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Clock className="h-4 w-4" />
-                Tiempos
-              </CardTitle>
+              <CardTitle className="flex items-center gap-2 text-base"><Clock className="h-4 w-4" />Tiempos</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Ingreso:</span>
-                <span>
-                  {incidente.fecha_ingreso
-                    ? format(new Date(incidente.fecha_ingreso), "dd/MM/yyyy", { locale: es })
-                    : "N/A"}
-                </span>
+                <span>{incidente.fecha_ingreso ? format(new Date(incidente.fecha_ingreso), "dd/MM/yyyy", { locale: es }) : "N/A"}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">En espera:</span>
-                <span className={diasEspera > 7 ? "text-destructive font-medium" : ""}>
-                  {diasEspera} días
-                </span>
+                <span className={diasEspera > 7 ? "text-destructive font-medium" : ""}>{diasEspera} días</span>
               </div>
             </CardContent>
           </Card>
         </div>
       </div>
 
-      {/* Dialog crear pedido */}
       <Dialog open={showPedidoDialog} onOpenChange={setShowPedidoDialog}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Crear Pedido a Bodega Central</DialogTitle>
-            <DialogDescription>
-              Se creará una solicitud de repuestos a la bodega central para este incidente.
-            </DialogDescription>
+            <DialogDescription>Se creará una solicitud de repuestos a la bodega central para este incidente.</DialogDescription>
           </DialogHeader>
           <div className="py-4">
-            <Textarea
-              placeholder="Notas adicionales (opcional)"
-              value={pedidoNotas}
-              onChange={(e) => setPedidoNotas(e.target.value)}
-            />
+            <Textarea placeholder="Notas adicionales (opcional)" value={pedidoNotas} onChange={(e) => setPedidoNotas(e.target.value)} />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowPedidoDialog(false)}>
-              Cancelar
-            </Button>
+            <Button variant="outline" onClick={() => setShowPedidoDialog(false)}>Cancelar</Button>
             <Button onClick={handleCrearPedido} disabled={isCreatingPedido}>
               {isCreatingPedido ? "Creando..." : "Crear Pedido"}
             </Button>

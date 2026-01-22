@@ -5,13 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { apiBackendAction } from "@/lib/api-backend";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import type { Database } from "@/integrations/supabase/types";
-
-type IncidenteDB = Database["public"]["Tables"]["incidentes"]["Row"];
-type ProductoDB = Database["public"]["Tables"]["productos"]["Row"];
-type ClienteDB = Database["public"]["Tables"]["clientes"]["Row"];
+import type { ProductoSchema } from "@/generated/actions.d";
 
 interface StockInfo {
   centro_servicio_id: number;
@@ -27,66 +24,40 @@ export default function CambioGarantia() {
   
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [incidente, setIncidente] = useState<IncidenteDB | null>(null);
-  const [cliente, setCliente] = useState<ClienteDB | null>(null);
-  const [productoOriginal, setProductoOriginal] = useState<ProductoDB | null>(null);
+  const [incidente, setIncidente] = useState<any>(null);
+  const [cliente, setCliente] = useState<any>(null);
+  const [productoOriginal, setProductoOriginal] = useState<ProductoSchema | null>(null);
   const [stockDisponible, setStockDisponible] = useState<StockInfo[]>([]);
   const [hayStock, setHayStock] = useState(false);
   
-  // Para seleccionar producto alternativo
   const [mostrarAlternativos, setMostrarAlternativos] = useState(false);
-  const [productosAlternativos, setProductosAlternativos] = useState<(ProductoDB & { esSugerido?: boolean })[]>([]);
+  const [productosAlternativos, setProductosAlternativos] = useState<(ProductoSchema & { esSugerido?: boolean })[]>([]);
   const [searchProducto, setSearchProducto] = useState("");
-  const [productoSeleccionado, setProductoSeleccionado] = useState<ProductoDB | null>(null);
+  const [productoSeleccionado, setProductoSeleccionado] = useState<ProductoSchema | null>(null);
   
-  // Stock del producto alternativo seleccionado
   const [verificandoStockAlternativo, setVerificandoStockAlternativo] = useState(false);
   const [stockAlternativo, setStockAlternativo] = useState<StockInfo[]>([]);
   const [hayStockAlternativo, setHayStockAlternativo] = useState<boolean | null>(null);
 
   useEffect(() => {
-    if (id) {
-      fetchIncidenteData();
-    }
+    if (id) fetchIncidenteData();
   }, [id]);
 
   const fetchIncidenteData = async () => {
     setLoading(true);
     try {
-      // Obtener incidente
-      const { data: incData, error: incError } = await supabase
-        .from("incidentes")
-        .select("*")
-        .eq("id", Number(id))
-        .single();
-
-      if (incError) throw incError;
+      const { result: incData } = await apiBackendAction("incidentes.get", { id: Number(id) });
+      if (!incData) throw new Error("Incidente no encontrado");
       setIncidente(incData);
 
-      // Obtener cliente
-      const { data: clienteData } = await supabase
-        .from("clientes")
-        .select("*")
-        .eq("id", incData.cliente_id)
-        .maybeSingle();
-      
-      setCliente(clienteData);
-
-      // Obtener producto original
-      if (incData.producto_id) {
-        const { data: prodData, error: prodError } = await supabase
-          .from("productos")
-          .select("*")
-          .eq("id", incData.producto_id)
-          .single();
-
-        if (!prodError && prodData) {
-          setProductoOriginal(prodData);
-          // Verificar stock disponible del producto original
-          await verificarStock(prodData.codigo, incData.centro_de_servicio_id);
-        }
+      if (incData.cliente) {
+        setCliente(incData.cliente);
       }
 
+      if (incData.producto) {
+        setProductoOriginal(incData.producto as ProductoSchema);
+        await verificarStock(incData.producto.codigo, incData.centro_de_servicio_id);
+      }
     } catch (error) {
       console.error("Error cargando datos:", error);
       toast.error("Error al cargar el incidente");
@@ -97,28 +68,16 @@ export default function CambioGarantia() {
 
   const verificarStock = async (codigoProducto: string, centroActual: number) => {
     try {
-      // Buscar en inventario el código del producto
-      const { data: stockData, error } = await supabase
-        .from("inventario")
-        .select(`
-          centro_servicio_id,
-          cantidad
-        `)
-        .eq("codigo_repuesto", codigoProducto)
-        .gt("cantidad", 0);
+      const inventariosRes = await apiBackendAction("inventarios.list", { 
+        codigo_repuesto: codigoProducto 
+      });
+      
+      const stockData = ((inventariosRes as any).data || (inventariosRes as any).results || []).filter((inv: any) => inv.cantidad > 0);
+      const centrosRes = await apiBackendAction("centros_de_servicio.list", {});
+      const centros = (centrosRes as any).data || (centrosRes as any).results || [];
+      const centrosMap = new Map(centros.map((c: any) => [c.id, c.nombre]));
 
-      if (error) throw error;
-
-      // Get centro names
-      const centroIds = (stockData || []).map(s => s.centro_servicio_id);
-      const { data: centrosData } = await supabase
-        .from("centros_de_servicio")
-        .select("id, nombre")
-        .in("id", centroIds);
-
-      const centrosMap = new Map((centrosData || []).map(c => [c.id, c.nombre]));
-
-      const stockInfo: StockInfo[] = (stockData || []).map((s) => ({
+      const stockInfo: StockInfo[] = stockData.map((s: any) => ({
         centro_servicio_id: s.centro_servicio_id,
         centro_nombre: centrosMap.get(s.centro_servicio_id) || "Desconocido",
         cantidad: s.cantidad
@@ -127,12 +86,10 @@ export default function CambioGarantia() {
       setStockDisponible(stockInfo);
       setHayStock(stockInfo.length > 0);
 
-      // Si no hay stock, cargar productos alternativos automáticamente
       if (stockInfo.length === 0) {
         setMostrarAlternativos(true);
         await fetchProductosAlternativos();
       }
-
     } catch (error) {
       console.error("Error verificando stock:", error);
     }
@@ -140,21 +97,16 @@ export default function CambioGarantia() {
 
   const fetchProductosAlternativos = async () => {
     try {
-      const { data, error } = await supabase
-        .from("productos")
-        .select("*")
-        .eq("activo", true)
-        .neq("familia_padre_id", FAMILIA_HERRAMIENTA_MANUAL)
-        .order("descripcion");
-
-      if (error) throw error;
+      const { results } = await apiBackendAction("productos.list", { limit: 500 });
+      const productos = (results || []).filter((p: ProductoSchema) => 
+        p.activo && p.familia_padre_id !== FAMILIA_HERRAMIENTA_MANUAL
+      );
 
       const familiaOriginal = productoOriginal?.familia_padre_id;
-
-      const productosOrdenados = (data || []).map(p => {
-        const esSugerido = familiaOriginal && p.familia_padre_id === familiaOriginal;
-        return { ...p, esSugerido: esSugerido || false };
-      }).sort((a, b) => {
+      const productosOrdenados = productos.map((p: ProductoSchema) => ({
+        ...p,
+        esSugerido: familiaOriginal ? p.familia_padre_id === familiaOriginal : false
+      })).sort((a: any, b: any) => {
         if (a.esSugerido && !b.esSugerido) return -1;
         if (!a.esSugerido && b.esSugerido) return 1;
         return (a.descripcion || "").localeCompare(b.descripcion || "");
@@ -172,23 +124,16 @@ export default function CambioGarantia() {
     setStockAlternativo([]);
     
     try {
-      const { data: stockData, error } = await supabase
-        .from("inventario")
-        .select("centro_servicio_id, cantidad")
-        .eq("codigo_repuesto", codigoProducto)
-        .gt("cantidad", 0);
+      const inventariosRes = await apiBackendAction("inventarios.list", { 
+        codigo_repuesto: codigoProducto 
+      });
+      
+      const stockData = ((inventariosRes as any).data || (inventariosRes as any).results || []).filter((inv: any) => inv.cantidad > 0);
+      const centrosRes = await apiBackendAction("centros_de_servicio.list", {});
+      const centros = (centrosRes as any).data || (centrosRes as any).results || [];
+      const centrosMap = new Map(centros.map((c: any) => [c.id, c.nombre]));
 
-      if (error) throw error;
-
-      const centroIds = (stockData || []).map(s => s.centro_servicio_id);
-      const { data: centrosData } = await supabase
-        .from("centros_de_servicio")
-        .select("id, nombre")
-        .in("id", centroIds);
-
-      const centrosMap = new Map((centrosData || []).map(c => [c.id, c.nombre]));
-
-      const stockInfo: StockInfo[] = (stockData || []).map((s) => ({
+      const stockInfo: StockInfo[] = stockData.map((s: any) => ({
         centro_servicio_id: s.centro_servicio_id,
         centro_nombre: centrosMap.get(s.centro_servicio_id) || "Desconocido",
         cantidad: s.cantidad
@@ -196,7 +141,6 @@ export default function CambioGarantia() {
 
       setStockAlternativo(stockInfo);
       setHayStockAlternativo(stockInfo.length > 0);
-
     } catch (error) {
       console.error("Error verificando stock alternativo:", error);
       setHayStockAlternativo(false);
@@ -205,52 +149,36 @@ export default function CambioGarantia() {
     }
   };
 
-  const handleSeleccionarProducto = async (producto: ProductoDB) => {
+  const handleSeleccionarProducto = async (producto: ProductoSchema) => {
     setProductoSeleccionado(producto);
     await verificarStockAlternativo(producto.codigo);
   };
 
-  const handleConfirmarCambio = async (codigoProducto: string) => {
+  const handleConfirmarCambio = async () => {
     setSaving(true);
     try {
-      // Obtener usuario y perfil
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuario no autenticado");
 
-      const { data: profile } = await (supabase as any)
-        .from("usuarios")
-        .select("id, nombre, apellido, centro_de_servicio_id")
-        .eq("auth_uid", user.id)
-        .maybeSingle();
+      const { results: usuarios } = await apiBackendAction("usuarios.list", {});
+      const profile = (usuarios || []).find((u: any) => u.auth_uid === user.id);
+      
+      // Create order to central warehouse
+      await apiBackendAction("pedidos_bodega_central.create", {
+        incidente_id: Number(id),
+        solicitado_por_id: profile?.id || 0,
+        centro_servicio_id: incidente?.centro_de_servicio_id || profile?.centro_de_servicio_id || 0,
+        estado: "PENDIENTE"
+      });
 
-      const tecnicoNombre = profile ? `${profile.nombre} ${profile.apellido}` : user.email || "Técnico";
-
-      // Crear solicitud de cambio para aprobación usando la tabla correcta
-      const { error: solicitudError } = await (supabase as any)
-        .from("pedidos_bodega_central")
-        .insert({
-          incidente_id: Number(id),
-          solicitado_por_id: profile?.id || 0,
-          centro_servicio_id: incidente?.centro_de_servicio_id || profile?.centro_de_servicio_id || 0,
-          estado: "pendiente_jt"
-        });
-
-      if (solicitudError) throw solicitudError;
-
-      // Actualizar incidente a estado pendiente de aprobación
-      const { error } = await supabase
-        .from("incidentes")
-        .update({
-          estado: "CAMBIO_POR_GARANTIA" as const,
-          updated_at: new Date().toISOString()
-        })
-        .eq("id", Number(id));
-
-      if (error) throw error;
+      // Update incident status
+      await apiBackendAction("incidentes.update", {
+        id: Number(id),
+        data: { observaciones: `${incidente?.observaciones || ""}\n[${new Date().toISOString()}] Solicitud de cambio por garantía enviada` }
+      });
 
       toast.success("Solicitud de cambio por garantía enviada para aprobación");
       navigate("/taller/mis-asignaciones");
-
     } catch (error) {
       console.error("Error:", error);
       toast.error("Error al procesar el cambio");
@@ -272,13 +200,7 @@ export default function CambioGarantia() {
     );
   }
 
-  // Determinar si se puede continuar (hay stock del producto original O del alternativo seleccionado)
   const puedeConfirmar = hayStock || (productoSeleccionado && hayStockAlternativo === true);
-  const productoParaCambio = productoSeleccionado && hayStockAlternativo === true 
-    ? productoSeleccionado.codigo 
-    : hayStock 
-      ? productoOriginal?.codigo 
-      : null;
 
   return (
     <div className="container mx-auto p-6 max-w-4xl pb-24">
@@ -289,7 +211,6 @@ export default function CambioGarantia() {
         <h1 className="text-2xl font-bold">Cambio por Garantía</h1>
       </div>
 
-      {/* Info del incidente */}
       <Card className="mb-6">
         <CardHeader className="pb-3">
           <CardTitle className="text-lg">Incidente {incidente?.codigo}</CardTitle>
@@ -302,15 +223,12 @@ export default function CambioGarantia() {
             <Package className="h-10 w-10 text-muted-foreground" />
             <div>
               <p className="font-medium">{productoOriginal?.descripcion}</p>
-              <p className="text-sm text-muted-foreground">
-                Código: {productoOriginal?.codigo}
-              </p>
+              <p className="text-sm text-muted-foreground">Código: {productoOriginal?.codigo}</p>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Verificación de stock */}
       <Card className={`mb-6 ${hayStock ? "border-green-500" : "border-amber-500"}`}>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -343,39 +261,29 @@ export default function CambioGarantia() {
                   </div>
                 ))}
               </div>
-              
               <Button 
                 variant="outline"
-                onClick={() => {
-                  setMostrarAlternativos(true);
-                  fetchProductosAlternativos();
-                }}
+                onClick={() => { setMostrarAlternativos(true); fetchProductosAlternativos(); }}
                 className="w-full"
               >
                 Seleccionar Otro Producto
               </Button>
             </div>
           ) : (
-            <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                No hay unidades disponibles del producto <strong>{productoOriginal?.descripcion}</strong>. 
-                Selecciona un producto alternativo para el cambio:
-              </p>
-            </div>
+            <p className="text-sm text-muted-foreground">
+              No hay unidades disponibles del producto <strong>{productoOriginal?.descripcion}</strong>. 
+              Selecciona un producto alternativo para el cambio:
+            </p>
           )}
         </CardContent>
       </Card>
 
-      {/* Selección de producto alternativo */}
       {mostrarAlternativos && (
         <Card className="mb-6">
           <CardHeader>
             <CardTitle>Seleccionar Producto Alternativo</CardTitle>
             <CardDescription>
-              {productoSeleccionado 
-                ? `Seleccionado: ${productoSeleccionado.descripcion}`
-                : "Busca y selecciona el producto para el cambio"
-              }
+              {productoSeleccionado ? `Seleccionado: ${productoSeleccionado.descripcion}` : "Busca y selecciona el producto para el cambio"}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -412,32 +320,20 @@ export default function CambioGarantia() {
                       </p>
                     </div>
                     {producto.esSugerido && productoSeleccionado?.id !== producto.id && (
-                      <Badge variant="secondary" className="bg-green-100 text-green-800">
-                        Misma familia
-                      </Badge>
+                      <Badge variant="secondary" className="bg-green-100 text-green-800">Misma familia</Badge>
                     )}
                   </div>
                 </div>
               ))}
               {productosFiltrados.length === 0 && (
-                <p className="text-center text-muted-foreground py-8">
-                  No se encontraron productos
-                </p>
-              )}
-              {productosFiltrados.length > 50 && (
-                <p className="text-center text-sm text-muted-foreground py-2">
-                  Mostrando 50 de {productosFiltrados.length} resultados. Refina tu búsqueda.
-                </p>
+                <p className="text-center text-muted-foreground py-8">No se encontraron productos</p>
               )}
             </div>
 
-            {/* Stock del producto alternativo seleccionado */}
             {productoSeleccionado && (
               <Card className={`mt-4 ${hayStockAlternativo === true ? "border-green-500" : hayStockAlternativo === false ? "border-amber-500" : ""}`}>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    Disponibilidad: {productoSeleccionado.descripcion}
-                  </CardTitle>
+                  <CardTitle className="text-base">Disponibilidad: {productoSeleccionado.descripcion}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   {verificandoStockAlternativo ? (
@@ -461,7 +357,7 @@ export default function CambioGarantia() {
                       ))}
                     </div>
                   ) : hayStockAlternativo === false ? (
-                    <div className="flex items-center gap-2 text-amber-600">
+                    <div className="flex items-center gap-2 text-amber-600 py-4">
                       <AlertTriangle className="h-5 w-5" />
                       <span>Sin stock disponible de este producto</span>
                     </div>
@@ -473,26 +369,16 @@ export default function CambioGarantia() {
         </Card>
       )}
 
-      {/* Botón de confirmación */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-background border-t">
-        <div className="container mx-auto max-w-4xl">
-          <Button
-            className="w-full"
-            size="lg"
+      <div className="fixed bottom-0 left-0 right-0 bg-background border-t p-4">
+        <div className="container max-w-4xl mx-auto flex justify-end gap-3">
+          <Button variant="outline" onClick={() => navigate(-1)}>Cancelar</Button>
+          <Button 
+            onClick={handleConfirmarCambio} 
             disabled={!puedeConfirmar || saving}
-            onClick={() => productoParaCambio && handleConfirmarCambio(productoParaCambio)}
+            className="min-w-[160px]"
           >
-            {saving ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Procesando...
-              </>
-            ) : (
-              <>
-                <CheckCircle2 className="h-4 w-4 mr-2" />
-                Confirmar Cambio por Garantía
-              </>
-            )}
+            {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+            Solicitar Cambio
           </Button>
         </div>
       </div>
