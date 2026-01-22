@@ -1170,6 +1170,31 @@ export default function NuevoIncidente() {
         .select()
         .single();
       if (incidenteError) throw incidenteError;
+
+      // Insertar accesorios en incidente_accesorios
+      if (accesoriosSeleccionados.length > 0) {
+        // Buscar IDs de los accesorios seleccionados
+        const { data: accesoriosData } = await supabase
+          .from("accesorios")
+          .select("id, nombre")
+          .in("nombre", accesoriosSeleccionados);
+
+        if (accesoriosData && accesoriosData.length > 0) {
+          const accesoriosToInsert = accesoriosData.map((acc) => ({
+            incidente_id: incidenteData.id,
+            accesorio_id: acc.id,
+          }));
+
+          const { error: accesoriosError } = await supabase
+            .from("incidente_accesorios")
+            .insert(accesoriosToInsert);
+
+          if (accesoriosError) {
+            console.error("Error insertando accesorios:", accesoriosError);
+          }
+        }
+      }
+
       if (mediaPhotos.length > 0) {
         try {
           // Convert SidebarPhoto to MediaFile format for upload
