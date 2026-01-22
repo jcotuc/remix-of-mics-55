@@ -228,11 +228,111 @@ export default function IncidentesMostrador() {
         </Card>
       </div>
 
-      <Tabs defaultValue="ingresadas" className="space-y-4">
+      <Tabs defaultValue="todos" className="space-y-4">
         <TabsList>
+          <TabsTrigger value="todos">Todos ({incidentesList.length})</TabsTrigger>
           <TabsTrigger value="ingresadas">Máquinas Ingresadas ({maquinasIngresadas})</TabsTrigger>
           <TabsTrigger value="notificar">Pendientes de Notificar ({pendientesNotificar})</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="todos">
+          <Card>
+            <CardHeader>
+              <CardTitle>Todos los Incidentes</CardTitle>
+              <CardDescription>
+                {incidentesList.length} incidentes en total
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center space-x-4 mb-4">
+                <div className="flex items-center space-x-2">
+                  <Search className="h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar incidentes..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="max-w-sm"
+                  />
+                </div>
+              </div>
+
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Código</TableHead>
+                      <TableHead>Cliente</TableHead>
+                      <TableHead>Producto</TableHead>
+                      <TableHead>Estado</TableHead>
+                      <TableHead>Fecha Ingreso</TableHead>
+                      <TableHead className="text-right">Acciones</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {loading ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center">
+                          Cargando incidentes...
+                        </TableCell>
+                      </TableRow>
+                    ) : incidentesList.filter((i) => {
+                        const matchesSearch =
+                          i.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          (i.descripcion_problema || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          getClienteName(i).toLowerCase().includes(searchTerm.toLowerCase());
+                        return matchesSearch;
+                      }).length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center">
+                          No hay incidentes
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      incidentesList
+                        .filter((i) => {
+                          const matchesSearch =
+                            i.codigo.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            (i.descripcion_problema || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            getClienteName(i).toLowerCase().includes(searchTerm.toLowerCase());
+                          return matchesSearch;
+                        })
+                        .map((incidente) => (
+                          <TableRow
+                            key={incidente.id}
+                            className="cursor-pointer hover:bg-muted/30"
+                            onClick={() => handleRowClick(incidente.id)}
+                          >
+                            <TableCell className="font-medium">{incidente.codigo}</TableCell>
+                            <TableCell>{getClienteName(incidente)}</TableCell>
+                            <TableCell>
+                              <span className="text-sm">{getProductDisplayName(incidente)}</span>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline">{incidente.estado}</Badge>
+                            </TableCell>
+                            <TableCell>{incidente.created_at ? new Date(incidente.created_at).toLocaleDateString() : "-"}</TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRowClick(incidente.id);
+                                }}
+                              >
+                                <Eye className="h-4 w-4 mr-1" />
+                                Ver Detalles
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         <TabsContent value="ingresadas">
           <Card>
