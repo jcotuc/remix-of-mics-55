@@ -1,0 +1,1 @@
+UPDATE incidentes SET estado = 'REPARADO', updated_at = NOW() WHERE id = 1;
