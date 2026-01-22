@@ -1150,7 +1150,7 @@ export default function NuevoIncidente() {
           centro_de_servicio_id: centroServicio as number,
           quiere_envio: opcionEnvio !== "recoger",
           direccion_entrega_id: direccionEntregaId,
-          incidente_origen_id: esReingreso ? incidenteReingresoId : null,
+          incidente_origen_id: esReingreso && incidenteReingresoId ? parseInt(String(incidenteReingresoId), 10) : null,
           descripcion_problema: descripcionProblema || null,
           observaciones: observacionesCompuestas || null,
           tipologia: tipologiaEnum,
