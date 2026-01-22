@@ -641,13 +641,27 @@ export default function DetalleIncidenteSAC() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div>
-                  <p className="text-sm text-muted-foreground">Código</p>
-                  <p className="font-semibold font-mono text-lg">{producto?.codigo || "-"}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Descripción</p>
-                  <p className="font-medium">{producto?.descripcion || "-"}</p>
+                <div className="flex gap-4">
+                  {/* Product Image */}
+                  <div className="w-20 h-20 rounded-lg overflow-hidden bg-muted flex-shrink-0">
+                    {(producto as any)?.url_foto ? (
+                      <img 
+                        src={(producto as any).url_foto} 
+                        alt={producto?.descripcion || "Producto"} 
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Package className="h-8 w-8 text-muted-foreground" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 space-y-1">
+                    <p className="text-sm text-muted-foreground">Código</p>
+                    <p className="font-semibold font-mono text-lg">{producto?.codigo || "-"}</p>
+                    <p className="text-sm text-muted-foreground mt-2">Descripción</p>
+                    <p className="font-medium text-sm">{producto?.descripcion || "-"}</p>
+                  </div>
                 </div>
                 <div className="pt-2 border-t">
                   <p className="text-sm text-muted-foreground">Problema Reportado</p>
