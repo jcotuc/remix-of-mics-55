@@ -1030,5 +1030,29 @@
     "description": "Deletes a propietario.",
     "input_schema": "app.contracts.propietarios.delete.PropietarioDeleteInput",
     "output_schema": "app.contracts.propietarios.delete.PropietarioDeleteOutput"
+  },
+  {
+    "action": "auth.login",
+    "description": "Logs in a user.",
+    "input_schema": "app.contracts.auth.login.LoginInput",
+    "output_schema": "app.contracts.auth.login.LoginOutput"
+  },
+  {
+    "action": "auth.logout",
+    "description": "Logs out a user.",
+    "input_schema": "app.contracts.auth.logout.LogoutInput",
+    "output_schema": "app.contracts.auth.logout.LogoutOutput"
+  },
+  {
+    "action": "auth.me",
+    "description": "Returns the current user's information.",
+    "input_schema": "app.contracts.auth.me.MeInput",
+    "output_schema": "app.contracts.auth.me.MeOutput"
+  },
+  {
+    "action": "auth.refresh_token",
+    "description": "Refreshes the access token.",
+    "input_schema": "app.contracts.auth.refresh_token.RefreshTokenInput",
+    "output_schema": "app.contracts.auth.refresh_token.RefreshTokenOutput"
   }
 ]
