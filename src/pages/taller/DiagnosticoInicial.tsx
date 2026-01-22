@@ -1087,55 +1087,44 @@ export default function DiagnosticoInicial() {
         await (supabase as any).from("diagnosticos").insert(diagnosticoData);
       }
 
-      // Actualizar el incidente - cambiar status según el tipo de resolución
-      type StatusIncidente =
-        | "Ingresado"
-        | "En ruta"
-        | "Pendiente de diagnostico"
-        | "En diagnostico"
-        | "Pendiente por repuestos"
-        | "Presupuesto"
-        | "Porcentaje"
-        | "Reparado"
-        | "Cambio por garantia"
-        | "Nota de credito"
-        | "Bodega pedido"
-        | "Rechazado"
-        | "Pendiente entrega"
-        | "Logistica envio"
-        | "NC Autorizada"
-        | "NC Emitida";
-      let nuevoStatus: StatusIncidente = "Reparado";
+      // Actualizar el incidente - cambiar estado según el tipo de resolución
+      type EstadoIncidente = 
+        | "REGISTRADO"
+        | "EN_DIAGNOSTICO" 
+        | "PENDIENTE_REPUESTOS"
+        | "EN_REPARACION"
+        | "REPARADO"
+        | "LISTO_ENTREGA"
+        | "ENTREGADO"
+        | "CERRADO"
+        | "CANCELADO";
+      
+      let nuevoEstado: EstadoIncidente = "REPARADO";
 
-      // Determinar el siguiente status basado en el tipo de resolución
+      // Determinar el siguiente estado basado en el tipo de resolución
       if (tipoResolucion === "Presupuesto") {
-        nuevoStatus = "Presupuesto";
+        nuevoEstado = "EN_REPARACION";
       } else if (tipoResolucion === "Cambio por Garantía") {
-        nuevoStatus = "Cambio por garantia";
+        nuevoEstado = "LISTO_ENTREGA";
       } else if (tipoResolucion === "Nota de Crédito") {
-        nuevoStatus = "Nota de credito";
+        nuevoEstado = "EN_REPARACION";
       } else if (tipoResolucion === "Reparar en Garantía") {
-        nuevoStatus = "Reparado";
+        nuevoEstado = "REPARADO";
       } else if (tipoResolucion === "Canje") {
-        nuevoStatus = "Porcentaje";
+        nuevoEstado = "EN_REPARACION";
       }
-      const fechaActual = new Date().toISOString();
+      
       const updateData: any = {
-        status: nuevoStatus,
-        cobertura_garantia: aplicaGarantia,
+        estado: nuevoEstado,
+        aplica_garantia: aplicaGarantia,
+        tipo_resolucion: tipoResolucion === "Reparar en Garantía" ? "REPARACION" 
+          : tipoResolucion === "Cambio por Garantía" ? "CAMBIO"
+          : tipoResolucion === "Nota de Crédito" ? "NOTA_CREDITO"
+          : tipoResolucion === "Canje" ? "CANJE"
+          : tipoResolucion === "Presupuesto" ? "PRESUPUESTO"
+          : null,
       };
 
-      // Agregar timestamps según el tipo de resolución
-      if (nuevoStatus === "Reparado") {
-        updateData.fecha_reparacion = fechaActual;
-      } else if (["Presupuesto", "Porcentaje", "Pendiente por repuestos"].includes(nuevoStatus)) {
-        updateData.fecha_inicio_reparacion = fechaActual;
-      }
-
-      // Si es canje, guardar el producto alternativo
-      if (tipoResolucion === "Canje" && productoSeleccionado) {
-        updateData.producto_sugerido_alternativo = productoSeleccionado.codigo;
-      }
       const { error: incidenteError } = await (supabase as any).from("incidentes").update(updateData).eq("id", Number(id));
       if (incidenteError) throw incidenteError;
 
