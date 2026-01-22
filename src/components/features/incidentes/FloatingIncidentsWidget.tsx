@@ -98,7 +98,9 @@ export function FloatingIncidentsWidget() {
                       <span className="font-mono text-sm font-medium truncate">{incident.codigo}</span>
                       {isCurrentPage && <span className="text-[10px] text-primary">(actual)</span>}
                     </div>
-                    <p className="text-xs text-muted-foreground truncate">{incident.codigo_producto}</p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {incident.producto?.codigo || incident.codigo_producto || "Sin producto"}
+                    </p>
                   </div>
                 </div>
 
