@@ -810,19 +810,6 @@ const DiagnosticoPrintSheet = forwardRef<HTMLDivElement, Props>(({ data }, ref) 
         </div>
       )}
 
-      {/* Firmas */}
-      <div style={styles.firmasGrid}>
-        <div style={styles.firmaBox}>
-          <div style={styles.firmaLine}></div>
-          <p style={styles.firmaLabel}>Técnico Responsable</p>
-          <p style={styles.firmaName}>{data.tecnicoNombre}</p>
-        </div>
-        <div style={styles.firmaBox}>
-          <div style={styles.firmaLine}></div>
-          <p style={styles.firmaLabel}>Cliente / Autorizado</p>
-          <p style={styles.firmaPlaceholder}>Firma de recibido</p>
-        </div>
-      </div>
 
       {/* Políticas y Notas */}
       <div style={styles.footer}>
