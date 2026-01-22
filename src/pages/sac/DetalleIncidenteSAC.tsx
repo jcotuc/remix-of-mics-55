@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
   ArrowLeft, 
   Phone, 
@@ -28,9 +30,11 @@ import {
   Printer,
   Camera,
   Truck,
-  ExternalLink
+  ExternalLink,
+  Eye
 } from "lucide-react";
-import { DiagnosticoPrintSheet } from "@/components/features/diagnostico";
+import { SACIncidentePrintSheet } from "@/components/features/sac";
+import type { SACPrintData } from "@/components/features/sac";
 import { 
   AlertDialog, 
   AlertDialogAction, 
@@ -102,6 +106,7 @@ export default function DetalleIncidenteSAC() {
   const [enviandoNotificacion, setEnviandoNotificacion] = useState(false);
   const [notificaciones, setNotificaciones] = useState<NotificacionHistorial[]>([]);
   const [processingDecision, setProcessingDecision] = useState(false);
+  const [showPrintPreview, setShowPrintPreview] = useState(false);
 
   const MAX_NOTIFICACIONES = 3;
 
@@ -425,51 +430,67 @@ export default function DetalleIncidenteSAC() {
     return labels[tipoResolucion] || tipoResolucion || "Pendiente";
   };
 
-  const handlePrintDiagnostico = () => {
+  // Prepare print data
+  const preparePrintData = (): SACPrintData => ({
+    codigo: incidente?.codigo || "",
+    fechaIngreso: new Date(incidente?.fecha_ingreso || incidente?.created_at || new Date()),
+    estado: incidente?.estado || "INGRESADO",
+    centroServicio,
+    diasEnTaller: dias,
+    codigoCliente: cliente?.codigo || "",
+    nombreCliente: cliente?.nombre || "",
+    nitCliente: cliente?.nit || "",
+    telefonoCliente: cliente?.telefono_principal || "",
+    celularCliente: cliente?.celular || "",
+    correoCliente: cliente?.correo || "",
+    direccionCliente: cliente?.direccion || "",
+    municipio: cliente?.municipio || "Guatemala",
+    departamento: cliente?.departamento || "Guatemala",
+    codigoProducto: producto?.codigo || "",
+    descripcionProducto: producto?.descripcion || "",
+    problemaReportado: incidente?.descripcion_problema || "",
+    accesorios,
+    tieneDiagnostico: !!diagnostico,
+    fallas,
+    causas,
+    recomendaciones: (diagnostico as any)?.recomendaciones || "",
+    tecnicoNombre: tecnico?.nombre || "Técnico",
+    tipoResolucion: getTipoResolucionLabel(),
+    aplicaGarantia: (diagnostico as any)?.aplica_garantia || incidente?.aplica_garantia || false,
+    repuestos: repuestos.map(r => ({
+      codigo: r.codigo,
+      descripcion: r.descripcion,
+      cantidad: r.cantidad,
+      precioUnitario: r.precioUnitario,
+    })),
+    costoManoObra,
+    porcentajeDescuento,
+    subtotalGeneral,
+    descuento,
+    totalFinal,
+    productoAlternativo: productoAlternativo ? {
+      codigo: productoAlternativo.codigo,
+      descripcion: productoAlternativo.descripcion,
+      precio: productoAlternativo.precio,
+    } : undefined,
+    fotos: fotos.map(f => ({ url: f.url, tipo: f.tipo })),
+    quiereEnvio: incidente?.quiere_envio || false,
+    guia: guia ? {
+      numero_guia: guia.numero_guia,
+      tracking_number: guia.tracking_number,
+      estado: guia.estado,
+    } : undefined,
+  });
+
+  const handlePrintIncidente = () => {
     const printWindow = window.open("", "_blank");
     if (!printWindow || !printRef.current) return;
-
-    const diagnosticoData = {
-      codigoIncidente: incidente?.codigo || "",
-      fechaIngreso: incidente?.fecha_ingreso || incidente?.created_at || "",
-      cliente: {
-        nombre: cliente?.nombre || "",
-        codigo: cliente?.codigo || "",
-        nit: cliente?.nit || "",
-        telefono: cliente?.telefono_principal || cliente?.celular || "",
-        direccion: cliente?.direccion || "",
-      },
-      producto: {
-        codigo: producto?.codigo || "",
-        descripcion: producto?.descripcion || "",
-        problemaReportado: incidente?.descripcion_problema || "",
-      },
-      fallas,
-      causas,
-      repuestos: repuestos.map(r => ({
-        codigo: r.codigo,
-        descripcion: r.descripcion,
-        cantidad: r.cantidad,
-        precioUnitario: r.precioUnitario,
-      })),
-      tipoResolucion: getTipoResolucionLabel(),
-      esReparable: (diagnostico as any)?.es_reparable ?? true,
-      aplicaGarantia: (diagnostico as any)?.aplica_garantia || incidente?.aplica_garantia || false,
-      descuentoPorcentaje: porcentajeDescuento,
-      recomendaciones: (diagnostico as any)?.recomendaciones || "",
-      centroServicio,
-      productoAlternativo: productoAlternativo ? {
-        codigo: productoAlternativo.codigo,
-        descripcion: productoAlternativo.descripcion,
-        precio: productoAlternativo.precio
-      } : undefined,
-    };
 
     printWindow.document.write(`
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Diagnóstico - ${incidente?.codigo}</title>
+          <title>Incidente SAC - ${incidente?.codigo}</title>
           <style>
             @media print {
               body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -491,10 +512,10 @@ export default function DetalleIncidenteSAC() {
     }, 500);
   };
 
-  const handleShareDiagnostico = async () => {
+  const handleShareIncidente = async () => {
     const shareData = {
-      title: `Diagnóstico ${incidente?.codigo}`,
-      text: `Diagnóstico del incidente ${incidente?.codigo}\nCliente: ${cliente?.nombre}\nProducto: ${producto?.codigo}\nResolución: ${getTipoResolucionLabel()}\nTotal: ${formatCurrency(totalFinal)}`,
+      title: `Incidente ${incidente?.codigo}`,
+      text: `Incidente ${incidente?.codigo}\nCliente: ${cliente?.nombre}\nProducto: ${producto?.codigo}\nEstado: ${incidente?.estado}\nResolución: ${getTipoResolucionLabel()}\nTotal: ${formatCurrency(totalFinal)}`,
     };
 
     if (navigator.share) {
@@ -505,7 +526,6 @@ export default function DetalleIncidenteSAC() {
         console.log("Share cancelled");
       }
     } else {
-      // Fallback: copy to clipboard
       await navigator.clipboard.writeText(shareData.text);
       toast.success("Información copiada al portapapeles");
     }
@@ -539,43 +559,34 @@ export default function DetalleIncidenteSAC() {
     <div className="container mx-auto p-6 space-y-6">
       {/* Hidden print component */}
       <div ref={printRef} className="hidden">
-        <DiagnosticoPrintSheet
-          data={{
-            codigo: incidente?.codigo || "",
-            fechaIngreso: new Date(incidente?.fecha_ingreso || incidente?.created_at || new Date()),
-            fechaDiagnostico: new Date(diagnostico?.created_at || new Date()),
-            centroServicio,
-            codigoCliente: cliente?.codigo || "",
-            nombreCliente: cliente?.nombre || "",
-            telefonoCliente: cliente?.telefono_principal || cliente?.celular || "",
-            direccionEnvio: cliente?.direccion || "",
-            codigoProducto: producto?.codigo || "",
-            descripcionProducto: producto?.descripcion || "",
-            skuMaquina: producto?.codigo || "",
-            accesorios: [],
-            fallas,
-            causas,
-            recomendaciones: (diagnostico as any)?.recomendaciones || "",
-            tecnicoNombre: tecnico?.nombre || "Técnico",
-            tipoResolucion: getTipoResolucionLabel(),
-            aplicaGarantia: (diagnostico as any)?.aplica_garantia || incidente?.aplica_garantia || false,
-            tipoTrabajo: "reparacion",
-            repuestos: repuestos.map(r => ({
-              codigo: r.codigo,
-              descripcion: r.descripcion,
-              cantidad: r.cantidad,
-              precioUnitario: r.precioUnitario,
-            })),
-            costoManoObra: 20,
-            costoEnvio: 0,
-            productoAlternativo: productoAlternativo ? {
-              codigo: productoAlternativo.codigo,
-              descripcion: productoAlternativo.descripcion
-            } : undefined,
-            porcentajeDescuento,
-          }}
-        />
+        <SACIncidentePrintSheet data={preparePrintData()} />
       </div>
+
+      {/* Print Preview Dialog */}
+      <Dialog open={showPrintPreview} onOpenChange={setShowPrintPreview}>
+        <DialogContent className="max-w-4xl max-h-[90vh] p-0">
+          <DialogHeader className="p-4 border-b">
+            <DialogTitle className="flex items-center gap-2">
+              <Eye className="h-5 w-5" />
+              Vista Previa - {incidente.codigo}
+            </DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="max-h-[70vh]">
+            <div className="p-4">
+              <SACIncidentePrintSheet data={preparePrintData()} />
+            </div>
+          </ScrollArea>
+          <DialogFooter className="p-4 border-t gap-2">
+            <Button variant="outline" onClick={() => setShowPrintPreview(false)}>
+              Cerrar
+            </Button>
+            <Button onClick={handlePrintIncidente} className="gap-2">
+              <Printer className="h-4 w-4" />
+              Imprimir
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -594,18 +605,14 @@ export default function DetalleIncidenteSAC() {
             <Clock className="h-3 w-3" />
             {dias} días
           </Badge>
-          {diagnostico && (
-            <>
-              <Button variant="outline" size="sm" className="gap-1" onClick={handleShareDiagnostico}>
-                <Share2 className="h-4 w-4" />
-                Compartir
-              </Button>
-              <Button variant="outline" size="sm" className="gap-1" onClick={handlePrintDiagnostico}>
-                <Printer className="h-4 w-4" />
-                Imprimir
-              </Button>
-            </>
-          )}
+          <Button variant="outline" size="sm" className="gap-1" onClick={handleShareIncidente}>
+            <Share2 className="h-4 w-4" />
+            Compartir
+          </Button>
+          <Button variant="outline" size="sm" className="gap-1" onClick={() => setShowPrintPreview(true)}>
+            <Eye className="h-4 w-4" />
+            Vista Previa
+          </Button>
           <Button variant="outline" size="sm" onClick={handleReleaseIncident}>
             Liberar
           </Button>
