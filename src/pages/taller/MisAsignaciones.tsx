@@ -43,18 +43,35 @@ export default function MisAsignaciones() {
 
   useEffect(() => {
     const init = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      try {
+        const { data: { user }, error } = await supabase.auth.getUser();
+        if (error) {
+          console.error('Error getting user:', error);
+          setLoading(false);
+          return;
+        }
+        if (!user) {
+          console.log('No user found');
+          setLoading(false);
+          return;
+        }
 
-      setUserId(user.id);
-      setUserEmail(user.email || null);
+        setUserId(user.id);
+        setUserEmail(user.email || null);
 
-      // Buscar usuario en tabla usuarios via apiBackendAction
-      const { results } = await apiBackendAction("usuarios.search", { email: user.email });
-      const usuario = results?.[0];
+        // Buscar usuario en tabla usuarios via apiBackendAction
+        const { results } = await apiBackendAction("usuarios.search", { email: user.email });
+        const usuario = results?.[0];
 
-      if (usuario) {
-        setCodigoEmpleado((usuario as any).id.toString());
+        if (usuario) {
+          setCodigoEmpleado((usuario as any).id.toString());
+        } else {
+          console.log('Usuario no encontrado en tabla usuarios');
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error('Error in init:', err);
+        setLoading(false);
       }
     };
     init();
