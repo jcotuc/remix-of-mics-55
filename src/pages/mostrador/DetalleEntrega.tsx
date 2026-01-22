@@ -1,11 +1,12 @@
 import { useState, useRef, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, PackageCheck, User, Calendar, FileSignature, FileCheck, Printer, Wrench } from "lucide-react";
+import { ArrowLeft, PackageCheck, User, Calendar, FileSignature, FileCheck, Printer, Wrench, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { OutlinedInput } from "@/components/ui/outlined-input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { apiBackendAction } from "@/lib/api-backend";
 import { toast } from "sonner";
 import { SignatureCanvasComponent, SignatureCanvasRef, StatusBadge } from "@/components/shared";
@@ -56,7 +57,9 @@ export default function DetalleEntrega() {
   const [productoInfo, setProductoInfo] = useState<{ descripcion: string } | null>(null);
   const [centroServicio, setCentroServicio] = useState<string>("HPC Centro de Servicio");
   const [repuestosConPrecios, setRepuestosConPrecios] = useState<Array<{codigo: string; descripcion: string; cantidad: number; precioUnitario: number}>>([]);
+  const [showDiagnosticoPreview, setShowDiagnosticoPreview] = useState(false);
   const signatureRef = useRef<SignatureCanvasRef>(null);
+  const printRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (incidenteId) {
@@ -274,16 +277,36 @@ export default function DetalleEntrega() {
 
   const handlePrintDiagnostico = () => {
     if (!diagnostico || !incidente || !cliente) return;
+    setShowDiagnosticoPreview(true);
+  };
 
-    // Obtener el nombre del técnico (usar el estado o un fallback)
+  const handlePrintFromPreview = () => {
+    if (printRef.current) {
+      const printContent = printRef.current.innerHTML;
+      const printWindow = window.open('', '', 'width=900,height=700');
+      if (!printWindow) return;
+
+      printWindow.document.write(`<!DOCTYPE html><html><head><title>Diagnóstico - ${incidente?.codigo}</title>
+        <script src="https://cdn.tailwindcss.com"><\/script>
+        <style>@media print { .no-print { display: none !important; } body { -webkit-print-color-adjust: exact; } } body { font-size: 11px; }</style>
+      </head><body class="p-4 bg-white text-black font-sans">
+        ${printContent}
+      </body></html>`);
+      printWindow.document.close();
+      printWindow.focus();
+      setTimeout(() => printWindow.print(), 500);
+    }
+  };
+
+  // Calcular datos para el preview del diagnóstico
+  const getDiagnosticoPreviewData = () => {
+    if (!diagnostico || !incidente || !cliente) return null;
+    
     const tecnicoDisplay = tecnicoNombre || `Técnico ${diagnostico.tecnico_id}`;
-
-    // Parsear resolución del diagnóstico
     const tipoResolucion = diagnostico.tipo_resolucion || 'Reparar en Garantía';
     const aplicaGarantia = diagnostico.aplica_garantia ?? incidente.aplica_garantia ?? false;
     const accesorios = 'Ninguno';
     
-    // Calcular costos
     const subtotalRepuestos = repuestosConPrecios.reduce((sum, r) => sum + (r.cantidad * r.precioUnitario), 0);
     const costoManoObra = 150;
     const costoEnvio = incidente.quiere_envio ? 75 : 0;
@@ -299,76 +322,19 @@ export default function DetalleEntrega() {
     }
     const totalFinal = subtotalGeneral - descuento;
 
-    // Generar filas de repuestos
-    const repuestosRows = repuestosConPrecios.map(r => 
-      `<tr><td class="border px-3 py-1">${r.codigo} - ${r.descripcion}</td><td class="border px-2 py-1 text-center">${r.cantidad}</td><td class="border px-3 py-1 text-right">Q ${r.precioUnitario.toFixed(2)}</td><td class="border px-3 py-1 text-right">Q ${(r.cantidad * r.precioUnitario).toFixed(2)}</td></tr>`
-    ).join('');
-
-    const printWindow = window.open('', '', 'width=900,height=700');
-    if (!printWindow) return;
-
-    printWindow.document.write(`<!DOCTYPE html><html><head><title>Diagnóstico - ${incidente.codigo}</title>
-      <script src="https://cdn.tailwindcss.com"><\/script>
-      <style>@media print { .no-print { display: none !important; } body { -webkit-print-color-adjust: exact; } } body { font-size: 11px; }</style>
-    </head><body class="p-4 bg-white text-black font-sans">
-      <div class="max-w-4xl mx-auto">
-        <div class="flex justify-between items-start border-b-2 border-black pb-2 mb-2">
-          <div class="flex items-center gap-3">
-            <div class="w-12 h-12 bg-orange-500 rounded-lg flex items-center justify-center text-white font-bold text-lg">HPC</div>
-            <div><h1 class="font-bold text-lg">HPC Centro de Servicio</h1><p class="text-xs text-gray-600">${centroServicio}</p></div>
-          </div>
-          <div class="text-right"><h2 class="font-bold text-base text-orange-600">${tipoResolucion}</h2><p class="font-mono text-base font-bold">${incidente.codigo}</p></div>
-        </div>
-        <div class="grid grid-cols-2 gap-2 mb-2">
-          <div class="border rounded p-2"><h3 class="font-bold text-xs mb-1 border-b pb-1">Cliente</h3>
-            <p class="text-xs"><span class="text-gray-500">Código:</span> ${cliente.codigo}</p>
-            <p class="text-xs"><span class="text-gray-500">Nombre:</span> ${cliente.nombre}</p>
-            <p class="text-xs"><span class="text-gray-500">Teléfono:</span> ${cliente.celular}</p>
-          </div>
-          <div class="border rounded p-2"><h3 class="font-bold text-xs mb-1 border-b pb-1">Equipo</h3>
-            <p class="text-xs"><span class="text-gray-500">Producto ID:</span> ${incidente.producto_id || 'N/A'}</p>
-            <p class="text-xs"><span class="text-gray-500">Accesorios:</span> ${accesorios}</p>
-          </div>
-        </div>
-        <div class="mb-2 border-2 border-orange-200 rounded overflow-hidden">
-          <div class="bg-orange-100 px-2 py-1"><h3 class="font-bold text-orange-800 text-xs">DIAGNÓSTICO TÉCNICO</h3></div>
-          <div class="p-2">
-            <div class="grid grid-cols-2 gap-2">
-              <div>
-                <p class="font-semibold text-gray-600 text-xs">Resolución:</p>
-                <p class="text-xs">${tipoResolucion}</p>
-              </div>
-              <div>
-                <p class="font-semibold text-gray-600 text-xs">Aplica Garantía:</p>
-                <p class="text-xs">${aplicaGarantia ? 'Sí' : 'No'}</p>
-              </div>
-            </div>
-            ${diagnostico.recomendaciones ? `<p class="font-semibold text-gray-600 text-xs mt-1">Recomendaciones:</p><p class="bg-gray-50 p-1 rounded text-xs">${diagnostico.recomendaciones}</p>` : ''}
-            <p class="text-xs mt-1 pt-1 border-t">Técnico: <strong>${tecnicoDisplay}</strong></p>
-          </div>
-        </div>
-        ${(repuestosConPrecios.length > 0 || costoManoObra > 0) ? `
-        <div class="mb-2"><h3 class="font-bold mb-1 text-xs">DETALLE DE COSTOS</h3>
-          <table class="w-full border-collapse text-xs">
-            <thead><tr class="bg-gray-100"><th class="border px-2 py-1 text-left">Concepto</th><th class="border px-1 py-1 text-center w-12">Cant.</th><th class="border px-2 py-1 text-right w-20">Precio</th><th class="border px-2 py-1 text-right w-20">Subtotal</th></tr></thead>
-            <tbody>
-              ${repuestosRows}
-              <tr><td class="border px-2 py-1">Mano de Obra</td><td class="border px-1 py-1 text-center">1</td><td class="border px-2 py-1 text-right">Q ${costoManoObra.toFixed(2)}</td><td class="border px-2 py-1 text-right">Q ${costoManoObra.toFixed(2)}</td></tr>
-              ${costoEnvio > 0 ? `<tr><td class="border px-2 py-1">Envío</td><td class="border px-1 py-1 text-center">1</td><td class="border px-2 py-1 text-right">Q ${costoEnvio.toFixed(2)}</td><td class="border px-2 py-1 text-right">Q ${costoEnvio.toFixed(2)}</td></tr>` : ''}
-              <tr class="bg-gray-50"><td colspan="3" class="border px-2 py-1 text-right font-semibold">SUBTOTAL</td><td class="border px-2 py-1 text-right font-semibold">Q ${subtotalGeneral.toFixed(2)}</td></tr>
-              ${descuento > 0 ? `<tr class="bg-green-50"><td colspan="3" class="border px-2 py-1 text-right font-semibold text-green-700">DESCUENTO (${porcentajeDesc}%)</td><td class="border px-2 py-1 text-right font-semibold text-green-700">-Q ${descuento.toFixed(2)}</td></tr>` : ''}
-              <tr class="bg-orange-100"><td colspan="3" class="border px-2 py-1 text-right font-bold">TOTAL</td><td class="border px-2 py-1 text-right font-bold text-orange-700">Q ${totalFinal.toFixed(2)}</td></tr>
-            </tbody>
-          </table>
-          ${aplicaGarantia && tipoResolucion === 'REPARAR_EN_GARANTIA' ? '<div class="mt-1 p-1 bg-green-50 border border-green-200 rounded text-xs text-green-700"><strong>✓ Reparación cubierta por garantía.</strong></div>' : ''}
-        </div>` : ''}
-      </div>
-      <div class="no-print fixed bottom-4 right-4 flex gap-2">
-        <button onclick="window.print()" class="px-4 py-2 bg-orange-500 text-white rounded-lg font-semibold">Imprimir</button>
-        <button onclick="window.close()" class="px-4 py-2 bg-gray-500 text-white rounded-lg font-semibold">Cerrar</button>
-      </div>
-    </body></html>`);
-    printWindow.document.close();
+    return {
+      tecnicoDisplay,
+      tipoResolucion,
+      aplicaGarantia,
+      accesorios,
+      subtotalRepuestos,
+      costoManoObra,
+      costoEnvio,
+      subtotalGeneral,
+      descuento,
+      porcentajeDesc,
+      totalFinal
+    };
   };
 
   if (loading) {
@@ -559,6 +525,158 @@ export default function DetalleEntrega() {
           </Card>
         </div>
       </div>
+
+      {/* Dialog para vista previa del diagnóstico */}
+      <Dialog open={showDiagnosticoPreview} onOpenChange={setShowDiagnosticoPreview}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center justify-between">
+              <span>Vista Previa - Diagnóstico {incidente?.codigo}</span>
+            </DialogTitle>
+          </DialogHeader>
+          
+          {(() => {
+            const previewData = getDiagnosticoPreviewData();
+            if (!previewData || !diagnostico || !incidente || !cliente) return null;
+            
+            return (
+              <>
+                <div ref={printRef} className="bg-white p-4 text-black">
+                  <div className="max-w-4xl mx-auto">
+                    {/* Header */}
+                    <div className="flex justify-between items-start border-b-2 border-black pb-2 mb-2">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 bg-orange-500 rounded-lg flex items-center justify-center text-white font-bold text-lg">HPC</div>
+                        <div>
+                          <h1 className="font-bold text-lg">HPC Centro de Servicio</h1>
+                          <p className="text-xs text-gray-600">{centroServicio}</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <h2 className="font-bold text-base text-orange-600">{previewData.tipoResolucion}</h2>
+                        <p className="font-mono text-base font-bold">{incidente.codigo}</p>
+                      </div>
+                    </div>
+
+                    {/* Cliente y Equipo */}
+                    <div className="grid grid-cols-2 gap-2 mb-2">
+                      <div className="border rounded p-2">
+                        <h3 className="font-bold text-xs mb-1 border-b pb-1">Cliente</h3>
+                        <p className="text-xs"><span className="text-gray-500">Código:</span> {cliente.codigo}</p>
+                        <p className="text-xs"><span className="text-gray-500">Nombre:</span> {cliente.nombre}</p>
+                        <p className="text-xs"><span className="text-gray-500">Teléfono:</span> {cliente.celular}</p>
+                      </div>
+                      <div className="border rounded p-2">
+                        <h3 className="font-bold text-xs mb-1 border-b pb-1">Equipo</h3>
+                        <p className="text-xs"><span className="text-gray-500">Producto ID:</span> {incidente.producto_id || 'N/A'}</p>
+                        <p className="text-xs"><span className="text-gray-500">Accesorios:</span> {previewData.accesorios}</p>
+                      </div>
+                    </div>
+
+                    {/* Diagnóstico Técnico */}
+                    <div className="mb-2 border-2 border-orange-200 rounded overflow-hidden">
+                      <div className="bg-orange-100 px-2 py-1">
+                        <h3 className="font-bold text-orange-800 text-xs">DIAGNÓSTICO TÉCNICO</h3>
+                      </div>
+                      <div className="p-2">
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <p className="font-semibold text-gray-600 text-xs">Resolución:</p>
+                            <p className="text-xs">{previewData.tipoResolucion}</p>
+                          </div>
+                          <div>
+                            <p className="font-semibold text-gray-600 text-xs">Aplica Garantía:</p>
+                            <p className="text-xs">{previewData.aplicaGarantia ? 'Sí' : 'No'}</p>
+                          </div>
+                        </div>
+                        {diagnostico.recomendaciones && (
+                          <>
+                            <p className="font-semibold text-gray-600 text-xs mt-1">Recomendaciones:</p>
+                            <p className="bg-gray-50 p-1 rounded text-xs">{diagnostico.recomendaciones}</p>
+                          </>
+                        )}
+                        <p className="text-xs mt-1 pt-1 border-t">Técnico: <strong>{previewData.tecnicoDisplay}</strong></p>
+                      </div>
+                    </div>
+
+                    {/* Detalle de Costos */}
+                    {(repuestosConPrecios.length > 0 || previewData.costoManoObra > 0) && (
+                      <div className="mb-2">
+                        <h3 className="font-bold mb-1 text-xs">DETALLE DE COSTOS</h3>
+                        <table className="w-full border-collapse text-xs">
+                          <thead>
+                            <tr className="bg-gray-100">
+                              <th className="border px-2 py-1 text-left">Concepto</th>
+                              <th className="border px-1 py-1 text-center w-12">Cant.</th>
+                              <th className="border px-2 py-1 text-right w-20">Precio</th>
+                              <th className="border px-2 py-1 text-right w-20">Subtotal</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {repuestosConPrecios.map((r, idx) => (
+                              <tr key={idx}>
+                                <td className="border px-3 py-1">{r.codigo} - {r.descripcion}</td>
+                                <td className="border px-2 py-1 text-center">{r.cantidad}</td>
+                                <td className="border px-3 py-1 text-right">Q {r.precioUnitario.toFixed(2)}</td>
+                                <td className="border px-3 py-1 text-right">Q {(r.cantidad * r.precioUnitario).toFixed(2)}</td>
+                              </tr>
+                            ))}
+                            <tr>
+                              <td className="border px-2 py-1">Mano de Obra</td>
+                              <td className="border px-1 py-1 text-center">1</td>
+                              <td className="border px-2 py-1 text-right">Q {previewData.costoManoObra.toFixed(2)}</td>
+                              <td className="border px-2 py-1 text-right">Q {previewData.costoManoObra.toFixed(2)}</td>
+                            </tr>
+                            {previewData.costoEnvio > 0 && (
+                              <tr>
+                                <td className="border px-2 py-1">Envío</td>
+                                <td className="border px-1 py-1 text-center">1</td>
+                                <td className="border px-2 py-1 text-right">Q {previewData.costoEnvio.toFixed(2)}</td>
+                                <td className="border px-2 py-1 text-right">Q {previewData.costoEnvio.toFixed(2)}</td>
+                              </tr>
+                            )}
+                            <tr className="bg-gray-50">
+                              <td colSpan={3} className="border px-2 py-1 text-right font-semibold">SUBTOTAL</td>
+                              <td className="border px-2 py-1 text-right font-semibold">Q {previewData.subtotalGeneral.toFixed(2)}</td>
+                            </tr>
+                            {previewData.descuento > 0 && (
+                              <tr className="bg-green-50">
+                                <td colSpan={3} className="border px-2 py-1 text-right font-semibold text-green-700">DESCUENTO ({previewData.porcentajeDesc}%)</td>
+                                <td className="border px-2 py-1 text-right font-semibold text-green-700">-Q {previewData.descuento.toFixed(2)}</td>
+                              </tr>
+                            )}
+                            <tr className="bg-orange-100">
+                              <td colSpan={3} className="border px-2 py-1 text-right font-bold">TOTAL</td>
+                              <td className="border px-2 py-1 text-right font-bold text-orange-700">Q {previewData.totalFinal.toFixed(2)}</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                        {previewData.aplicaGarantia && previewData.tipoResolucion === 'REPARAR_EN_GARANTIA' && (
+                          <div className="mt-1 p-1 bg-green-50 border border-green-200 rounded text-xs text-green-700">
+                            <strong>✓ Reparación cubierta por garantía.</strong>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Botones de acción */}
+                <div className="flex justify-end gap-2 pt-4 border-t">
+                  <Button variant="outline" onClick={() => setShowDiagnosticoPreview(false)}>
+                    <X className="h-4 w-4 mr-2" />
+                    Cerrar
+                  </Button>
+                  <Button onClick={handlePrintFromPreview} className="bg-orange-500 hover:bg-orange-600">
+                    <Printer className="h-4 w-4 mr-2" />
+                    Imprimir
+                  </Button>
+                </div>
+              </>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
