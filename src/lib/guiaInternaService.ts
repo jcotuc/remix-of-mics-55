@@ -136,8 +136,8 @@ export async function generarGuiaInterna(incidenteId: number): Promise<GenerarGu
       incidente_id: incidenteId,
       incidentes_codigos: [incidente.codigo] as any,
       centro_de_servicio_origen_id: incidente.centro_de_servicio_id,
-      tipo: "SALIDA" as const,
-      estado: "PENDIENTE" as const,
+      tipo: "ENTREGA" as const,  // Enum válido: RECOLECTA, TRASLADO, ENTREGA
+      estado: "PENDIENTE" as const,  // Enum válido: PENDIENTE, CREADA, EN_TRANSITO, ENTREGADA, CANCELADA
       numero_guia: numeroGuia,
       tracking_number: numeroGuia, // Usamos el mismo número como tracking
       fecha_guia: new Date().toISOString(),
