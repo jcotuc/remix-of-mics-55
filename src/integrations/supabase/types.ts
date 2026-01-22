@@ -3883,7 +3883,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      generar_codigo_hpc: { Args: never; Returns: string }
+      generar_codigo_incidente: { Args: never; Returns: string }
     }
     Enums: {
       clasificacionabc: "A" | "B" | "C"
