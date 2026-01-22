@@ -61,7 +61,7 @@ export default function MisAsignaciones() {
   }, []);
 
   useEffect(() => {
-    if (userId) {
+    if (userId && userEmail) {
       refreshIncidents();
       fetchAsignaciones();
       fetchNotificaciones();
@@ -84,7 +84,7 @@ export default function MisAsignaciones() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [userId]);
+  }, [userId, userEmail]);
 
   const fetchAsignaciones = async () => {
     if (!userId) {
