@@ -615,10 +615,6 @@ const SACIncidentePrintSheet = forwardRef<HTMLDivElement, Props>(({ data }, ref)
                   </td>
                 </tr>
               )}
-              <tr>
-                <td colSpan={3} style={styles.td}>Consumibles</td>
-                <td style={styles.tdRight}>{formatCurrency(data.costoManoObra)}</td>
-              </tr>
               {data.porcentajeDescuento > 0 && (
                 <>
                   <tr style={{ backgroundColor: '#f9fafb' }}>
