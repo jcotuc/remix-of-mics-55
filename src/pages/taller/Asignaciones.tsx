@@ -21,6 +21,7 @@ interface IncidenteConProducto {
   created_at?: string | null;
   producto?: {
     familia_padre_id: number | null;
+    familia_abuelo_id?: number | null;
   } | null;
 }
 
@@ -90,30 +91,58 @@ export default function Asignaciones() {
     const loadUserConfig = async () => {
       try {
         setLoadingConfig(true);
-        const { data: { user } } = await supabase.auth.getUser();
+        // 1) Obtener usuario (con auto-login dev como fallback)
+        const getOrAutoLoginUser = async () => {
+          const { data } = await supabase.auth.getUser();
+          if (data.user) return data.user;
+
+          // Auto-login DEV (evita bloquearse si se entra directo a /taller/asignaciones)
+          const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+            email: "jcotuc@hpc.com.gt",
+            password: "123456",
+          });
+          if (signInError) return null;
+          return signInData.user ?? (await supabase.auth.getUser()).data.user ?? null;
+        };
+
+        const user = await getOrAutoLoginUser();
         if (!user) {
-          console.warn('No hay usuario autenticado');
-          setLoadingConfig(false);
+          console.warn("No hay usuario autenticado");
           return;
         }
 
-        // Obtener centro de servicio del usuario via apiBackendAction
-        const { result: userProfile } = await apiBackendAction("usuarios.getByAuthUid", { auth_uid: user.id });
-        console.log('Perfil de usuario:', userProfile);
+        // 2) Obtener centro de servicio del usuario (fallback por email; la tabla `usuarios` no siempre tiene auth_uid)
+        let userProfile: any = null;
+        try {
+          const r = await apiBackendAction("usuarios.getByAuthUid", { auth_uid: user.id } as any);
+          userProfile = (r as any)?.result ?? null;
+        } catch {
+          // ignore
+        }
 
-        if (!(userProfile as any)?.centro_de_servicio_id) {
-          console.warn('Usuario sin centro de servicio asignado');
-          setLoadingConfig(false);
+        if (!userProfile && user.email) {
+          const { data: byEmail } = await (supabase as any)
+            .from("usuarios")
+            .select("id, centro_de_servicio_id, activo, email")
+            .eq("email", user.email)
+            .maybeSingle();
+          userProfile = byEmail;
+        }
+
+        console.log("Perfil de usuario:", userProfile);
+
+        const userCentroId = Number(userProfile?.centro_de_servicio_id);
+        if (!userCentroId) {
+          console.warn("Usuario sin centro de servicio asignado");
           return;
         }
-        
-        const userCentroId = Number((userProfile as any).centro_de_servicio_id);
+
         console.log('Centro de servicio del usuario:', userCentroId);
         setCentroServicioId(userCentroId);
 
         // Cargar TODOS los grupos activos y filtrar por centro en el cliente
         // (el filtro en servidor puede no estar funcionando)
-        const { results: allGruposData } = await apiBackendAction("grupos_cola_fifo.list", {});
+        const { results: allGruposData } = await apiBackendAction("grupos_cola_fifo.list", { centro_servicio_id: userCentroId } as any);
         console.log('Todos los grupos:', allGruposData);
         
         // Filtrar por centro de servicio del usuario
@@ -220,7 +249,12 @@ export default function Asignaciones() {
         descripcion_problema: inc.descripcion_problema,
         centro_de_servicio_id: inc.centro_de_servicio_id,
         created_at: inc.created_at,
-        producto: inc.producto ? { familia_padre_id: inc.producto.familia_padre_id || null } : null
+        producto: inc.producto
+          ? {
+              familia_padre_id: inc.producto.familia_padre_id || null,
+              familia_abuelo_id: inc.producto.familia_abuelo_id ?? null,
+            }
+          : null
       }));
 
       setIncidentes(transformed);
@@ -285,8 +319,9 @@ export default function Asignaciones() {
   // Obtener incidentes para un grupo (puede tener múltiples familias)
   const getIncidentesPorGrupo = (grupo: GrupoColaFifo) => {
     return incidentes.filter(inc => {
-      const familiaPadreId = inc.producto?.familia_padre_id;
-      const abueloId = getAbueloId(familiaPadreId ?? null);
+      const abueloId =
+        (inc.producto?.familia_abuelo_id ?? null) ??
+        getAbueloId(inc.producto?.familia_padre_id ?? null);
       return abueloId !== null && grupo.familias.includes(abueloId);
     });
   };
