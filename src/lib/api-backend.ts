@@ -292,10 +292,11 @@ const mostradorHandlers: Record<string, ActionHandler<any>> = {
   },
   // Incidente Tecnico
   "incidente_tecnico.list": async (input) => {
-    const { incidente_id, es_principal } = input as any;
+    const { incidente_id, es_principal, tecnico_id } = input as any;
     let query = supabase.from("incidente_tecnico").select("*");
     if (incidente_id) query = query.eq("incidente_id", incidente_id);
     if (es_principal !== undefined) query = query.eq("es_principal", es_principal);
+    if (tecnico_id) query = query.eq("tecnico_id", tecnico_id);
     const { data, error } = await query;
     if (error) throw error;
     return { results: data || [] };
@@ -641,6 +642,17 @@ const diagnosticoAsociacionesHandlers: Record<string, ActionHandler<any>> = {
     if (error) throw error;
     return { status: "deleted" };
   },
+  "diagnostico_fallas.deleteByDiagnostico": async (input) => {
+    const { diagnostico_id } = input;
+    const { error } = await supabase.from("diagnostico_fallas").delete().eq("diagnostico_id", diagnostico_id);
+    if (error) throw error;
+    return { status: "deleted" };
+  },
+  "diagnostico_fallas.createBatch": async (input) => {
+    const { data, error } = await supabase.from("diagnostico_fallas").insert(input as any).select();
+    if (error) throw error;
+    return data || [];
+  },
   "diagnostico_causas.list": async (input) => {
     const { diagnostico_id } = input;
     const { data, error } = await supabase.from("diagnostico_causas").select("*").eq("diagnostico_id", diagnostico_id);
@@ -659,6 +671,17 @@ const diagnosticoAsociacionesHandlers: Record<string, ActionHandler<any>> = {
     const { error } = await query;
     if (error) throw error;
     return { status: "deleted" };
+  },
+  "diagnostico_causas.deleteByDiagnostico": async (input) => {
+    const { diagnostico_id } = input;
+    const { error } = await supabase.from("diagnostico_causas").delete().eq("diagnostico_id", diagnostico_id);
+    if (error) throw error;
+    return { status: "deleted" };
+  },
+  "diagnostico_causas.createBatch": async (input) => {
+    const { data, error } = await supabase.from("diagnostico_causas").insert(input as any).select();
+    if (error) throw error;
+    return data || [];
   },
 };
 

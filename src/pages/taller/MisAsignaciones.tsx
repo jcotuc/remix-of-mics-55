@@ -8,10 +8,28 @@ import { Wrench, Clock, Bell, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useActiveIncidents } from "@/contexts/ActiveIncidentsContext";
-import type { Database } from "@/integrations/supabase/types";
+import { apiBackendAction } from "@/lib/api-backend";
 
-type NotificacionDB = Database['public']['Tables']['notificaciones']['Row'];
-type IncidenteDB = Database['public']['Tables']['incidentes']['Row'];
+type NotificacionDB = {
+  id: number;
+  incidente_id: number | null;
+  mensaje: string | null;
+  tipo: string | null;
+  enviada: boolean | null;
+  created_at: string | null;
+};
+
+type IncidenteDB = {
+  id: number;
+  codigo: string;
+  estado: string;
+  producto_id: number | null;
+  fecha_ingreso: string;
+  observaciones: string | null;
+  descripcion_problema?: string | null;
+  aplica_garantia?: boolean | null;
+  diagnosticos?: Array<{ id: number; estado: string; tecnico_id: number }>;
+};
 
 export default function MisAsignaciones() {
   const navigate = useNavigate();
@@ -29,15 +47,12 @@ export default function MisAsignaciones() {
 
       setUserId(user.id);
 
-      // Buscar usuario en tabla usuarios
-      const { data: usuario } = await (supabase as any)
-        .from('usuarios')
-        .select('id, nombre, email')
-        .eq('auth_uid', user.id)
-        .maybeSingle();
+      // Buscar usuario en tabla usuarios via apiBackendAction
+      const { results } = await apiBackendAction("usuarios.search", { auth_uid: user.id });
+      const usuario = results?.[0];
 
       if (usuario) {
-        setCodigoEmpleado(usuario.id.toString());
+        setCodigoEmpleado((usuario as any).id.toString());
       }
     };
     init();
@@ -77,14 +92,9 @@ export default function MisAsignaciones() {
 
     try {
       setLoading(true);
-      // Filtrar incidentes asignados al técnico actual
-      // Buscar en incidente_tecnico junction table
-      // Buscar usuario_id numérico
-      const { data: usuario } = await (supabase as any)
-        .from('usuarios')
-        .select('id')
-        .eq('auth_uid', userId)
-        .maybeSingle();
+      // Buscar usuario_id numérico via apiBackendAction
+      const { results: usuarioResults } = await apiBackendAction("usuarios.search", { auth_uid: userId });
+      const usuario = usuarioResults?.[0] as { id: number } | undefined;
 
       if (!usuario) {
         setIncidentes([]);
@@ -92,10 +102,10 @@ export default function MisAsignaciones() {
         return;
       }
 
-      const { data: asignaciones } = await supabase
-        .from('incidente_tecnico')
-        .select('incidente_id')
-        .eq('tecnico_id', usuario.id);
+      // Buscar asignaciones via apiBackendAction
+      const { results: asignaciones } = await apiBackendAction("incidente_tecnico.list", { 
+        tecnico_id: usuario.id 
+      });
 
       if (!asignaciones || asignaciones.length === 0) {
         setIncidentes([]);
@@ -103,24 +113,33 @@ export default function MisAsignaciones() {
         return;
       }
 
-      const incidenteIds = asignaciones.map(a => a.incidente_id);
+      const incidenteIds = asignaciones.map((a: any) => a.incidente_id);
 
-      const { data, error } = await supabase
-        .from('incidentes')
-        .select(`
-          *,
-          diagnosticos(
-            id,
-            estado,
-            tecnico_id
-          )
-        `)
-        .in('id', incidenteIds)
-        .eq('estado', 'EN_DIAGNOSTICO')
-        .order('fecha_ingreso', { ascending: true });
+      // Fetch incidentes via apiBackendAction
+      const { results: allIncidentes } = await apiBackendAction("incidentes.list", { limit: 2000 });
+      
+      // Filter by ids and estado
+      const filteredIncidentes = (allIncidentes || []).filter((inc: any) => 
+        incidenteIds.includes(inc.id) && inc.estado === 'EN_DIAGNOSTICO'
+      );
 
-      if (error) throw error;
-      setIncidentes(data || []);
+      // Fetch diagnosticos for these incidentes
+      const incidentesWithDiag = await Promise.all(
+        filteredIncidentes.map(async (inc: any) => {
+          const { results: diagResults } = await apiBackendAction("diagnosticos.search", { incidente_id: inc.id });
+          return {
+            ...inc,
+            diagnosticos: diagResults || [],
+          };
+        })
+      );
+
+      // Sort by fecha_ingreso
+      incidentesWithDiag.sort((a: any, b: any) => 
+        new Date(a.fecha_ingreso || a.created_at).getTime() - new Date(b.fecha_ingreso || b.created_at).getTime()
+      );
+
+      setIncidentes(incidentesWithDiag as IncidenteDB[]);
     } catch (error) {
       console.error('Error:', error);
       toast.error('Error al cargar asignaciones');
@@ -134,37 +153,38 @@ export default function MisAsignaciones() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Buscar usuario_id en tabla usuarios
-      const { data: usuario } = await (supabase as any)
-        .from('usuarios')
-        .select('id')
-        .eq('auth_uid', user.id)
-        .maybeSingle();
+      // Buscar usuario_id via apiBackendAction
+      const { results: usuarioResults } = await apiBackendAction("usuarios.search", { auth_uid: user.id });
+      const usuario = usuarioResults?.[0] as { id: number } | undefined;
 
       if (!usuario) return;
 
-      // Notificaciones donde el incidente está asignado al técnico
-      const { data: asignaciones } = await supabase
-        .from('incidente_tecnico')
-        .select('incidente_id')
-        .eq('tecnico_id', usuario.id);
+      // Buscar asignaciones via apiBackendAction
+      const { results: asignaciones } = await apiBackendAction("incidente_tecnico.list", { 
+        tecnico_id: usuario.id 
+      });
 
       if (!asignaciones || asignaciones.length === 0) {
         setNotificaciones([]);
         return;
       }
 
-      const incidenteIds = asignaciones.map(a => a.incidente_id);
+      const incidenteIds = asignaciones.map((a: any) => a.incidente_id);
 
-      const { data, error } = await supabase
-        .from('notificaciones')
-        .select('*')
-        .in('incidente_id', incidenteIds)
-        .eq('enviada', false)
-        .order('created_at', { ascending: false });
+      // Fetch notificaciones via apiBackendAction
+      const { results: allNotifs } = await apiBackendAction("notificaciones.list", {});
+      
+      // Filter by incidente_id and enviada
+      const filteredNotifs = (allNotifs || []).filter((n: any) => 
+        incidenteIds.includes(n.incidente_id) && n.enviada === false
+      );
 
-      if (error) throw error;
-      setNotificaciones(data || []);
+      // Sort by created_at descending
+      filteredNotifs.sort((a: any, b: any) => 
+        new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
+      );
+
+      setNotificaciones(filteredNotifs as NotificacionDB[]);
     } catch (error) {
       console.error('Error:', error);
     }
@@ -172,12 +192,7 @@ export default function MisAsignaciones() {
 
   const marcarNotificacionLeida = async (id: number, incidenteId?: number | null) => {
     try {
-      const { error } = await supabase
-        .from('notificaciones')
-        .update({ enviada: true })
-        .eq('id', id);
-
-      if (error) throw error;
+      await apiBackendAction("notificaciones.markAsRead", { id });
       setNotificaciones(prev => prev.filter(n => n.id !== id));
       
       if (incidenteId) {
@@ -198,23 +213,20 @@ export default function MisAsignaciones() {
       } else {
         // El técnico decide esperar - cambiar incidente a Espera repuestos
         if (incidenteId) {
-          await supabase
-            .from("incidentes")
-            .update({
+          await apiBackendAction("incidentes.update", {
+            id: incidenteId,
+            data: {
               estado: "ESPERA_REPUESTOS",
               updated_at: new Date().toISOString()
-            })
-            .eq("id", incidenteId);
+            }
+          } as any);
         }
 
         toast.success("Incidente marcado como pendiente por repuestos");
       }
 
-      // Marcar notificación como enviada
-      await supabase
-        .from('notificaciones')
-        .update({ enviada: true })
-        .eq('id', notif.id);
+      // Marcar notificación como leída via apiBackendAction
+      await apiBackendAction("notificaciones.markAsRead", { id: notif.id });
 
       setNotificaciones(prev => prev.filter(n => n.id !== notif.id));
       
@@ -248,41 +260,37 @@ export default function MisAsignaciones() {
     
     const fetchMetricas = async () => {
       try {
-        // Buscar usuario_id
-        const { data: usuario } = await (supabase as any)
-          .from('usuarios')
-          .select('id')
-          .eq('auth_uid', userId)
-          .maybeSingle();
+        // Buscar usuario_id via apiBackendAction
+        const { results: usuarioResults } = await apiBackendAction("usuarios.search", { auth_uid: userId });
+        const usuario = usuarioResults?.[0] as { id: number } | undefined;
 
         if (!usuario) return;
 
         // Productividad del día: diagnósticos completados hoy por este técnico
-        const { data: diagHoy } = await supabase
-          .from('diagnosticos')
-          .select('id')
-          .eq('estado', 'COMPLETADO')
-          .eq('tecnico_id', usuario.id)
-          .gte('updated_at', hoy.toISOString());
+        const { results: allDiagnosticos } = await apiBackendAction("diagnosticos.list", { limit: 1000 });
+        const diagHoy = (allDiagnosticos || []).filter((d: any) => 
+          d.estado === 'COMPLETADO' && 
+          d.tecnico_id === usuario.id &&
+          new Date(d.updated_at || 0) >= hoy
+        );
         
-        setProductividadDia(diagHoy?.length || 0);
+        setProductividadDia(diagHoy.length);
 
         // Reingresos: incidentes marcados como reingreso asignados a este técnico
-        const { data: asignaciones } = await supabase
-          .from('incidente_tecnico')
-          .select('incidente_id')
-          .eq('tecnico_id', usuario.id);
+        const { results: asignaciones } = await apiBackendAction("incidente_tecnico.list", { 
+          tecnico_id: usuario.id 
+        });
 
         if (asignaciones && asignaciones.length > 0) {
           const incidenteIds = asignaciones.map((a: any) => a.incidente_id) as number[];
-          const { data: reingresosData } = await (supabase as any)
-            .from('incidentes')
-            .select('id')
-            .eq('es_reingreso', true)
-            .eq('estado', 'EN_DIAGNOSTICO')
-            .in('id', incidenteIds);
+          const { results: allIncidentes } = await apiBackendAction("incidentes.list", { limit: 2000 });
+          const reingresosData = (allIncidentes || []).filter((inc: any) => 
+            (inc as any).es_reingreso === true &&
+            inc.estado === 'EN_DIAGNOSTICO' &&
+            incidenteIds.includes(inc.id)
+          );
           
-          setReingresos(reingresosData?.length || 0);
+          setReingresos(reingresosData.length);
         }
       } catch (error) {
         console.error('Error:', error);

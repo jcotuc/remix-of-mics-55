@@ -9,9 +9,18 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { WhatsAppStyleMediaCapture, MediaFile } from "@/components/features/media";
 import { uploadMediaToStorage } from "@/lib/uploadMedia";
-import type { Database } from "@/integrations/supabase/types";
+import { apiBackendAction } from "@/lib/api-backend";
 
-type IncidenteDB = Database['public']['Tables']['incidentes']['Row'];
+type IncidenteDB = {
+  id: number;
+  codigo: string;
+  estado: string;
+  producto_id: number | null;
+  fecha_ingreso: string | null;
+  descripcion_problema: string | null;
+  observaciones: string | null;
+  tipologia: string | null;
+};
 
 interface IncidenteStockCemaco extends IncidenteDB {
   cliente?: {
@@ -39,24 +48,23 @@ export default function RevisionStockCemaco() {
 
   const fetchIncidentes = async () => {
     try {
-      // Filter by tipologia - use existing enum values
-      const { data, error } = await supabase
-        .from("incidentes")
-        .select(`
-          *,
-          clientes:cliente_id(nombre, celular),
-          productos:producto_id(descripcion)
-        `)
-        .eq("tipologia", "REPARACION")
-        .eq("estado", "REGISTRADO")
-        .order("fecha_ingreso", { ascending: true });
+      // Fetch incidentes via apiBackendAction
+      const { results } = await apiBackendAction("incidentes.list", { limit: 2000 });
+      
+      // Filter by tipologia and estado
+      const filtered = (results || []).filter((inc: any) => 
+        inc.tipologia === "REPARACION" && inc.estado === "REGISTRADO"
+      );
 
-      if (error) throw error;
+      // Sort by fecha_ingreso ascending
+      filtered.sort((a: any, b: any) => 
+        new Date(a.fecha_ingreso || a.created_at).getTime() - new Date(b.fecha_ingreso || b.created_at).getTime()
+      );
 
-      const formatted: IncidenteStockCemaco[] = (data || []).map(inc => ({
+      const formatted: IncidenteStockCemaco[] = filtered.map((inc: any) => ({
         ...inc,
-        cliente: (inc as any).clientes as { nombre: string; celular: string | null } | null,
-        producto: (inc as any).productos as { descripcion: string } | null,
+        cliente: inc.cliente as { nombre: string; celular: string | null } | null,
+        producto: inc.producto as { descripcion: string } | null,
       }));
 
       setIncidentes(formatted);
@@ -91,31 +99,26 @@ export default function RevisionStockCemaco() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Usuario no autenticado");
 
-      // Get usuario_id
-      const { data: usuario } = await (supabase as any)
-        .from("usuarios")
-        .select("id")
-        .eq("auth_uid", user.id)
-        .maybeSingle();
+      // Get usuario_id via apiBackendAction
+      const { results: usuarioResults } = await apiBackendAction("usuarios.search", { auth_uid: user.id });
+      const usuario = usuarioResults?.[0] as { id: number } | undefined;
 
       // Add observaciones with revision info
       const revisionLog = `[${new Date().toISOString()}] Revisión Stock Cemaco - Decisión: ${decision}. Justificación: ${justificacion}`;
       const currentObs = selectedIncidente.observaciones || "";
       const newObs = currentObs ? `${currentObs}\n${revisionLog}` : revisionLog;
 
-      // Actualizar estado del incidente
-      const { error: updateError } = await supabase
-        .from("incidentes")
-        .update({ 
+      // Actualizar estado del incidente via apiBackendAction
+      await apiBackendAction("incidentes.update", {
+        id: selectedIncidente.id,
+        data: { 
           estado: "EN_DIAGNOSTICO",
           observaciones: newObs,
           updated_at: new Date().toISOString()
-        })
-        .eq("id", selectedIncidente.id);
+        }
+      } as any);
 
-      if (updateError) throw updateError;
-
-      // Upload photos to incidente_fotos
+      // Upload photos to incidente_fotos via apiBackendAction
       if (uploadedUrls.length > 0 && usuario) {
         const fotosToInsert = uploadedUrls.map((url, idx) => ({
           incidente_id: selectedIncidente.id,
@@ -126,7 +129,7 @@ export default function RevisionStockCemaco() {
           created_by: usuario.id,
         }));
 
-        await supabase.from("incidente_fotos").insert(fotosToInsert);
+        await apiBackendAction("incidente_fotos.create", fotosToInsert as any);
       }
 
       toast.success("Revisión enviada para aprobación del jefe de taller");

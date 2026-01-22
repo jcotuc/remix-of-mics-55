@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { CheckCircle, XCircle, Clock, AlertCircle } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { apiBackendAction } from "@/lib/api-backend";
 
@@ -85,16 +84,14 @@ export default function Solicitudes() {
     if (!selectedSolicitud) return;
 
     try {
-      // Still using Supabase for updates (registry doesn't have diagnosticos.update yet)
-      const { error } = await supabase
-        .from('diagnosticos')
-        .update({
+      // Use apiBackendAction for updates
+      await apiBackendAction("diagnosticos.update", {
+        id: selectedSolicitud.id,
+        data: {
           estado: 'COMPLETADO',
           updated_at: new Date().toISOString()
-        })
-        .eq('id', selectedSolicitud.id);
-
-      if (error) throw error;
+        }
+      } as any);
 
       toast.success('Solicitud aprobada');
       setSelectedSolicitud(null);
@@ -110,15 +107,14 @@ export default function Solicitudes() {
     if (!selectedSolicitud) return;
 
     try {
-      const { error } = await supabase
-        .from('diagnosticos')
-        .update({
+      // Use apiBackendAction for updates
+      await apiBackendAction("diagnosticos.update", {
+        id: selectedSolicitud.id,
+        data: {
           estado: 'PENDIENTE',
           updated_at: new Date().toISOString()
-        })
-        .eq('id', selectedSolicitud.id);
-
-      if (error) throw error;
+        }
+      } as any);
 
       toast.success('Solicitud rechazada');
       setSelectedSolicitud(null);
