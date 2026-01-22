@@ -51,7 +51,7 @@ const styles = {
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: '4px 6px',
-    background: 'linear-gradient(to right, #f97316, #ea580c)',
+    backgroundColor: '#000000',
     color: '#ffffff',
   },
   headerDark: {
@@ -59,7 +59,7 @@ const styles = {
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: '4px 6px',
-    backgroundColor: '#111827',
+    backgroundColor: '#000000',
     color: '#ffffff',
   },
   logo: {
@@ -70,9 +70,10 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
+    border: '1px solid #000000',
   },
   logoText: {
-    color: '#f97316',
+    color: '#000000',
     fontWeight: 800,
     fontSize: '10px',
   },
@@ -167,28 +168,28 @@ const CSSBarcode = ({ value }: { value: string }) => {
   );
 };
 
-// Figuras para identificar máquinas por día de la semana
+// Figuras para identificar máquinas por día de la semana (blanco y negro)
 const DayShape = ({ date }: { date: Date }) => {
   const dayOfWeek = date.getDay();
   
-  const shapes: Record<number, { shape: React.ReactNode; color: string; label: string }> = {
-    0: { shape: <circle cx="12" cy="12" r="10" />, color: '#DC2626', label: 'DOM' },
-    1: { shape: <rect x="2" y="2" width="20" height="20" />, color: '#2563EB', label: 'LUN' },
-    2: { shape: <polygon points="12,2 22,22 2,22" />, color: '#16A34A', label: 'MAR' },
-    3: { shape: <polygon points="12,2 22,12 12,22 2,12" />, color: '#9333EA', label: 'MIÉ' },
-    4: { shape: <polygon points="12,2 20,8 18,18 6,18 4,8" />, color: '#EA580C', label: 'JUE' },
-    5: { shape: <polygon points="12,2 24,10 20,24 4,24 0,10" />, color: '#0891B2', label: 'VIE' },
-    6: { shape: <polygon points="12,0 15,8 24,9 17,15 19,24 12,19 5,24 7,15 0,9 9,8" />, color: '#CA8A04', label: 'SÁB' },
+  const shapes: Record<number, { shape: React.ReactNode; label: string }> = {
+    0: { shape: <circle cx="12" cy="12" r="10" />, label: 'DOM' },
+    1: { shape: <rect x="2" y="2" width="20" height="20" />, label: 'LUN' },
+    2: { shape: <polygon points="12,2 22,22 2,22" />, label: 'MAR' },
+    3: { shape: <polygon points="12,2 22,12 12,22 2,12" />, label: 'MIÉ' },
+    4: { shape: <polygon points="12,2 20,8 18,18 6,18 4,8" />, label: 'JUE' },
+    5: { shape: <polygon points="12,2 24,10 20,24 4,24 0,10" />, label: 'VIE' },
+    6: { shape: <polygon points="12,0 15,8 24,9 17,15 19,24 12,19 5,24 7,15 0,9 9,8" />, label: 'SÁB' },
   };
 
-  const { shape, color, label } = shapes[dayOfWeek];
+  const { shape, label } = shapes[dayOfWeek];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-      <svg width="24" height="24" viewBox="0 0 24 24" fill={color} stroke={color} strokeWidth="1">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="#000000" stroke="#000000" strokeWidth="1">
         {shape}
       </svg>
-      <span style={{ fontSize: '6px', fontWeight: 700, marginTop: '1px', color }}>{label}</span>
+      <span style={{ fontSize: '6px', fontWeight: 700, marginTop: '1px', color: '#000000' }}>{label}</span>
     </div>
   );
 };
@@ -268,9 +269,9 @@ const IncidentePrintSheet = forwardRef<HTMLDivElement, Props>(({ data }, ref) =>
               borderRadius: '9999px', 
               fontSize: '7px', 
               fontWeight: 700, 
-              backgroundColor: '#fee2e2', 
-              color: '#b91c1c',
-              border: '1px solid #fca5a5'
+              backgroundColor: '#e5e7eb', 
+              color: '#000000',
+              border: '1.5px solid #000000'
             }}>
               ⚠ REINGRESO
             </span>
@@ -317,12 +318,12 @@ const IncidentePrintSheet = forwardRef<HTMLDivElement, Props>(({ data }, ref) =>
         {/* Header oscuro */}
         <div style={styles.headerDark}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <div style={{ ...styles.logo, backgroundColor: '#f97316', width: '24px', height: '24px' }}>
-              <span style={{ color: '#ffffff', fontWeight: 800, fontSize: '8px' }}>HPC</span>
+            <div style={{ ...styles.logo, backgroundColor: '#ffffff', width: '24px', height: '24px' }}>
+              <span style={{ color: '#000000', fontWeight: 800, fontSize: '8px' }}>HPC</span>
             </div>
             <div>
               <p style={{ fontWeight: 700, fontSize: '10px', margin: 0 }}>CONTRASEÑA DE SERVICIO</p>
-              <p style={{ fontSize: '7px', color: '#9ca3af', margin: 0 }}>Conserve este documento</p>
+              <p style={{ fontSize: '7px', color: '#d1d5db', margin: 0 }}>Conserve este documento</p>
             </div>
           </div>
           <div style={{ textAlign: 'right' }}>
@@ -427,7 +428,7 @@ const IncidentePrintSheet = forwardRef<HTMLDivElement, Props>(({ data }, ref) =>
           {/* Header */}
           <div style={{ 
             padding: '4px 6px', 
-            background: 'linear-gradient(to right, #f97316, #ea580c)', 
+            backgroundColor: '#000000', 
             color: '#ffffff',
             display: 'flex',
             justifyContent: 'space-between',
