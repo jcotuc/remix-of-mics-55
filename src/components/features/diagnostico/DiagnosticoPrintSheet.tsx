@@ -46,6 +46,7 @@ export interface DiagnosticoPrintData {
   // Costos
   repuestos: RepuestoItem[];
   costoManoObra: number;
+  costoConsumibles?: number;
   costoEnvio?: number;
   
   // Para Canje
@@ -63,7 +64,8 @@ const DiagnosticoPrintSheet = forwardRef<HTMLDivElement, Props>(({ data }, ref) 
 
   // Calcular totales
   const subtotalRepuestos = data.repuestos.reduce((sum, r) => sum + (r.cantidad * r.precioUnitario), 0);
-  const subtotalGeneral = subtotalRepuestos + data.costoManoObra + (data.costoEnvio || 0);
+  const costoConsumibles = data.costoConsumibles ?? 20; // Default Q20 si no se especifica
+  const subtotalGeneral = subtotalRepuestos + data.costoManoObra + costoConsumibles + (data.costoEnvio || 0);
   
   // Calcular descuento según tipo de resolución
   let descuento = 0;
@@ -727,6 +729,16 @@ const DiagnosticoPrintSheet = forwardRef<HTMLDivElement, Props>(({ data }, ref) 
                   <td style={styles.tdCenter}>1</td>
                   <td style={styles.tdRight}>{formatCurrency(data.costoManoObra)}</td>
                   <td style={styles.tdRight}>{formatCurrency(data.costoManoObra)}</td>
+                </tr>
+              )}
+
+              {/* Consumibles */}
+              {costoConsumibles > 0 && (
+                <tr>
+                  <td style={styles.td}>Consumibles</td>
+                  <td style={styles.tdCenter}>1</td>
+                  <td style={styles.tdRight}>{formatCurrency(costoConsumibles)}</td>
+                  <td style={styles.tdRight}>{formatCurrency(costoConsumibles)}</td>
                 </tr>
               )}
 
