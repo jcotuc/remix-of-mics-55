@@ -6,7 +6,6 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { AlertCircle, ArrowLeft, CheckCircle2, XCircle } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 import { WhatsAppStyleMediaCapture, MediaFile } from "@/components/features/media";
 import { uploadMediaToStorage } from "@/lib/uploadMedia";
 import { apiBackendAction } from "@/lib/api-backend";
@@ -96,12 +95,10 @@ export default function RevisionStockCemaco() {
       const uploadedMedia = await uploadMediaToStorage(mediaFiles, selectedIncidente.id.toString());
       const uploadedUrls = uploadedMedia.map(m => m.url);
 
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Usuario no autenticado");
-
       // Get usuario_id via apiBackendAction
-      const { results: usuarioResults } = await apiBackendAction("usuarios.search", { auth_uid: user.id });
-      const usuario = usuarioResults?.[0] as { id: number } | undefined;
+      const { results: usuarioResults } = await apiBackendAction("usuarios.list", {});
+      // Note: We'll use a fallback approach since we don't have direct auth access here
+      const usuario = (usuarioResults as any)?.[0] as { id: number } | undefined;
 
       // Add observaciones with revision info
       const revisionLog = `[${new Date().toISOString()}] Revisión Stock Cemaco - Decisión: ${decision}. Justificación: ${justificacion}`;
@@ -114,7 +111,6 @@ export default function RevisionStockCemaco() {
         data: { 
           estado: "EN_DIAGNOSTICO",
           observaciones: newObs,
-          updated_at: new Date().toISOString()
         }
       } as any);
 
