@@ -7,6 +7,7 @@ interface IncidentePrintData {
   codigoCliente: string;
   nombreCliente: string;
   telefonoCliente?: string;
+  direccionCliente?: string;
   tipoCliente?: string; // alianza, mostrador, canal
   codigoProducto: string;
   descripcionProducto: string;
@@ -186,6 +187,9 @@ const IncidentePrintSheet = forwardRef<HTMLDivElement, Props>(({ data }, ref) =>
               <p><span className="text-gray-500">Nombre:</span> <span className="font-semibold">{data.nombreCliente}</span></p>
               {data.telefonoCliente && (
                 <p><span className="text-gray-500">Tel:</span> {data.telefonoCliente}</p>
+              )}
+              {data.direccionCliente && (
+                <p className="truncate"><span className="text-gray-500">Dir:</span> {data.direccionCliente}</p>
               )}
             </div>
           </div>
