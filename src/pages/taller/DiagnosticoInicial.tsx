@@ -860,15 +860,18 @@ export default function DiagnosticoInicial() {
           // Marcarla como presupuesto pendiente de aprobación
           const notaSinStock = repuestosSinStock.map((r) => `${r.codigo} (stock: ${r.stockActual})`).join(", ");
 
+          const tecnicoId = usuario?.id;
+          if (!tecnicoId) throw new Error("No se encontró el ID del técnico");
+
           const data = await (supabase as any).from("solicitudes_repuestos").insert({
             incidente_id: Number(id),
-            tecnico_solicitante: tecnicoNombre,
+            tecnico_solicitante_id: tecnicoId,
             repuestos: repuestosSolicitados,
             estado: "pendiente",
             tipo_despacho: tipoDespacho,
             tipo_resolucion: "Presupuesto",
             presupuesto_aprobado: false,
-            notas: `⚠️ Repuestos sin stock suficiente: ${notaSinStock}`,
+            notas: `⚠️ Repuestos sin stock suficiente: ${notaSinStock}. Solicitado por: ${tecnicoNombre}`,
           }).select().single();
 
           // Limpiar la lista de repuestos seleccionados
@@ -973,14 +976,18 @@ export default function DiagnosticoInicial() {
       // Determinar si es presupuesto para bloquear el despacho hasta aprobación
       const esPresupuesto = tipoResolucion === "Presupuesto";
 
+      const tecnicoId = usuario?.id;
+      if (!tecnicoId) throw new Error("No se encontró el ID del técnico");
+
       const { data, error } = await (supabase as any).from("solicitudes_repuestos").insert({
         incidente_id: Number(id),
-        tecnico_solicitante: tecnicoNombre,
+        tecnico_solicitante_id: tecnicoId,
         repuestos: repuestosConStock,
         estado: "pendiente",
         tipo_despacho: tipoDespacho,
         tipo_resolucion: tipoResolucion || null,
         presupuesto_aprobado: esPresupuesto ? false : null,
+        notas: `Solicitado por: ${tecnicoNombre}`,
       }).select().single();
       if (error) throw error;
 
