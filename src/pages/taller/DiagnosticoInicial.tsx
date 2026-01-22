@@ -363,7 +363,8 @@ export default function DiagnosticoInicial() {
     }
   };
   const fetchRepuestos = async () => {
-    if (!incidente?.codigo_producto) return;
+    const codigoProducto = incidente?.codigo_producto || productoInfo?.codigo;
+    if (!codigoProducto) return;
     try {
       // 1. Cargar TODAS las relaciones padre-hijo con paginación (más de 14,000 registros)
       let allRelaciones: any[] = [];
@@ -382,10 +383,10 @@ export default function DiagnosticoInicial() {
       const idToCodigoMap = new Map<number, string>();
       const idToDescripcionMap = new Map<number, string>();
       allRelaciones.forEach((r: any) => {
-        if (r.id && r.Código) {
-          idToCodigoMap.set(r.id, r.Código);
-          if (r.Descripción) {
-            idToDescripcionMap.set(r.id, r.Descripción);
+        if (r.id && r.codigo) {
+          idToCodigoMap.set(r.id, r.codigo);
+          if (r.descripcion) {
+            idToDescripcionMap.set(r.id, r.descripcion);
           }
         }
       });
@@ -394,8 +395,8 @@ export default function DiagnosticoInicial() {
       const newHijoPadreMap = new Map<string, string>();
       const padreDescripcionMap = new Map<string, string>();
       allRelaciones.forEach((r: any) => {
-        const codigoHijo = r.Código;
-        const padreId = r.Padre; // Este es un ID numérico, no el código
+        const codigoHijo = r.codigo;
+        const padreId = r.padre_id; // Este es un ID numérico, no el código
 
         if (codigoHijo && padreId) {
           // Resolver el ID del padre a su código real
@@ -417,7 +418,7 @@ export default function DiagnosticoInicial() {
       const { data: producto } = await supabase
         .from("productos")
         .select("id,codigo")
-        .eq("codigo", incidente.codigo_producto)
+        .eq("codigo", codigoProducto)
         .maybeSingle();
 
       if (!producto) {
@@ -425,17 +426,41 @@ export default function DiagnosticoInicial() {
         return;
       }
 
-      const { data, error } = await supabase
-        .from("repuestos")
-        .select("*")
-        .eq("codigo_producto", producto.codigo)
-        .order("descripcion")
-        .returns<any[]>();
-      if (error) throw error;
-      console.log("AQUI1", producto, data, error);
+      // 2.1 Intentar por relación repuestos_productos (fuente de verdad)
+      let repuestosData: any[] = [];
+
+      const { data: relData, error: relError } = await supabase
+        .from("repuestos_productos")
+        .select("repuesto_id")
+        .eq("producto_id", producto.id);
+      if (relError) throw relError;
+
+      const repuestoIds = (relData || []).map((r: any) => r.repuesto_id).filter(Boolean) as number[];
+      if (repuestoIds.length > 0) {
+        const { data: repByIds, error: repByIdsError } = await supabase
+          .from("repuestos")
+          .select("*")
+          .in("id", repuestoIds)
+          .order("descripcion")
+          .returns<any[]>();
+        if (repByIdsError) throw repByIdsError;
+        repuestosData = repByIds || [];
+      }
+
+      // 2.2 Fallback legacy: repuestos.codigo_producto
+      if (repuestosData.length === 0) {
+        const { data: repByCodigoProducto, error: repByCodigoProductoError } = await supabase
+          .from("repuestos")
+          .select("*")
+          .eq("codigo_producto", producto.codigo)
+          .order("descripcion")
+          .returns<any[]>();
+        if (repByCodigoProductoError) throw repByCodigoProductoError;
+        repuestosData = repByCodigoProducto || [];
+      }
 
       // 2.5. Extraer códigos de repuestos para consultar inventario
-      const codigosRepuestos = (data || []).map((r) => r.codigo);
+      const codigosRepuestos = (repuestosData || []).map((r) => r.codigo);
       // También incluir códigos padre para buscar stock
       const codigosPadre = codigosRepuestos.map((codigo) => newHijoPadreMap.get(codigo)).filter(Boolean) as string[];
       const todosLosCodigos = [...new Set([...codigosRepuestos, ...codigosPadre])];
@@ -482,7 +507,7 @@ export default function DiagnosticoInicial() {
       // 3. Transformar: reemplazar códigos hijo por padre
       const repuestosTransformados: any[] = [];
       const codigosVistos = new Set<string>();
-      (data || []).forEach((repuesto) => {
+      (repuestosData || []).forEach((repuesto) => {
         const codigoPadre = newHijoPadreMap.get(repuesto.codigo);
         const codigoFinal = codigoPadre || repuesto.codigo;
 
@@ -523,7 +548,11 @@ export default function DiagnosticoInicial() {
     try {
       const { data, error } = await (supabase as any).from("incidentes").select("*, productos:producto_id(*)").eq("id", Number(id)).single();
       if (error) throw error;
-      setIncidente(data);
+
+      // Normalizar: algunos flujos esperan incidente.codigo_producto
+      const codigoProducto = data?.codigo_producto ?? data?.productos?.codigo ?? null;
+      const normalized = { ...data, codigo_producto: codigoProducto };
+      setIncidente(normalized);
 
       // Registrar timestamp de inicio de diagnóstico si no existe
       if (data && !data.fecha_inicio_diagnostico && data.estado === "EN_DIAGNOSTICO") {
