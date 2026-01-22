@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Search, CheckCircle, Package, Plus, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { apiBackendAction } from "@/lib/api";
+import { apiBackendAction } from "@/lib/api-backend";
 import type { IncidenteSchema, ClienteSchema, ProductoSchema, Embarque } from "@/generated/actions.d";
 import { WhatsAppStyleMediaCapture, MediaFile } from "@/components/features/media";
 import { uploadMediaToStorage, saveIncidentePhotos } from "@/lib/uploadMedia";

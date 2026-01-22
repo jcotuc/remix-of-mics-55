@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Search, AlertTriangle, Package } from "lucide-react";
 import { toast } from "sonner";
-import { apiBackendAction } from "@/lib/api";
+import { apiBackendAction } from "@/lib/api-backend";
 import type { IncidenteSchema } from "@/generated/actions.d";
 
 type RepuestoConStock = {
