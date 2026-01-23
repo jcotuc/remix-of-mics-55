@@ -17,7 +17,6 @@ const Transferencias = lazy(() => import("@/pages/taller/Transferencias"));
 const Reasignaciones = lazy(() => import("@/pages/taller/Reasignaciones"));
 const DiagnosticoInicial = lazy(() => import("@/pages/taller/DiagnosticoInicial"));
 const CambioGarantia = lazy(() => import("@/pages/taller/CambioGarantia"));
-const DashboardJefeTaller = lazy(() => import("@/pages/taller/DashboardJefeTaller"));
 const SolicitudesTaller = lazy(() => import("@/pages/taller/Solicitudes"));
 
 export const tallerRoutes = [
@@ -38,5 +37,4 @@ export const tallerRoutes = [
   <Route key="taller-diagnostico" path="/taller/diagnostico/:id" element={<DiagnosticoInicial />} />,
   <Route key="taller-cambio-garantia" path="/taller/cambio-garantia/:id" element={<CambioGarantia />} />,
   <Route key="taller-solicitudes" path="/taller/solicitudes" element={<SolicitudesTaller />} />,
-  <Route key="taller-dashboard" path="/taller/dashboard-jefe" element={<DashboardJefeTaller />} />,
 ];
