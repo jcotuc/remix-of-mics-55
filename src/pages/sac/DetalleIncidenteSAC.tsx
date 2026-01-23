@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { apiBackendAction } from "@/lib/api-backend";
-import { supabase } from "@/integrations/supabase/client"; // Only for auth.getUser
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -118,7 +117,7 @@ export default function DetalleIncidenteSAC() {
 
   const assignIncident = async () => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { user } = await apiBackendAction("auth.getUser", {});
       if (!user) return;
 
       const { result: userProfile } = await apiBackendAction("usuarios.getByEmail", { email: user.email || "" });

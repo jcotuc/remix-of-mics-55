@@ -8,7 +8,6 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search, Plus, Camera, Paperclip } from "lucide-react";
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client"; // Only for RPC
 import { PhotoGalleryWithDescriptions, type PhotoWithDescription } from "@/components/shared";
 import { toast } from "sonner";
 import { OutlinedInput, OutlinedTextarea, OutlinedSelect } from "@/components/ui/outlined-input";
@@ -173,12 +172,9 @@ export default function GarantiasManuales() {
       let incidenteId: number | null = null;
       let codigoIncidente: string | null = null;
 
-      // Generar código de incidente (keep RPC as exception)
-      const { data: codigoData, error: codigoError } = await (supabase as any)
-        .rpc("generar_codigo_incidente");
-      
-      if (codigoError) throw codigoError;
-      codigoIncidente = codigoData;
+      // Generar código de incidente via apiBackendAction
+      const { codigo } = await apiBackendAction("rpc.generarCodigoIncidente", {});
+      codigoIncidente = codigo;
 
       // Determinar el status del incidente basado en la decisión
       let estadoIncidente: "EN_DIAGNOSTICO" | "CAMBIO_POR_GARANTIA" | "ESPERA_APROBACION" = "EN_DIAGNOSTICO";

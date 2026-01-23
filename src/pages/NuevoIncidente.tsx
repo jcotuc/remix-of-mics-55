@@ -28,7 +28,7 @@ import {
   PenTool,
 } from "lucide-react";
 import { showError, showSuccess, showWarning } from "@/utils/toastHelpers";
-import { supabase } from "@/integrations/supabase/client";
+import { apiBackendAction } from "@/lib/api-backend";
 import type { Database } from "@/integrations/supabase/types";
 type Producto = Database["public"]["Tables"]["productos"]["Row"];
 import { SidebarMediaCapture, SidebarPhoto } from "@/components/features/media";
@@ -605,32 +605,25 @@ export default function NuevoIncidente() {
       }
 
       try {
-        // Obtener el familia_padre_id del producto desde la BD
-        const { data: productoData } = await supabase
-          .from("productos")
-          .select("familia_padre_id")
-          .eq("codigo", productoSeleccionado.codigo)
-          .single();
+        // Obtener el familia_padre_id del producto usando apiBackendAction
+        const { results: productosData } = await apiBackendAction("productos.search", { 
+          search: productoSeleccionado.codigo, 
+          limit: 1 
+        });
+        const productoData = productosData?.[0] as any;
 
         if (!productoData?.familia_padre_id) {
           // Si no tiene familia, cargar todos los accesorios
-          const { data, error } = await (supabase as any)
-            .from("accesorios")
-            .select("id, nombre, familia_id")
-            .order("nombre");
-          if (error) throw error;
-          setAccesoriosDisponibles(data || []);
+          const { results: accesorios } = await apiBackendAction("accesorios.list", {});
+          setAccesoriosDisponibles((accesorios || []).map((a: any) => ({ id: a.id, nombre: a.nombre })));
           return;
         }
 
         const familiaProductoId = productoData.familia_padre_id;
 
         // Obtener la jerarquía de familias (padre y abuelo) para buscar accesorios
-        const { data: familiaData } = await (supabase as any)
-          .from("familias_producto")
-          .select("id, parent_id")
-          .eq("id", familiaProductoId)
-          .single();
+        const { results: familiasData } = await apiBackendAction("familias_producto.list", {});
+        const familiaData = familiasData?.find((f: any) => f.id === familiaProductoId);
 
         // Construir lista de IDs de familia a buscar (la familia del producto y su padre/abuelo)
         const familiaIds: number[] = [familiaProductoId];
@@ -639,14 +632,12 @@ export default function NuevoIncidente() {
         }
 
         // Buscar accesorios que pertenezcan a cualquiera de estas familias
-        const { data: accesoriosData, error } = await (supabase as any)
-          .from("accesorios")
-          .select("id, nombre, familia_id")
-          .in("familia_id", familiaIds)
-          .order("nombre");
+        const { results: allAccesorios } = await apiBackendAction("accesorios.list", {});
+        const accesoriosFiltrados = (allAccesorios || [])
+          .filter((acc: any) => familiaIds.includes(acc.familia_id))
+          .sort((a: any, b: any) => a.nombre.localeCompare(b.nombre));
 
-        if (error) throw error;
-        setAccesoriosDisponibles(accesoriosData || []);
+        setAccesoriosDisponibles(accesoriosFiltrados.map((a: any) => ({ id: a.id, nombre: a.nombre })));
       } catch (error) {
         console.error("Error fetching accesorios:", error);
         setAccesoriosDisponibles([]);
@@ -659,41 +650,19 @@ export default function NuevoIncidente() {
   useEffect(() => {
     const fetchCentrosYUsuario = async () => {
       try {
-        // Cargar todos los centros de servicio
-        const { data: centros } = await supabase
-          .from("centros_de_servicio")
-          .select("id, nombre")
-          .eq("activo", true)
-          .order("nombre");
+        // Cargar todos los centros de servicio usando apiBackendAction
+        const centrosRes = await apiBackendAction("centros_de_servicio.list", {});
+        const centros = (centrosRes as any).results || (centrosRes as any).data || [];
         if (centros) {
-          setCentrosServicioList(centros);
+          const centrosActivos = centros.filter((c: any) => c.activo);
+          setCentrosServicioList(centrosActivos.map((c: any) => ({ id: c.id, nombre: c.nombre })));
         }
 
         // Establecer centro del usuario actual
         if (user) {
-          // 1) Buscar por user_id (ideal)
-          const { data: profileById } = await (supabase as any)
-            .from("profiles")
-            .select("centro_servicio_id")
-            .eq("user_id", user.id)
-            .maybeSingle();
-
-          // 2) Fallback por email (para filas antiguas donde user_id no coincide con auth.uid())
-          let profile = profileById;
-          if (!profile && user.email) {
-            const { data: profileByEmail } = await (supabase as any)
-              .from("profiles")
-              .select("centro_servicio_id")
-              .eq("email", user.email)
-              .order("created_at", {
-                ascending: false,
-              })
-              .limit(1)
-              .maybeSingle();
-            profile = profileByEmail;
-          }
-          if (profile?.centro_servicio_id) {
-            setCentroServicio(profile.centro_servicio_id);
+          const { result: userProfile } = await apiBackendAction("usuarios.getByEmail", { email: user.email || "" });
+          if ((userProfile as any)?.centro_de_servicio_id) {
+            setCentroServicio((userProfile as any).centro_de_servicio_id);
           }
         }
       } catch (error) {
@@ -706,15 +675,11 @@ export default function NuevoIncidente() {
     const fetchDirecciones = async () => {
       if (!clienteSeleccionado) return;
       try {
-        const { data: direccionesData, error: direccionesError } = await supabase
-          .from("direcciones")
-          .select("*")
-          .eq("cliente_id", clienteSeleccionado.id)
-          .is("deleted_at", null)
-          .order("es_principal", {
-            ascending: false,
-          });
-        if (direccionesError) throw direccionesError;
+        // Fetch direcciones using apiBackendAction - note: we need a direcciones.list handler
+        // For now we'll use the clientes.get which includes direcciones
+        const { result: clienteData } = await apiBackendAction("clientes.get", { id: clienteSeleccionado.id });
+        const direccionesData = (clienteData as any)?.direcciones || [];
+        
         if (direccionesData && direccionesData.length > 0) {
           setDireccionesEnvio(direccionesData);
           const principal = direccionesData.find((d: any) => d.es_principal);
@@ -748,15 +713,18 @@ export default function NuevoIncidente() {
     if (busquedaCliente.length >= 2) {
       const fetchClientes = async () => {
         try {
-          const { data, error } = await supabase
-            .from("clientes")
-            .select("*")
-            .or(
-              `nombre.ilike.%${busquedaCliente}%,nit.ilike.%${busquedaCliente}%,celular.ilike.%${busquedaCliente}%,codigo.ilike.%${busquedaCliente}%`,
-            )
-            .limit(10);
-          if (error) throw error;
-          setClientesEncontrados(data || []);
+          const { results } = await apiBackendAction("clientes.search", { 
+            search: busquedaCliente, 
+            limit: 10 
+          });
+          // Enrich results with full client data if needed
+          setClientesEncontrados((results || []).map((c: any) => ({
+            id: c.id,
+            codigo: c.codigo,
+            nombre: c.nombre,
+            nit: c.nit,
+            celular: c.celular || "",
+          })));
         } catch (error) {
           console.error("Error fetching clientes:", error);
         }
@@ -770,12 +738,11 @@ export default function NuevoIncidente() {
     if (skuMaquina.length >= 3) {
       const fetchProductos = async () => {
         try {
-          const { data, error } = await supabase
-            .from("productos")
-            .select("*")
-            .or(`codigo.ilike.%${skuMaquina}%,clave.ilike.%${skuMaquina}%,descripcion.ilike.%${skuMaquina}%`);
-          if (error) throw error;
-          const transformedData = (data || []).map((item) => ({
+          const { results } = await apiBackendAction("productos.search", { 
+            search: skuMaquina, 
+            limit: 20 
+          });
+          const transformedData = (results || []).map((item: any) => ({
             ...item,
             url_foto: item.url_foto || "/api/placeholder/200/200",
           }));
@@ -810,15 +777,18 @@ export default function NuevoIncidente() {
       }
 
       try {
-        const { data, error } = await (supabase as any)
-          .from("incidentes")
-          .select("id, codigo, descripcion_problema, created_at, estado, producto_codigo")
-          .eq("codigo_cliente", codigoCliente)
-          .order("created_at", { ascending: false })
-          .limit(20);
-
-        if (error) throw error;
-        setIncidentesAnteriores(data || []);
+        // Use clientes.getByCodigo to get client ID, then filter incidentes
+        const { result: clienteData } = await apiBackendAction("clientes.getByCodigo", { codigo: codigoCliente });
+        if (!clienteData) {
+          setIncidentesAnteriores([]);
+          return;
+        }
+        
+        const { results } = await apiBackendAction("incidentes.list", { limit: 100 });
+        const incidentesDelCliente = (results || [])
+          .filter((inc: any) => inc.cliente?.id === (clienteData as any).id)
+          .slice(0, 20);
+        setIncidentesAnteriores(incidentesDelCliente);
       } catch (error) {
         console.error("Error fetching incidentes anteriores:", error);
         setIncidentesAnteriores([]);
@@ -883,31 +853,24 @@ export default function NuevoIncidente() {
 
     try {
       // Obtener familia_padre_id del producto
-      const { data: productoData } = await supabase
-        .from("productos")
-        .select("familia_padre_id")
-        .eq("codigo", productoSeleccionado.codigo)
-        .single();
-
+      const { results: productosData } = await apiBackendAction("productos.search", { 
+        search: productoSeleccionado.codigo, 
+        limit: 1 
+      });
+      const productoData = productosData?.[0] as any;
       const familiaId = productoData?.familia_padre_id || null;
 
-      // Insertar el nuevo accesorio
-      const { data: nuevoAcc, error } = await (supabase as any)
-        .from("accesorios")
-        .insert({
-          nombre: nombre.trim(),
-          familia_id: familiaId,
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
+      // Insertar el nuevo accesorio usando apiBackendAction
+      const nuevoAcc = await apiBackendAction("accesorios.create", {
+        nombre: nombre.trim(),
+        familia_id: familiaId,
+      } as any);
 
       // Agregarlo a la lista de disponibles y seleccionarlo automáticamente
-      setAccesoriosDisponibles((prev: any[]) => [...prev, nuevoAcc]);
-      setAccesoriosSeleccionados((prev) => [...prev, nuevoAcc.nombre]);
+      setAccesoriosDisponibles((prev: any[]) => [...prev, { id: (nuevoAcc as any).id, nombre: (nuevoAcc as any).nombre }]);
+      setAccesoriosSeleccionados((prev) => [...prev, (nuevoAcc as any).nombre]);
 
-      showSuccess(`"${nuevoAcc.nombre}" se agregó y seleccionó automáticamente.`, "Accesorio agregado");
+      showSuccess(`"${(nuevoAcc as any).nombre}" se agregó y seleccionó automáticamente.`, "Accesorio agregado");
     } catch (error) {
       console.error("Error agregando accesorio:", error);
       showError("No se pudo agregar el accesorio");
@@ -1008,65 +971,59 @@ export default function NuevoIncidente() {
         direccionEnvioId = direccionSeleccionada;
       }
       if (mostrarFormNuevoCliente) {
-        const { data: codigoData, error: codigoError } = await (supabase as any).rpc("generar_codigo_hpc");
-        if (codigoError) throw codigoError;
-        const nuevoCodigoHPC = codigoData;
-        const { data: clienteData, error: clienteError } = await (supabase as any)
-          .from("clientes")
-          .insert({
-            codigo: nuevoCodigoHPC,
-            nombre: nuevoCliente.nombre,
-            nit: nuevoCliente.nit,
-            direccion: nuevoCliente.direccion,
-            correo: nuevoCliente.correo,
-            telefono_principal: nuevoCliente.telefono_principal,
-            telefono_secundario: nuevoCliente.telefono_secundario,
-            nombre_facturacion: nuevoCliente.nombre_facturacion,
-            pais: nuevoCliente.pais,
-            departamento: nuevoCliente.departamento,
-            municipio: nuevoCliente.municipio,
-            celular: nuevoCliente.telefono_principal,
-          })
-          .select()
-          .single();
-        if (clienteError) throw clienteError;
-        codigoCliente = clienteData.codigo;
-        clienteId = clienteData.id;
+        // Generar código HPC via apiBackendAction
+        const { codigo: nuevoCodigoHPC } = await apiBackendAction("rpc.generarCodigoHPC", {});
+        
+        // Crear cliente via apiBackendAction
+        const clienteData = await apiBackendAction("clientes.create", {
+          codigo: nuevoCodigoHPC,
+          nombre: nuevoCliente.nombre,
+          nit: nuevoCliente.nit,
+          direccion: nuevoCliente.direccion,
+          correo: nuevoCliente.correo,
+          telefono_principal: nuevoCliente.telefono_principal,
+          telefono_secundario: nuevoCliente.telefono_secundario,
+          nombre_facturacion: nuevoCliente.nombre_facturacion,
+          pais: nuevoCliente.pais,
+          departamento: nuevoCliente.departamento,
+          municipio: nuevoCliente.municipio,
+          celular: nuevoCliente.telefono_principal,
+        } as any);
+        
+        codigoCliente = (clienteData as any).codigo;
+        clienteId = (clienteData as any).id;
+        
         if (nuevoCliente.direccion && nuevoCliente.direccion.trim()) {
-          const { data: dirData, error: dirError } = await supabase
-            .from("direcciones")
-            .insert({
-              cliente_id: clienteData.id,
+          try {
+            const dirData = await apiBackendAction("direcciones.create", {
+              cliente_id: (clienteData as any).id,
               direccion: nuevoCliente.direccion,
               es_principal: true,
-            })
-            .select()
-            .single();
-          if (dirError) {
-            console.error("Error creando dirección principal:", dirError);
-          } else {
+            } as any);
             setDireccionesEnvio([dirData]);
             if (opcionEnvio !== "recoger") {
-              setDireccionSeleccionada(String(dirData.id));
-              direccionEnvioId = String(dirData.id);
+              setDireccionSeleccionada(String((dirData as any).id));
+              direccionEnvioId = String((dirData as any).id);
             }
+          } catch (dirError) {
+            console.error("Error creando dirección principal:", dirError);
           }
         }
-        setClienteSeleccionado(clienteData);
+        setClienteSeleccionado(clienteData as any);
         showSuccess(`Código HPC: ${nuevoCodigoHPC}`, "Cliente creado");
       } else {
-        const { error: updateError } = await (supabase as any)
-          .from("clientes")
-          .update({
+        // Actualizar cliente existente via apiBackendAction
+        await apiBackendAction("clientes.update", {
+          id: clienteSeleccionado!.id,
+          data: {
             nombre: datosClienteExistente.nombre,
             nit: datosClienteExistente.nit,
             correo: datosClienteExistente.correo,
             telefono_principal: datosClienteExistente.telefono_principal,
             telefono_secundario: datosClienteExistente.telefono_secundario,
             celular: datosClienteExistente.telefono_principal,
-          })
-          .eq("codigo", clienteSeleccionado!.codigo);
-        if (updateError) throw updateError;
+          }
+        } as any);
       }
 
       if (!clienteId) {
@@ -1075,38 +1032,28 @@ export default function NuevoIncidente() {
 
       // Si hay una nueva dirección escrita, crearla
       if (nuevaDireccion.trim() && opcionEnvio !== "recoger") {
-        const { data: dirData, error: dirError } = await supabase
-          .from("direcciones")
-          .insert({
-            cliente_id: clienteId,
-            direccion: nuevaDireccion,
-            es_principal: direccionesEnvio.length === 0,
-          })
-          .select()
-          .single();
-        if (dirError) throw dirError;
-        direccionEnvioId = String(dirData.id);
+        const dirData = await apiBackendAction("direcciones.create", {
+          cliente_id: clienteId,
+          direccion: nuevaDireccion,
+          es_principal: direccionesEnvio.length === 0,
+        } as any);
+        direccionEnvioId = String((dirData as any).id);
       }
       // Si se seleccionó una dirección temporal (del cliente pero no guardada en direcciones_envio), crearla
       else if (direccionSeleccionada && direccionSeleccionada.startsWith("temp-") && opcionEnvio !== "recoger") {
         const direccionTemp = direccionesEnvio.find((d: any) => d.id === direccionSeleccionada);
         if (direccionTemp) {
-          const { data: dirData, error: dirError } = await supabase
-            .from("direcciones")
-            .insert({
-              cliente_id: clienteId,
-              direccion: direccionTemp.direccion,
-              es_principal: true,
-            })
-            .select()
-            .single();
-          if (dirError) throw dirError;
-          direccionEnvioId = String(dirData.id);
+          const dirData = await apiBackendAction("direcciones.create", {
+            cliente_id: clienteId,
+            direccion: direccionTemp.direccion,
+            es_principal: true,
+          } as any);
+          direccionEnvioId = String((dirData as any).id);
         }
       }
 
-      const { data: codigoIncidente, error: codigoError } = await (supabase as any).rpc("generar_codigo_incidente");
-      if (codigoError) throw codigoError;
+      // Generar código de incidente via apiBackendAction
+      const { codigo: codigoIncidente } = await apiBackendAction("rpc.generarCodigoIncidente", {});
 
       // Determinar producto según si es manual o seleccionado
       let codigoProductoFinal: string | null = null;
@@ -1148,49 +1095,37 @@ export default function NuevoIncidente() {
         .filter(Boolean)
         .join(" | ");
 
-      const { data: incidenteData, error: incidenteError } = await supabase
-        .from("incidentes")
-        .insert([
-          {
-          codigo: codigoIncidente,
-          cliente_id: clienteId,
-          producto_id: productoId,
-          centro_de_servicio_id: centroServicio as number,
-          quiere_envio: opcionEnvio !== "recoger",
-          direccion_entrega_id: direccionEntregaId,
-          incidente_origen_id: esReingreso && incidenteReingresoId ? parseInt(String(incidenteReingresoId), 10) : null,
-          descripcion_problema: descripcionProblema || null,
-          observaciones: observacionesCompuestas || null,
-          tipologia: tipologiaEnum,
-          estado: ingresadoMostrador ? "REGISTRADO" : "EN_ENTREGA",
-          aplica_garantia: false,
-          tracking_token: trackingToken,
-          },
-        ])
-        .select()
-        .single();
-      if (incidenteError) throw incidenteError;
+      // Crear incidente via apiBackendAction
+      const incidenteData = await apiBackendAction("incidentes.create", {
+        codigo: codigoIncidente,
+        cliente_id: clienteId,
+        producto_id: productoId,
+        centro_de_servicio_id: centroServicio as number,
+        quiere_envio: opcionEnvio !== "recoger",
+        direccion_entrega_id: direccionEntregaId,
+        incidente_origen_id: esReingreso && incidenteReingresoId ? parseInt(String(incidenteReingresoId), 10) : null,
+        descripcion_problema: descripcionProblema || null,
+        observaciones: observacionesCompuestas || null,
+        tipologia: tipologiaEnum,
+        estado: ingresadoMostrador ? "REGISTRADO" : "EN_ENTREGA",
+        aplica_garantia: false,
+        tracking_token: trackingToken,
+      } as any);
 
       // Insertar accesorios en incidente_accesorios
       if (accesoriosSeleccionados.length > 0) {
         // Buscar IDs de los accesorios seleccionados
-        const { data: accesoriosData } = await supabase
-          .from("accesorios")
-          .select("id, nombre")
-          .in("nombre", accesoriosSeleccionados);
+        const { results: accesoriosData } = await apiBackendAction("accesorios.list", {});
+        const accesoriosFiltrados = (accesoriosData || []).filter((acc: any) => 
+          accesoriosSeleccionados.includes(acc.nombre)
+        );
 
-        if (accesoriosData && accesoriosData.length > 0) {
-          const accesoriosToInsert = accesoriosData.map((acc) => ({
-            incidente_id: incidenteData.id,
-            accesorio_id: acc.id,
-          }));
-
-          const { error: accesoriosError } = await supabase
-            .from("incidente_accesorios")
-            .insert(accesoriosToInsert);
-
-          if (accesoriosError) {
-            console.error("Error insertando accesorios:", accesoriosError);
+        if (accesoriosFiltrados.length > 0) {
+          for (const acc of accesoriosFiltrados) {
+            await apiBackendAction("incidente_accesorios.create", {
+              incidente_id: (incidenteData as any).id,
+              accesorio_id: acc.id,
+            } as any);
           }
         }
       }

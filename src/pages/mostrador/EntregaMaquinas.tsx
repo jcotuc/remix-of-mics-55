@@ -7,7 +7,6 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { apiBackendAction } from "@/lib/api-backend";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { StatusBadge } from "@/components/shared";
 import type { Database } from "@/integrations/supabase/types";
@@ -40,16 +39,11 @@ export default function EntregaMaquinas() {
     if (candidatosIds.length === 0) return { incidentes, fixedIds: [] as number[] };
 
     // 1) Diagnósticos de reparación en garantía para esos incidentes
-    const { data: diagnosticos, error: diagError } = await supabase
-      .from("diagnosticos")
-      .select("incidente_id,tipo_resolucion")
-      .in("incidente_id", candidatosIds)
-      .eq("tipo_resolucion", "REPARAR_EN_GARANTIA");
-    if (diagError) throw diagError;
-
+    const { results: diagnosticos } = await apiBackendAction("diagnosticos.list", { limit: 2000 });
     const garantiaIds = Array.from(
       new Set(
         (diagnosticos || [])
+          .filter((d: any) => candidatosIds.includes(d.incidente_id) && d.tipo_resolucion === "REPARAR_EN_GARANTIA")
           .map((d: any) => d.incidente_id)
           .filter((id: any): id is number => typeof id === "number")
       )
@@ -57,14 +51,11 @@ export default function EntregaMaquinas() {
     if (garantiaIds.length === 0) return { incidentes, fixedIds: [] as number[] };
 
     // 2) Ver si existen solicitudes de repuestos
-    const { data: solicitudes, error: solError } = await supabase
-      .from("solicitudes_repuestos")
-      .select("incidente_id")
-      .in("incidente_id", garantiaIds);
-    if (solError) throw solError;
-
+    const solicitudesRes = await apiBackendAction("solicitudes_repuestos.list", {});
+    const solicitudes = (solicitudesRes as any).data || (solicitudesRes as any).results || [];
     const conSolicitud = new Set(
       (solicitudes || [])
+        .filter((s: any) => garantiaIds.includes(s.incidente_id))
         .map((s: any) => s.incidente_id)
         .filter((id: any): id is number => typeof id === "number")
     );
@@ -72,12 +63,10 @@ export default function EntregaMaquinas() {
     const idsParaCorregir = garantiaIds.filter((id) => !conSolicitud.has(id));
     if (idsParaCorregir.length === 0) return { incidentes, fixedIds: [] as number[] };
 
-    // 3) Corregir estado del incidente
-    const { error: updError } = await supabase
-      .from("incidentes")
-      .update({ estado: "REPARADO" })
-      .in("id", idsParaCorregir);
-    if (updError) throw updError;
+    // 3) Corregir estado del incidente uno por uno
+    for (const id of idsParaCorregir) {
+      await apiBackendAction("incidentes.update", { id, data: { estado: "REPARADO" } } as any);
+    }
 
     const idsSet = new Set(idsParaCorregir);
     const incidentesCorregidos = incidentes.map((inc) =>

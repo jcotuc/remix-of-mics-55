@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { apiBackendAction } from "@/lib/api-backend";
-import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -182,28 +181,20 @@ export default function PendientesRepuestos() {
 
     setIsCreatingPedido(true);
     try {
-      const { data: usuario } = await (supabase as any)
-        .from("usuarios")
-        .select("id, centro_de_servicio_id")
-        .eq("auth_uid", user.id)
-        .single();
+      const { result: usuario } = await apiBackendAction("usuarios.getByEmail", { email: user.email || "" });
 
-      if (!usuario?.centro_de_servicio_id) {
+      if (!(usuario as any)?.centro_de_servicio_id) {
         toast.error("No se encontró tu centro de servicio asignado");
         return;
       }
 
-      const { error } = await supabase
-        .from("pedidos_bodega_central")
-        .insert({
-          incidente_id: selectedIncidente.id,
-          centro_servicio_id: usuario.centro_de_servicio_id,
-          solicitado_por_id: usuario.id,
-          dias_sin_stock: getDaysWaiting(selectedIncidente.updated_at),
-          estado: "PENDIENTE"
-        });
-
-      if (error) throw error;
+      await apiBackendAction("pedidos_bodega_central.create", {
+        incidente_id: selectedIncidente.id,
+        centro_servicio_id: (usuario as any).centro_de_servicio_id,
+        solicitado_por_id: (usuario as any).id,
+        dias_sin_stock: getDaysWaiting(selectedIncidente.updated_at),
+        estado: "PENDIENTE"
+      } as any);
 
       toast.success("Pedido a Bodega Central creado exitosamente");
       setShowPedidoDialog(false);
@@ -220,12 +211,10 @@ export default function PendientesRepuestos() {
 
   const handleConvertirCXG = async (incidente: IncidentePendiente) => {
     try {
-      const { error } = await supabase
-        .from("incidentes")
-        .update({ estado: "CAMBIO_POR_GARANTIA" })
-        .eq("id", incidente.id);
-
-      if (error) throw error;
+      await apiBackendAction("incidentes.update", {
+        id: incidente.id,
+        data: { estado: "CAMBIO_POR_GARANTIA" }
+      } as any);
 
       toast.success(`Incidente ${incidente.codigo} convertido a Cambio por Garantía`);
       fetchIncidentes();
