@@ -12,7 +12,6 @@ const HerramientasManuales = lazy(() => import("@/pages/mostrador/HerramientasMa
 const EntregaMaquinas = lazy(() => import("@/pages/mostrador/EntregaMaquinas"));
 const DetalleEntrega = lazy(() => import("@/pages/mostrador/DetalleEntrega"));
 const Repuestos = lazy(() => import("@/pages/Repuestos"));
-const Productos = lazy(() => import("@/pages/Productos"));
 const DetalleCliente = lazy(() => import("@/pages/DetalleCliente"));
 
 export const mostradorRoutes = [
@@ -27,6 +26,5 @@ export const mostradorRoutes = [
   <Route key="mostrador-entrega" path="/mostrador/entrega-maquinas" element={<EntregaMaquinas />} />,
   <Route key="mostrador-entrega-detalle" path="/mostrador/entrega-maquinas/:incidenteId" element={<DetalleEntrega />} />,
   <Route key="mostrador-repuestos" path="/mostrador/repuestos" element={<Repuestos />} />,
-  <Route key="mostrador-productos" path="/mostrador/productos" element={<Productos />} />,
   <Route key="mostrador-cliente-detalle" path="/mostrador/clientes/:codigo" element={<DetalleCliente />} />,
 ];
