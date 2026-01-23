@@ -2,26 +2,27 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Truck, Package, MapPin, TrendingUp } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { supabase } from "@/integrations/supabase/client";
-import type { Database } from "@/integrations/supabase/types";
-import type { IncidenteSchema } from "@/generated/actions.d";
-
-type EmbarqueDB = Database["public"]["Tables"]["embarques"]["Row"];
+import { apiBackendAction } from "@/lib/api-backend";
+import type { IncidenteSchema, Embarque } from "@/generated/actions.d";
 
 interface LogisticaDashboardProps {
   incidentes: IncidenteSchema[];
 }
 
 export function LogisticaDashboard({ incidentes }: LogisticaDashboardProps) {
-  const [embarques, setEmbarques] = useState<EmbarqueDB[]>([]);
+  const [embarques, setEmbarques] = useState<Embarque[]>([]);
 
   useEffect(() => {
     fetchEmbarques();
   }, []);
 
   const fetchEmbarques = async () => {
-    const { data } = await supabase.from("embarques").select("*").order("fecha_llegada", { ascending: false });
-    if (data) setEmbarques(data);
+    try {
+      const response = await apiBackendAction("embarques.list", { limit: 200 });
+      setEmbarques(response.data || []);
+    } catch (error) {
+      console.error("Error fetching embarques:", error);
+    }
   };
 
   // Métricas para logística - usando campo 'estado' con valores uppercase

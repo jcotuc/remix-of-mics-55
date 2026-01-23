@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { apiBackendAction } from "@/lib/api-backend";
+import { supabase } from "@/integrations/supabase/client"; // Only for auth.getUser
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -216,23 +216,14 @@ export default function DetalleIncidenteSAC() {
       // Fetch fallas, causas and repuestos if diagnostico exists
       if (diagnosticoData) {
         const [fallasRes, causasRes, repuestosRes] = await Promise.all([
-          supabase
-            .from("diagnostico_fallas")
-            .select("fallas:falla_id(nombre)")
-            .eq("diagnostico_id", diagnosticoData.id),
-          supabase
-            .from("diagnostico_causas")
-            .select("causas:causa_id(nombre)")
-            .eq("diagnostico_id", diagnosticoData.id),
-          supabase
-            .from("solicitudes_repuestos")
-            .select("*, repuestos:repuesto_id(codigo, descripcion)")
-            .eq("incidente_id", Number(id)),
+          apiBackendAction("diagnostico_fallas.list", { diagnostico_id: diagnosticoData.id }),
+          apiBackendAction("diagnostico_causas.list", { diagnostico_id: diagnosticoData.id }),
+          apiBackendAction("solicitudes_repuestos.search", { incidente_id: Number(id) }),
         ]);
 
-        setFallas((fallasRes.data || []).map((f: any) => f.fallas?.nombre).filter(Boolean));
-        setCausas((causasRes.data || []).map((c: any) => c.causas?.nombre).filter(Boolean));
-        setRepuestos((repuestosRes.data || []).map((r: any) => ({
+        setFallas((fallasRes.results || []).map((f: any) => f.fallas?.nombre).filter(Boolean));
+        setCausas((causasRes.results || []).map((c: any) => c.causas?.nombre).filter(Boolean));
+        setRepuestos((repuestosRes.results || []).map((r: any) => ({
           codigo: r.repuestos?.codigo || r.codigo_repuesto,
           descripcion: r.repuestos?.descripcion || "Repuesto",
           cantidad: r.cantidad || 1,
@@ -241,28 +232,21 @@ export default function DetalleIncidenteSAC() {
 
         // Fetch producto alternativo if tipo_resolucion is CANJE
         if (diagnosticoData.producto_alternativo_id) {
-          const { data: prodAlt } = await supabase
-            .from("productos")
-            .select("id, codigo, descripcion, precio_cliente")
-            .eq("id", diagnosticoData.producto_alternativo_id)
-            .single();
+          const { result: prodAlt } = await apiBackendAction("productos.get", { id: diagnosticoData.producto_alternativo_id });
           
           if (prodAlt) {
             setProductoAlternativo({
-              id: prodAlt.id,
-              codigo: prodAlt.codigo,
-              descripcion: prodAlt.descripcion,
-              precio: prodAlt.precio_cliente || 0
+              id: (prodAlt as any).id,
+              codigo: (prodAlt as any).codigo,
+              descripcion: (prodAlt as any).descripcion,
+              precio: (prodAlt as any).precio_cliente || 0
             });
           }
         }
       }
 
       // Fetch accesorios del incidente
-      const { data: accesoriosData } = await supabase
-        .from("incidente_accesorios")
-        .select("accesorios:accesorio_id(nombre)")
-        .eq("incidente_id", Number(id));
+      const { results: accesoriosData } = await apiBackendAction("incidente_accesorios.list", { incidente_id: Number(id) });
       
       setAccesorios((accesoriosData || []).map((a: any) => a.accesorios?.nombre).filter(Boolean));
 
@@ -280,12 +264,8 @@ export default function DetalleIncidenteSAC() {
 
       // Fetch centro de servicio
       if (incData.centro_de_servicio_id) {
-        const { data: centro } = await supabase
-          .from("centros_de_servicio")
-          .select("nombre")
-          .eq("id", incData.centro_de_servicio_id)
-          .single();
-        setCentroServicio(centro?.nombre || "Centro de Servicio");
+        const { result: centro } = await apiBackendAction("centros_de_servicio.get", { id: incData.centro_de_servicio_id });
+        setCentroServicio((centro as any)?.nombre || "Centro de Servicio");
       }
 
       // Fetch notificaciones (mock for now - would need a table)
