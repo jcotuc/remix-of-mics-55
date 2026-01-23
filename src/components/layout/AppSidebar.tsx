@@ -54,7 +54,6 @@ const menuAreas = {
     { title: "Waterspider", url: "/taller/waterspider", icon: Truck },
   ],
   jefeTaller: [
-    { title: "Dashboard Jefe", url: "/taller/dashboard-jefe", icon: BarChart3 },
     { title: "Pendientes Repuestos", url: "/taller/pendientes-repuestos", icon: AlertTriangle },
     { title: "Asignación Técnicos", url: "/taller/asignacion-tecnicos", icon: Users },
     { title: "Config. Colas FIFO", url: "/taller/configuracion-colas", icon: Settings },
@@ -81,7 +80,6 @@ const menuAreas = {
   ],
   supervisores: [
     { title: "Supervisor SAC", url: "/sac/dashboard-supervisor", icon: BarChart3 },
-    { title: "Jefe Taller", url: "/taller/dashboard-jefe", icon: BarChart3 },
     { title: "Jefe Logística", url: "/logistica/dashboard-jefe", icon: BarChart3 },
     { title: "Supervisor Calidad", url: "/calidad/dashboard-supervisor", icon: BarChart3 },
   ]
