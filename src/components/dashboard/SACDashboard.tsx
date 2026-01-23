@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { supabase } from "@/integrations/supabase/client";
+import { apiBackendAction } from "@/lib/api-backend";
 import { Package, MessageCircle, AlertCircle, CheckCircle, Clock, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -38,80 +38,68 @@ export function SACDashboard() {
     try {
       setLoading(true);
 
-      // Fetch incidents - usando campo 'estado' con valores uppercase
-      const { data: incidentes } = await (supabase as any)
-        .from("incidentes")
-        .select("*")
-        .in("estado", [
-          "ESPERA_APROBACION",
-          "CAMBIO_POR_GARANTIA",
-          "NOTA_DE_CREDITO",
-          "REPARADO",
-          "PENDIENTE_ENTREGA",
-        ]);
+      // Fetch incidents usando apiBackendAction
+      const incidentesResult = await apiBackendAction("incidentes.list", { limit: 1000 });
+      const incidentes = (incidentesResult.results || []).filter((i: any) =>
+        ["ESPERA_APROBACION", "CAMBIO_POR_GARANTIA", "NOTA_DE_CREDITO", "REPARADO", "PENDIENTE_ENTREGA"].includes(i.estado)
+      );
 
-      // Fetch notifications - usando (supabase as any) para tabla no tipada
-      const { data: notificacionesData } = await (supabase as any)
-        .from("notificaciones_cliente")
-        .select("*");
+      // Fetch notifications usando apiBackendAction
+      const notifResult = await apiBackendAction("notificaciones_cliente.list", {});
+      const notificacionesData = notifResult.results || [];
 
-      // Fetch active assignments
-      const { data: asignaciones } = await (supabase as any)
-        .from("asignaciones_sac")
-        .select("*")
-        .eq("activo", true);
+      // Fetch active assignments usando apiBackendAction
+      const asignResult = await apiBackendAction("asignaciones_sac.list", { activo: true });
+      const asignaciones = asignResult.results || [];
+      const presupuestos = incidentes.filter(
+        (i: any) => i.estado === "ESPERA_APROBACION"
+      ).length;
+      const canjes = incidentes.filter(
+        (i: any) => i.estado === "CAMBIO_POR_GARANTIA" || i.estado === "NOTA_DE_CREDITO"
+      ).length;
+      const reparados = incidentes.filter((i: any) => i.estado === "REPARADO").length;
+      const pendientesEntrega = incidentes.filter((i: any) => i.estado === "PENDIENTE_ENTREGA").length;
 
-      if (incidentes) {
-        const presupuestos = incidentes.filter(
-          (i: any) => i.estado === "ESPERA_APROBACION"
-        ).length;
-        const canjes = incidentes.filter(
-          (i: any) => i.estado === "CAMBIO_POR_GARANTIA" || i.estado === "NOTA_DE_CREDITO"
-        ).length;
-        const reparados = incidentes.filter((i: any) => i.estado === "REPARADO").length;
-        const pendientesEntrega = incidentes.filter((i: any) => i.estado === "PENDIENTE_ENTREGA").length;
+      // Calcular estadísticas de notificaciones por número
+      const incidentesIds = incidentes.map((i: any) => i.id);
+      const notificacionesPorIncidente = new Map<number, number>();
 
-        // Calcular estadísticas de notificaciones por número
-        const incidentesIds = incidentes.map((i: any) => i.id);
-        const notificacionesPorIncidente = new Map<number, number>();
+      notificacionesData?.forEach((n: any) => {
+        if (incidentesIds.includes(n.incidente_id)) {
+          const count = notificacionesPorIncidente.get(n.incidente_id) || 0;
+          notificacionesPorIncidente.set(n.incidente_id, Math.max(count, n.numero_notificacion || 0));
+        }
+      });
 
-        notificacionesData?.forEach((n: any) => {
-          if (incidentesIds.includes(n.incidente_id)) {
-            const count = notificacionesPorIncidente.get(n.incidente_id) || 0;
-            notificacionesPorIncidente.set(n.incidente_id, Math.max(count, n.numero_notificacion || 0));
-          }
-        });
+      // Contar incidentes por número de notificaciones
+      let sinNotificacion = 0;
+      let conUnaNotificacion = 0;
+      let conDosNotificaciones = 0;
+      let conTresNotificaciones = 0;
 
-        // Contar incidentes por número de notificaciones
-        let sinNotificacion = 0;
-        let conUnaNotificacion = 0;
-        let conDosNotificaciones = 0;
-        let conTresNotificaciones = 0;
+      incidentes.forEach((inc: any) => {
+        const numNotificaciones = notificacionesPorIncidente.get(inc.id) || 0;
+        if (numNotificaciones === 0) sinNotificacion++;
+        else if (numNotificaciones === 1) conUnaNotificacion++;
+        else if (numNotificaciones === 2) conDosNotificaciones++;
+        else if (numNotificaciones >= 3) conTresNotificaciones++;
+      });
 
-        incidentes.forEach((inc: any) => {
-          const numNotificaciones = notificacionesPorIncidente.get(inc.id) || 0;
-          if (numNotificaciones === 0) sinNotificacion++;
-          else if (numNotificaciones === 1) conUnaNotificacion++;
-          else if (numNotificaciones === 2) conDosNotificaciones++;
-          else if (numNotificaciones >= 3) conTresNotificaciones++;
-        });
+      setStats({
+        presupuestos,
+        canjes,
+        reparados,
+        pendientesEntrega,
+        notificacionesPendientes: notificacionesData?.filter((n: any) => !n.respondido).length || 0,
+        notificacionesRespondidas: notificacionesData?.filter((n: any) => n.respondido).length || 0,
+        incidentesAsignados: asignaciones?.length || 0,
+        faltaPrimeraNotificacion: sinNotificacion,
+        faltaSegundaNotificacion: conUnaNotificacion,
+        faltaTerceraNotificacion: conDosNotificaciones,
+        conTresNotificaciones: conTresNotificaciones,
+      });
 
-        setStats({
-          presupuestos,
-          canjes,
-          reparados,
-          pendientesEntrega,
-          notificacionesPendientes: notificacionesData?.filter((n: any) => !n.respondido).length || 0,
-          notificacionesRespondidas: notificacionesData?.filter((n: any) => n.respondido).length || 0,
-          incidentesAsignados: asignaciones?.length || 0,
-          faltaPrimeraNotificacion: sinNotificacion,
-          faltaSegundaNotificacion: conUnaNotificacion,
-          faltaTerceraNotificacion: conDosNotificaciones,
-          conTresNotificaciones: conTresNotificaciones,
-        });
-      }
-
-      setNotificaciones(notificacionesData || []);
+      setNotificaciones(notificacionesData as NotificacionCliente[] || []);
     } catch (error) {
       console.error("Error fetching SAC data:", error);
     } finally {

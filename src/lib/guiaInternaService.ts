@@ -8,36 +8,13 @@
  * - CAMBIO_POR_GARANTIA
  */
 
-import { supabase } from "@/integrations/supabase/client";
+import { apiBackendAction } from "@/lib/api-backend";
 
 interface GenerarGuiaInternaResult {
   success: boolean;
   guiaId?: number;
   numeroGuia?: string;
   error?: string;
-}
-
-/**
- * Genera un número de guía interno con formato HPC-XXXXXXXX
- */
-async function generarNumeroGuiaInterno(): Promise<string> {
-  // Obtener el máximo número actual
-  const { data, error } = await supabase
-    .from("guias")
-    .select("numero_guia")
-    .like("numero_guia", "HPC-%")
-    .order("id", { ascending: false })
-    .limit(1);
-
-  let nextNumber = 1;
-  if (!error && data && data.length > 0 && data[0].numero_guia) {
-    const match = data[0].numero_guia.match(/HPC-(\d+)/);
-    if (match) {
-      nextNumber = parseInt(match[1], 10) + 1;
-    }
-  }
-
-  return `HPC-${String(nextNumber).padStart(8, "0")}`;
 }
 
 /**
@@ -48,33 +25,11 @@ export async function generarGuiaInterna(incidenteId: number): Promise<GenerarGu
   try {
     console.log("🚚 Iniciando generación de guía INTERNA para incidente:", incidenteId);
 
-    // 1. Obtener datos del incidente con cliente y dirección
-    const { data: incidente, error: incidenteError } = await supabase
-      .from("incidentes")
-      .select(`
-        id,
-        codigo,
-        quiere_envio,
-        estado,
-        direccion_entrega_id,
-        centro_de_servicio_id,
-        cliente_id,
-        clientes:cliente_id (
-          id,
-          codigo,
-          nombre,
-          direccion,
-          celular,
-          telefono_principal,
-          municipio,
-          departamento
-        )
-      `)
-      .eq("id", incidenteId)
-      .single();
+    // 1. Obtener datos del incidente usando apiBackendAction
+    const { result: incidente } = await apiBackendAction("incidentes.get", { id: incidenteId });
 
-    if (incidenteError || !incidente) {
-      throw new Error(`No se pudo obtener el incidente: ${incidenteError?.message}`);
+    if (!incidente) {
+      throw new Error(`No se pudo obtener el incidente con ID: ${incidenteId}`);
     }
 
     // 2. Validar que quiere envío
@@ -83,23 +38,22 @@ export async function generarGuiaInterna(incidenteId: number): Promise<GenerarGu
       return { success: false, error: "El incidente no requiere envío" };
     }
 
-    // 3. Verificar que no tenga ya una guía
-    const { data: guiaExistente } = await supabase
-      .from("guias")
-      .select("id, numero_guia")
-      .eq("incidente_id", incidenteId)
-      .limit(1);
+    // 3. Verificar que no tenga ya una guía usando apiBackendAction
+    const { results: guiasExistentes } = await apiBackendAction("guias.search", { 
+      incidente_id: incidenteId 
+    });
 
-    if (guiaExistente && guiaExistente.length > 0) {
-      console.log("ℹ️ El incidente ya tiene una guía:", guiaExistente[0].numero_guia);
+    if (guiasExistentes && guiasExistentes.length > 0) {
+      const guiaExistente = guiasExistentes[0] as any;
+      console.log("ℹ️ El incidente ya tiene una guía:", guiaExistente.numero_guia);
       return { 
         success: true, 
-        guiaId: guiaExistente[0].id, 
-        numeroGuia: guiaExistente[0].numero_guia || undefined 
+        guiaId: guiaExistente.id, 
+        numeroGuia: guiaExistente.numero_guia || undefined 
       };
     }
 
-    const cliente = incidente.clientes as any;
+    const cliente = incidente.cliente as any;
     if (!cliente) {
       throw new Error("No se encontró el cliente asociado al incidente");
     }
@@ -107,39 +61,35 @@ export async function generarGuiaInterna(incidenteId: number): Promise<GenerarGu
     // 4. Obtener dirección de entrega específica o usar la del cliente
     let direccionEnvio = cliente.direccion || "";
 
-    if (incidente.direccion_entrega_id) {
-      const { data: direccion } = await supabase
-        .from("direcciones")
-        .select("direccion")
-        .eq("id", incidente.direccion_entrega_id)
-        .single();
+    if ((incidente as any).direccion_entrega_id) {
+      const { result: direccion } = await apiBackendAction("direcciones.get", { 
+        id: (incidente as any).direccion_entrega_id 
+      });
 
-      if (direccion?.direccion) {
-        direccionEnvio = direccion.direccion;
+      if ((direccion as any)?.direccion) {
+        direccionEnvio = (direccion as any).direccion;
       }
     }
 
     // 5. Obtener datos del centro de servicio (remitente)
-    const { data: centroServicio } = await supabase
-      .from("centros_de_servicio")
-      .select("id, nombre, direccion, telefono")
-      .eq("id", incidente.centro_de_servicio_id)
-      .single();
+    const { result: centroServicio } = await apiBackendAction("centros_de_servicio.get", { 
+      id: incidente.centro_de_servicio_id 
+    });
 
-    // 6. Generar número de guía interno
-    const numeroGuia = await generarNumeroGuiaInterno();
+    // 6. Generar número de guía interno usando apiBackendAction
+    const { numero: numeroGuia } = await apiBackendAction("rpc.generarNumeroGuia", {});
 
     // 7. Construir datos de la guía
     const ciudadDestino = `${cliente.municipio || ""}, ${cliente.departamento || "Guatemala"}`.trim().replace(/^,\s*/, "");
     
     const guiaData = {
       incidente_id: incidenteId,
-      incidentes_codigos: [incidente.codigo] as any,
+      incidentes_codigos: [incidente.codigo],
       centro_de_servicio_origen_id: incidente.centro_de_servicio_id,
-      tipo: "ENTREGA" as const,  // Enum válido: RECOLECTA, TRASLADO, ENTREGA
-      estado: "PENDIENTE" as const,  // Enum válido: PENDIENTE, CREADA, EN_TRANSITO, ENTREGADA, CANCELADA
+      tipo: "ENTREGA" as const,
+      estado: "PENDIENTE" as const,
       numero_guia: numeroGuia,
-      tracking_number: numeroGuia, // Usamos el mismo número como tracking
+      tracking_number: numeroGuia,
       fecha_guia: new Date().toISOString(),
       destinatario: cliente.nombre,
       direccion_destinatario: direccionEnvio,
@@ -147,44 +97,33 @@ export async function generarGuiaInterna(incidenteId: number): Promise<GenerarGu
       ciudad_destino: ciudadDestino,
       referencia_1: incidente.codigo,
       referencia_2: cliente.codigo,
-      remitente: centroServicio?.nombre || "HPC Centro de Servicio",
-      direccion_remitente: centroServicio?.direccion || "42A Av 9-16 Zona 5",
+      remitente: (centroServicio as any)?.nombre || "HPC Centro de Servicio",
+      direccion_remitente: (centroServicio as any)?.direccion || "42A Av 9-16 Zona 5",
       cantidad_piezas: 1,
-      peso: 5, // Peso default
+      peso: 5,
       tarifa: 0,
-      // Campos de Zigo vacíos (no usamos Zigo)
       zigo_guia_id: null,
       zigo_guia_status: "interno",
-      zigo_request_payload: { sistema: "interno", generado_automaticamente: true } as any,
+      zigo_request_payload: { sistema: "interno", generado_automaticamente: true },
       zigo_response_data: null,
     };
 
     console.log("📦 Datos de la guía interna:", guiaData);
 
-    // 8. Insertar guía en la base de datos
-    const { data: guiaCreada, error: guiaError } = await (supabase as any)
-      .from("guias")
-      .insert(guiaData)
-      .select()
-      .single();
-
-    if (guiaError) {
-      console.error("❌ Error guardando guía en BD:", guiaError);
-      throw new Error(`Error al guardar guía: ${guiaError.message}`);
-    }
+    // 8. Insertar guía en la base de datos usando apiBackendAction
+    const guiaCreada = await apiBackendAction("guias.create", guiaData as any) as any;
 
     console.log("✅ Guía interna guardada en BD:", guiaCreada);
 
-    // 9. Actualizar el incidente a EN_ENTREGA
-    const { error: updateError } = await supabase
-      .from("incidentes")
-      .update({ estado: "EN_ENTREGA" as any })
-      .eq("id", incidenteId);
-
-    if (updateError) {
-      console.warn("⚠️ Guía creada pero error actualizando estado:", updateError);
-    } else {
+    // 9. Actualizar el incidente a EN_ENTREGA usando apiBackendAction
+    try {
+      await apiBackendAction("incidentes.update", {
+        id: incidenteId,
+        data: { estado: "EN_ENTREGA" }
+      } as any);
       console.log("✅ Estado del incidente actualizado a EN_ENTREGA");
+    } catch (updateError) {
+      console.warn("⚠️ Guía creada pero error actualizando estado:", updateError);
     }
 
     return {
@@ -205,11 +144,10 @@ export async function generarGuiaInterna(incidenteId: number): Promise<GenerarGu
  * Verifica si un incidente tiene guía de envío asociada
  */
 export async function tieneGuiaEnvio(incidenteId: number): Promise<boolean> {
-  const { data, error } = await supabase
-    .from("guias")
-    .select("id")
-    .eq("incidente_id", incidenteId)
-    .limit(1);
-
-  return !error && data && data.length > 0;
+  try {
+    const { results } = await apiBackendAction("guias.search", { incidente_id: incidenteId });
+    return results && results.length > 0;
+  } catch {
+    return false;
+  }
 }

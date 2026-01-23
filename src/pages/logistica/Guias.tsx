@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Search, Plus, FileText, Printer, PackagePlus } from "lucide-react";
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/client"; // Only for functions.invoke
 import { apiBackendAction } from "@/lib/api-backend";
 import { showError, showSuccess } from "@/utils/toastHelpers";
 import { formatFechaInput, formatFechaCorta } from "@/utils/dateFormatters";
@@ -237,13 +237,10 @@ export default function Guias() {
     }
 
     try {
-      // Generar número de guía local
-      const { data: numeroGuia, error: numeroError } = await (supabase as any)
-        .rpc('generar_numero_guia');
+      // Generar número de guía usando apiBackendAction
+      const { numero: numeroGuia } = await apiBackendAction("rpc.generarNumeroGuia", {});
 
-      if (numeroError) throw numeroError;
-
-      // Llamar al edge function para crear la guía en Zigo
+      // Llamar al edge function para crear la guía en Zigo (mantener supabase.functions.invoke)
       const { data: zigoResponse, error: zigoError } = await supabase.functions.invoke('zigo-create-guide', {
         body: {
           guiaData: {
@@ -265,30 +262,26 @@ export default function Guias() {
 
       console.log('Respuesta de Zigo:', zigoResponse);
 
-      // Guardar la guía en la base de datos local
-      const { error } = await (supabase as any)
-        .from('guias')
-        .insert({
-          numero_guia: numeroGuia,
-          destinatario: formData.destinatario,
-          direccion_destinatario: formData.direccion_destinatario,
-          ciudad_destino: formData.ciudad_destino,
-          cantidad_piezas: formData.cantidad_piezas,
-          peso: formData.peso ? parseFloat(formData.peso) : null,
-          tarifa: formData.tarifa ? parseFloat(formData.tarifa) : null,
-          referencia_1: formData.referencia_1 || null,
-          referencia_2: formData.referencia_2 || null,
-          fecha_promesa_entrega: formData.fecha_promesa_entrega || null,
-          incidentes_codigos: formData.incidentes_codigos.length > 0 ? formData.incidentes_codigos : null,
-          remitente: formData.remitente,
-          direccion_remitente: formData.direccion_remitente,
-          estado: 'PENDIENTE',
-          tipo: 'SALIDA',
-          centro_de_servicio_origen_id: 1,
-          zigo_request_payload: {}
-        });
-
-      if (error) throw error;
+      // Guardar la guía en la base de datos usando apiBackendAction
+      await apiBackendAction("guias.create", {
+        numero_guia: numeroGuia,
+        destinatario: formData.destinatario,
+        direccion_destinatario: formData.direccion_destinatario,
+        ciudad_destino: formData.ciudad_destino,
+        cantidad_piezas: formData.cantidad_piezas,
+        peso: formData.peso ? parseFloat(formData.peso) : null,
+        tarifa: formData.tarifa ? parseFloat(formData.tarifa) : null,
+        referencia_1: formData.referencia_1 || null,
+        referencia_2: formData.referencia_2 || null,
+        fecha_promesa_entrega: formData.fecha_promesa_entrega || null,
+        incidentes_codigos: formData.incidentes_codigos.length > 0 ? formData.incidentes_codigos : null,
+        remitente: formData.remitente,
+        direccion_remitente: formData.direccion_remitente,
+        estado: 'PENDIENTE',
+        tipo: 'SALIDA',
+        centro_de_servicio_origen_id: 1,
+        zigo_request_payload: {}
+      } as any);
 
       showSuccess(`Guía ${numeroGuia} creada en Zigo y guardada localmente`);
 

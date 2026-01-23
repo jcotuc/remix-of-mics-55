@@ -1188,6 +1188,76 @@ const storageHandlers: Record<string, ActionHandler<any>> = {
 };
 
 // =============================================================================
+// RPC HANDLERS
+// =============================================================================
+const rpcHandlers: Record<string, ActionHandler<any>> = {
+  "rpc.generarCodigoIncidente": async () => {
+    const { data, error } = await supabase.rpc("generar_codigo_incidente");
+    if (error) throw error;
+    return { codigo: data };
+  },
+  "rpc.generarNumeroGuia": async () => {
+    // Generate guide number based on max existing HPC-* number
+    const { data } = await supabase
+      .from("guias")
+      .select("numero_guia")
+      .like("numero_guia", "HPC-%")
+      .order("id", { ascending: false })
+      .limit(1);
+
+    let nextNumber = 1;
+    if (data && data.length > 0 && data[0].numero_guia) {
+      const match = data[0].numero_guia.match(/HPC-(\d+)/);
+      if (match) {
+        nextNumber = parseInt(match[1], 10) + 1;
+      }
+    }
+
+    return { numero: `HPC-${String(nextNumber).padStart(8, "0")}` };
+  },
+};
+
+// =============================================================================
+// DIRECCIONES HANDLERS
+// =============================================================================
+const direccionesHandlers: Record<string, ActionHandler<any>> = {
+  "direcciones.get": async (input) => {
+    const { data, error } = await supabase
+      .from("direcciones")
+      .select("*")
+      .eq("id", input.id)
+      .maybeSingle();
+    if (error) throw error;
+    return { result: data };
+  },
+};
+
+// =============================================================================
+// GUIAS EXTENDED HANDLERS
+// =============================================================================
+const guiasExtendedHandlers: Record<string, ActionHandler<any>> = {
+  "guias.create": async (input) => {
+    const { data, error } = await supabase
+      .from("guias")
+      .insert(input as any)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  },
+  "guias.getMaxNumero": async (input) => {
+    const { prefix } = input as { prefix: string };
+    const { data } = await supabase
+      .from("guias")
+      .select("numero_guia")
+      .like("numero_guia", `${prefix}%`)
+      .order("id", { ascending: false })
+      .limit(1);
+    return { numero: data?.[0]?.numero_guia || null };
+  },
+};
+
+//
 const handlers: Partial<Record<ActionName, ActionHandler<any>>> = {
   ...clientesHandlers,
   ...productosHandlers,
@@ -1220,6 +1290,9 @@ const handlers: Partial<Record<ActionName, ActionHandler<any>>> = {
   ...productosExtendedHandlers,
   ...authHandlers,
   ...storageHandlers,
+  ...rpcHandlers,
+  ...direccionesHandlers,
+  ...guiasExtendedHandlers,
 };
 
 // =============================================================================
