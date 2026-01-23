@@ -412,6 +412,19 @@ export interface ActionRegistry {
   // GUIAS
   // =============================================================================
   "guias.list": { input: GuiaListInput; output: GuiaListOutput };
+  "guias.create": { input: Record<string, unknown>; output: unknown };
+  "guias.getMaxNumero": { input: { prefix: string }; output: { numero: string | null } };
+
+  // =============================================================================
+  // DIRECCIONES
+  // =============================================================================
+  "direcciones.get": { input: { id: number }; output: { result: unknown | null } };
+
+  // =============================================================================
+  // RPC FUNCTIONS
+  // =============================================================================
+  "rpc.generarCodigoIncidente": { input: Record<string, never>; output: { codigo: string } };
+  "rpc.generarNumeroGuia": { input: Record<string, never>; output: { numero: string } };
 
   // =============================================================================
   // PRESUPUESTOS

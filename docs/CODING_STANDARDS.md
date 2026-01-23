@@ -166,20 +166,39 @@ const { publicUrl } = await apiBackendAction("storage.getPublicUrl", {
 });
 ```
 
-### Excepción Documentada
+### Excepciones Documentadas
 
-El listener `supabase.auth.onAuthStateChange()` en `AuthContext.tsx` es la **única excepción** permitida porque es un patrón de suscripción de React que no encaja en el modelo request/response de `apiBackendAction`.
+Las siguientes son las **únicas excepciones permitidas** para usar Supabase directamente:
+
+1. **`supabase.auth.onAuthStateChange()`** en `AuthContext.tsx` - Es un listener de suscripción de React que no encaja en el modelo request/response.
+
+2. **`supabase.functions.invoke()`** - Para llamadas a Edge Functions (ej: `Guias.tsx` llamando a `zigo-create-guide`).
+
+3. **`supabase.channel()`** - Para suscripciones Realtime (ej: `MisAsignaciones.tsx` para notificaciones en tiempo real).
 
 ```typescript
 // EXCEPCIÓN PERMITIDA - patrón de subscription
 const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
   // ...
 });
+
+// EXCEPCIÓN PERMITIDA - Edge Functions
+const { data, error } = await supabase.functions.invoke('zigo-create-guide', { body });
+
+// EXCEPCIÓN PERMITIDA - Realtime
+const channel = supabase.channel('notifications').on('postgres_changes', ...).subscribe();
 ```
 
-### RPC como Excepción
+### Estado de Migración: 100% Completado
 
-Las funciones RPC específicas de Supabase (`supabase.rpc()`) también se mantienen como excepción cuando son operaciones complejas del servidor que no tienen un handler equivalente.
+Todas las llamadas directas a Supabase han sido migradas a `apiBackendAction`, excepto las 3 excepciones documentadas arriba.
+
+### Verificación
+Para verificar que no hay nuevas llamadas directas, ejecutar:
+```bash
+grep -r "supabase\." src/ --include="*.tsx" --include="*.ts" | grep -v api-backend | grep -v "\.d\.ts" | grep -v AuthContext | grep -v MisAsignaciones
+```
+Resultado esperado: Solo archivos que usen `functions.invoke()`.
 
 ---
 

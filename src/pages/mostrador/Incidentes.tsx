@@ -16,7 +16,6 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { apiBackendAction } from "@/lib/api-backend";
 import type { IncidenteSchema, ClienteSchema, ProductoSchema } from "@/generated/actions.d";
@@ -61,12 +60,10 @@ export default function IncidentesMostrador() {
       setClientesList(clientesResult.results || []);
       setProductosList(productosResult.results || []);
       
-      // Intentar cargar notificaciones (tabla puede no existir)
+      // Cargar notificaciones usando apiBackendAction
       try {
-        const { data: notifData } = await (supabase as any)
-          .from("notificaciones_cliente")
-          .select("*");
-        setNotificacionesList(notifData || []);
+        const { results } = await apiBackendAction("notificaciones_cliente.list", {});
+        setNotificacionesList(results as NotificacionCliente[] || []);
       } catch {
         setNotificacionesList([]);
       }
@@ -143,9 +140,7 @@ export default function IncidentesMostrador() {
   // Función para enviar notificaciones masivas
   const enviarNotificacionesMasivas = async (incidentes: IncidenteSchema[]) => {
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const { user } = await apiBackendAction("auth.getUser", {});
       if (!user) {
         toast.error("No se encontró usuario autenticado");
         return;
@@ -159,11 +154,7 @@ export default function IncidentesMostrador() {
         enviado_por: user.id,
       }));
 
-      const { error } = await (supabase as any)
-        .from("notificaciones_cliente")
-        .insert(notificaciones);
-
-      if (error) throw error;
+      await apiBackendAction("notificaciones_cliente.create", notificaciones as any);
 
       toast.success(`${incidentes.length} notificaciones enviadas correctamente`);
       await fetchData();

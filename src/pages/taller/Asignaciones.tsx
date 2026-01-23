@@ -10,7 +10,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Wrench, Eye, Plus, Loader2, Clock, FileText } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useActiveIncidents, MAX_ASSIGNMENTS } from "@/contexts/ActiveIncidentsContext";
 import { apiBackendAction } from "@/lib/api-backend";
@@ -62,9 +61,8 @@ export default function Asignaciones() {
     const loadUserConfig = async () => {
       try {
         setLoadingConfig(true);
-        // 1) Obtener usuario (si no hay sesión real, usar bypass por email para pruebas)
-        const { data: userData } = await supabase.auth.getUser();
-        const user = userData.user ?? null;
+        // 1) Obtener usuario usando apiBackendAction
+        const { user } = await apiBackendAction("auth.getUser", {});
         const effectiveEmail = user?.email ?? (isDevBypassEnabled() ? DEV_BYPASS_AUTH.email : null);
 
         // 2) Obtener centro de servicio del usuario
@@ -79,12 +77,8 @@ export default function Asignaciones() {
         }
 
         if (!userProfile && effectiveEmail) {
-          const { data: byEmail } = await (supabase as any)
-            .from("usuarios")
-            .select("id, centro_de_servicio_id, activo, email")
-            .eq("email", effectiveEmail)
-            .maybeSingle();
-          userProfile = byEmail;
+          const searchResult = await apiBackendAction("usuarios.search", { email: effectiveEmail });
+          userProfile = (searchResult.results || [])[0] || null;
         }
 
         console.log("Perfil de usuario:", userProfile);
@@ -98,13 +92,9 @@ export default function Asignaciones() {
         console.log("Centro de servicio del usuario:", userCentroId);
         setCentroServicioId(userCentroId);
 
-        // Obtener nombre del centro de servicio
-        const { data: centroData } = await (supabase as any)
-          .from("centros_de_servicio")
-          .select("nombre")
-          .eq("id", userCentroId)
-          .maybeSingle();
-        setCentroServicioNombre(centroData?.nombre || `Centro ${userCentroId}`);
+        // Obtener nombre del centro de servicio usando apiBackendAction
+        const { result: centroData } = await apiBackendAction("centros_de_servicio.get", { id: userCentroId });
+        setCentroServicioNombre((centroData as any)?.nombre || `Centro ${userCentroId}`);
 
         // Cargar grupos activos del centro
         const { results: allGruposData } = await apiBackendAction("grupos_cola_fifo.list", {
@@ -262,31 +252,18 @@ export default function Asignaciones() {
     }
 
     try {
-      const { data: userData } = await supabase.auth.getUser();
-      const user = userData.user ?? null;
+      const { user } = await apiBackendAction("auth.getUser", {});
       const effectiveEmail = user?.email ?? (isDevBypassEnabled() ? DEV_BYPASS_AUTH.email : null);
       if (!user && !effectiveEmail) {
         toast.error("No se pudo obtener el usuario actual");
         return;
       }
 
-      // Get user profile
+      // Get user profile using apiBackendAction
       let profile: any = null;
-      if (user?.id) {
-        const { data } = await (supabase as any)
-          .from("usuarios")
-          .select("id, nombre, apellido, codigo_empleado, email")
-          .eq("auth_uid", user.id)
-          .maybeSingle();
-        profile = data;
-      }
-      if (!profile && effectiveEmail) {
-        const { data } = await (supabase as any)
-          .from("usuarios")
-          .select("id, nombre, apellido, codigo_empleado, email")
-          .eq("email", effectiveEmail)
-          .maybeSingle();
-        profile = data;
+      if (effectiveEmail) {
+        const { result } = await apiBackendAction("usuarios.getByEmail", { email: effectiveEmail });
+        profile = result;
       }
 
       const tecnicoId = Number(profile?.id);

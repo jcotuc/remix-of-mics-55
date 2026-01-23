@@ -30,15 +30,18 @@ export function IncidentPhotoGallery({ incidenteId }: IncidentPhotoGalleryProps)
 
   const fetchPhotos = async () => {
     try {
-      const { supabase } = await import("@/integrations/supabase/client");
-      const { data, error } = await (supabase as any)
-        .from('incidente_fotos')
-        .select('*')
-        .eq('incidente_id', incidenteId)
-        .order('orden', { ascending: true });
-
-      if (error) throw error;
-      setPhotos(data || []);
+      const { apiBackendAction } = await import("@/lib/api-backend");
+      const { results } = await apiBackendAction("incidente_fotos.list", { 
+        incidente_id: parseInt(incidenteId) 
+      });
+      
+      setPhotos((results || []).map((p: any) => ({
+        id: String(p.id),
+        url: p.url,
+        tipo: p.tipo,
+        created_at: p.created_at,
+        orden: p.orden || 0
+      })));
     } catch (error) {
       console.error('Error fetching photos:', error);
     } finally {

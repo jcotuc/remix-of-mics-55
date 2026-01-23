@@ -9,7 +9,6 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search, CheckCircle, Package, Plus, AlertCircle } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { apiBackendAction } from "@/lib/api-backend";
 import type { IncidenteSchema, ClienteSchema, ProductoSchema, Embarque } from "@/generated/actions.d";
@@ -85,15 +84,11 @@ export default function IngresoMaquinas() {
 
   const fetchClientesSAP = async () => {
     try {
-      // Use direct Supabase for codigo_sap filter (not in schema)
-      const { data, error } = await supabase
-        .from('clientes')
-        .select('*')
-        .not('codigo_sap', 'is', null)
-        .order('nombre');
-      
-      if (error) throw error;
-      setClientesSAP((data || []) as any);
+      // Use apiBackendAction for clients with codigo_sap filter
+      const result = await apiBackendAction("clientes.list", { limit: 5000 });
+      const filtered = (result.results || []).filter((c: any) => c.codigo_sap != null);
+      const sorted = filtered.sort((a: any, b: any) => (a.nombre || "").localeCompare(b.nombre || ""));
+      setClientesSAP(sorted as any);
     } catch (error) {
       console.error('Error fetching clientes SAP:', error);
     }
@@ -117,18 +112,13 @@ export default function IngresoMaquinas() {
 
     setCreatingIncidente(true);
     try {
-      // Generar código de incidente
-      const { data: codigoData, error: codigoError } = await (supabase as any)
-        .rpc('generar_codigo_incidente');
+      // Generar código de incidente usando apiBackendAction
+      const { codigo: codigoData } = await apiBackendAction("rpc.generarCodigoIncidente", {});
 
-      if (codigoError) throw codigoError;
-
-      // Buscar cliente por código
-      const { data: clienteData } = await supabase
-        .from('clientes')
-        .select('id')
-        .eq('codigo', manualIncidente.codigo_cliente)
-        .single();
+      // Buscar cliente por código usando apiBackendAction
+      const { result: clienteData } = await apiBackendAction("clientes.getByCodigo", {
+        codigo: manualIncidente.codigo_cliente
+      });
 
       if (!clienteData) {
         toast.error('No se encontró el cliente con ese código');
@@ -138,7 +128,7 @@ export default function IngresoMaquinas() {
 
       const nuevoIncidente = {
         codigo: codigoData,
-        cliente_id: clienteData.id,
+        cliente_id: (clienteData as any).id,
         centro_de_servicio_id: 1,
         producto_id: null,
         descripcion_problema: manualIncidente.descripcion_problema,
@@ -150,11 +140,7 @@ export default function IngresoMaquinas() {
         observaciones: `SKU Maquina: ${manualIncidente.sku_maquina}`
       };
 
-      const { error } = await supabase
-        .from('incidentes')
-        .insert([nuevoIncidente]);
-
-      if (error) throw error;
+      await apiBackendAction("incidentes.create", nuevoIncidente as any);
 
       toast.success('Incidente creado exitosamente');
       setShowManualDialog(false);
@@ -181,7 +167,7 @@ export default function IngresoMaquinas() {
     setProcesandoIngreso(true);
 
     try {
-      const { data: { user } } = await supabase.auth.getUser();
+      const { user } = await apiBackendAction("auth.getUser", {});
       if (!user) throw new Error("Usuario no autenticado");
 
       // 1. Subir fotos a storage
@@ -208,12 +194,10 @@ export default function IngresoMaquinas() {
         updateData.observaciones = `SKU Verificado: ${skuVerificado}. ${observacionesIngreso || ''} ${existingObservaciones}`.trim();
       }
 
-      const { error: updateError } = await supabase
-        .from('incidentes')
-        .update(updateData)
-        .eq('id', selectedIncidenteForIngreso.id);
-
-      if (updateError) throw updateError;
+      await apiBackendAction("incidentes.update", {
+        id: selectedIncidenteForIngreso.id,
+        data: updateData
+      });
 
       toast.success("Ingreso formalizado correctamente");
 
