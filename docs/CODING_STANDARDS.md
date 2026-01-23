@@ -93,33 +93,100 @@ import { STATUS_LABELS, STATUS_VARIANTS, getStatusLabel, getStatusBadgeProps } f
 
 ---
 
-## Servicios de Dominio
+## API Backend - Capa de Abstracción
 
-### Patrón de Servicios
-```typescript
-// src/services/nombreService.ts
-import { supabase } from "@/integrations/supabase/client";
+Todas las operaciones de datos pasan por `apiBackendAction` en lugar de llamadas directas a Supabase.
 
-export const nombreService = {
-  async getById(id: string) {
-    const { data, error } = await supabase.from("tabla").select("*").eq("id", id).single();
-    if (error) throw error;
-    return data;
-  },
-  
-  async create(data: CreateDTO) {
-    const { data: result, error } = await supabase.from("tabla").insert(data).select().single();
-    if (error) throw error;
-    return result;
-  }
-};
+### Arquitectura de 4 Capas
+
+```
+Componente → apiBackendAction() → api-backend.ts (handlers) → Supabase
+                                        ↓
+                                api-registry.ts (tipos)
 ```
 
-### Servicios Disponibles
-- `incidenteService` - Operaciones de incidentes
-- `diagnosticoService` - Operaciones de diagnósticos
-- `clienteService` - Operaciones de clientes
-- `solicitudService` - Operaciones de solicitudes de repuestos
+### Uso Estandarizado
+
+```typescript
+import { apiBackendAction } from "@/lib/api-backend";
+
+// Consultar datos
+const { results } = await apiBackendAction("incidentes.list", { limit: 50 });
+const { result } = await apiBackendAction("incidentes.get", { id: 123 });
+
+// Crear/Actualizar
+await apiBackendAction("incidentes.create", { ...datos });
+await apiBackendAction("incidentes.update", { id, data: { estado: "EN_REPARACION" } });
+
+// Buscar
+const { results } = await apiBackendAction("clientes.search", { search: "Juan" });
+```
+
+### Acciones de Auth
+
+```typescript
+// Login
+await apiBackendAction("auth.login", { email, password });
+
+// Logout
+await apiBackendAction("auth.logout", {});
+
+// Obtener sesión actual
+const { session } = await apiBackendAction("auth.getSession", {});
+
+// Obtener usuario autenticado
+const { user } = await apiBackendAction("auth.getUser", {});
+
+// Obtener perfil completo con roles
+const { result } = await apiBackendAction("auth.me", {});
+// result: { id, nombre, email, centro_de_servicio, roles: [...] }
+```
+
+### Acciones de Storage
+
+```typescript
+// Subir archivo
+const { url, storage_path } = await apiBackendAction("storage.upload", {
+  bucket: 'incidente-fotos',
+  path: 'carpeta/archivo.jpg',
+  file: fileObject,
+  options: { cacheControl: '3600' }
+});
+
+// Eliminar archivos
+await apiBackendAction("storage.delete", {
+  bucket: 'incidente-fotos',
+  paths: ['ruta1.jpg', 'ruta2.jpg']
+});
+
+// Obtener URL pública
+const { publicUrl } = await apiBackendAction("storage.getPublicUrl", {
+  bucket: 'incidente-fotos',
+  path: 'carpeta/archivo.jpg'
+});
+```
+
+### Excepción Documentada
+
+El listener `supabase.auth.onAuthStateChange()` en `AuthContext.tsx` es la **única excepción** permitida porque es un patrón de suscripción de React que no encaja en el modelo request/response de `apiBackendAction`.
+
+```typescript
+// EXCEPCIÓN PERMITIDA - patrón de subscription
+const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+  // ...
+});
+```
+
+### RPC como Excepción
+
+Las funciones RPC específicas de Supabase (`supabase.rpc()`) también se mantienen como excepción cuando son operaciones complejas del servidor que no tienen un handler equivalente.
+
+---
+
+## Servicios de Dominio (Deprecated)
+
+> **NOTA**: Los servicios de dominio están siendo migrados a `apiBackendAction`. 
+> Para nuevas funcionalidades, usar `apiBackendAction` directamente.
 
 ---
 

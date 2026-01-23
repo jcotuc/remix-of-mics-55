@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { apiBackendAction } from "@/lib/api-backend";
 import { MediaFile } from "@/components/features/media";
 
 export interface UploadedMedia {
@@ -10,7 +10,7 @@ export interface UploadedMedia {
 }
 
 /**
- * Sube archivos multimedia a Supabase Storage
+ * Sube archivos multimedia a Supabase Storage via apiBackendAction
  * @param media - Array de archivos de media a subir
  * @param incidenteId - ID del incidente (opcional, para organizar por carpetas)
  * @returns Array de objetos con URLs y rutas de storage
@@ -32,26 +32,16 @@ export async function uploadMediaToStorage(
     const fileName = `${folder}/${timestamp}_${randomId}.${extension}`;
 
     try {
-      const { data, error } = await supabase.storage
-        .from('incidente-fotos')
-        .upload(fileName, item.file, {
-          cacheControl: '3600',
-          upsert: false
-        });
-
-      if (error) {
-        console.error('Error uploading file:', error);
-        throw error;
-      }
-
-      // Obtener URL pública
-      const { data: urlData } = supabase.storage
-        .from('incidente-fotos')
-        .getPublicUrl(data.path);
+      const { url, storage_path } = await apiBackendAction("storage.upload", {
+        bucket: 'incidente-fotos',
+        path: fileName,
+        file: item.file,
+        options: { cacheControl: '3600', upsert: false }
+      });
 
       uploaded.push({
-        url: urlData.publicUrl,
-        storage_path: data.path,
+        url,
+        storage_path,
         tipo: item.tipo,
         orden: i
       });
@@ -75,7 +65,7 @@ export async function saveIncidentePhotos(
   uploadedMedia: (UploadedMedia & { comment?: string })[],
   tipo: 'ingreso' | 'salida' | 'diagnostico' | 'reparacion'
 ) {
-  const { data: userData } = await supabase.auth.getUser();
+  const { user } = await apiBackendAction("auth.getUser", {});
   
   const photosToInsert = uploadedMedia.map(media => ({
     incidente_id: incidenteId,
@@ -83,33 +73,22 @@ export async function saveIncidentePhotos(
     url: media.url,
     storage_path: media.storage_path,
     orden: media.orden,
-    created_by: userData.user?.id,
+    created_by: user?.id,
     // Note: comments are not stored in incidente_fotos table yet
     // You may want to add a 'comentario' column to the table
   }));
 
-  // Using any to bypass type checking until Supabase types are regenerated
-  const { error } = await (supabase as any)
-    .from('incidente_fotos')
-    .insert(photosToInsert);
-
-  if (error) {
-    console.error('Error saving photo references:', error);
-    throw error;
-  }
+  // Use apiBackendAction for insert
+  await apiBackendAction("incidente_fotos.create", photosToInsert as any);
 }
 
 /**
- * Elimina archivos de Supabase Storage
+ * Elimina archivos de Supabase Storage via apiBackendAction
  * @param storagePaths - Array de rutas de storage a eliminar
  */
 export async function deleteMediaFromStorage(storagePaths: string[]) {
-  const { error } = await supabase.storage
-    .from('incidente-fotos')
-    .remove(storagePaths);
-
-  if (error) {
-    console.error('Error deleting files:', error);
-    throw error;
-  }
+  await apiBackendAction("storage.delete", {
+    bucket: 'incidente-fotos',
+    paths: storagePaths
+  });
 }

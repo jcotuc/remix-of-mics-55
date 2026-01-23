@@ -630,6 +630,44 @@ export interface ActionRegistry {
   // PRODUCTOS (extended)
   // =============================================================================
   "productos.listAlternativos": { input: { exclude_familia_id?: number; descontinuado?: boolean }; output: { results: unknown[] } };
+
+  // =============================================================================
+  // AUTH
+  // =============================================================================
+  "auth.login": { input: { email: string; password: string }; output: { success: boolean; message: string } };
+  "auth.logout": { input: Record<string, never>; output: { success: boolean } };
+  "auth.getSession": { input: Record<string, never>; output: { session: unknown | null } };
+  "auth.getUser": { input: Record<string, never>; output: { user: { id: string; email: string } | null } };
+  "auth.me": { 
+    input: Record<string, never>; 
+    output: { 
+      result: { 
+        id: number; 
+        nombre: string; 
+        apellido: string | null;
+        email: string; 
+        centro_de_servicio_id: number | null;
+        centro_de_servicio: { id: number; nombre: string; codigo: string } | null;
+        roles: Array<{ id: number; nombre: string; slug: string }>;
+      } | null 
+    } 
+  };
+
+  // =============================================================================
+  // STORAGE
+  // =============================================================================
+  "storage.upload": { 
+    input: { bucket: string; path: string; file: File; options?: { cacheControl?: string; upsert?: boolean } }; 
+    output: { url: string; storage_path: string } 
+  };
+  "storage.delete": { 
+    input: { bucket: string; paths: string[] }; 
+    output: { success: boolean } 
+  };
+  "storage.getPublicUrl": { 
+    input: { bucket: string; path: string }; 
+    output: { publicUrl: string } 
+  };
 }
 
 export type ActionName = keyof ActionRegistry;
