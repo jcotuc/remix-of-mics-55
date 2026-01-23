@@ -409,22 +409,23 @@ export interface ActionRegistry {
   "accesorios.create": { input: AccesorioCreateInput; output: AccesorioCreateOutput };
 
   // =============================================================================
-  // GUIAS
-  // =============================================================================
-  "guias.list": { input: GuiaListInput; output: GuiaListOutput };
-  "guias.create": { input: Record<string, unknown>; output: unknown };
-  "guias.getMaxNumero": { input: { prefix: string }; output: { numero: string | null } };
-
-  // =============================================================================
   // DIRECCIONES
   // =============================================================================
   "direcciones.get": { input: { id: number }; output: { result: unknown | null } };
+  "direcciones.create": { input: Record<string, unknown>; output: unknown };
+
+  // =============================================================================
+  // INCIDENTE ACCESORIOS
+  // =============================================================================
+  "incidente_accesorios.list": { input: { incidente_id: number }; output: { results: Array<{ accesorios?: { nombre: string } }> } };
+  "incidente_accesorios.create": { input: Record<string, unknown>; output: unknown };
 
   // =============================================================================
   // RPC FUNCTIONS
   // =============================================================================
   "rpc.generarCodigoIncidente": { input: Record<string, never>; output: { codigo: string } };
   "rpc.generarNumeroGuia": { input: Record<string, never>; output: { numero: string } };
+  "rpc.generarCodigoHPC": { input: Record<string, never>; output: { codigo: string } };
 
   // =============================================================================
   // PRESUPUESTOS
@@ -450,8 +451,10 @@ export interface ActionRegistry {
   "incidente_fotos.list": { input: { incidente_id?: number }; output: { results: unknown[] } };
   "incidente_fotos.create": { input: Record<string, unknown> | Record<string, unknown>[]; output: { results: unknown[] } };
 
-  // Incidente Accesorios
-  "incidente_accesorios.list": { input: { incidente_id: number }; output: { results: Array<{ accesorios?: { nombre: string } }> } };
+  // Guias
+  "guias.list": { input: { tipo?: string }; output: { results: unknown[] } };
+  "guias.create": { input: Record<string, unknown>; output: unknown };
+  "guias.getMaxNumero": { input: { prefix: string }; output: { numero: string | null } };
 
   // Incidente Tecnico
   "incidente_tecnico.list": { input: { incidente_id?: number; es_principal?: boolean; tecnico_id?: number }; output: { results: unknown[] } };

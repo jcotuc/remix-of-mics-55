@@ -9,7 +9,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { apiBackendAction } from "@/lib/api-backend";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { SignatureCanvasComponent, SignatureCanvasRef, StatusBadge } from "@/components/shared";
 import { SidebarMediaCapture, SidebarPhoto } from "@/components/features/media";
@@ -158,12 +157,11 @@ export default function DetalleEntrega() {
 
       // Cargar accesorios del incidente
       try {
-        const { data: accesoriosData } = await supabase
-          .from('incidente_accesorios')
-          .select('accesorio:accesorios(nombre)')
-          .eq('incidente_id', Number(incidenteId));
+        const { results: accesoriosData } = await apiBackendAction("incidente_accesorios.list", { 
+          incidente_id: Number(incidenteId) 
+        });
         
-        const nombres = (accesoriosData || []).map((a: any) => a.accesorio?.nombre).filter(Boolean);
+        const nombres = (accesoriosData || []).map((a: any) => a.accesorios?.nombre).filter(Boolean);
         setAccesoriosIngreso(nombres);
       } catch (err) {
         console.error("Error loading accesorios:", err);

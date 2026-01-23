@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client"; // Only for RPC
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -123,12 +122,8 @@ export default function HerramientasManuales() {
       // Obtener centro_de_servicio_id del usuario (default 1)
       const centroServicioId = 1;
 
-      // Generar código de incidente - KEEPING RPC as exception
-      const { data: codigoData, error: codigoError } = await (supabase as any)
-        .rpc("generar_codigo_incidente");
-      
-      if (codigoError) throw codigoError;
-      const nuevoCodigoIncidente = codigoData;
+      // Generar código de incidente via apiBackendAction
+      const { codigo: nuevoCodigoIncidente } = await apiBackendAction("rpc.generarCodigoIncidente", {});
 
       // Subir fotos
       const mediaFiles: MediaFile[] = fotos.map(p => ({
