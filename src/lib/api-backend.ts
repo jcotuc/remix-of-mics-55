@@ -1098,6 +1098,86 @@ const productosExtendedHandlers: Record<string, ActionHandler<any>> = {
 // =============================================================================
 // HANDLERS MAP
 // =============================================================================
+// AUTH HANDLERS
+// =============================================================================
+const authHandlers: Record<string, ActionHandler<any>> = {
+  "auth.login": async (input) => {
+    const { email, password } = input;
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
+    return { success: true, message: "Login exitoso" };
+  },
+  "auth.logout": async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
+    return { success: true };
+  },
+  "auth.getSession": async () => {
+    const { data, error } = await supabase.auth.getSession();
+    if (error) throw error;
+    return { session: data.session };
+  },
+  "auth.getUser": async () => {
+    const { data, error } = await supabase.auth.getUser();
+    if (error) throw error;
+    return { user: data.user };
+  },
+  "auth.me": async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user?.email) return { result: null };
+    
+    const { data, error } = await supabase
+      .from("usuarios")
+      .select(`
+        id, nombre, apellido, email, telefono, activo,
+        centro_de_servicio_id, empresa_id, cliente_id,
+        centro_de_servicio:centros_de_servicio(id, nombre, codigo),
+        usuario_roles(
+          rol:roles(id, nombre, slug)
+        )
+      `)
+      .eq("email", user.email)
+      .maybeSingle();
+    
+    if (error) throw error;
+    
+    const roles = data?.usuario_roles?.map((ur: any) => ur.rol) || [];
+    return { result: data ? { ...data, roles } : null };
+  },
+};
+
+// =============================================================================
+// STORAGE HANDLERS
+// =============================================================================
+const storageHandlers: Record<string, ActionHandler<any>> = {
+  "storage.upload": async (input) => {
+    const { bucket, path, file, options } = input;
+    const { data, error } = await supabase.storage
+      .from(bucket)
+      .upload(path, file, options);
+    
+    if (error) throw error;
+    
+    const { data: urlData } = supabase.storage
+      .from(bucket)
+      .getPublicUrl(data.path);
+    
+    return { url: urlData.publicUrl, storage_path: data.path };
+  },
+  "storage.delete": async (input) => {
+    const { bucket, paths } = input;
+    const { error } = await supabase.storage.from(bucket).remove(paths);
+    if (error) throw error;
+    return { success: true };
+  },
+  "storage.getPublicUrl": async (input) => {
+    const { bucket, path } = input;
+    const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+    return { publicUrl: data.publicUrl };
+  },
+};
+
+// =============================================================================
 const handlers: Partial<Record<ActionName, ActionHandler<any>>> = {
   ...clientesHandlers,
   ...productosHandlers,
@@ -1128,6 +1208,8 @@ const handlers: Partial<Record<ActionName, ActionHandler<any>>> = {
   ...repuestosExtendedHandlers,
   ...inventariosExtendedHandlers,
   ...productosExtendedHandlers,
+  ...authHandlers,
+  ...storageHandlers,
 };
 
 // =============================================================================

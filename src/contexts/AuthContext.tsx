@@ -3,6 +3,7 @@ import { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { DEV_BYPASS_AUTH, disableDevBypass, isDevBypassEnabled } from "@/config/devBypassAuth";
+import { apiBackendAction } from "@/lib/api-backend";
 
 // Simplified roles - actual role management requires user_roles table
 type UserRole = "admin" | "mostrador" | "logistica" | "taller" | "bodega" | "tecnico" | "digitador" | "jefe_taller" | "sac" | "control_calidad" | "asesor" | "gerente_centro" | "supervisor_regional" | "jefe_logistica" | "jefe_bodega" | "supervisor_bodega" | "supervisor_calidad" | "supervisor_sac" | "auxiliar_bodega" | "auxiliar_logistica" | "supervisor_inventarios" | "capacitador";
@@ -51,7 +52,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
     };
 
-    // Set up auth state listener
+    // Set up auth state listener (exception: onAuthStateChange is a subscription pattern)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         if (session?.user) {
@@ -75,11 +76,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     );
 
-    // Check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        setSession(session);
-        setUser(session.user);
+    // Check for existing session using apiBackendAction
+    apiBackendAction("auth.getSession", {}).then(({ session }) => {
+      if (session) {
+        setSession(session as Session);
+        setUser((session as Session).user);
         setUserRole("admin");
         setLoading(false);
         return;
@@ -94,6 +95,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(null);
       setUserRole(null);
       setLoading(false);
+    }).catch(() => {
+      // On error, check dev bypass
+      if (isDevBypassEnabled()) {
+        applyDevBypass();
+      } else {
+        setLoading(false);
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -103,7 +111,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       // Permite salir incluso si el bypass está activo.
       disableDevBypass();
-      await supabase.auth.signOut();
+      await apiBackendAction("auth.logout", {});
       setUser(null);
       setSession(null);
       setUserRole(null);

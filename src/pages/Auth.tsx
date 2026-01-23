@@ -7,7 +7,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { Wrench } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { apiBackendAction } from "@/lib/api-backend";
 import { isDevBypassEnabled } from "@/config/devBypassAuth";
 
@@ -30,13 +29,17 @@ export default function Auth() {
       };
     }
     
-    supabase.auth.getSession().then(async ({ data, error }) => {
+    apiBackendAction("auth.getSession", {}).then(({ session }) => {
       if (!mounted) return;
-      if (error) {
-        await supabase.auth.signOut({ scope: "local" });
-      }
-      if (data.session) {
+      if (session) {
         navigate("/");
+      }
+    }).catch(async () => {
+      // On error, try to logout locally and continue
+      try {
+        await apiBackendAction("auth.logout", {});
+      } catch {
+        // Ignore logout errors
       }
     });
     
@@ -50,38 +53,32 @@ export default function Auth() {
     setLoading(true);
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
+      await apiBackendAction("auth.login", {
         email: loginEmail.trim(),
         password: loginPassword,
       });
 
-      if (error) {
-        if (error.message.toLowerCase().includes("invalid login credentials")) {
-          toast.error("Credenciales inválidas");
-        } else {
-          toast.error(error.message);
-        }
-        return;
-      }
-
       // Verificar que el usuario exista/mapee en la tabla interna `usuarios`
       // (la app depende de centro_de_servicio_id, permisos, etc.)
-      if (data.user?.email) {
-        const { result: usuario } = await apiBackendAction("usuarios.getByEmail", {
-          email: data.user.email,
-        });
+      const { result: usuario } = await apiBackendAction("usuarios.getByEmail", {
+        email: loginEmail.trim(),
+      });
 
-        if (!usuario) {
-          await supabase.auth.signOut();
-          toast.error("Tu usuario no está habilitado en el sistema.");
-          return;
-        }
+      if (!usuario) {
+        await apiBackendAction("auth.logout", {});
+        toast.error("Tu usuario no está habilitado en el sistema.");
+        return;
       }
 
       toast.success("¡Sesión iniciada!");
       navigate("/");
-    } catch (error) {
-      toast.error("Error al iniciar sesión");
+    } catch (error: any) {
+      const message = error?.message || "";
+      if (message.toLowerCase().includes("invalid login credentials")) {
+        toast.error("Credenciales inválidas");
+      } else {
+        toast.error(message || "Error al iniciar sesión");
+      }
     } finally {
       setLoading(false);
     }

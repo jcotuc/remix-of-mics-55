@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search, Plus, Camera, Paperclip } from "lucide-react";
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client"; // Only for storage uploads and RPC
+import { supabase } from "@/integrations/supabase/client"; // Only for RPC
 import { PhotoGalleryWithDescriptions, type PhotoWithDescription } from "@/components/shared";
 import { toast } from "sonner";
 import { OutlinedInput, OutlinedTextarea, OutlinedSelect } from "@/components/ui/outlined-input";
@@ -111,7 +111,7 @@ export default function GarantiasManuales() {
   };
   const handleCreateGarantia = async () => {
     try {
-      // Upload photos to storage and get URLs (keep supabase.storage)
+      // Upload photos to storage and get URLs via apiBackendAction
       const fotosUrls: string[] = [];
       
       for (const foto of fotosNuevaSolicitud) {
@@ -119,20 +119,17 @@ export default function GarantiasManuales() {
         const fileName = `${crypto.randomUUID()}.${fileExt}`;
         const filePath = `garantias/${fileName}`;
         
-        const { error: uploadError } = await supabase.storage
-          .from('garantias-manuales')
-          .upload(filePath, foto.file);
-        
-        if (uploadError) {
+        try {
+          const { url } = await apiBackendAction("storage.upload", {
+            bucket: 'garantias-manuales',
+            path: filePath,
+            file: foto.file
+          });
+          fotosUrls.push(url);
+        } catch (uploadError) {
           console.error('Error uploading photo:', uploadError);
           continue;
         }
-        
-        const { data: { publicUrl } } = supabase.storage
-          .from('garantias-manuales')
-          .getPublicUrl(filePath);
-        
-        fotosUrls.push(publicUrl);
       }
       
       // Create garantia via apiBackendAction
