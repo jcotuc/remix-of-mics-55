@@ -320,6 +320,16 @@ const mostradorHandlers: Record<string, ActionHandler<any>> = {
     if (error) throw error;
     return { results: data || [] };
   },
+  // Incidente Accesorios
+  "incidente_accesorios.list": async (input) => {
+    const { incidente_id } = input as any;
+    const { data, error } = await supabase
+      .from("incidente_accesorios")
+      .select("accesorios:accesorio_id(nombre)")
+      .eq("incidente_id", incidente_id);
+    if (error) throw error;
+    return { results: data || [] };
+  },
   // Incidente Tecnico
   "incidente_tecnico.list": async (input) => {
     const { incidente_id, es_principal, tecnico_id } = input as any;

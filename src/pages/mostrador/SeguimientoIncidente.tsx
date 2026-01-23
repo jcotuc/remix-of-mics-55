@@ -25,7 +25,7 @@ import {
   ChevronDown,
   Loader2,
 } from "lucide-react";
-import { generarGuiaAutomatica, tieneGuiaEnvio } from "@/lib/autoGuiaService";
+import { generarGuiaInterna, tieneGuiaEnvio } from "@/lib/guiaInternaService";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -570,7 +570,7 @@ export default function SeguimientoIncidente() {
     
     setGenerandoGuia(true);
     try {
-      const result = await generarGuiaAutomatica(incidente.id);
+      const result = await generarGuiaInterna(incidente.id);
       if (result.success) {
         showSuccess(`Guía ${result.numeroGuia || ""} generada exitosamente`);
         // Refrescar datos para mostrar la nueva guía

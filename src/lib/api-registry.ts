@@ -437,6 +437,9 @@ export interface ActionRegistry {
   "incidente_fotos.list": { input: { incidente_id?: number }; output: { results: unknown[] } };
   "incidente_fotos.create": { input: Record<string, unknown> | Record<string, unknown>[]; output: { results: unknown[] } };
 
+  // Incidente Accesorios
+  "incidente_accesorios.list": { input: { incidente_id: number }; output: { results: Array<{ accesorios?: { nombre: string } }> } };
+
   // Incidente Tecnico
   "incidente_tecnico.list": { input: { incidente_id?: number; es_principal?: boolean; tecnico_id?: number }; output: { results: unknown[] } };
 

@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client"; // Only for auth
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -45,7 +44,8 @@ export default function IncidentesSAC() {
     try {
       setLoading(true);
       
-      const { data: { user } } = await supabase.auth.getUser();
+      // Get current user via apiBackendAction
+      const { user } = await apiBackendAction("auth.getUser", {});
       if (user) {
         // Get user profile via apiBackendAction
         const { result: perfil } = await apiBackendAction("usuarios.getByEmail", { email: user.email || "" });
