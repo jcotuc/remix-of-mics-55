@@ -106,8 +106,8 @@ export default function ClientesUnificado({
         listClientesApiV1ClientesGet(logisticaParams)
       ]);
       
-      setTotalMostrador(mostradorResult.total);
-      setTotalLogistica(logisticaResult.total);
+      setTotalMostrador(mostradorResult.total ?? 0);
+      setTotalLogistica(logisticaResult.total ?? 0);
     } catch (error) {
       console.error("Error fetching counts:", error);
     }
@@ -136,19 +136,26 @@ export default function ClientesUnificado({
 
       const order_by = activeTab === 'mostrador' ? "-created_at" : "nombre";
 
-      const { results, total } = await listClientesApiV1ClientesGet({
+      const response = await listClientesApiV1ClientesGet({
         q,
         limit: itemsPerPage,
         offset: (currentPage - 1) * itemsPerPage,
         order_by,
       });
+      const { data } = await listClientesApiV1ClientesGet({
+        q,
+        limit: itemsPerPage,
+        offset: (currentPage - 1) * itemsPerPage,
+        order_by,
+      });
+      const { results, total } = data;
       
       if (activeTab === 'mostrador') {
-        setClientesMostrador(results);
+        setClientesMostrador(results ?? []);
       } else {
-        setClientesLogistica(results);
+        setClientesLogistica(results ?? []);
       }
-      setTotalFiltered(total);
+      setTotalFiltered(total ?? 0);
 
     } catch (error) {
       console.error("Error fetching clients:", error);
@@ -182,15 +189,15 @@ export default function ClientesUnificado({
         cliente_id: editingCliente.id,
         body: {
           nombre: editingCliente.nombre,
-          nit: editingCliente.nit,
-          celular: editingCliente.celular,
-          correo: editingCliente.correo,
-          direccion: editingCliente.direccion,
-          departamento: editingCliente.departamento,
-          municipio: editingCliente.municipio,
-          telefono_principal: editingCliente.telefono_principal,
-          telefono_secundario: editingCliente.telefono_secundario,
-          direccion_envio: editingCliente.direccion_envio,
+          nit: editingCliente.nit || null,
+          celular: editingCliente.celular || null,
+          correo: editingCliente.correo || null,
+          direccion: editingCliente.direccion || null,
+          departamento: editingCliente.departamento || null,
+          municipio: editingCliente.municipio || null,
+          telefono_principal: editingCliente.telefono_principal || null,
+          telefono_secundario: editingCliente.telefono_secundario || null,
+          direccion_envio: editingCliente.direccion_envio || null,
         }
       });
       toast.success("Cliente actualizado correctamente");
