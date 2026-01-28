@@ -333,7 +333,14 @@ const diagnosticosHandlers: Record<string, ActionHandler<any>> = {
   "importaciones.create": notImplemented("importaciones.create"),
   "importaciones.update": notImplemented("importaciones.update"),
   "importaciones.delete": notImplemented("importaciones.delete"),
-  "ubicaciones.list": async () => { const { data, error } = await supabase.from("ubicaciones").select("*").order("codigo"); if (error) throw error; return { data: data || [], count: data?.length || 0 }; },
+  "ubicaciones.list": async (input) => {
+    const { skip = 0, limit = 100, search, bodega_id } = input || {};
+    const response = await getAllUbicacionesApiV1UbicacionesGet({
+      query: { skip, limit, q: search, bodega_id },
+      responseStyle: 'data',
+    });
+    return { results: response.results, total: response.total };
+  },
   "ubicaciones.get": async (input) => { const { data, error } = await supabase.from("ubicaciones").select("*").eq("id", input.id).maybeSingle(); if (error) throw error; return { result: data }; },
   "ubicaciones.create": notImplemented("ubicaciones.create"),
   "ubicaciones.update": notImplemented("ubicaciones.update"),
@@ -343,39 +350,103 @@ const diagnosticosHandlers: Record<string, ActionHandler<any>> = {
   "transitos_bodega.create": notImplemented("transitos_bodega.create"),
   "transitos_bodega.update": notImplemented("transitos_bodega.update"),
   "transitos_bodega.delete": notImplemented("transitos_bodega.delete"),
-  "usuarios.list": async () => { const { data, error } = await supabase.from("usuarios").select("*").order("nombre"); if (error) throw error; return { results: data || [], total: data?.length || 0 }; },
-  "roles.list": async () => { const { data, error } = await supabase.from("roles").select("*").order("nombre"); if (error) throw error; return { items: data || [] }; },
-  "fallas.list": async () => { const { data, error } = await supabase.from("fallas").select("*").order("nombre"); if (error) throw error; return { results: data || [], total: data?.length || 0 }; },
-  "causas.list": async () => { const { data, error } = await supabase.from("causas").select("*").order("nombre"); if (error) throw error; return { results: data || [], total: data?.length || 0 }; },
-  "accesorios.list": async () => { const { data, error } = await supabase.from("accesorios").select("*").order("nombre"); if (error) throw error; return { results: data || [], total: data?.length || 0 }; },
+  "usuarios.list": async (input) => {
+    const { skip = 0, limit = 100 } = input || {};
+    const response = await getAllUsersApiV1UsuariosGet({
+      query: { skip, limit },
+      responseStyle: 'data',
+    });
+    return { results: response.results, total: response.total };
+  },
+  "roles.list": async (input) => {
+    // Note: The /api/v1/roles/ endpoint currently does not support filtering parameters in openapi.json.
+    // Future backend updates could introduce a 'q' parameter for versatile searching.
+    const response = await getAllRolesApiV1RolesGet({
+      responseStyle: 'data',
+    });
+    return { items: response };
+  },
+  "fallas.list": async (input) => {
+    const { skip = 0, limit = 100, search, producto_id } = input || {};
+    const response = await getAllFallasApiV1FallasGet({
+      query: { skip, limit, q: search, producto_id },
+      responseStyle: 'data',
+    });
+    return { results: response.results, total: response.total };
+  },
+  "causas.list": async (input) => {
+    const { skip = 0, limit = 100, search, familia_id } = input || {};
+    const response = await getAllCausasApiV1CausasGet({
+      query: { skip, limit, q: search, familia_id },
+      responseStyle: 'data',
+    });
+    return { results: response.results, total: response.total };
+  },
+  "accesorios.list": async (input) => {
+    const { skip = 0, limit = 100, search, familia_id, producto_id } = input || {};
+    const response = await getAllAccesoriosApiV1AccesoriosGet({
+      query: { skip, limit, q: search, familia_id, producto_id },
+      responseStyle: 'data',
+    });
+    return { results: response.results, total: response.total };
+  },
   "accesorios.create": notImplemented("accesorios.create"),
-  "guias.list": async () => { const { data, error } = await supabase.from("guias").select("*").order("created_at", { ascending: false }); if (error) throw error; return { results: data || [], total: data?.length || 0 }; },
+  "guias.list": async (input) => {
+    const { skip = 0, limit = 100, incidente_id, estado, centro_de_servicio_origen_id, centro_de_servicio_destino_id, search } = input || {};
+    const response = await getAllGuiasApiV1GuiasGet({
+      query: { skip, limit, incidente_id, estado, centro_de_servicio_origen_id, centro_de_servicio_destino_id, q: search },
+      responseStyle: 'data',
+    });
+    return { results: response.results, total: response.total };
+  },
   "presupuestos.list": async (input) => { const incidente_id = (input as any).incidente_id; let query = supabase.from("presupuestos").select("*"); if (incidente_id) query = query.eq("incidente_id", incidente_id); const { data, error } = await query.order("created_at", { ascending: false }); if (error) throw error; return { data: data || [], count: data?.length || 0 }; },
   "presupuestos.get": async (input) => { const { data, error } = await supabase.from("presupuestos").select("*").eq("id", input.id).maybeSingle(); if (error) throw error; return data; },
   "presupuestos.create": notImplemented("presupuestos.create"),
   "presupuestos.update": notImplemented("presupuestos.update"),
   "presupuestos.delete": notImplemented("presupuestos.delete"),
-  "familias_producto.list": async () => { const { data, error } = await supabase.from("familias_producto").select("id, nombre, parent_id, created_at").is("parent_id", null).order("nombre"); if (error) throw error; return { results: data || [], total: data?.length || 0 }; },
-  "centros_de_servicio.list": async () => { const { data, error } = await supabase.from("centros_de_servicio").select("*").eq("activo", true).order("nombre"); if (error) throw error; return { items: data || [] }; },
-  "grupos_cola_fifo.list": async (input) => { 
-    const { centro_servicio_id } = (input || {}) as any;
-    let query = supabase.from("grupos_cola_fifo").select("*").order("orden"); 
-    if (centro_servicio_id) query = query.eq("centro_servicio_id", centro_servicio_id);
-    const { data, error } = await query; 
-    if (error) throw error; 
-    return { results: data || [], total: data?.length || 0 }; 
+  "familias_producto.list": async (input) => {
+    const { skip = 0, limit = 100 } = input || {};
+    const response = await getGrandparentFamiliasProductoApiV1FamiliasProductoAbuelosGet({
+      query: { skip, limit },
+      responseStyle: 'data',
+    });
+    return { results: response.results, total: response.total };
   },
-  "grupos_cola_fifo.get": async (input) => { const { data, error } = await supabase.from("grupos_cola_fifo").select("*").eq("id", input.id).maybeSingle(); if (error) throw error; return { result: data }; },
+  "centros_de_servicio.list": async (input) => {
+    const { skip = 0, limit = 100, search } = input || {};
+    // Note: The /api/v1/centros-de-servicio/ endpoint currently does not explicitly support
+    // an 'activo' filter in openapi.json. If needed, the backend and openapi.json
+    // should be updated to include it, possibly as part of the 'q' parameter.
+    const response = await getAllCentrosDeServicioApiV1CentrosDeServicioGet({
+      query: { skip, limit, q: search },
+      responseStyle: 'data',
+    });
+    return { items: response.results, total: response.total };
+  },
+    "grupos_cola_fifo.list": async (input) => {
+      const { skip = 0, limit = 300, centro_servicio_id } = input || {};
+      // Note: The /api/v1/grupos-cola-fifo/ endpoint currently does not explicitly support
+      // a 'q' parameter for versatile searching in openapi.json.
+      const response = await getAllGruposColaFifoApiV1GruposColaFifoGet({
+        query: { skip, limit, centro_de_servicio_id },
+        responseStyle: 'data',
+      });
+      return { results: response, total: response.length };
+    },  "grupos_cola_fifo.get": async (input) => { const { data, error } = await supabase.from("grupos_cola_fifo").select("*").eq("id", input.id).maybeSingle(); if (error) throw error; return { result: data }; },
   "grupos_cola_fifo.create": async (input) => { const { data, error } = await supabase.from("grupos_cola_fifo").insert(input as any).select().single(); if (error) throw error; return data; },
   "grupos_cola_fifo.update": async (input) => { const { id, data: updateData } = input as any; const { data, error } = await supabase.from("grupos_cola_fifo").update(updateData).eq("id", id).select().single(); if (error) throw error; return data; },
   "grupos_cola_fifo.delete": async (input) => { const { error } = await supabase.from("grupos_cola_fifo").delete().eq("id", input.id); if (error) throw error; return { status: "deleted", id: input.id }; },
-  "grupos_cola_fifo_familias.list": async (input) => { 
-    const { grupo_id } = (input || {}) as any;
-    let query = supabase.from("grupos_cola_fifo_familias").select("*"); 
-    if (grupo_id) query = query.eq("grupo_id", grupo_id);
-    const { data, error } = await query; 
-    if (error) throw error; 
-    return { results: data || [], total: data?.length || 0 }; 
+  "grupos_cola_fifo_familias.list": async (input) => {
+    const { grupo_id, skip = 0, limit = 300 } = input || {};
+    if (!grupo_id) throw new Error("A grupo_id is required to list grupo_cola_fifo_familias.");
+    // Note: The /api/v1/grupos-cola-fifo/{grupo_id}/familias endpoint currently does not explicitly support
+    // a 'q' parameter for versatile searching in openapi.json.
+    const response = await getGrupoColaFifoFamiliasApiV1GruposColaFifoGrupoIdFamiliasGet({
+      path: { grupo_id },
+      query: { skip, limit },
+      responseStyle: 'data',
+    });
+    return { results: response, total: response.length };
   },
   "grupos_cola_fifo_familias.get": async (input) => { const { data, error } = await supabase.from("grupos_cola_fifo_familias").select("*").eq("id", input.id).maybeSingle(); if (error) throw error; return { result: data }; },
   "grupos_cola_fifo_familias.create": async (input) => { const { data, error } = await supabase.from("grupos_cola_fifo_familias").insert(input as any).select().single(); if (error) throw error; return data; },
@@ -860,14 +931,30 @@ const diagnosticoAsociacionesHandlers: Record<string, ActionHandler<any>> = {
 // =============================================================================
 const usuariosExtendedHandlers: Record<string, ActionHandler<any>> = {
   "usuarios.search": async (input) => {
-    const { search, rol, email } = input || {};
-    let query = (supabase as any).from("usuarios").select("*");
-    if (search) query = query.or(`nombre.ilike.%${search}%,apellido.ilike.%${search}%,email.ilike.%${search}%`);
-    if (rol) query = query.eq("rol", rol);
-    if (email) query = query.eq("email", email);
-    const { data, error } = await query.order("nombre");
-    if (error) throw error;
-    return { results: data || [] };
+    const { search, rol, email, skip = 0, limit = 100 } = input || {};
+    // Note: The /api/v1/usuarios/ endpoint currently does not support a 'q' parameter in openapi.json.
+    // This call is structured to align with future backend updates that will enable versatile searching via 'q'.
+    const qParams = new URLSearchParams();
+    if (search) {
+      qParams.append("q", search);
+    }
+    if (rol) {
+      qParams.append("rol", rol);
+    }
+    if (email) {
+      qParams.append("email", email);
+    }
+
+    const queryString = qParams.toString();
+
+    // Call the updated 'usuarios.list' handler, passing 'q' for backend to parse
+    const listInput: any = { skip, limit };
+    if (queryString) {
+        listInput.q = queryString; // Pass as 'q' for backend to parse
+    }
+
+    const { results, total } = await handlers["usuarios.list"](listInput);
+    return { results, total };
   },
   "usuarios.getByEmail": async (input) => {
     const { email } = input;
