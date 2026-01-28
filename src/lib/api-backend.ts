@@ -1,8 +1,95 @@
 // API Backend utilities
 // Typed backend action facade over Supabase operations
 
-import { supabase } from "@/integrations/supabase/client";
 import type { ActionRegistry, ActionName } from "./api-registry";
+import {
+  listClientesApiV1ClientesGet,
+  getClienteApiV1ClientesClienteIdGet,
+  createClienteApiV1ClientesPost,
+  updateClienteApiV1ClientesClienteIdPatch,
+  deleteClienteApiV1ClientesClienteIdDelete,
+  searchClientesApiV1ClientesSearchGet,
+  listProductosApiV1ProductosGet,
+  getProductoApiV1ProductosProductoIdGet,
+  createProductoApiV1ProductosPost,
+  updateProductoApiV1ProductosProductoIdPatch,
+  deleteProductoApiV1ProductosProductoIdDelete,
+  searchProductosApiV1ProductosSearchGet,
+  getIncidentesApiV1IncidentesGet,
+  getIncidenteApiV1IncidentesIncidenteIdGet,
+  createIncidenteApiV1IncidentesPost,
+  updateIncidenteApiV1IncidentesIncidenteIdPatch,
+  deleteIncidenteApiV1IncidentesIncidenteIdDelete,
+  searchIncidentesApiV1IncidentesSearchGet,
+  getAllAccesoriosApiV1AccesoriosGet,
+  getAccesorioApiV1AccesoriosAccesorioIdGet,
+  createAccesorioApiV1AccesoriosPost,
+  updateAccesorioApiV1AccesoriosAccesorioIdPatch,
+  deleteAccesorioApiV1AccesoriosAccesorioIdDelete,
+  searchAccesoriosApiV1AccesoriosSearchGet,
+  getAllCausasApiV1CausasGet,
+  getCausaByIdApiV1CausasCausaIdGet,
+  createCausaApiV1CausasPost,
+  updateCausaApiV1CausasCausaIdPatch,
+  deleteCausaApiV1CausasCausaIdDelete,
+  searchCausasApiV1CausasSearchGet,
+  getAllRepuestosApiV1RepuestosGet,
+  getRepuestoByIdApiV1RepuestosRepuestoIdGet,
+  createRepuestoApiV1RepuestosPost,
+  updateRepuestoApiV1RepuestosRepuestoIdPatch,
+  deleteRepuestoApiV1RepuestosRepuestoIdDelete,
+  searchRepuestosApiV1RepuestosSearchGet,
+  getAllBodegasApiV1BodegasGet,
+  getBodegaApiV1BodegasBodegaIdGet,
+  createBodegaApiV1BodegasPost,
+  updateBodegaApiV1BodegasBodegaIdPatch,
+  deleteBodegaApiV1BodegasBodegaIdDelete,
+  searchBodegasApiV1BodegasSearchGet,
+  getAllFamiliasProductoApiV1FamiliasProductoGet,
+  getFamiliaProductoApiV1FamiliasProductoFamiliaProductoIdGet,
+  createFamiliaProductoApiV1FamiliasProductoPost,
+  updateFamiliaProductoApiV1FamiliasProductoFamiliaProductoIdPatch,
+  deleteFamiliaProductoApiV1FamiliasProductoFamiliaProductoIdDelete,
+  getAllCentrosDeServicioApiV1CentrosDeServicioGet,
+  getCentroDeServicioApiV1CentrosDeServicioCentroDeServicioIdGet,
+  createCentroDeServicioApiV1CentrosDeServicioPost,
+  updateCentroDeServicioApiV1CentrosDeServicioCentroDeServicioIdPatch,
+  deleteCentroDeServicioApiV1CentrosDeServicioCentroDeServicioIdDelete,
+  getAllMovimientosApiV1MovimientosInventarioGet,
+  getMovimientoApiV1MovimientosInventarioMovimientoIdGet,
+  createMovimientoApiV1MovimientosInventarioPost,
+  deleteMovimientoApiV1MovimientosInventarioMovimientoIdDelete,
+  getAllGruposColaFifoApiV1GruposColaFifoGet,
+  getGrupoColaFifoApiV1GruposColaFifoGrupoColaFifoIdGet,
+  createGrupoColaFifoApiV1GruposColaFifoPost,
+  updateGrupoColaFifoApiV1GruposColaFifoGrupoColaFifoIdPut,
+  deleteGrupoColaFifoApiV1GruposColaFifoGrupoColaFifoIdDelete,
+  getGrupoColaFifoFamiliasApiV1GruposColaFifoGrupoIdFamiliasGet,
+  createGrupoColaFifoFamiliaApiV1GruposColaFifoGrupoIdFamiliasPost,
+  deleteGrupoColaFifoFamiliaApiV1GruposColaFifoGrupoIdFamiliasGrupoFamiliaIdDelete,
+  getAllUbicacionesApiV1UbicacionesGet,
+  getUbicacionApiV1UbicacionesUbicacionIdGet,
+  createUbicacionApiV1UbicacionesPost,
+  updateUbicacionApiV1UbicacionesUbicacionIdPatch,
+  deleteUbicacionApiV1UbicacionesUbicacionIdDelete,
+  searchUbicacionesApiV1UbicacionesSearchGet,
+  getAllUsersApiV1UsuariosGet,
+  getAllRolesApiV1RolesGet,
+  getAllGuiasApiV1GuiasGet,
+  getGuiaByIdApiV1GuiasGuiaIdGet,
+  createGuiaApiV1GuiasPost,
+  updateGuiaApiV1GuiasGuiaIdPatch,
+  deleteGuiaApiV1GuiasGuiaIdDelete,
+  // Diagnosticos
+  getDiagnosticosIncidenteApiV1IncidentesIncidenteIdDiagnosticosGet,
+  createDiagnosticoApiV1IncidentesIncidenteIdDiagnosticosPost,
+  updateDiagnosticoApiV1IncidentesIncidenteIdDiagnosticosDiagnosticoIdPatch,
+  deleteDiagnosticoApiV1IncidentesIncidenteIdDiagnosticosDiagnosticoIdDelete,
+  getDiagnosticoDraftApiV1IncidentesIncidenteIdDiagnosticosDraftGet,
+  createDiagnosticoDraftApiV1IncidentesIncidenteIdDiagnosticosDraftPost,
+  // Other SDK functions as needed
+} from "@/generated_sdk";
+
 
 type ActionHandler<K extends ActionName> = (input: ActionRegistry[K]["input"]) => Promise<ActionRegistry[K]["output"]>;
 
@@ -15,40 +102,53 @@ const notImplemented = (action: string) => async () => {
 // =============================================================================
 const clientesHandlers: Record<string, ActionHandler<any>> = {
   "clientes.list": async (input) => {
-    const { skip = 0, limit = 50 } = input;
-    const { data, error } = await supabase.from("clientes").select("*, direcciones(*)").range(skip, skip + limit - 1).order("created_at", { ascending: false });
-    if (error) throw error;
-    return { results: data || [] };
+    const { skip = 0, limit = 50, search = "" } = input;
+    const response = await listClientesApiV1ClientesGet({
+      query: { skip, limit, search },
+      responseStyle: 'data',
+    });
+    // The SDK returns { results, total, skip, limit }, match apiBackendAction output
+    return { results: response.results, total: response.total };
   },
   "clientes.get": async (input) => {
-    const { data, error } = await supabase.from("clientes").select("*, direcciones(*)").eq("id", input.id).maybeSingle();
-    if (error) throw error;
-    return { result: data };
+    const response = await getClienteApiV1ClientesClienteIdGet({
+      path: { cliente_id: input.id },
+      responseStyle: 'data',
+    });
+    return { result: response.result };
   },
   "clientes.create": async (input) => {
-    const { data, error } = await supabase.from("clientes").insert(input as any).select("*, direcciones(*)").single();
-    if (error) throw error;
-    return data;
+    const response = await createClienteApiV1ClientesPost({
+      body: input,
+      responseStyle: 'data',
+    });
+    return { result: response.result };
   },
   "clientes.update": async (input) => {
     const { id, data: updateData } = input as any;
-    const { data, error } = await supabase.from("clientes").update(updateData).eq("id", id).select("*, direcciones(*)").single();
-    if (error) throw error;
-    return data;
+    const response = await updateClienteApiV1ClientesClienteIdPatch({
+      path: { cliente_id: id },
+      body: updateData,
+      responseStyle: 'data',
+    });
+    return { result: response.result };
   },
   "clientes.delete": async (input) => {
-    const { error } = await supabase.from("clientes").delete().eq("id", input.id);
-    if (error) throw error;
+    await deleteClienteApiV1ClientesClienteIdDelete({
+      path: { cliente_id: input.id },
+      responseStyle: 'data',
+    });
     return { status: "deleted", id: input.id };
   },
   "clientes.search": async (input) => {
     const { search = "", limit = 20 } = input;
-    let query = supabase.from("clientes").select("id, codigo, nombre, nit").limit(limit);
-    if (search) query = query.or(`nombre.ilike.%${search}%,codigo.ilike.%${search}%,nit.ilike.%${search}%`);
-    const { data, error } = await query;
-    if (error) throw error;
-    return { results: data || [] };
+    const response = await searchClientesApiV1ClientesSearchGet({
+      query: { search, limit },
+      responseStyle: 'data',
+    });
+    return { results: response.results };
   },
+  "clientes.getByCodigo": notImplemented("clientes.getByCodigo"), // This action is not directly in SDK, requires a custom search
 };
 
 // =============================================================================
@@ -57,26 +157,52 @@ const clientesHandlers: Record<string, ActionHandler<any>> = {
 const productosHandlers: Record<string, ActionHandler<any>> = {
   "productos.list": async (input) => {
     const { skip = 0, limit = 50 } = input;
-    const { data, error } = await supabase.from("productos").select("*").range(skip, skip + limit - 1).order("created_at", { ascending: false });
-    if (error) throw error;
-    return { results: data || [], total: data?.length || 0 };
+    const response = await listProductosApiV1ProductosGet({
+      query: { skip, limit },
+      responseStyle: 'data',
+    });
+    return { results: response.results, total: response.total };
   },
   "productos.get": async (input) => {
-    const { data, error } = await supabase.from("productos").select("*").eq("id", input.id).maybeSingle();
-    if (error) throw error;
-    return { result: data };
+    const response = await getProductoApiV1ProductosProductoIdGet({
+      path: { producto_id: input.id },
+      responseStyle: 'data',
+    });
+    return { result: response.result };
   },
-  "productos.create": notImplemented("productos.create"),
-  "productos.update": notImplemented("productos.update"),
-  "productos.delete": notImplemented("productos.delete"),
+  "productos.create": async (input) => {
+    const response = await createProductoApiV1ProductosPost({
+      body: input,
+      responseStyle: 'data',
+    });
+    return { result: response.result };
+  },
+  "productos.update": async (input) => {
+    const { id, ...updateData } = input as any;
+    const response = await updateProductoApiV1ProductosProductoIdPatch({
+      path: { producto_id: id },
+      body: updateData,
+      responseStyle: 'data',
+    });
+    return { result: response.result };
+  },
+  "productos.delete": async (input) => {
+    await deleteProductoApiV1ProductosProductoIdDelete({
+      path: { producto_id: input.id },
+      responseStyle: 'data',
+    });
+    return { status: "deleted", id: input.id };
+  },
   "productos.search": async (input) => {
     const { search = "", limit = 20 } = input;
-    let query = supabase.from("productos").select("id, codigo, descripcion, sku, marca, modelo, clave, descontinuado, unidades_disponibles, precio_minimo, precio_cliente, precio_con_descuento").limit(limit);
-    if (search) query = query.or(`codigo.ilike.%${search}%,descripcion.ilike.%${search}%,sku.ilike.%${search}%`);
-    const { data, error } = await query;
-    if (error) throw error;
-    return { results: data || [] };
+    const response = await searchProductosApiV1ProductosSearchGet({
+      query: { search, limit },
+      responseStyle: 'data',
+    });
+    return { results: response.results };
   },
+  "productos.getByCodigo": notImplemented("productos.getByCodigo"), // This action is not directly in SDK, requires a custom search
+  "productos.listAlternativos": notImplemented("productos.listAlternativos"), // Custom logic not in SDK directly
 };
 
 // =============================================================================
@@ -85,62 +211,50 @@ const productosHandlers: Record<string, ActionHandler<any>> = {
 const incidentesHandlers: Record<string, ActionHandler<any>> = {
   "incidentes.list": async (input) => {
     const { skip = 0, limit = 100 } = input;
-    const { data, error } = await supabase.from("incidentes").select(`*, clientes:cliente_id (*), productos:producto_id (*), centros_de_servicio:centro_de_servicio_id (*)`).range(skip, skip + limit - 1).order("created_at", { ascending: false });
-    if (error) throw error;
-    const results = (data || []).map((row) => ({
-      id: row.id,
-      codigo: row.codigo,
-      estado: row.estado,
-      tipologia: row.tipologia,
-      descripcion_problema: row.descripcion_problema,
-      centro_de_servicio_id: row.centro_de_servicio_id,
-      centro_de_servicio: row.centros_de_servicio,
-      cliente: row.clientes,
-      propietario: null,
-      producto: row.productos,
-      producto_id: row.producto_id,
-      tracking_token: row.tracking_token,
-      incidente_origen_id: row.incidente_origen_id,
-      quiere_envio: row.quiere_envio,
-      aplica_garantia: row.aplica_garantia,
-      tipo_resolucion: row.tipo_resolucion,
-      observaciones: row.observaciones,
-      fecha_ingreso: row.fecha_ingreso,
-      created_at: row.created_at,
-      updated_at: row.updated_at,
-    }));
-    return { results };
+    const response = await getIncidentesApiV1IncidentesGet({
+      query: { skip, limit },
+      responseStyle: 'data',
+    });
+    // SDK IncidenteSchema already includes nested objects, so no manual mapping needed
+    return { results: response.results };
   },
   "incidentes.get": async (input) => {
-    const { data, error } = await supabase.from("incidentes").select(`*, clientes:cliente_id (*), productos:producto_id (*), centros_de_servicio:centro_de_servicio_id (*), propietarios:propietario_id (id, nombre, telefono, email)`).eq("id", input.id).maybeSingle();
-    if (error) throw error;
-    if (!data) return { result: null };
-    const propietario = (data as any).propietarios || null;
-    return { result: { id: data.id, codigo: data.codigo, estado: data.estado, tipologia: data.tipologia, descripcion_problema: data.descripcion_problema, centro_de_servicio_id: data.centro_de_servicio_id, centro_de_servicio: data.centros_de_servicio, cliente: data.clientes, propietario, producto: data.productos, tracking_token: data.tracking_token, incidente_origen_id: data.incidente_origen_id, quiere_envio: data.quiere_envio, aplica_garantia: data.aplica_garantia, tipo_resolucion: data.tipo_resolucion, observaciones: data.observaciones, created_at: data.created_at, updated_at: data.updated_at } };
+    const response = await getIncidenteApiV1IncidentesIncidenteIdGet({
+      path: { incidente_id: input.id },
+      responseStyle: 'data',
+    });
+    return { result: response.result };
   },
   "incidentes.create": async (input) => {
-    const { data, error } = await supabase.from("incidentes").insert(input as any).select().single();
-    if (error) throw error;
-    return data;
+    const response = await createIncidenteApiV1IncidentesPost({
+      body: input,
+      responseStyle: 'data',
+    });
+    return { result: response.result };
   },
   "incidentes.update": async (input) => {
-    const { id, data: updateData } = input as any;
-    const { data, error } = await supabase.from("incidentes").update(updateData).eq("id", id).select().single();
-    if (error) throw error;
-    return data;
+    const { id, ...updateData } = input as any;
+    const response = await updateIncidenteApiV1IncidentesIncidenteIdPatch({
+      path: { incidente_id: id },
+      body: updateData,
+      responseStyle: 'data',
+    });
+    return { result: response.result };
   },
   "incidentes.delete": async (input) => {
-    const { error } = await supabase.from("incidentes").delete().eq("id", input.id);
-    if (error) throw error;
+    await deleteIncidenteApiV1IncidentesIncidenteIdDelete({
+      path: { incidente_id: input.id },
+      responseStyle: 'data',
+    });
     return { status: "deleted", id: input.id };
   },
   "incidentes.search": async (input) => {
     const { search = "", limit = 20 } = input;
-    let query = supabase.from("incidentes").select("id, codigo, estado, tipologia, created_at").limit(limit);
-    if (search) query = query.or(`codigo.ilike.%${search}%`);
-    const { data, error } = await query;
-    if (error) throw error;
-    return { results: data || [] };
+    const response = await searchIncidentesApiV1IncidentesSearchGet({
+      query: { search, limit },
+      responseStyle: 'data',
+    });
+    return { results: response.results };
   },
 };
 

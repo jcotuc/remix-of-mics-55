@@ -1,16 +1,14 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { User, Session } from "@supabase/supabase-js";
-import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { DEV_BYPASS_AUTH, disableDevBypass, isDevBypassEnabled } from "@/config/devBypassAuth";
-import { apiBackendAction } from "@/lib/api-backend";
+import { authService } from "@/lib/authService";
+import type { AuthenticatedUser, AppSchemasRolRolSchema } from "@/generated_sdk/types.gen";
 
 // Simplified roles - actual role management requires user_roles table
 type UserRole = "admin" | "mostrador" | "logistica" | "taller" | "bodega" | "tecnico" | "digitador" | "jefe_taller" | "sac" | "control_calidad" | "asesor" | "gerente_centro" | "supervisor_regional" | "jefe_logistica" | "jefe_bodega" | "supervisor_bodega" | "supervisor_calidad" | "supervisor_sac" | "auxiliar_bodega" | "auxiliar_logistica" | "supervisor_inventarios" | "capacitador";
 
 interface AuthContextType {
-  user: User | null;
-  session: Session | null;
+  user: AuthenticatedUser | null;
   userRole: UserRole | null;
   loading: boolean;
   signOut: () => Promise<void>;
@@ -18,7 +16,6 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
-  session: null,
   userRole: null,
   loading: true,
   signOut: async () => {},
@@ -33,87 +30,72 @@ export const useAuth = () => {
 };
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<AuthenticatedUser | null>(null);
   const [userRole, setUserRole] = useState<UserRole | null>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
   useEffect(() => {
-    const applyDevBypass = () => {
-      const fakeUser = {
-        id: "dev-bypass",
+    const applyDevBypass = async () => {
+      // Simulate backend user object for dev bypass
+      const fakeUser: AuthenticatedUser = {
+        id: -1, // Use a distinguishing ID for bypass
         email: DEV_BYPASS_AUTH.email,
-      } as any as User;
+        nombre: "Dev Bypass User",
+        roles: [{ id: -1, nombre: DEV_BYPASS_AUTH.role, slug: DEV_BYPASS_AUTH.role }],
+      };
 
-      setSession(null);
       setUser(fakeUser);
-      setUserRole(DEV_BYPASS_AUTH.role);
+      // Ensure the role string is cast to UserRole if it's a known role
+      setUserRole(DEV_BYPASS_AUTH.role as UserRole);
       setLoading(false);
     };
 
-    // Set up auth state listener (exception: onAuthStateChange is a subscription pattern)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        if (session?.user) {
-          setSession(session);
-          setUser(session.user);
-          // PLACEHOLDER: user_roles table doesn't exist
-          setUserRole("admin");
-          setLoading(false);
-          return;
+    const fetchUser = async () => {
+      setLoading(true);
+      try {
+        const currentUser = await authService.getCurrentUser();
+        if (currentUser) {
+          setUser(currentUser);
+          // Assuming the first role is the primary role for simplicity for now
+          // This logic may need refinement based on actual role hierarchy/use
+          if (currentUser.roles && currentUser.roles.length > 0) {
+            setUserRole(currentUser.roles[0].slug as UserRole);
+          } else {
+            setUserRole(null); // No roles assigned
+          }
+        } else if (isDevBypassEnabled()) {
+          // Fallback to dev bypass if no user and dev bypass is enabled
+          await applyDevBypass();
+        } else {
+          setUser(null);
+          setUserRole(null);
         }
-
+      } catch (error) {
+        console.error("Error fetching current user:", error);
+        // Fallback to dev bypass on API error
         if (isDevBypassEnabled()) {
-          applyDevBypass();
-          return;
+          await applyDevBypass();
+        } else {
+          setUser(null);
+          setUserRole(null);
         }
-
-        setSession(null);
-        setUser(null);
-        setUserRole(null);
+      } finally {
         setLoading(false);
       }
-    );
+    };
 
-    // Check for existing session using apiBackendAction
-    apiBackendAction("auth.getSession", {}).then(({ session }) => {
-      if (session) {
-        setSession(session as Session);
-        setUser((session as Session).user);
-        setUserRole("admin");
-        setLoading(false);
-        return;
-      }
+    fetchUser();
 
-      if (isDevBypassEnabled()) {
-        applyDevBypass();
-        return;
-      }
-
-      setSession(null);
-      setUser(null);
-      setUserRole(null);
-      setLoading(false);
-    }).catch(() => {
-      // On error, check dev bypass
-      if (isDevBypassEnabled()) {
-        applyDevBypass();
-      } else {
-        setLoading(false);
-      }
-    });
-
-    return () => subscription.unsubscribe();
+    // No direct subscription equivalent for Hey API, so we fetch on mount
+    // and rely on explicit re-fetches after auth actions or component unmount/remount
   }, []);
 
   const signOut = async () => {
     try {
-      // Permite salir incluso si el bypass está activo.
       disableDevBypass();
-      await apiBackendAction("auth.logout", {});
+      await authService.logout();
       setUser(null);
-      setSession(null);
       setUserRole(null);
       navigate("/auth");
     } catch (error) {
@@ -122,7 +104,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, userRole, loading, signOut }}>
+    <AuthContext.Provider value={{ user, userRole, loading, signOut }}>
       {children}
     </AuthContext.Provider>
   );
