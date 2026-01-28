@@ -30,7 +30,7 @@ const Index = () => {
     try {
       setLoading(true);
       const response = await getIncidentesApiV1IncidentesGet({
-        query: { limit: 500 },
+        query: { limit: 50 },
         responseStyle: 'data',
       });
       if (response && response.results) {

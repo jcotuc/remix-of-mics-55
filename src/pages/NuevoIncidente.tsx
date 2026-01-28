@@ -27,10 +27,30 @@ import {
   Edit3,
   PenTool,
 } from "lucide-react";
-import { showError, showSuccess, showWarning } from "@/utils/toastHelpers";
-import { apiBackendAction } from "@/lib/api-backend";
-import type { Database } from "@/integrations/supabase/types";
-type Producto = Database["public"]["Tables"]["productos"]["Row"];
+import {
+  listClientesApiV1ClientesGet,
+  createClienteApiV1ClientesPost,
+  updateClienteApiV1ClientesClienteIdPatch,
+  getClienteApiV1ClientesClienteIdGet,
+  searchProductosApiV1ProductosSearchGet,
+  createIncidenteApiV1IncidentesPost,
+  getAllAccesoriosApiV1AccesoriosGet,
+  createAccesorioApiV1AccesoriosPost,
+  getIncidentesApiV1IncidentesGet,
+  getAllFamiliasProductoApiV1FamiliasProductoGet,
+  getAllCentrosDeServicioApiV1CentrosDeServicioGet,
+  // createIncidenteAccesorio, // Placeholder for linking accessory to incident
+  // createDireccion, // Placeholder for creating an address
+} from "@/generated_sdk";
+import type {
+  ClienteSchema,
+  ProductoSchema,
+  IncidenteSchema,
+  AccesorioSchema,
+  CentroDeServicioSchema,
+  FamiliaProductoSchema,
+  DireccionSchema,
+} from "@/generated_sdk/types.gen";
 import { SidebarMediaCapture, SidebarPhoto } from "@/components/features/media";
 import { uploadMediaToStorage, saveIncidentePhotos } from "@/lib/uploadMedia";
 import { MinimalStepper } from "@/components/ui/minimal-stepper";
@@ -40,6 +60,10 @@ import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/contexts/AuthContext";
 import { IncidentePrintSheet } from "@/components/features/incidentes";
 import { SignatureCanvasComponent, SignatureCanvasRef } from "@/components/shared/SignatureCanvas";
+
+// Simplified local types for form state
+type Cliente = ClienteSchema; 
+type Producto = ProductoSchema;
 const tipologias = ["Mantenimiento", "Reparación", "Daños por transporte", "Venta de repuestos"];
 
 function mapTipologiaToEnum(value: string): Database["public"]["Enums"]["tipoincidente"] {
@@ -605,34 +629,29 @@ export default function NuevoIncidente() {
       }
 
       try {
-        // Obtener el familia_padre_id del producto usando apiBackendAction
-        const { results: productosData } = await apiBackendAction("productos.search", { 
-          search: productoSeleccionado.codigo, 
-          limit: 1 
+        const { results: productosData } = await searchProductosApiV1ProductosSearchGet({ 
+          query: { search: productoSeleccionado.codigo, limit: 1 },
+          responseStyle: 'data',
         });
         const productoData = productosData?.[0] as any;
 
         if (!productoData?.familia_padre_id) {
-          // Si no tiene familia, cargar todos los accesorios
-          const { results: accesorios } = await apiBackendAction("accesorios.list", {});
+          const { results: accesorios } = await getAllAccesoriosApiV1AccesoriosGet({ responseStyle: 'data' });
           setAccesoriosDisponibles((accesorios || []).map((a: any) => ({ id: a.id, nombre: a.nombre })));
           return;
         }
 
         const familiaProductoId = productoData.familia_padre_id;
 
-        // Obtener la jerarquía de familias (padre y abuelo) para buscar accesorios
-        const { results: familiasData } = await apiBackendAction("familias_producto.list", {});
+        const { results: familiasData } = await getAllFamiliasProductoApiV1FamiliasProductoGet({ responseStyle: 'data' });
         const familiaData = familiasData?.find((f: any) => f.id === familiaProductoId);
 
-        // Construir lista de IDs de familia a buscar (la familia del producto y su padre/abuelo)
         const familiaIds: number[] = [familiaProductoId];
         if (familiaData?.parent_id) {
           familiaIds.push(familiaData.parent_id);
         }
 
-        // Buscar accesorios que pertenezcan a cualquiera de estas familias
-        const { results: allAccesorios } = await apiBackendAction("accesorios.list", {});
+        const { results: allAccesorios } = await getAllAccesoriosApiV1AccesoriosGet({ responseStyle: 'data' });
         const accesoriosFiltrados = (allAccesorios || [])
           .filter((acc: any) => familiaIds.includes(acc.familia_id))
           .sort((a: any, b: any) => a.nombre.localeCompare(b.nombre));
@@ -650,19 +669,17 @@ export default function NuevoIncidente() {
   useEffect(() => {
     const fetchCentrosYUsuario = async () => {
       try {
-        // Cargar todos los centros de servicio usando apiBackendAction
-        const centrosRes = await apiBackendAction("centros_de_servicio.list", {});
-        const centros = (centrosRes as any).results || (centrosRes as any).data || [];
+        const centrosRes = await getAllCentrosDeServicioApiV1CentrosDeServicioGet({ responseStyle: 'data' });
+        const centros = centrosRes.results || [];
         if (centros) {
           const centrosActivos = centros.filter((c: any) => c.activo);
           setCentrosServicioList(centrosActivos.map((c: any) => ({ id: c.id, nombre: c.nombre })));
         }
 
-        // Establecer centro del usuario actual
         if (user) {
-          const { result: userProfile } = await apiBackendAction("usuarios.getByEmail", { email: user.email || "" });
-          if ((userProfile as any)?.centro_de_servicio_id) {
-            setCentroServicio((userProfile as any).centro_de_servicio_id);
+          const userProfile = await readUserMeApiV1AuthMeGet({ responseStyle: 'data' });
+          if (userProfile?.centro_de_servicio_id) {
+            setCentroServicio(userProfile.centro_de_servicio_id);
           }
         }
       } catch (error) {
@@ -674,38 +691,38 @@ export default function NuevoIncidente() {
   useEffect(() => {
     const fetchDirecciones = async () => {
       if (!clienteSeleccionado) return;
-      try {
-        // Fetch direcciones using apiBackendAction - note: we need a direcciones.list handler
-        // For now we'll use the clientes.get which includes direcciones
-        const { result: clienteData } = await apiBackendAction("clientes.get", { id: clienteSeleccionado.id });
-        const direccionesData = (clienteData as any)?.direcciones || [];
+      // try {
+      //   // Fetch direcciones using apiBackendAction - note: we need a direcciones.list handler
+      //   // For now we'll use the clientes.get which includes direcciones
+      //   const { result: clienteData } = await apiBackendAction("clientes.get", { id: clienteSeleccionado.id });
+      //   const direccionesData = (clienteData as any)?.direcciones || [];
         
-        if (direccionesData && direccionesData.length > 0) {
-          setDireccionesEnvio(direccionesData);
-          const principal = direccionesData.find((d: any) => d.es_principal);
-          if (principal) {
-            setDireccionSeleccionada(String(principal.id));
-          }
-        } else {
-          if (clienteSeleccionado.direccion) {
-            const tempDireccion = {
-              id: "temp-" + clienteSeleccionado.codigo,
-              cliente_id: clienteSeleccionado.id,
-              direccion: clienteSeleccionado.direccion,
-              es_principal: true,
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString(),
-            };
-            setDireccionesEnvio([tempDireccion]);
-            setDireccionSeleccionada(tempDireccion.id);
-          } else {
-            setDireccionesEnvio([]);
-          }
-        }
-      } catch (error) {
-        console.error("Error fetching direcciones:", error);
-        setDireccionesEnvio([]);
-      }
+      //   if (direccionesData && direccionesData.length > 0) {
+      //     setDireccionesEnvio(direccionesData);
+      //     const principal = direccionesData.find((d: any) => d.es_principal);
+      //     if (principal) {
+      //       setDireccionSeleccionada(String(principal.id));
+      //     }
+      //   } else {
+      //     if (clienteSeleccionado.direccion) {
+      //       const tempDireccion = {
+      //         id: "temp-" + clienteSeleccionado.codigo,
+      //         cliente_id: clienteSeleccionado.id,
+      //         direccion: clienteSeleccionado.direccion,
+      //         es_principal: true,
+      //         created_at: new Date().toISOString(),
+      //         updated_at: new Date().toISOString(),
+      //       };
+      //       setDireccionesEnvio([tempDireccion]);
+      //       setDireccionSeleccionada(tempDireccion.id);
+      //     } else {
+      //       setDireccionesEnvio([]);
+      //     }
+      //   }
+      // } catch (error) {
+      //   console.error("Error fetching direcciones:", error);
+      //   setDireccionesEnvio([]);
+      // }
     };
     fetchDirecciones();
   }, [clienteSeleccionado]);
@@ -713,18 +730,11 @@ export default function NuevoIncidente() {
     if (busquedaCliente.length >= 2) {
       const fetchClientes = async () => {
         try {
-          const { results } = await apiBackendAction("clientes.search", { 
-            search: busquedaCliente, 
-            limit: 10 
+          const { results } = await listClientesApiV1ClientesGet({ 
+            query: { search: busquedaCliente, limit: 10 },
+            responseStyle: 'data',
           });
-          // Enrich results with full client data if needed
-          setClientesEncontrados((results || []).map((c: any) => ({
-            id: c.id,
-            codigo: c.codigo,
-            nombre: c.nombre,
-            nit: c.nit,
-            celular: c.celular || "",
-          })));
+          setClientesEncontrados(results || []);
         } catch (error) {
           console.error("Error fetching clientes:", error);
         }
@@ -738,9 +748,9 @@ export default function NuevoIncidente() {
     if (skuMaquina.length >= 3) {
       const fetchProductos = async () => {
         try {
-          const { results } = await apiBackendAction("productos.search", { 
-            search: skuMaquina, 
-            limit: 20 
+          const { results } = await searchProductosApiV1ProductosSearchGet({ 
+            query: { search: skuMaquina, limit: 20 },
+            responseStyle: 'data',
           });
           const transformedData = (results || []).map((item: any) => ({
             ...item,
@@ -764,35 +774,35 @@ export default function NuevoIncidente() {
   // Cargar incidentes anteriores cuando es reingreso
   useEffect(() => {
     const fetchIncidentesAnteriores = async () => {
-      if (!esReingreso) {
-        setIncidentesAnteriores([]);
-        setIncidenteReingresoId(null);
-        return;
-      }
+      // if (!esReingreso) {
+      //   setIncidentesAnteriores([]);
+      //   setIncidenteReingresoId(null);
+      //   return;
+      // }
 
-      const codigoCliente = clienteSeleccionado?.codigo || (mostrarFormNuevoCliente ? null : null);
-      if (!codigoCliente) {
-        setIncidentesAnteriores([]);
-        return;
-      }
+      // const codigoCliente = clienteSeleccionado?.codigo || (mostrarFormNuevoCliente ? null : null);
+      // if (!codigoCliente) {
+      //   setIncidentesAnteriores([]);
+      //   return;
+      // }
 
-      try {
-        // Use clientes.getByCodigo to get client ID, then filter incidentes
-        const { result: clienteData } = await apiBackendAction("clientes.getByCodigo", { codigo: codigoCliente });
-        if (!clienteData) {
-          setIncidentesAnteriores([]);
-          return;
-        }
+      // try {
+      //   // Use clientes.getByCodigo to get client ID, then filter incidentes
+      //   const { result: clienteData } = await apiBackendAction("clientes.getByCodigo", { codigo: codigoCliente });
+      //   if (!clienteData) {
+      //     setIncidentesAnteriores([]);
+      //     return;
+      //   }
         
-        const { results } = await apiBackendAction("incidentes.list", { limit: 100 });
-        const incidentesDelCliente = (results || [])
-          .filter((inc: any) => inc.cliente?.id === (clienteData as any).id)
-          .slice(0, 20);
-        setIncidentesAnteriores(incidentesDelCliente);
-      } catch (error) {
-        console.error("Error fetching incidentes anteriores:", error);
-        setIncidentesAnteriores([]);
-      }
+      //   const { results } = await apiBackendAction("incidentes.list", { limit: 100 });
+      //   const incidentesDelCliente = (results || [])
+      //     .filter((inc: any) => inc.cliente?.id === (clienteData as any).id)
+      //     .slice(0, 20);
+      //   setIncidentesAnteriores(incidentesDelCliente);
+      // } catch (error) {
+      //   console.error("Error fetching incidentes anteriores:", error);
+      //   setIncidentesAnteriores([]);
+      // }
     };
 
     fetchIncidentesAnteriores();
@@ -849,32 +859,32 @@ export default function NuevoIncidente() {
 
   // Función para agregar nuevo accesorio a CDS_Accesorios
   const handleAgregarNuevoAccesorio = async (nombre: string) => {
-    if (!nombre.trim() || !productoSeleccionado) return;
+    // if (!nombre.trim() || !productoSeleccionado) return;
 
-    try {
-      // Obtener familia_padre_id del producto
-      const { results: productosData } = await apiBackendAction("productos.search", { 
-        search: productoSeleccionado.codigo, 
-        limit: 1 
-      });
-      const productoData = productosData?.[0] as any;
-      const familiaId = productoData?.familia_padre_id || null;
+    // try {
+    //   // Obtener familia_padre_id del producto
+    //   const { results: productosData } = await apiBackendAction("productos.search", { 
+    //     search: productoSeleccionado.codigo, 
+    //     limit: 1 
+    //   });
+    //   const productoData = productosData?.[0] as any;
+    //   const familiaId = productoData?.familia_padre_id || null;
 
-      // Insertar el nuevo accesorio usando apiBackendAction
-      const nuevoAcc = await apiBackendAction("accesorios.create", {
-        nombre: nombre.trim(),
-        familia_id: familiaId,
-      } as any);
+    //   // Insertar el nuevo accesorio usando apiBackendAction
+    //   const nuevoAcc = await apiBackendAction("accesorios.create", {
+    //     nombre: nombre.trim(),
+    //     familia_id: familiaId,
+    //   } as any);
 
-      // Agregarlo a la lista de disponibles y seleccionarlo automáticamente
-      setAccesoriosDisponibles((prev: any[]) => [...prev, { id: (nuevoAcc as any).id, nombre: (nuevoAcc as any).nombre }]);
-      setAccesoriosSeleccionados((prev) => [...prev, (nuevoAcc as any).nombre]);
+    //   // Agregarlo a la lista de disponibles y seleccionarlo automáticamente
+    //   setAccesoriosDisponibles((prev: any[]) => [...prev, { id: (nuevoAcc as any).id, nombre: (nuevoAcc as any).nombre }]);
+    //   setAccesoriosSeleccionados((prev) => [...prev, (nuevoAcc as any).nombre]);
 
-      showSuccess(`"${(nuevoAcc as any).nombre}" se agregó y seleccionó automáticamente.`, "Accesorio agregado");
-    } catch (error) {
-      console.error("Error agregando accesorio:", error);
-      showError("No se pudo agregar el accesorio");
-    }
+    //   showSuccess(`"${(nuevoAcc as any).nombre}" se agregó y seleccionó automáticamente.`, "Accesorio agregado");
+    // } catch (error) {
+    //   console.error("Error agregando accesorio:", error);
+    //   showError("No se pudo agregar el accesorio");
+    // }
   };
 
   const validarPaso1 = () => {
@@ -959,223 +969,223 @@ export default function NuevoIncidente() {
     return true;
   };
   const guardarIncidente = async () => {
-    if (!validarPaso2()) return;
-    setGuardando(true);
-    try {
-      let codigoCliente = clienteSeleccionado?.codigo;
-      let clienteId: number | null = clienteSeleccionado?.id ?? null;
-      let direccionEnvioId: string | null = null;
+    // if (!validarPaso2()) return;
+    // setGuardando(true);
+    // try {
+    //   let codigoCliente = clienteSeleccionado?.codigo;
+    //   let clienteId: number | null = clienteSeleccionado?.id ?? null;
+    //   let direccionEnvioId: string | null = null;
 
-      // Si hay una dirección seleccionada que no es temporal, usarla
-      if (direccionSeleccionada && !direccionSeleccionada.startsWith("temp-")) {
-        direccionEnvioId = direccionSeleccionada;
-      }
-      if (mostrarFormNuevoCliente) {
-        // Generar código HPC via apiBackendAction
-        const { codigo: nuevoCodigoHPC } = await apiBackendAction("rpc.generarCodigoHPC", {});
+    //   // Si hay una dirección seleccionada que no es temporal, usarla
+    //   if (direccionSeleccionada && !direccionSeleccionada.startsWith("temp-")) {
+    //     direccionEnvioId = direccionSeleccionada;
+    //   }
+    //   if (mostrarFormNuevoCliente) {
+    //     // Generar código HPC via apiBackendAction
+    //     const { codigo: nuevoCodigoHPC } = await apiBackendAction("rpc.generarCodigoHPC", {});
         
-        // Crear cliente via apiBackendAction
-        const clienteData = await apiBackendAction("clientes.create", {
-          codigo: nuevoCodigoHPC,
-          nombre: nuevoCliente.nombre,
-          nit: nuevoCliente.nit,
-          direccion: nuevoCliente.direccion,
-          correo: nuevoCliente.correo,
-          telefono_principal: nuevoCliente.telefono_principal,
-          telefono_secundario: nuevoCliente.telefono_secundario,
-          nombre_facturacion: nuevoCliente.nombre_facturacion,
-          pais: nuevoCliente.pais,
-          departamento: nuevoCliente.departamento,
-          municipio: nuevoCliente.municipio,
-          celular: nuevoCliente.telefono_principal,
-        } as any);
+    //     // Crear cliente via apiBackendAction
+    //     const clienteData = await apiBackendAction("clientes.create", {
+    //       codigo: nuevoCodigoHPC,
+    //       nombre: nuevoCliente.nombre,
+    //       nit: nuevoCliente.nit,
+    //       direccion: nuevoCliente.direccion,
+    //       correo: nuevoCliente.correo,
+    //       telefono_principal: nuevoCliente.telefono_principal,
+    //       telefono_secundario: nuevoCliente.telefono_secundario,
+    //       nombre_facturacion: nuevoCliente.nombre_facturacion,
+    //       pais: nuevoCliente.pais,
+    //       departamento: nuevoCliente.departamento,
+    //       municipio: nuevoCliente.municipio,
+    //       celular: nuevoCliente.telefono_principal,
+    //     } as any);
         
-        codigoCliente = (clienteData as any).codigo;
-        clienteId = (clienteData as any).id;
+    //     codigoCliente = (clienteData as any).codigo;
+    //     clienteId = (clienteData as any).id;
         
-        if (nuevoCliente.direccion && nuevoCliente.direccion.trim()) {
-          try {
-            const dirData = await apiBackendAction("direcciones.create", {
-              cliente_id: (clienteData as any).id,
-              direccion: nuevoCliente.direccion,
-              es_principal: true,
-            } as any);
-            setDireccionesEnvio([dirData]);
-            if (opcionEnvio !== "recoger") {
-              setDireccionSeleccionada(String((dirData as any).id));
-              direccionEnvioId = String((dirData as any).id);
-            }
-          } catch (dirError) {
-            console.error("Error creando dirección principal:", dirError);
-          }
-        }
-        setClienteSeleccionado(clienteData as any);
-        showSuccess(`Código HPC: ${nuevoCodigoHPC}`, "Cliente creado");
-      } else {
-        // Actualizar cliente existente via apiBackendAction
-        await apiBackendAction("clientes.update", {
-          id: clienteSeleccionado!.id,
-          data: {
-            nombre: datosClienteExistente.nombre,
-            nit: datosClienteExistente.nit,
-            correo: datosClienteExistente.correo,
-            telefono_principal: datosClienteExistente.telefono_principal,
-            telefono_secundario: datosClienteExistente.telefono_secundario,
-            celular: datosClienteExistente.telefono_principal,
-          }
-        } as any);
-      }
+    //     if (nuevoCliente.direccion && nuevoCliente.direccion.trim()) {
+    //       try {
+    //         const dirData = await apiBackendAction("direcciones.create", {
+    //           cliente_id: (clienteData as any).id,
+    //           direccion: nuevoCliente.direccion,
+    //           es_principal: true,
+    //         } as any);
+    //         setDireccionesEnvio([dirData]);
+    //         if (opcionEnvio !== "recoger") {
+    //           setDireccionSeleccionada(String((dirData as any).id));
+    //           direccionEnvioId = String((dirData as any).id);
+    //         }
+    //       } catch (dirError) {
+    //         console.error("Error creando dirección principal:", dirError);
+    //       }
+    //     }
+    //     setClienteSeleccionado(clienteData as any);
+    //     showSuccess(`Código HPC: ${nuevoCodigoHPC}`, "Cliente creado");
+    //   } else {
+    //     // Actualizar cliente existente via apiBackendAction
+    //     await apiBackendAction("clientes.update", {
+    //       id: clienteSeleccionado!.id,
+    //       data: {
+    //         nombre: datosClienteExistente.nombre,
+    //         nit: datosClienteExistente.nit,
+    //         correo: datosClienteExistente.correo,
+    //         telefono_principal: datosClienteExistente.telefono_principal,
+    //         telefono_secundario: datosClienteExistente.telefono_secundario,
+    //         celular: datosClienteExistente.telefono_principal,
+    //       }
+    //     } as any);
+    //   }
 
-      if (!clienteId) {
-        throw new Error("No se pudo determinar el cliente para crear el incidente");
-      }
+    //   if (!clienteId) {
+    //     throw new Error("No se pudo determinar el cliente para crear el incidente");
+    //   }
 
-      // Si hay una nueva dirección escrita, crearla
-      if (nuevaDireccion.trim() && opcionEnvio !== "recoger") {
-        const dirData = await apiBackendAction("direcciones.create", {
-          cliente_id: clienteId,
-          direccion: nuevaDireccion,
-          es_principal: direccionesEnvio.length === 0,
-        } as any);
-        direccionEnvioId = String((dirData as any).id);
-      }
-      // Si se seleccionó una dirección temporal (del cliente pero no guardada en direcciones_envio), crearla
-      else if (direccionSeleccionada && direccionSeleccionada.startsWith("temp-") && opcionEnvio !== "recoger") {
-        const direccionTemp = direccionesEnvio.find((d: any) => d.id === direccionSeleccionada);
-        if (direccionTemp) {
-          const dirData = await apiBackendAction("direcciones.create", {
-            cliente_id: clienteId,
-            direccion: direccionTemp.direccion,
-            es_principal: true,
-          } as any);
-          direccionEnvioId = String((dirData as any).id);
-        }
-      }
+    //   // Si hay una nueva dirección escrita, crearla
+    //   if (nuevaDireccion.trim() && opcionEnvio !== "recoger") {
+    //     const dirData = await apiBackendAction("direcciones.create", {
+    //       cliente_id: clienteId,
+    //       direccion: nuevaDireccion,
+    //       es_principal: direccionesEnvio.length === 0,
+    //     } as any);
+    //     direccionEnvioId = String((dirData as any).id);
+    //   }
+    //   // Si se seleccionó una dirección temporal (del cliente pero no guardada en direcciones_envio), crearla
+    //   else if (direccionSeleccionada && direccionSeleccionada.startsWith("temp-") && opcionEnvio !== "recoger") {
+    //     const direccionTemp = direccionesEnvio.find((d: any) => d.id === direccionSeleccionada);
+    //     if (direccionTemp) {
+    //       const dirData = await apiBackendAction("direcciones.create", {
+    //         cliente_id: clienteId,
+    //         direccion: direccionTemp.direccion,
+    //         es_principal: true,
+    //       } as any);
+    //       direccionEnvioId = String((dirData as any).id);
+    //     }
+    //   }
 
-      // Generar código de incidente via apiBackendAction
-      const { codigo: codigoIncidente } = await apiBackendAction("rpc.generarCodigoIncidente", {});
+    //   // Generar código de incidente via apiBackendAction
+    //   const { codigo: codigoIncidente } = await apiBackendAction("rpc.generarCodigoIncidente", {});
 
-      // Determinar producto según si es manual o seleccionado
-      let codigoProductoFinal: string | null = null;
-      let productoId: number | null = null;
-      let skuMaquinaFinal = skuMaquina;
-      let descripcionProductoFinal = "";
-      let productoDescontinuado = false;
+    //   // Determinar producto según si es manual o seleccionado
+    //   let codigoProductoFinal: string | null = null;
+    //   let productoId: number | null = null;
+    //   let skuMaquinaFinal = skuMaquina;
+    //   let descripcionProductoFinal = "";
+    //   let productoDescontinuado = false;
 
-      if (modoManualProducto) {
-        // Producto ingresado manualmente - no existe en la BD
-        codigoProductoFinal = null;
-        skuMaquinaFinal = productoManual.codigo;
-        descripcionProductoFinal = productoManual.descripcion;
-        productoDescontinuado = false;
-      } else if (productoSeleccionado) {
-        productoId = productoSeleccionado.id;
-        codigoProductoFinal = productoSeleccionado.codigo;
-        descripcionProductoFinal = productoSeleccionado.descripcion || "";
-        productoDescontinuado = !!productoSeleccionado.descontinuado;
-      }
+    //   if (modoManualProducto) {
+    //     // Producto ingresado manualmente - no existe en la BD
+    //     codigoProductoFinal = null;
+    //     skuMaquinaFinal = productoManual.codigo;
+    //     descripcionProductoFinal = productoManual.descripcion;
+    //     productoDescontinuado = false;
+    //   } else if (productoSeleccionado) {
+    //     productoId = productoSeleccionado.id;
+    //     codigoProductoFinal = productoSeleccionado.codigo;
+    //     descripcionProductoFinal = productoSeleccionado.descripcion || "";
+    //     productoDescontinuado = !!productoSeleccionado.descontinuado;
+    //   }
 
-      const tipologiaEnum = mapTipologiaToEnum(tipologia);
-      const trackingToken = crypto.randomUUID();
-      const direccionEntregaId =
-        opcionEnvio !== "recoger" && direccionEnvioId && !Number.isNaN(parseInt(direccionEnvioId, 10))
-          ? parseInt(direccionEnvioId, 10)
-          : null;
+    //   const tipologiaEnum = mapTipologiaToEnum(tipologia);
+    //   const trackingToken = crypto.randomUUID();
+    //   const direccionEntregaId =
+    //     opcionEnvio !== "recoger" && direccionEnvioId && !Number.isNaN(parseInt(direccionEnvioId, 10))
+    //       ? parseInt(direccionEnvioId, 10)
+    //       : null;
 
-      const observacionesCompuestas = [
-        logObservaciones?.trim() ? logObservaciones.trim() : null,
-        skuMaquinaFinal?.trim() ? `SKU: ${skuMaquinaFinal.trim()}` : null,
-        personaDejaMaquina?.trim() ? `Entrega: ${personaDejaMaquina.trim()}` : null,
-        dpiPersonaDeja?.trim() ? `DPI: ${dpiPersonaDeja.trim()}` : null,
-        accesoriosSeleccionados.length ? `Accesorios: ${accesoriosSeleccionados.join(", ")}` : null,
-        opcionEnvio !== "recoger" && telefonoEnvio?.trim() ? `Tel. envío: ${telefonoEnvio.trim()}` : null,
-        modoManualProducto ? `Producto manual: ${productoManual.codigo} - ${productoManual.descripcion}` : null,
-        !modoManualProducto && codigoProductoFinal ? `Producto: ${codigoProductoFinal}` : null,
-      ]
-        .filter(Boolean)
-        .join(" | ");
+    //   const observacionesCompuestas = [
+    //     logObservaciones?.trim() ? logObservaciones.trim() : null,
+    //     skuMaquinaFinal?.trim() ? `SKU: ${skuMaquinaFinal.trim()}` : null,
+    //     personaDejaMaquina?.trim() ? `Entrega: ${personaDejaMaquina.trim()}` : null,
+    //     dpiPersonaDeja?.trim() ? `DPI: ${dpiPersonaDeja.trim()}` : null,
+    //     accesoriosSeleccionados.length ? `Accesorios: ${accesoriosSeleccionados.join(", ")}` : null,
+    //     opcionEnvio !== "recoger" && telefonoEnvio?.trim() ? `Tel. envío: ${telefonoEnvio.trim()}` : null,
+    //     modoManualProducto ? `Producto manual: ${productoManual.codigo} - ${productoManual.descripcion}` : null,
+    //     !modoManualProducto && codigoProductoFinal ? `Producto: ${codigoProductoFinal}` : null,
+    //   ]
+    //     .filter(Boolean)
+    //     .join(" | ");
 
-      // Crear incidente via apiBackendAction
-      const incidenteData = await apiBackendAction("incidentes.create", {
-        codigo: codigoIncidente,
-        cliente_id: clienteId,
-        producto_id: productoId,
-        centro_de_servicio_id: centroServicio as number,
-        quiere_envio: opcionEnvio !== "recoger",
-        direccion_entrega_id: direccionEntregaId,
-        incidente_origen_id: esReingreso && incidenteReingresoId ? parseInt(String(incidenteReingresoId), 10) : null,
-        descripcion_problema: descripcionProblema || null,
-        observaciones: observacionesCompuestas || null,
-        tipologia: tipologiaEnum,
-        estado: ingresadoMostrador ? "REGISTRADO" : "EN_ENTREGA",
-        aplica_garantia: false,
-        tracking_token: trackingToken,
-      } as any);
+    //   // Crear incidente via apiBackendAction
+    //   const incidenteData = await apiBackendAction("incidentes.create", {
+    //     codigo: codigoIncidente,
+    //     cliente_id: clienteId,
+    //     producto_id: productoId,
+    //     centro_de_servicio_id: centroServicio as number,
+    //     quiere_envio: opcionEnvio !== "recoger",
+    //     direccion_entrega_id: direccionEntregaId,
+    //     incidente_origen_id: esReingreso && incidenteReingresoId ? parseInt(String(incidenteReingresoId), 10) : null,
+    //     descripcion_problema: descripcionProblema || null,
+    //     observaciones: observacionesCompuestas || null,
+    //     tipologia: tipologiaEnum,
+    //     estado: ingresadoMostrador ? "REGISTRADO" : "EN_ENTREGA",
+    //     aplica_garantia: false,
+    //     tracking_token: trackingToken,
+    //   } as any);
 
-      // Insertar accesorios en incidente_accesorios
-      if (accesoriosSeleccionados.length > 0) {
-        // Buscar IDs de los accesorios seleccionados
-        const { results: accesoriosData } = await apiBackendAction("accesorios.list", {});
-        const accesoriosFiltrados = (accesoriosData || []).filter((acc: any) => 
-          accesoriosSeleccionados.includes(acc.nombre)
-        );
+    //   // Insertar accesorios en incidente_accesorios
+    //   if (accesoriosSeleccionados.length > 0) {
+    //     // Buscar IDs de los accesorios seleccionados
+    //     const { results: accesoriosData } = await apiBackendAction("accesorios.list", {});
+    //     const accesoriosFiltrados = (accesoriosData || []).filter((acc: any) => 
+    //       accesoriosSeleccionados.includes(acc.nombre)
+    //     );
 
-        if (accesoriosFiltrados.length > 0) {
-          for (const acc of accesoriosFiltrados) {
-            await apiBackendAction("incidente_accesorios.create", {
-              incidente_id: (incidenteData as any).id,
-              accesorio_id: acc.id,
-            } as any);
-          }
-        }
-      }
+    //     if (accesoriosFiltrados.length > 0) {
+    //       for (const acc of accesoriosFiltrados) {
+    //         await apiBackendAction("incidente_accesorios.create", {
+    //           incidente_id: (incidenteData as any).id,
+    //           accesorio_id: acc.id,
+    //         } as any);
+    //       }
+    //     }
+    //   }
 
-      if (mediaPhotos.length > 0) {
-        try {
-          // Convert SidebarPhoto to MediaFile format for upload
-          const mediaFilesForUpload = mediaPhotos.map((p) => ({
-            id: p.id,
-            file: p.file,
-            preview: p.preview,
-            tipo: "foto" as const,
-          }));
-          const uploadedMedia = await uploadMediaToStorage(mediaFilesForUpload, String(incidenteData.id));
-          // Add comments to uploaded media
-          const uploadedWithComments = uploadedMedia.map((media, idx) => ({
-            ...media,
-            comment: mediaPhotos[idx]?.comment,
-          }));
-          await saveIncidentePhotos(String(incidenteData.id), uploadedWithComments, "ingreso");
-          showSuccess(`${uploadedMedia.length} archivo(s) subido(s) correctamente`, "Fotos subidas");
-        } catch (uploadError) {
-          console.error("Error uploading media:", uploadError);
-          showWarning("El incidente se creó pero hubo un error al subir algunas fotos");
-        }
-      }
+    //   if (mediaPhotos.length > 0) {
+    //     try {
+    //       // Convert SidebarPhoto to MediaFile format for upload
+    //       const mediaFilesForUpload = mediaPhotos.map((p) => ({
+    //         id: p.id,
+    //         file: p.file,
+    //         preview: p.preview,
+    //         tipo: "foto" as const,
+    //       }));
+    //       const uploadedMedia = await uploadMediaToStorage(mediaFilesForUpload, String(incidenteData.id));
+    //       // Add comments to uploaded media
+    //       const uploadedWithComments = uploadedMedia.map((media, idx) => ({
+    //         ...media,
+    //         comment: mediaPhotos[idx]?.comment,
+    //       }));
+    //       await saveIncidentePhotos(String(incidenteData.id), uploadedWithComments, "ingreso");
+    //       showSuccess(`${uploadedMedia.length} archivo(s) subido(s) correctamente`, "Fotos subidas");
+    //     } catch (uploadError) {
+    //       console.error("Error uploading media:", uploadError);
+    //       showWarning("El incidente se creó pero hubo un error al subir algunas fotos");
+    //     }
+    //   }
 
-      // Guardar datos para impresión
-      setIncidenteCreado({
-        codigo: incidenteData.codigo,
-        codigoCliente: codigoCliente!,
-        nombreCliente: clienteSeleccionado?.nombre || nuevoCliente.nombre,
-        codigoProducto: codigoProductoFinal || skuMaquinaFinal,
-        descripcionProducto: descripcionProductoFinal,
-        skuMaquina: skuMaquinaFinal,
-        descripcionProblema: descripcionProblema,
-        accesorios: accesoriosSeleccionados.join(", ") || "Ninguno",
-        fechaIngreso: new Date(),
-        centroServicio: centrosServicioList.find((c) => c.id === centroServicio)?.nombre ?? String(centroServicio ?? ""),
-        personaDejaMaquina: personaDejaMaquina,
-        tipologia: tipologia,
-        esReingreso: esReingreso,
-      });
-      setShowSuccessDialog(true);
-    } catch (error) {
-      console.error("Error al guardar:", error);
-      showError("No se pudo guardar el incidente. Intente nuevamente.");
-    } finally {
-      setGuardando(false);
-    }
+    //   // Guardar datos para impresión
+    //   setIncidenteCreado({
+    //     codigo: incidenteData.codigo,
+    //     codigoCliente: codigoCliente!,
+    //     nombreCliente: clienteSeleccionado?.nombre || nuevoCliente.nombre,
+    //     codigoProducto: codigoProductoFinal || skuMaquinaFinal,
+    //     descripcionProducto: descripcionProductoFinal,
+    //     skuMaquina: skuMaquinaFinal,
+    //     descripcionProblema: descripcionProblema,
+    //     accesorios: accesoriosSeleccionados.join(", ") || "Ninguno",
+    //     fechaIngreso: new Date(),
+    //     centroServicio: centrosServicioList.find((c) => c.id === centroServicio)?.nombre ?? String(centroServicio ?? ""),
+    //     personaDejaMaquina: personaDejaMaquina,
+    //     tipologia: tipologia,
+    //     esReingreso: esReingreso,
+    //   });
+    //   setShowSuccessDialog(true);
+    // } catch (error) {
+    //   console.error("Error al guardar:", error);
+    //   showError("No se pudo guardar el incidente. Intente nuevamente.");
+    // } finally {
+    //   setGuardando(false);
+    // }
   };
   return (
     <div className="pb-24">

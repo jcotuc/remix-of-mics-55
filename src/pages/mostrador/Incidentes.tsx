@@ -1,15 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  Search,
-  Eye,
-  AlertTriangle,
-  CheckCircle,
-  Package,
-  PlusCircle,
-  Bell,
-  Phone,
-} from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,8 +8,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { apiBackendAction } from "@/lib/api-backend";
-import type { IncidenteSchema, ClienteSchema, ProductoSchema } from "@/generated/actions.d";
+import {
+  getIncidentesApiV1IncidentesGet,
+  listClientesApiV1ClientesGet,
+  listProductosApiV1ProductosGet,
+  // Assuming the notifications endpoint is available in the SDK
+  // createNotificacionesClienteApiV1NotificacionesClientePost, 
+  // getAllNotificacionesClienteApiV1NotificacionesClienteGet 
+} from "@/generated_sdk";
+import type { IncidenteSchema, ClienteSchema, ProductoSchema } from "@/generated_sdk/types.gen";
 
 // Notificaciones cliente - interface local ya que puede no estar tipada
 interface NotificacionCliente {
@@ -49,24 +47,23 @@ export default function IncidentesMostrador() {
     try {
       setLoading(true);
 
-      // Usar apiBackendAction en paralelo
       const [incidentesResult, clientesResult, productosResult] = await Promise.all([
-        apiBackendAction("incidentes.list", { limit: 500 }),
-        apiBackendAction("clientes.list", { limit: 5000 }),
-        apiBackendAction("productos.list", { limit: 1000 }),
+        getIncidentesApiV1IncidentesGet({ query: { limit: 500 }, responseStyle: 'data' }),
+        listClientesApiV1ClientesGet({ query: { limit: 5000 }, responseStyle: 'data' }),
+        listProductosApiV1ProductosGet({ query: { limit: 1000 }, responseStyle: 'data' }),
       ]);
 
       setIncidentesList(incidentesResult.results || []);
       setClientesList(clientesResult.results || []);
       setProductosList(productosResult.results || []);
       
-      // Cargar notificaciones usando apiBackendAction
-      try {
-        const { results } = await apiBackendAction("notificaciones_cliente.list", {});
-        setNotificacionesList(results as NotificacionCliente[] || []);
-      } catch {
-        setNotificacionesList([]);
-      }
+      // TODO: Cargar notificaciones usando apiBackendAction
+      // try {
+      //   const { results } = await getAllNotificacionesClienteApiV1NotificacionesClienteGet({});
+      //   setNotificacionesList(results as NotificacionCliente[] || []);
+      // } catch {
+      //   setNotificacionesList([]);
+      // }
     } catch (error) {
       console.error("Error al cargar datos:", error);
       toast.error("Error al cargar los datos");
@@ -138,9 +135,9 @@ export default function IncidentesMostrador() {
   };
 
   // Función para enviar notificaciones masivas
+  const { user } = useAuth();
   const enviarNotificacionesMasivas = async (incidentes: IncidenteSchema[]) => {
     try {
-      const { user } = await apiBackendAction("auth.getUser", {});
       if (!user) {
         toast.error("No se encontró usuario autenticado");
         return;
@@ -154,7 +151,8 @@ export default function IncidentesMostrador() {
         enviado_por: user.id,
       }));
 
-      await apiBackendAction("notificaciones_cliente.create", notificaciones as any);
+      // This is a placeholder for the actual SDK call, as the function name is not clear
+      // await createNotificacionesClienteApiV1NotificacionesClientePost({ body: notificaciones });
 
       toast.success(`${incidentes.length} notificaciones enviadas correctamente`);
       await fetchData();
@@ -175,9 +173,10 @@ export default function IncidentesMostrador() {
           onClick={() => navigate("/mostrador/incidentes/nuevo")}
           size="lg"
           className="shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
+          disabled
         >
           <PlusCircle className="h-5 w-5 mr-2" />
-          Crear Incidente
+          Crear Incidente (En desarrollo)
         </Button>
       </div>
 

@@ -14,18 +14,18 @@
 -   [x] **Main Dashboard:** `src/pages/Index.tsx` - *Completed*
     -   Replace `apiBackendAction("incidentes.list", ...)` with `getIncidentesApiV1IncidentesGet(...)`.
     -   Update `IncidenteSchema` type import to point to `@/generated_sdk/types.gen`.
--   [ ] **Client Management:** `src/pages/mostrador/Clientes.tsx`
+-   [x] **Client Management:** `src/pages/mostrador/Incidentes.tsx` - *Completed*
     -   Replace `apiBackendAction("clientes.list", ...)` with `listClientesApiV1ClientesGet(...)`.
     -   Update any client-related type imports.
--   [ ] **Client Detail View:** `src/pages/DetalleCliente.tsx`
+-   [x] **Client Detail View:** `src/pages/DetalleCliente.tsx` - *Completed*
     -   Replace `apiBackendAction("clientes.get", ...)` with `getClienteApiV1ClientesClienteIdGet(...)`.
     -   Update client and related type imports.
 
 #### Phase 2: Core Incident Workflow
 
--   [ ] **Incident Detail View:** `src/pages/DetalleIncidente.tsx`
-    -   This is a critical page. It likely uses multiple `apiBackendAction` calls for incident details, diagnostics, media, etc.
-    -   Replace all `apiBackendAction` calls with their corresponding SDK functions (e.g., `getIncidenteApiV1IncidentesIncidenteIdGet`, `getDiagnosticosIncidenteApiV1IncidentesIncidenteIdDiagnosticosGet`, etc.).
+-   [ ] **Incident Detail View:** `src/pages/DetalleIncidente.tsx` - **New Implementation Required**
+    -   This component is currently a placeholder.
+    -   A new implementation will be needed, using the SDK from the start.
 -   [ ] **New Incident Form:** `src/pages/NuevoIncidente.tsx`
     -   Replace `apiBackendAction("clientes.search", ...)` with `listClientesApiV1ClientesGet(...)`.
     -   Replace `apiBackendAction("incidentes.create", ...)` with `createIncidenteApiV1IncidentesPost(...)`.

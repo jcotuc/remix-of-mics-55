@@ -17,46 +17,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { apiBackendAction } from "@/lib/api-backend";
-import { StatusBadge } from "@/components/shared";
-import { formatFechaCorta } from "@/utils/dateFormatters";
-
-type ClienteData = {
-  id: number;
-  codigo: string;
-  nombre: string;
-  nit?: string | null;
-  telefono_principal?: string | null;
-  telefono_secundario?: string | null;
-  celular?: string | null;
-  correo?: string | null;
-  direccion?: string | null;
-  direccion_envio?: string | null;
-  municipio?: string | null;
-  departamento?: string | null;
-  pais?: string | null;
-  origen?: string | null;
-  nombre_facturacion?: string | null;
-  codigo_sap?: string | null;
-  activo?: boolean | null;
-  created_at?: string | null;
-};
-
-type IncidenteResumen = {
-  id: number;
-  codigo: string;
-  estado: string;
-  tipologia: string | null;
-  descripcion_problema: string | null;
-  created_at: string | null;
-  producto?: { codigo: string; descripcion: string | null } | null;
-};
-
-type DireccionData = {
-  id: number;
-  direccion: string;
-  es_principal: boolean | null;
-};
+import {
+  listClientesApiV1ClientesGet,
+  getClienteApiV1ClientesClienteIdGet,
+  getIncidentesApiV1IncidentesGet,
+} from "@/generated_sdk";
+import type { ClienteSchema, IncidenteSchema, DireccionSchema } from "@/generated_sdk/types.gen";
 
 export default function DetalleCliente() {
   const { codigo } = useParams<{ codigo: string }>();
@@ -77,10 +43,9 @@ export default function DetalleCliente() {
     try {
       setLoading(true);
       
-      // Buscar cliente por código
-      const { results: clientes } = await apiBackendAction("clientes.search", { 
-        search: codigo, 
-        limit: 1 
+      const { results: clientes } = await listClientesApiV1ClientesGet({ 
+        query: { search: codigo, limit: 1 },
+        responseStyle: 'data',
       });
       
       if (!clientes || clientes.length === 0) {
@@ -88,19 +53,19 @@ export default function DetalleCliente() {
         return;
       }
 
-      // Obtener cliente completo con direcciones
-      const { result: clienteData } = await apiBackendAction("clientes.get", { 
-        id: clientes[0].id 
+      const { result: clienteData } = await getClienteApiV1ClientesClienteIdGet({ 
+        path: { cliente_id: clientes[0].id },
+        responseStyle: 'data',
       });
 
       if (clienteData) {
         setCliente(clienteData);
-        setDirecciones((clienteData as any).direcciones || []);
+        setDirecciones(clienteData.direcciones || []);
       }
 
-      // Obtener incidentes del cliente
-      const { results: allIncidentes } = await apiBackendAction("incidentes.list", { 
-        limit: 1000 
+      const { results: allIncidentes } = await getIncidentesApiV1IncidentesGet({ 
+        query: { limit: 1000 },
+        responseStyle: 'data',
       });
       
       const clienteIncidentes = (allIncidentes || []).filter(
