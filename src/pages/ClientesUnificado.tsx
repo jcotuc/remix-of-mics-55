@@ -109,82 +109,82 @@ export default function ClientesUnificado({
   }, [activeTab, debouncedSearch, filtros]);
 
   const fetchCounts = async () => {
-    try {
-      // Fetch all clients and count locally
-      const { results } = await apiBackendAction("clientes.list", { limit: 50 });
-      const mostradorCount = results.filter((c: any) => c.codigo?.startsWith("HPS-")).length;
-      const logisticaCount = results.filter((c: any) => c.codigo?.startsWith("HPC") && !c.codigo?.startsWith("HPC-")).length;
-      setTotalMostrador(mostradorCount);
-      setTotalLogistica(logisticaCount);
-    } catch (error) {
-      console.error("Error fetching counts:", error);
-    }
+    // try {
+    //   // Fetch all clients and count locally
+    //   const { results } = await apiBackendAction("clientes.list", { limit: 50 });
+    //   const mostradorCount = results.filter((c: any) => c.codigo?.startsWith("HPS-")).length;
+    //   const logisticaCount = results.filter((c: any) => c.codigo?.startsWith("HPC") && !c.codigo?.startsWith("HPC-")).length;
+    //   setTotalMostrador(mostradorCount);
+    //   setTotalLogistica(logisticaCount);
+    // } catch (error) {
+    //   console.error("Error fetching counts:", error);
+    // }
   };
 
   const fetchClientes = async () => {
     setLoading(true);
-    try {
-      // Fetch all clients and filter locally (server-side filtering not supported via apiBackendAction)
-      const { results: allClientes } = await apiBackendAction("clientes.list", { limit: 50 });
+    // try {
+    //   // Fetch all clients and filter locally (server-side filtering not supported via apiBackendAction)
+    //   const { results: allClientes } = await apiBackendAction("clientes.list", { limit: 50 });
       
-      // Filter by tab
-      let filtered = (allClientes as ClienteRow[]).filter(c => {
-        if (activeTab === 'mostrador') {
-          return c.codigo?.startsWith("HPS-");
-        } else {
-          return c.codigo?.startsWith("HPC") && !c.codigo?.startsWith("HPC-");
-        }
-      });
+    //   // Filter by tab
+    //   let filtered = (allClientes as ClienteRow[]).filter(c => {
+    //     if (activeTab === 'mostrador') {
+    //       return c.codigo?.startsWith("HPS-");
+    //     } else {
+    //       return c.codigo?.startsWith("HPC") && !c.codigo?.startsWith("HPC-");
+    //     }
+    //   });
 
-      // Search filter
-      if (debouncedSearch) {
-        const search = debouncedSearch.toLowerCase();
-        filtered = filtered.filter(c => 
-          c.codigo?.toLowerCase().includes(search) ||
-          c.nombre?.toLowerCase().includes(search) ||
-          c.nit?.toLowerCase().includes(search) ||
-          c.celular?.toLowerCase().includes(search)
-        );
-      }
+    //   // Search filter
+    //   if (debouncedSearch) {
+    //     const search = debouncedSearch.toLowerCase();
+    //     filtered = filtered.filter(c => 
+    //       c.codigo?.toLowerCase().includes(search) ||
+    //       c.nombre?.toLowerCase().includes(search) ||
+    //       c.nit?.toLowerCase().includes(search) ||
+    //       c.celular?.toLowerCase().includes(search)
+    //     );
+    //   }
 
-      // Apply boolean filters
-      if (filtros.conTelefono) {
-        filtered = filtered.filter(c => c.celular || c.telefono_principal);
-      }
-      if (filtros.conCorreo) {
-        filtered = filtered.filter(c => c.correo && c.correo !== '');
-      }
-      if (filtros.conUbicacion) {
-        filtered = filtered.filter(c => c.departamento || c.municipio);
-      }
-      if (filtros.conDireccion) {
-        filtered = filtered.filter(c => c.direccion || c.direccion_envio);
-      }
+    //   // Apply boolean filters
+    //   if (filtros.conTelefono) {
+    //     filtered = filtered.filter(c => c.celular || c.telefono_principal);
+    //   }
+    //   if (filtros.conCorreo) {
+    //     filtered = filtered.filter(c => c.correo && c.correo !== '');
+    //   }
+    //   if (filtros.conUbicacion) {
+    //     filtered = filtered.filter(c => c.departamento || c.municipio);
+    //   }
+    //   if (filtros.conDireccion) {
+    //     filtered = filtered.filter(c => c.direccion || c.direccion_envio);
+    //   }
 
-      // Sort
-      if (activeTab === 'mostrador') {
-        filtered.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
-      } else {
-        filtered.sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
-      }
+    //   // Sort
+    //   if (activeTab === 'mostrador') {
+    //     filtered.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+    //   } else {
+    //     filtered.sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
+    //   }
 
-      setTotalFiltered(filtered.length);
+    //   setTotalFiltered(filtered.length);
 
-      // Paginate
-      const from = (currentPage - 1) * itemsPerPage;
-      const paginated = filtered.slice(from, from + itemsPerPage);
+    //   // Paginate
+    //   const from = (currentPage - 1) * itemsPerPage;
+    //   const paginated = filtered.slice(from, from + itemsPerPage);
       
-      if (activeTab === 'mostrador') {
-        setClientesMostrador(paginated);
-      } else {
-        setClientesLogistica(paginated);
-      }
-    } catch (error) {
-      console.error("Error fetching clients:", error);
-      toast.error("Error al cargar los clientes");
-    } finally {
-      setLoading(false);
-    }
+    //   if (activeTab === 'mostrador') {
+    //     setClientesMostrador(paginated);
+    //   } else {
+    //     setClientesLogistica(paginated);
+    //   }
+    // } catch (error) {
+    //   console.error("Error fetching clients:", error);
+    //   toast.error("Error al cargar los clientes");
+    // } finally {
+    //   setLoading(false);
+    // }
   };
 
   const currentClientes = activeTab === 'mostrador' ? clientesMostrador : clientesLogistica;
@@ -206,31 +206,31 @@ export default function ClientesUnificado({
   const handleSaveEdit = async () => {
     if (!editingCliente) return;
     setIsSaving(true);
-    try {
-      await apiBackendAction("clientes.update", {
-        id: editingCliente.id,
-        data: {
-          nombre: editingCliente.nombre,
-          nit: editingCliente.nit,
-          celular: editingCliente.celular,
-          correo: editingCliente.correo,
-          direccion: editingCliente.direccion,
-          departamento: editingCliente.departamento,
-          municipio: editingCliente.municipio,
-          telefono_principal: editingCliente.telefono_principal,
-          telefono_secundario: editingCliente.telefono_secundario
-        }
-      });
-      toast.success("Cliente actualizado correctamente");
-      setIsEditDialogOpen(false);
-      setEditingCliente(null);
-      fetchClientes();
-    } catch (error) {
-      console.error("Error updating client:", error);
-      toast.error("Error al actualizar el cliente");
-    } finally {
-      setIsSaving(false);
-    }
+    // try {
+    //   await apiBackendAction("clientes.update", {
+    //     id: editingCliente.id,
+    //     data: {
+    //       nombre: editingCliente.nombre,
+    //       nit: editingCliente.nit,
+    //       celular: editingCliente.celular,
+    //       correo: editingCliente.correo,
+    //       direccion: editingCliente.direccion,
+    //       departamento: editingCliente.departamento,
+    //       municipio: editingCliente.municipio,
+    //       telefono_principal: editingCliente.telefono_principal,
+    //       telefono_secundario: editingCliente.telefono_secundario
+    //     }
+    //   });
+    //   toast.success("Cliente actualizado correctamente");
+    //   setIsEditDialogOpen(false);
+    //   setEditingCliente(null);
+    //   fetchClientes();
+    // } catch (error) {
+    //   console.error("Error updating client:", error);
+    //   toast.error("Error al actualizar el cliente");
+    // } finally {
+    //   setIsSaving(false);
+    // }
   };
 
   const handleDeleteConfirm = (cliente: ClienteRow) => {
@@ -239,17 +239,17 @@ export default function ClientesUnificado({
   };
 
   const handleDelete = async () => {
-    if (!deletingCliente) return;
-    try {
-      await apiBackendAction("clientes.delete", { id: deletingCliente.id });
-      toast.success("Cliente eliminado correctamente");
-      setIsDeleteDialogOpen(false);
-      setDeletingCliente(null);
-      fetchClientes();
-    } catch (error) {
-      console.error("Error deleting client:", error);
-      toast.error("Error al eliminar el cliente");
-    }
+    // if (!deletingCliente) return;
+    // try {
+    //   await apiBackendAction("clientes.delete", { id: deletingCliente.id });
+    //   toast.success("Cliente eliminado correctamente");
+    //   setIsDeleteDialogOpen(false);
+    //   setDeletingCliente(null);
+    //   fetchClientes();
+    // } catch (error) {
+    //   console.error("Error deleting client:", error);
+    //   toast.error("Error al eliminar el cliente");
+    // }
   };
 
   return (

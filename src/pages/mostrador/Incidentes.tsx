@@ -17,6 +17,7 @@ import {
   // getAllNotificacionesClienteApiV1NotificacionesClienteGet 
 } from "@/generated_sdk";
 import type { IncidenteSchema, ClienteSchema, ProductoSchema } from "@/generated_sdk/types.gen";
+import { AlertTriangle, Bell, CheckCircle, Eye, Package, Phone, PlusCircle, Search } from "lucide-react";
 
 // Notificaciones cliente - interface local ya que puede no estar tipada
 interface NotificacionCliente {
@@ -48,9 +49,9 @@ export default function IncidentesMostrador() {
       setLoading(true);
 
       const [incidentesResult, clientesResult, productosResult] = await Promise.all([
-        getIncidentesApiV1IncidentesGet({ query: { limit: 500 }, responseStyle: 'data' }),
-        listClientesApiV1ClientesGet({ query: { limit: 5000 }, responseStyle: 'data' }),
-        listProductosApiV1ProductosGet({ query: { limit: 1000 }, responseStyle: 'data' }),
+        getIncidentesApiV1IncidentesGet({ query: { limit: 50 }, responseStyle: 'data' }),
+        listClientesApiV1ClientesGet({ query: { limit: 50 }, responseStyle: 'data' }),
+        listProductosApiV1ProductosGet({ query: { limit: 50 }, responseStyle: 'data' }),
       ]);
 
       setIncidentesList(incidentesResult.results || []);

@@ -138,6 +138,96 @@ export type AccesorioUpdateOutput = {
 };
 
 /**
+ * ApiKeyCreateSchema
+ */
+export type ApiKeyCreateSchema = {
+    /**
+     * Name
+     *
+     * A descriptive name for the API key.
+     */
+    name: string;
+};
+
+/**
+ * ApiKeyCreatedResponseSchema
+ */
+export type ApiKeyCreatedResponseSchema = {
+    /**
+     * Name
+     *
+     * A descriptive name for the API key.
+     */
+    name: string;
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * User Id
+     */
+    user_id: number;
+    /**
+     * Is Active
+     */
+    is_active: boolean;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Expires At
+     */
+    expires_at?: string | null;
+    /**
+     * Last Used At
+     */
+    last_used_at?: string | null;
+    /**
+     * Raw Key
+     *
+     * The raw API key, displayed only once upon creation.
+     */
+    raw_key: string;
+};
+
+/**
+ * ApiKeyResponseSchema
+ */
+export type ApiKeyResponseSchema = {
+    /**
+     * Name
+     *
+     * A descriptive name for the API key.
+     */
+    name: string;
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * User Id
+     */
+    user_id: number;
+    /**
+     * Is Active
+     */
+    is_active: boolean;
+    /**
+     * Created At
+     */
+    created_at: string;
+    /**
+     * Expires At
+     */
+    expires_at?: string | null;
+    /**
+     * Last Used At
+     */
+    last_used_at?: string | null;
+};
+
+/**
  * AsignacionSACSchema
  */
 export type AsignacionSacSchema = {
@@ -3454,7 +3544,7 @@ export type UsuarioSchemaWithRoles = {
     /**
      * Roles
      */
-    roles?: Array<AppSchemasAuthRolSchema>;
+    roles?: Array<AppSchemasRolRolSchema>;
 };
 
 /**
@@ -3611,28 +3701,6 @@ export type ZigoDireccionSchema = {
 };
 
 /**
- * RolSchema
- */
-export type AppSchemasAuthRolSchema = {
-    /**
-     * Id
-     */
-    id: number;
-    /**
-     * Nombre
-     */
-    nombre: string;
-    /**
-     * Slug
-     */
-    slug: string;
-    /**
-     * Descripcion
-     */
-    descripcion?: string | null;
-};
-
-/**
  * UsuarioSchema
  */
 export type AppSchemasAuthUsuarioSchema = {
@@ -3671,8 +3739,30 @@ export type AppSchemasAuthUsuarioSchema = {
     /**
      * Roles
      */
-    roles?: Array<AppSchemasAuthRolSchema>;
+    roles?: Array<AppSchemasRolRolSchema>;
     centro_de_servicio?: CentroDeServicioSchema | null;
+};
+
+/**
+ * RolSchema
+ */
+export type AppSchemasRolRolSchema = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Nombre
+     */
+    nombre: string;
+    /**
+     * Slug
+     */
+    slug: string;
+    /**
+     * Descripcion
+     */
+    descripcion?: string | null;
 };
 
 /**
@@ -6378,7 +6468,7 @@ export type GetAllRolesApiV1RolesGetResponses = {
      *
      * Successful Response
      */
-    200: Array<AppSchemasAuthRolSchema>;
+    200: Array<AppSchemasRolRolSchema>;
 };
 
 export type GetAllRolesApiV1RolesGetResponse = GetAllRolesApiV1RolesGetResponses[keyof GetAllRolesApiV1RolesGetResponses];
@@ -7247,6 +7337,79 @@ export type UpdateEmpresaApiV1EmpresasEmpresaIdPatchResponses = {
 };
 
 export type UpdateEmpresaApiV1EmpresasEmpresaIdPatchResponse = UpdateEmpresaApiV1EmpresasEmpresaIdPatchResponses[keyof UpdateEmpresaApiV1EmpresasEmpresaIdPatchResponses];
+
+export type GetUserApiKeysApiV1ApiKeysGetData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/api-keys';
+};
+
+export type GetUserApiKeysApiV1ApiKeysGetResponses = {
+    /**
+     * Response Get User Api Keys Api V1 Api Keys Get
+     *
+     * Successful Response
+     */
+    200: Array<ApiKeyResponseSchema>;
+};
+
+export type GetUserApiKeysApiV1ApiKeysGetResponse = GetUserApiKeysApiV1ApiKeysGetResponses[keyof GetUserApiKeysApiV1ApiKeysGetResponses];
+
+export type CreateApiKeyApiV1ApiKeysPostData = {
+    body: ApiKeyCreateSchema;
+    path?: never;
+    query?: never;
+    url: '/api/v1/api-keys';
+};
+
+export type CreateApiKeyApiV1ApiKeysPostErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type CreateApiKeyApiV1ApiKeysPostError = CreateApiKeyApiV1ApiKeysPostErrors[keyof CreateApiKeyApiV1ApiKeysPostErrors];
+
+export type CreateApiKeyApiV1ApiKeysPostResponses = {
+    /**
+     * Successful Response
+     */
+    201: ApiKeyCreatedResponseSchema;
+};
+
+export type CreateApiKeyApiV1ApiKeysPostResponse = CreateApiKeyApiV1ApiKeysPostResponses[keyof CreateApiKeyApiV1ApiKeysPostResponses];
+
+export type DeleteApiKeyApiV1ApiKeysApiKeyIdDeleteData = {
+    body?: never;
+    path: {
+        /**
+         * Api Key Id
+         */
+        api_key_id: number;
+    };
+    query?: never;
+    url: '/api/v1/api-keys/{api_key_id}';
+};
+
+export type DeleteApiKeyApiV1ApiKeysApiKeyIdDeleteErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type DeleteApiKeyApiV1ApiKeysApiKeyIdDeleteError = DeleteApiKeyApiV1ApiKeysApiKeyIdDeleteErrors[keyof DeleteApiKeyApiV1ApiKeysApiKeyIdDeleteErrors];
+
+export type DeleteApiKeyApiV1ApiKeysApiKeyIdDeleteResponses = {
+    /**
+     * Successful Response
+     */
+    204: void;
+};
+
+export type DeleteApiKeyApiV1ApiKeysApiKeyIdDeleteResponse = DeleteApiKeyApiV1ApiKeysApiKeyIdDeleteResponses[keyof DeleteApiKeyApiV1ApiKeysApiKeyIdDeleteResponses];
 
 export type HealthHealthGetData = {
     body?: never;
