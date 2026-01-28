@@ -8,19 +8,16 @@ import {
   createClienteApiV1ClientesPost,
   updateClienteApiV1ClientesClienteIdPatch,
   deleteClienteApiV1ClientesClienteIdDelete,
-  searchClientesApiV1ClientesSearchGet,
   listProductosApiV1ProductosGet,
   getProductoApiV1ProductosProductoIdGet,
   createProductoApiV1ProductosPost,
   updateProductoApiV1ProductosProductoIdPatch,
   deleteProductoApiV1ProductosProductoIdDelete,
-  searchProductosApiV1ProductosSearchGet,
   getIncidentesApiV1IncidentesGet,
   getIncidenteApiV1IncidentesIncidenteIdGet,
   createIncidenteApiV1IncidentesPost,
   updateIncidenteApiV1IncidentesIncidenteIdPatch,
   deleteIncidenteApiV1IncidentesIncidenteIdDelete,
-  searchIncidentesApiV1IncidentesSearchGet,
   getAllAccesoriosApiV1AccesoriosGet,
   getAccesorioApiV1AccesoriosAccesorioIdGet,
   createAccesorioApiV1AccesoriosPost,
@@ -38,7 +35,6 @@ import {
   createRepuestoApiV1RepuestosPost,
   updateRepuestoApiV1RepuestosRepuestoIdPatch,
   deleteRepuestoApiV1RepuestosRepuestoIdDelete,
-  searchRepuestosApiV1RepuestosSearchGet,
   getAllBodegasApiV1BodegasGet,
   getBodegaApiV1BodegasBodegaIdGet,
   createBodegaApiV1BodegasPost,
@@ -72,7 +68,6 @@ import {
   createUbicacionApiV1UbicacionesPost,
   updateUbicacionApiV1UbicacionesUbicacionIdPatch,
   deleteUbicacionApiV1UbicacionesUbicacionIdDelete,
-  searchUbicacionesApiV1UbicacionesSearchGet,
   getAllUsersApiV1UsuariosGet,
   getAllRolesApiV1RolesGet,
   getAllGuiasApiV1GuiasGet,
@@ -141,12 +136,12 @@ const clientesHandlers: Record<string, ActionHandler<any>> = {
     return { status: "deleted", id: input.id };
   },
   "clientes.search": async (input) => {
-    const { search = "", limit = 20 } = input;
-    const response = await searchClientesApiV1ClientesSearchGet({
-      query: { search, limit },
+    const { search, limit = 10, skip = 0 } = input as any;
+    const response = await listClientesApiV1ClientesGet({
+      query: { search, limit, skip },
       responseStyle: 'data',
     });
-    return { results: response.results };
+    return { results: response.results, total: response.total };
   },
   "clientes.getByCodigo": notImplemented("clientes.getByCodigo"), // This action is not directly in SDK, requires a custom search
 };
@@ -192,14 +187,6 @@ const productosHandlers: Record<string, ActionHandler<any>> = {
       responseStyle: 'data',
     });
     return { status: "deleted", id: input.id };
-  },
-  "productos.search": async (input) => {
-    const { search = "", limit = 20 } = input;
-    const response = await searchProductosApiV1ProductosSearchGet({
-      query: { search, limit },
-      responseStyle: 'data',
-    });
-    return { results: response.results };
   },
   "productos.getByCodigo": notImplemented("productos.getByCodigo"), // This action is not directly in SDK, requires a custom search
   "productos.listAlternativos": notImplemented("productos.listAlternativos"), // Custom logic not in SDK directly
@@ -248,35 +235,43 @@ const incidentesHandlers: Record<string, ActionHandler<any>> = {
     });
     return { status: "deleted", id: input.id };
   },
-  "incidentes.search": async (input) => {
-    const { search = "", limit = 20 } = input;
-    const response = await searchIncidentesApiV1IncidentesSearchGet({
-      query: { search, limit },
-      responseStyle: 'data',
-    });
-    return { results: response.results };
-  },
 };
 
 // =============================================================================
 // SIMPLE LIST HANDLERS (read-only)
 // =============================================================================
-const simpleHandlers: Record<string, ActionHandler<any>> = {
-  "diagnosticos.list": async (input) => { 
-    const { skip = 0, limit = 100 } = input as any; 
-    const { data, error } = await supabase.from("diagnosticos").select("*").range(skip, skip + limit - 1).order("created_at", { ascending: false }); 
-    if (error) throw error; 
-    return { results: data || [], total: data?.length || 0 }; 
+const diagnosticosHandlers: Record<string, ActionHandler<any>> = {
+  "diagnosticos.list": async (input) => {
+    // The SDK's list endpoint for diagnosticos is tied to an incidente_id.
+    // Assuming input will contain incidente_id for this action.
+    const { incidente_id, skip = 0, limit = 100 } = input as any;
+    if (!incidente_id) throw new Error("An incidente_id is required to list diagnosticos.");
+
+    const response = await getDiagnosticosIncidenteApiV1IncidentesIncidenteIdDiagnosticosGet({
+      path: { incidente_id },
+      query: { skip, limit },
+      responseStyle: 'data',
+    });
+    return { results: response.results, total: response.total };
   },
-  "diagnosticos.get": async (input) => { 
-    const { data, error } = await supabase.from("diagnosticos").select("*").eq("id", input.id).maybeSingle(); 
-    if (error) throw error; 
-    return { result: data }; 
+  "diagnosticos.get": async (input) => {
+    const { incidente_id, id } = input as any;
+    if (!incidente_id) throw new Error("An incidente_id is required to get a diagnostico.");
+    const response = await getDiagnosticoApiV1IncidentesIncidenteIdDiagnosticosDiagnosticoIdGet({
+      path: { incidente_id, diagnostico_id: id },
+      responseStyle: 'data',
+    });
+    return { result: response.result };
   },
   "diagnosticos.create": async (input) => {
-    const { data, error } = await supabase.from("diagnosticos").insert(input as any).select().single();
-    if (error) throw error;
-    return { id: data.id, ...data };
+    const { incidente_id, ...createData } = input as any;
+    if (!incidente_id) throw new Error("An incidente_id is required to create a diagnostico.");
+    const response = await createDiagnosticoApiV1IncidentesIncidenteIdDiagnosticosPost({
+      path: { incidente_id },
+      body: createData,
+      responseStyle: 'data',
+    });
+    return { result: response.result };
   },
   "diagnosticos.update": async (input) => {
     const { id, data: updateData } = input as any;
@@ -1376,7 +1371,7 @@ const handlers: Partial<Record<ActionName, ActionHandler<any>>> = {
   ...clientesHandlers,
   ...productosHandlers,
   ...incidentesHandlers,
-  ...simpleHandlers,
+  // ...simpleHandlers,
   ...mostradorHandlers,
   ...calidadHandlers,
   ...garantiasHandlers,

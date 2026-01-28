@@ -11,8 +11,8 @@ import { MostradorDashboard } from "@/components/dashboard/MostradorDashboard";
 import { TallerDashboard } from "@/components/dashboard/TallerDashboard";
 import { LogisticaDashboard } from "@/components/dashboard/LogisticaDashboard";
 import { SACDashboard } from "@/components/dashboard/SACDashboard";
-import { apiBackendAction } from "@/lib/api";
-import type { IncidenteSchema } from "@/generated/actions.d";
+import { getIncidentesApiV1IncidentesGet } from "@/generated_sdk";
+import type { IncidenteSchema } from "@/generated_sdk/types.gen";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -29,10 +29,18 @@ const Index = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const response = await apiBackendAction("incidentes.list", { limit: 500 });
-      setIncidentes(response.results);
+      const response = await getIncidentesApiV1IncidentesGet({
+        query: { limit: 500 },
+        responseStyle: 'data',
+      });
+      if (response && response.results) {
+        setIncidentes(response.results);
+      } else {
+        setIncidentes([]);
+      }
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error fetching incidents:', error);
+      setIncidentes([]);
     } finally {
       setLoading(false);
     }

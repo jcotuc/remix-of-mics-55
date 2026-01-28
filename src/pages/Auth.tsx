@@ -6,8 +6,9 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
 import { Wrench } from "lucide-react";
-import { apiBackendAction } from "@/lib/api-backend";
+import { authService } from "@/lib/authService";
 import { isDevBypassEnabled } from "@/config/devBypassAuth";
 
 export default function Auth() {
@@ -20,64 +21,39 @@ export default function Auth() {
   const [nombre, setNombre] = useState("");
   const [apellido, setApellido] = useState("");
 
+  const { user, loading: authLoading } = useAuth();
+
   useEffect(() => {
-    let mounted = true;
-    if (isDevBypassEnabled()) {
+    if (!authLoading && user) {
       navigate("/");
-      return () => {
-        mounted = false;
-      };
     }
-    
-    apiBackendAction("auth.getSession", {}).then(({ session }) => {
-      if (!mounted) return;
-      if (session) {
-        navigate("/");
-      }
-    }).catch(async () => {
-      // On error, try to logout locally and continue
-      try {
-        await apiBackendAction("auth.logout", {});
-      } catch {
-        // Ignore logout errors
-      }
-    });
-    
-    return () => {
-      mounted = false;
-    };
-  }, [navigate]);
+  }, [user, authLoading, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      await apiBackendAction("auth.login", {
+      const user = await authService.login({
         email: loginEmail.trim(),
         password: loginPassword,
       });
 
-      // Verificar que el usuario exista/mapee en la tabla interna `usuarios`
-      // (la app depende de centro_de_servicio_id, permisos, etc.)
-      const { result: usuario } = await apiBackendAction("usuarios.getByEmail", {
-        email: loginEmail.trim(),
-      });
-
-      if (!usuario) {
-        await apiBackendAction("auth.logout", {});
-        toast.error("Tu usuario no está habilitado en el sistema.");
-        return;
-      }
-
-      toast.success("¡Sesión iniciada!");
-      navigate("/");
-    } catch (error: any) {
-      const message = error?.message || "";
-      if (message.toLowerCase().includes("invalid login credentials")) {
-        toast.error("Credenciales inválidas");
+      if (user) {
+        toast.success("¡Sesión iniciada!");
+        navigate("/");
       } else {
-        toast.error(message || "Error al iniciar sesión");
+        // This case might occur if the API returns a 2xx but with no user object,
+        // which would be unusual. Primarily, errors will be caught below.
+        toast.error("No se pudo iniciar sesión. Por favor, inténtalo de nuevo.");
+      }
+    } catch (error: any) {
+      // Assuming the error object from Hey API might have a 'status' or be a string/object
+      const errorMessage = error?.body?.detail || error.message || "Credenciales inválidas o error de conexión.";
+      if (error.status === 401 || (typeof errorMessage === 'string' && errorMessage.toLowerCase().includes("invalid"))) {
+        toast.error("Credenciales inválidas.");
+      } else {
+        toast.error(errorMessage);
       }
     } finally {
       setLoading(false);
