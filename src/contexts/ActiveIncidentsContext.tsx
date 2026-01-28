@@ -1,24 +1,20 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { useAuth } from "./AuthContext";
-import { apiBackendAction } from "@/lib/api-backend";
-import type { Database } from "@/integrations/supabase/types";
+import {
+  getMyAssignedIncidentesApiV1IncidentesMisAsignacionesGet,
+  getProductoApiV1ProductosProductoIdGet,
+} from "@/generated_sdk";
+import type { IncidenteSchema, ProductoSchema } from "@/generated_sdk/types.gen";
 
-type IncidenteDB = Database['public']['Tables']['incidentes']['Row'];
-
-export interface ActiveIncident extends IncidenteDB {
+export interface ActiveIncident extends IncidenteSchema {
   notificacionesPendientes: number;
   codigo_producto?: string;
-  producto?: {
-    id: number;
-    codigo: string;
-    descripcion: string;
-  };
 }
 
 interface ActiveIncidentsContextType {
   activeIncidents: ActiveIncident[];
   isLoading: boolean;
-  userId: string | null;
+  userId: number | null;
   refreshIncidents: () => Promise<void>;
   removeIncident: (incidenteId: number) => void;
   maxAssignments: number;
@@ -34,10 +30,10 @@ export function ActiveIncidentsProvider({ children }: { children: React.ReactNod
   const { user } = useAuth();
   const [activeIncidents, setActiveIncidents] = useState<ActiveIncident[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [userId, setUserId] = useState<string | null>(null);
+  const [userId, setUserId] = useState<number | null>(null);
 
   const fetchActiveIncidents = useCallback(async () => {
-    if (!user?.email) {
+    if (!user?.id) {
       setActiveIncidents([]);
       setIsLoading(false);
       return;
@@ -45,54 +41,31 @@ export function ActiveIncidentsProvider({ children }: { children: React.ReactNod
 
     setIsLoading(true);
     try {
-      // Get technician by email
-      const { result: usuarioResult } = await apiBackendAction("usuarios.getByEmail", { 
-        email: user.email 
-      });
-      
-      const usuario = usuarioResult as { id: number; auth_uid?: string } | null;
-      
-      if (!usuario) {
-        setActiveIncidents([]);
-        setIsLoading(false);
-        return;
-      }
+      setUserId(user.id);
 
-      setUserId(usuario.auth_uid || user.id);
-
-      // Get technician assignments
-      const { results: asignaciones } = await apiBackendAction("incidente_tecnico.list", { 
-        tecnico_id: usuario.id 
+      const { results: assignedIncidents } = await getMyAssignedIncidentesApiV1IncidentesMisAsignacionesGet({
+        responseStyle: 'data',
       });
 
-      if (!asignaciones || asignaciones.length === 0) {
-        setActiveIncidents([]);
-        setIsLoading(false);
-        return;
-      }
-
-      // Get incident IDs
-      const incidenteIds = asignaciones.map((a: any) => a.incidente_id);
-
-      // Get all incidents
-      const { results: allIncidentes } = await apiBackendAction("incidentes.list", {});
-
-      // Filter to only assigned incidents in active states
+      // Filter to only assigned incidents in active states (if not already filtered by API)
       const activeStates = ['REGISTRADO', 'EN_DIAGNOSTICO', 'PENDIENTE_REPUESTOS', 'EN_REPARACION'];
-      const incidentesAsignados = (allIncidentes || []).filter((inc: any) => 
-        incidenteIds.includes(inc.id) && activeStates.includes(inc.estado)
+      const filteredAssignedIncidents = (assignedIncidents || []).filter((inc: IncidenteSchema) => 
+        activeStates.includes(inc.estado)
       );
 
       // Enrich with product data
       const enrichedIncidents: ActiveIncident[] = await Promise.all(
-        incidentesAsignados.map(async (inc: any) => {
-          let producto = null;
-          if (inc.producto_id) {
+        filteredAssignedIncidents.map(async (inc: IncidenteSchema) => {
+          let producto: ProductoSchema | null = null;
+          if (inc.producto?.id) {
             try {
-              const { result } = await apiBackendAction("productos.get", { id: inc.producto_id });
+              const { result } = await getProductoApiV1ProductosProductoIdGet({
+                path: { producto_id: inc.producto.id },
+                responseStyle: 'data',
+              });
               producto = result;
             } catch (e) {
-              console.warn(`Error fetching producto ${inc.producto_id}:`, e);
+              console.warn(`Error fetching producto ${inc.producto.id}:`, e);
             }
           }
 
@@ -101,8 +74,8 @@ export function ActiveIncidentsProvider({ children }: { children: React.ReactNod
 
           return {
             ...inc,
-            producto,
-            codigo_producto: producto?.codigo,
+            producto: producto || inc.producto, // Use fetched product if available, otherwise original
+            codigo_producto: producto?.codigo || inc.producto?.codigo,
             notificacionesPendientes
           };
         })
@@ -115,7 +88,7 @@ export function ActiveIncidentsProvider({ children }: { children: React.ReactNod
     } finally {
       setIsLoading(false);
     }
-  }, [user?.email, user?.id]);
+  }, [user?.id]);
 
   useEffect(() => {
     fetchActiveIncidents();

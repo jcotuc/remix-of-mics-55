@@ -138,6 +138,29 @@ export type AccesorioUpdateOutput = {
 };
 
 /**
+ * AsignacionSACSchema
+ */
+export type AsignacionSacSchema = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Incidente Id
+     */
+    incidente_id: number;
+    /**
+     * Activo
+     */
+    activo: boolean;
+    usuario: UsuarioAsignadoSchema;
+    /**
+     * Fecha Asignacion
+     */
+    fecha_asignacion: string;
+};
+
+/**
  * BodegaCreateInput
  */
 export type BodegaCreateInput = {
@@ -1767,27 +1790,21 @@ export type HttpValidationError = {
 };
 
 /**
- * IncidenteAsignarTecnicoInput
+ * IncidenteAsignarUsuarioInput
  */
-export type IncidenteAsignarTecnicoInput = {
+export type IncidenteAsignarUsuarioInput = {
     /**
-     * Tecnico Id
+     * User Id
      *
-     * The ID of the technician to assign.
+     * The ID of the user to assign.
      */
-    tecnico_id: number;
-    /**
-     * Es Principal
-     *
-     * Whether the assigned technician is the primary one.
-     */
-    es_principal?: boolean;
+    user_id: number;
 };
 
 /**
- * IncidenteAsignarTecnicoOutput
+ * IncidenteAsignarUsuarioOutput
  */
-export type IncidenteAsignarTecnicoOutput = {
+export type IncidenteAsignarUsuarioOutput = {
     result: IncidenteSchema;
 };
 
@@ -1887,9 +1904,9 @@ export type IncidenteCreateOutput = {
 };
 
 /**
- * IncidenteDesasignarTecnicoOutput
+ * IncidenteDesasignarUsuarioOutput
  */
-export type IncidenteDesasignarTecnicoOutput = {
+export type IncidenteDesasignarUsuarioOutput = {
     result: IncidenteSchema;
 };
 
@@ -2042,9 +2059,9 @@ export type IncidenteSchema = {
      */
     participaciones?: Array<IncidenteParticipacionSchema>;
     /**
-     * Tecnicos
+     * Asignados
      */
-    tecnicos?: Array<IncidenteTecnicoSchema>;
+    asignados?: Array<AsignacionSacSchema>;
     /**
      * Diagnosticos
      */
@@ -2070,29 +2087,6 @@ export type IncidenteSchema = {
      * Updated At
      */
     updated_at?: string | null;
-};
-
-/**
- * IncidenteTecnicoSchema
- */
-export type IncidenteTecnicoSchema = {
-    /**
-     * Id
-     */
-    id: number;
-    /**
-     * Incidente Id
-     */
-    incidente_id: number;
-    /**
-     * Es Principal
-     */
-    es_principal: boolean;
-    tecnico: UsuarioInTecnicoSchema;
-    /**
-     * Created At
-     */
-    created_at: string;
 };
 
 /**
@@ -3360,6 +3354,24 @@ export type UbicacionUpdateOutput = {
 };
 
 /**
+ * UsuarioAsignadoSchema
+ */
+export type UsuarioAsignadoSchema = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Nombre
+     */
+    nombre: string;
+    /**
+     * Email
+     */
+    email: string;
+};
+
+/**
  * UsuarioCreateSchema
  */
 export type UsuarioCreateSchema = {
@@ -3420,24 +3432,6 @@ export type UsuarioInIncidenteParticipacionSchema = {
 };
 
 /**
- * UsuarioInTecnicoSchema
- */
-export type UsuarioInTecnicoSchema = {
-    /**
-     * Id
-     */
-    id: number;
-    /**
-     * Nombre
-     */
-    nombre: string;
-    /**
-     * Email
-     */
-    email: string;
-};
-
-/**
  * UsuarioSchemaWithRoles
  */
 export type UsuarioSchemaWithRoles = {
@@ -3460,7 +3454,7 @@ export type UsuarioSchemaWithRoles = {
     /**
      * Roles
      */
-    roles?: Array<AppSchemasRolRolSchema>;
+    roles?: Array<AppSchemasAuthRolSchema>;
 };
 
 /**
@@ -3617,6 +3611,28 @@ export type ZigoDireccionSchema = {
 };
 
 /**
+ * RolSchema
+ */
+export type AppSchemasAuthRolSchema = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Nombre
+     */
+    nombre: string;
+    /**
+     * Slug
+     */
+    slug: string;
+    /**
+     * Descripcion
+     */
+    descripcion?: string | null;
+};
+
+/**
  * UsuarioSchema
  */
 export type AppSchemasAuthUsuarioSchema = {
@@ -3655,30 +3671,8 @@ export type AppSchemasAuthUsuarioSchema = {
     /**
      * Roles
      */
-    roles?: Array<AppSchemasRolRolSchema>;
+    roles?: Array<AppSchemasAuthRolSchema>;
     centro_de_servicio?: CentroDeServicioSchema | null;
-};
-
-/**
- * RolSchema
- */
-export type AppSchemasRolRolSchema = {
-    /**
-     * Id
-     */
-    id: number;
-    /**
-     * Nombre
-     */
-    nombre: string;
-    /**
-     * Slug
-     */
-    slug: string;
-    /**
-     * Descripcion
-     */
-    descripcion?: string | null;
 };
 
 /**
@@ -4434,6 +4428,41 @@ export type GetIncidentesApiV1IncidentesGetData = {
          */
         cola_de_reparacion?: boolean;
         /**
+         * Q
+         *
+         *
+         * Advanced search query for incidents.
+         * Format: `key=value&key2=value2`.
+         * Supports direct incident fields and namespaced fields for related entities.
+         * Search is case-insensitive and uses 'contains' logic for string fields (SQL `ILIKE`).
+         *
+         * **Direct Incident Fields:**
+         * *   `codigo`: Incident code. E.g., `q=codigo=INC-2023-001`
+         * *   `observaciones`: Keywords in observations. E.g., `q=observaciones=urgente`
+         * *   `descripcion_problema`: Keywords in problem description. E.g., `q=descripcion_problema=no%20enciende`
+         * *   `tracking_token`: Tracking token. E.g., `q=tracking_token=a1b2c3d4-e5f6-...`
+         *
+         * **Namespaced Fields (related entities):**
+         * *   `cliente.nombre`: Client's name. E.g., `q=cliente.nombre=Juan%20Perez`
+         * *   `cliente.nit`: Client's NIT. E.g., `q=cliente.nit=123456789`
+         * *   `cliente.telefono_principal`: Client's primary phone. E.g., `q=cliente.telefono_principal=555-1234`
+         * *   `cliente.correo`: Client's email. E.g., `q=cliente.correo=juan.perez@example.com`
+         * *   `cliente.direccion`: Client's address. E.g., `q=cliente.direccion=123%20Main%20St`
+         * *   `cliente.codigo_sap`: Client's SAP code. E.g., `q=cliente.codigo_sap=SAP-001`
+         * *   `propietario.nombre`: Owner's name. E.g., `q=propietario.nombre=Maria%20Garcia`
+         * *   `propietario.dpi`: Owner's DPI. E.g., `q=propietario.dpi=987654321`
+         * *   `propietario.telefono`: Owner's phone. E.g., `q=propietario.telefono=555-5678`
+         * *   `propietario.email`: Owner's email. E.g., `q=propietario.email=maria.g@example.com`
+         *
+         * **Combined Examples:**
+         * *   `q=cliente.nombre=Pedro&observaciones=urgente`
+         * *   `q=codigo=XYZ-ABC&propietario.dpi=1234567`
+         *
+         * Note: URL-encode spaces and special characters in values (e.g., space becomes `%20`).
+         *
+         */
+        q?: string | null;
+        /**
          * Skip
          */
         skip?: number;
@@ -4487,6 +4516,40 @@ export type CreateIncidenteApiV1IncidentesPostResponses = {
 };
 
 export type CreateIncidenteApiV1IncidentesPostResponse = CreateIncidenteApiV1IncidentesPostResponses[keyof CreateIncidenteApiV1IncidentesPostResponses];
+
+export type GetMyAssignedIncidentesApiV1IncidentesMisAsignacionesGetData = {
+    body?: never;
+    path?: never;
+    query?: {
+        /**
+         * Skip
+         */
+        skip?: number;
+        /**
+         * Limit
+         */
+        limit?: number;
+    };
+    url: '/api/v1/incidentes/mis-asignaciones';
+};
+
+export type GetMyAssignedIncidentesApiV1IncidentesMisAsignacionesGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+};
+
+export type GetMyAssignedIncidentesApiV1IncidentesMisAsignacionesGetError = GetMyAssignedIncidentesApiV1IncidentesMisAsignacionesGetErrors[keyof GetMyAssignedIncidentesApiV1IncidentesMisAsignacionesGetErrors];
+
+export type GetMyAssignedIncidentesApiV1IncidentesMisAsignacionesGetResponses = {
+    /**
+     * Successful Response
+     */
+    200: IncidenteMisAsignacionesOutput;
+};
+
+export type GetMyAssignedIncidentesApiV1IncidentesMisAsignacionesGetResponse = GetMyAssignedIncidentesApiV1IncidentesMisAsignacionesGetResponses[keyof GetMyAssignedIncidentesApiV1IncidentesMisAsignacionesGetResponses];
 
 export type DeleteIncidenteApiV1IncidentesIncidenteIdDeleteData = {
     body?: never;
@@ -4578,8 +4641,8 @@ export type UpdateIncidenteApiV1IncidentesIncidenteIdPatchResponses = {
 
 export type UpdateIncidenteApiV1IncidentesIncidenteIdPatchResponse = UpdateIncidenteApiV1IncidentesIncidenteIdPatchResponses[keyof UpdateIncidenteApiV1IncidentesIncidenteIdPatchResponses];
 
-export type AssignTechnicianToIncidenteApiV1IncidentesIncidenteIdTecnicosPostData = {
-    body: IncidenteAsignarTecnicoInput;
+export type AssignUserToIncidenteApiV1IncidentesIncidenteIdAsignadosPostData = {
+    body: IncidenteAsignarUsuarioInput;
     path: {
         /**
          * Incidente Id
@@ -4587,28 +4650,28 @@ export type AssignTechnicianToIncidenteApiV1IncidentesIncidenteIdTecnicosPostDat
         incidente_id: number;
     };
     query?: never;
-    url: '/api/v1/incidentes/{incidente_id}/tecnicos';
+    url: '/api/v1/incidentes/{incidente_id}/asignados';
 };
 
-export type AssignTechnicianToIncidenteApiV1IncidentesIncidenteIdTecnicosPostErrors = {
+export type AssignUserToIncidenteApiV1IncidentesIncidenteIdAsignadosPostErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type AssignTechnicianToIncidenteApiV1IncidentesIncidenteIdTecnicosPostError = AssignTechnicianToIncidenteApiV1IncidentesIncidenteIdTecnicosPostErrors[keyof AssignTechnicianToIncidenteApiV1IncidentesIncidenteIdTecnicosPostErrors];
+export type AssignUserToIncidenteApiV1IncidentesIncidenteIdAsignadosPostError = AssignUserToIncidenteApiV1IncidentesIncidenteIdAsignadosPostErrors[keyof AssignUserToIncidenteApiV1IncidentesIncidenteIdAsignadosPostErrors];
 
-export type AssignTechnicianToIncidenteApiV1IncidentesIncidenteIdTecnicosPostResponses = {
+export type AssignUserToIncidenteApiV1IncidentesIncidenteIdAsignadosPostResponses = {
     /**
      * Successful Response
      */
-    200: IncidenteAsignarTecnicoOutput;
+    200: IncidenteAsignarUsuarioOutput;
 };
 
-export type AssignTechnicianToIncidenteApiV1IncidentesIncidenteIdTecnicosPostResponse = AssignTechnicianToIncidenteApiV1IncidentesIncidenteIdTecnicosPostResponses[keyof AssignTechnicianToIncidenteApiV1IncidentesIncidenteIdTecnicosPostResponses];
+export type AssignUserToIncidenteApiV1IncidentesIncidenteIdAsignadosPostResponse = AssignUserToIncidenteApiV1IncidentesIncidenteIdAsignadosPostResponses[keyof AssignUserToIncidenteApiV1IncidentesIncidenteIdAsignadosPostResponses];
 
-export type DesassignTechnicianFromIncidenteApiV1IncidentesIncidenteIdTecnicosTecnicoIdDeleteData = {
+export type DesassignUserFromIncidenteApiV1IncidentesIncidenteIdAsignadosUserIdDeleteData = {
     body?: never;
     path: {
         /**
@@ -4616,65 +4679,31 @@ export type DesassignTechnicianFromIncidenteApiV1IncidentesIncidenteIdTecnicosTe
          */
         incidente_id: number;
         /**
-         * Tecnico Id
+         * User Id
          */
-        tecnico_id: number;
+        user_id: number;
     };
     query?: never;
-    url: '/api/v1/incidentes/{incidente_id}/tecnicos/{tecnico_id}';
+    url: '/api/v1/incidentes/{incidente_id}/asignados/{user_id}';
 };
 
-export type DesassignTechnicianFromIncidenteApiV1IncidentesIncidenteIdTecnicosTecnicoIdDeleteErrors = {
+export type DesassignUserFromIncidenteApiV1IncidentesIncidenteIdAsignadosUserIdDeleteErrors = {
     /**
      * Validation Error
      */
     422: HttpValidationError;
 };
 
-export type DesassignTechnicianFromIncidenteApiV1IncidentesIncidenteIdTecnicosTecnicoIdDeleteError = DesassignTechnicianFromIncidenteApiV1IncidentesIncidenteIdTecnicosTecnicoIdDeleteErrors[keyof DesassignTechnicianFromIncidenteApiV1IncidentesIncidenteIdTecnicosTecnicoIdDeleteErrors];
+export type DesassignUserFromIncidenteApiV1IncidentesIncidenteIdAsignadosUserIdDeleteError = DesassignUserFromIncidenteApiV1IncidentesIncidenteIdAsignadosUserIdDeleteErrors[keyof DesassignUserFromIncidenteApiV1IncidentesIncidenteIdAsignadosUserIdDeleteErrors];
 
-export type DesassignTechnicianFromIncidenteApiV1IncidentesIncidenteIdTecnicosTecnicoIdDeleteResponses = {
+export type DesassignUserFromIncidenteApiV1IncidentesIncidenteIdAsignadosUserIdDeleteResponses = {
     /**
      * Successful Response
      */
-    200: IncidenteDesasignarTecnicoOutput;
+    200: IncidenteDesasignarUsuarioOutput;
 };
 
-export type DesassignTechnicianFromIncidenteApiV1IncidentesIncidenteIdTecnicosTecnicoIdDeleteResponse = DesassignTechnicianFromIncidenteApiV1IncidentesIncidenteIdTecnicosTecnicoIdDeleteResponses[keyof DesassignTechnicianFromIncidenteApiV1IncidentesIncidenteIdTecnicosTecnicoIdDeleteResponses];
-
-export type GetMyAssignedIncidentesApiV1IncidentesMisAsignacionesGetData = {
-    body?: never;
-    path?: never;
-    query?: {
-        /**
-         * Skip
-         */
-        skip?: number;
-        /**
-         * Limit
-         */
-        limit?: number;
-    };
-    url: '/api/v1/incidentes/mis-asignaciones';
-};
-
-export type GetMyAssignedIncidentesApiV1IncidentesMisAsignacionesGetErrors = {
-    /**
-     * Validation Error
-     */
-    422: HttpValidationError;
-};
-
-export type GetMyAssignedIncidentesApiV1IncidentesMisAsignacionesGetError = GetMyAssignedIncidentesApiV1IncidentesMisAsignacionesGetErrors[keyof GetMyAssignedIncidentesApiV1IncidentesMisAsignacionesGetErrors];
-
-export type GetMyAssignedIncidentesApiV1IncidentesMisAsignacionesGetResponses = {
-    /**
-     * Successful Response
-     */
-    200: IncidenteMisAsignacionesOutput;
-};
-
-export type GetMyAssignedIncidentesApiV1IncidentesMisAsignacionesGetResponse = GetMyAssignedIncidentesApiV1IncidentesMisAsignacionesGetResponses[keyof GetMyAssignedIncidentesApiV1IncidentesMisAsignacionesGetResponses];
+export type DesassignUserFromIncidenteApiV1IncidentesIncidenteIdAsignadosUserIdDeleteResponse = DesassignUserFromIncidenteApiV1IncidentesIncidenteIdAsignadosUserIdDeleteResponses[keyof DesassignUserFromIncidenteApiV1IncidentesIncidenteIdAsignadosUserIdDeleteResponses];
 
 export type CambiarEstadoIncidenteApiV1IncidentesIncidenteIdCambiarEstadoPostData = {
     body: IncidenteCambiarEstadoInput;
@@ -6349,7 +6378,7 @@ export type GetAllRolesApiV1RolesGetResponses = {
      *
      * Successful Response
      */
-    200: Array<AppSchemasRolRolSchema>;
+    200: Array<AppSchemasAuthRolSchema>;
 };
 
 export type GetAllRolesApiV1RolesGetResponse = GetAllRolesApiV1RolesGetResponses[keyof GetAllRolesApiV1RolesGetResponses];

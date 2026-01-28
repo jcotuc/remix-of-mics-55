@@ -23,9 +23,10 @@
 
 #### Phase 2: Core Incident Workflow
 
--   [ ] **Incident Detail View:** `src/pages/DetalleIncidente.tsx` - **New Implementation Required**
-    -   This component is currently a placeholder.
-    -   A new implementation will be needed, using the SDK from the start.
+-   [x] **Incident Detail View:** `src/pages/DetalleIncidente.tsx` - *Completed*
+    -   This component is now implemented using the SDK.
+-   [x] **Active Incidents Context:** `src/contexts/ActiveIncidentsContext.tsx` - *Completed*
+    -   Replaced legacy `apiBackendAction` calls with `getMyAssignedIncidentesApiV1IncidentesMisAsignacionesGet` and `getProductoApiV1ProductosProductoIdGet`.
 -   [ ] **New Incident Form:** `src/pages/NuevoIncidente.tsx`
     -   Replace `apiBackendAction("clientes.search", ...)` with `listClientesApiV1ClientesGet(...)`.
     -   Replace `apiBackendAction("incidentes.create", ...)` with `createIncidenteApiV1IncidentesPost(...)`.
