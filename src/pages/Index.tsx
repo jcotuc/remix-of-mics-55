@@ -6,9 +6,9 @@ import { Search, Calendar, Hash, Wrench, X } from "lucide-react";
 import { StatusBadge } from "@/components/shared";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { apiBackendAction } from "@/lib/api";
 import { withTimeout } from "@/utils/withTimeout";
-import type { IncidenteSchema } from "@/generated_sdk/types.gen";
-import { getIncidentesApiV1IncidentesGet } from "@/generated_sdk/sdk.gen";
+import type { IncidenteSchema } from "@/generated/actions.d";
 import {
   WelcomeHeader,
   UrgentAlerts,
@@ -34,11 +34,11 @@ const Index = () => {
     try {
       setLoading(true);
       const response = await withTimeout(
-        getIncidentesApiV1IncidentesGet({ query: { limit: 300 } }),
+        apiBackendAction("incidentes.list", { limit: 500 }),
         8000,
-        "getIncidentesApiV1IncidentesGet",
+        "incidentes.list",
       );
-      setIncidentes(response.results || []);
+      setIncidentes(response.results);
     } catch (error) {
       console.error('Error:', error);
     } finally {

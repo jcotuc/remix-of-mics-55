@@ -2,88 +2,11 @@
 // Typed backend action facade over Supabase operations
 
 import type { ActionRegistry, ActionName } from "./api-registry";
-import {
-  listClientesApiV1ClientesGet,
-  getClienteApiV1ClientesClienteIdGet,
-  createClienteApiV1ClientesPost,
-  updateClienteApiV1ClientesClienteIdPatch,
-  deleteClienteApiV1ClientesClienteIdDelete,
-  listProductosApiV1ProductosGet,
-  getProductoApiV1ProductosProductoIdGet,
-  createProductoApiV1ProductosPost,
-  updateProductoApiV1ProductosProductoIdPatch,
-  deleteProductoApiV1ProductosProductoIdDelete,
-  getIncidentesApiV1IncidentesGet,
-  getIncidenteApiV1IncidentesIncidenteIdGet,
-  createIncidenteApiV1IncidentesPost,
-  updateIncidenteApiV1IncidentesIncidenteIdPatch,
-  deleteIncidenteApiV1IncidentesIncidenteIdDelete,
-  getAllAccesoriosApiV1AccesoriosGet,
-  getAccesorioApiV1AccesoriosAccesorioIdGet,
-  createAccesorioApiV1AccesoriosPost,
-  updateAccesorioApiV1AccesoriosAccesorioIdPatch,
-  deleteAccesorioApiV1AccesoriosAccesorioIdDelete,
-  searchAccesoriosApiV1AccesoriosSearchGet,
-  getAllCausasApiV1CausasGet,
-  getCausaByIdApiV1CausasCausaIdGet,
-  createCausaApiV1CausasPost,
-  updateCausaApiV1CausasCausaIdPatch,
-  deleteCausaApiV1CausasCausaIdDelete,
-  searchCausasApiV1CausasSearchGet,
-  getAllRepuestosApiV1RepuestosGet,
-  getRepuestoByIdApiV1RepuestosRepuestoIdGet,
-  createRepuestoApiV1RepuestosPost,
-  updateRepuestoApiV1RepuestosRepuestoIdPatch,
-  deleteRepuestoApiV1RepuestosRepuestoIdDelete,
-  getAllBodegasApiV1BodegasGet,
-  getBodegaApiV1BodegasBodegaIdGet,
-  createBodegaApiV1BodegasPost,
-  updateBodegaApiV1BodegasBodegaIdPatch,
-  deleteBodegaApiV1BodegasBodegaIdDelete,
-  searchBodegasApiV1BodegasSearchGet,
-  getAllFamiliasProductoApiV1FamiliasProductoGet,
-  getFamiliaProductoApiV1FamiliasProductoFamiliaProductoIdGet,
-  createFamiliaProductoApiV1FamiliasProductoPost,
-  updateFamiliaProductoApiV1FamiliasProductoFamiliaProductoIdPatch,
-  deleteFamiliaProductoApiV1FamiliasProductoFamiliaProductoIdDelete,
-  getAllCentrosDeServicioApiV1CentrosDeServicioGet,
-  getCentroDeServicioApiV1CentrosDeServicioCentroDeServicioIdGet,
-  createCentroDeServicioApiV1CentrosDeServicioPost,
-  updateCentroDeServicioApiV1CentrosDeServicioCentroDeServicioIdPatch,
-  deleteCentroDeServicioApiV1CentrosDeServicioCentroDeServicioIdDelete,
-  getAllMovimientosApiV1MovimientosInventarioGet,
-  getMovimientoApiV1MovimientosInventarioMovimientoIdGet,
-  createMovimientoApiV1MovimientosInventarioPost,
-  deleteMovimientoApiV1MovimientosInventarioMovimientoIdDelete,
-  getAllGruposColaFifoApiV1GruposColaFifoGet,
-  getGrupoColaFifoApiV1GruposColaFifoGrupoColaFifoIdGet,
-  createGrupoColaFifoApiV1GruposColaFifoPost,
-  updateGrupoColaFifoApiV1GruposColaFifoGrupoColaFifoIdPut,
-  deleteGrupoColaFifoApiV1GruposColaFifoGrupoColaFifoIdDelete,
-  getGrupoColaFifoFamiliasApiV1GruposColaFifoGrupoIdFamiliasGet,
-  createGrupoColaFifoFamiliaApiV1GruposColaFifoGrupoIdFamiliasPost,
-  deleteGrupoColaFifoFamiliaApiV1GruposColaFifoGrupoIdFamiliasGrupoFamiliaIdDelete,
-  getAllUbicacionesApiV1UbicacionesGet,
-  getUbicacionApiV1UbicacionesUbicacionIdGet,
-  createUbicacionApiV1UbicacionesPost,
-  updateUbicacionApiV1UbicacionesUbicacionIdPatch,
-  deleteUbicacionApiV1UbicacionesUbicacionIdDelete,
-  getAllUsersApiV1UsuariosGet,
-  getAllRolesApiV1RolesGet,
-  getAllGuiasApiV1GuiasGet,
-  getGuiaByIdApiV1GuiasGuiaIdGet,
-  createGuiaApiV1GuiasPost,
-  updateGuiaApiV1GuiasGuiaIdPatch,
-  deleteGuiaApiV1GuiasGuiaIdDelete,
-  // Diagnosticos
-  getDiagnosticosIncidenteApiV1IncidentesIncidenteIdDiagnosticosGet,
-  createDiagnosticoApiV1IncidentesIncidenteIdDiagnosticosPost,
-  updateDiagnosticoApiV1IncidentesIncidenteIdDiagnosticosDiagnosticoIdPatch,
-  deleteDiagnosticoApiV1IncidentesIncidenteIdDiagnosticosDiagnosticoIdDelete,
-  getDiagnosticoDraftApiV1IncidentesIncidenteIdDiagnosticosDraftGet,
-  createDiagnosticoDraftApiV1IncidentesIncidenteIdDiagnosticosDraftPost,
-  // Other SDK functions as needed
-} from "@/generated_sdk";
+
+
+
+import { supabase } from "@/lib/supabase";
+
 
 
 type ActionHandler<K extends ActionName> = (input: ActionRegistry[K]["input"]) => Promise<ActionRegistry[K]["output"]>;
@@ -91,6 +14,18 @@ type ActionHandler<K extends ActionName> = (input: ActionRegistry[K]["input"]) =
 const notImplemented = (action: string) => async () => {
   throw new Error(`Action "${action}" is not implemented yet`);
 };
+
+// Generic fetch utility that includes credentials
+async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
+  const response = await fetch(url, { ...options, credentials: 'include' });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || response.statusText);
+  }
+
+  return response.json();
+}
 
 // =============================================================================
 // CLIENTES HANDLERS
@@ -152,44 +87,57 @@ const clientesHandlers: Record<string, ActionHandler<any>> = {
 const productosHandlers: Record<string, ActionHandler<any>> = {
   "productos.list": async (input) => {
     const { skip = 0, limit = 50 } = input;
-    const response = await listProductosApiV1ProductosGet({
-      query: { skip, limit },
-      responseStyle: 'data',
-    });
+    const url = `/api/v1/productos/?skip=${skip}&limit=${limit}`;
+    const response = await apiFetch<any>(url);
     return { results: response.results, total: response.total };
   },
   "productos.get": async (input) => {
-    const response = await getProductoApiV1ProductosProductoIdGet({
-      path: { producto_id: input.id },
-      responseStyle: 'data',
-    });
-    return { result: response.result };
+    const url = `/api/v1/productos/${input.id}`;
+    const response = await apiFetch<any>(url);
+    return { result: response };
   },
   "productos.create": async (input) => {
-    const response = await createProductoApiV1ProductosPost({
-      body: input,
-      responseStyle: 'data',
+    const url = `/api/v1/productos/`;
+    const response = await apiFetch<any>(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
     });
-    return { result: response.result };
+    return { result: response };
   },
   "productos.update": async (input) => {
     const { id, ...updateData } = input as any;
-    const response = await updateProductoApiV1ProductosProductoIdPatch({
-      path: { producto_id: id },
-      body: updateData,
-      responseStyle: 'data',
+    const url = `/api/v1/productos/${id}`;
+    const response = await apiFetch<any>(url, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updateData),
     });
-    return { result: response.result };
+    return { result: response };
   },
   "productos.delete": async (input) => {
-    await deleteProductoApiV1ProductosProductoIdDelete({
-      path: { producto_id: input.id },
-      responseStyle: 'data',
+    const url = `/api/v1/productos/${input.id}`;
+    await apiFetch<any>(url, {
+      method: 'DELETE',
     });
     return { status: "deleted", id: input.id };
   },
-  "productos.getByCodigo": notImplemented("productos.getByCodigo"), // This action is not directly in SDK, requires a custom search
-  "productos.listAlternativos": notImplemented("productos.listAlternativos"), // Custom logic not in SDK directly
+  "productos.getByCodigo": async (input) => {
+    const { codigo } = input;
+    const url = `/api/v1/productos/?codigo=${codigo}`;
+    const response = await apiFetch<any>(url);
+    // Assuming the backend returns a list, and we need the first one
+    return { result: response.results && response.results.length > 0 ? response.results[0] : null };
+  },
+  "productos.listAlternativos": async (input) => {
+    const { exclude_familia_id, descontinuado = false } = input as any;
+    let url = `/api/v1/productos/?descontinuado=${descontinuado}`;
+    if (exclude_familia_id) {
+      url += `&exclude_familia_id=${exclude_familia_id}`;
+    }
+    const response = await apiFetch<any>(url);
+    return { results: response.results };
+  },
 };
 
 // =============================================================================
@@ -198,42 +146,46 @@ const productosHandlers: Record<string, ActionHandler<any>> = {
 const incidentesHandlers: Record<string, ActionHandler<any>> = {
   "incidentes.list": async (input) => {
     const { skip = 0, limit = 100 } = input;
-    const response = await getIncidentesApiV1IncidentesGet({
-      query: { skip, limit },
-      responseStyle: 'data',
-    });
-    // SDK IncidenteSchema already includes nested objects, so no manual mapping needed
-    return { results: response.results };
+    const url = `/api/v1/incidentes/?skip=${skip}&limit=${limit}`;
+    const response = await apiFetch<any>(url);
+    return { results: response.results, total: response.total };
   },
   "incidentes.get": async (input) => {
-    const response = await getIncidenteApiV1IncidentesIncidenteIdGet({
-      path: { incidente_id: input.id },
-      responseStyle: 'data',
-    });
-    return { result: response.result };
+    const url = `/api/v1/incidentes/${input.id}`;
+    const response = await apiFetch<any>(url);
+    return { result: response };
   },
   "incidentes.create": async (input) => {
-    const response = await createIncidenteApiV1IncidentesPost({
-      body: input,
-      responseStyle: 'data',
+    const url = `/api/v1/incidentes/`;
+    const response = await apiFetch<any>(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
     });
-    return { result: response.result };
+    return { result: response };
   },
   "incidentes.update": async (input) => {
     const { id, ...updateData } = input as any;
-    const response = await updateIncidenteApiV1IncidentesIncidenteIdPatch({
-      path: { incidente_id: id },
-      body: updateData,
-      responseStyle: 'data',
+    const url = `/api/v1/incidentes/${id}`;
+    const response = await apiFetch<any>(url, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updateData),
     });
-    return { result: response.result };
+    return { result: response };
   },
   "incidentes.delete": async (input) => {
-    await deleteIncidenteApiV1IncidentesIncidenteIdDelete({
-      path: { incidente_id: input.id },
-      responseStyle: 'data',
+    const url = `/api/v1/incidentes/${input.id}`;
+    await apiFetch<any>(url, {
+      method: 'DELETE',
     });
     return { status: "deleted", id: input.id };
+  },
+  "incidentes.listMyAssigned": async (input) => {
+    const { skip = 0, limit = 100 } = input;
+    const url = `/api/v1/incidentes/mis-asignaciones?skip=${skip}&limit=${limit}`;
+    const response = await apiFetch<any>(url);
+    return { results: response.results, total: response.total };
   },
 };
 

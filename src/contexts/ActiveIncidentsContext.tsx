@@ -1,10 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { useAuth } from "./AuthContext";
-import {
-  getMyAssignedIncidentesApiV1IncidentesMisAsignacionesGet,
-  getProductoApiV1ProductosProductoIdGet,
-} from "@/generated_sdk";
-import type { IncidenteSchema, ProductoSchema } from "@/generated_sdk/types.gen";
+import { apiBackendAction } from "../lib/api-backend";
+import type { IncidenteSchema, ProductoSchema } from "../api"; // Assuming types are here or will be defined
 
 export interface ActiveIncident extends IncidenteSchema {
   notificacionesPendientes: number;
@@ -43,9 +40,7 @@ export function ActiveIncidentsProvider({ children }: { children: React.ReactNod
     try {
       setUserId(user.id);
 
-      const { results: assignedIncidents } = await getMyAssignedIncidentesApiV1IncidentesMisAsignacionesGet({
-        responseStyle: 'data',
-      });
+      const { results: assignedIncidents } = await apiBackendAction("incidentes.listMyAssigned", { skip: 0, limit: 100 });
 
       // Filter to only assigned incidents in active states (if not already filtered by API)
       const activeStates = ['REGISTRADO', 'EN_DIAGNOSTICO', 'PENDIENTE_REPUESTOS', 'EN_REPARACION'];
@@ -59,10 +54,7 @@ export function ActiveIncidentsProvider({ children }: { children: React.ReactNod
           let producto: ProductoSchema | null = null;
           if (inc.producto?.id) {
             try {
-              const { result } = await getProductoApiV1ProductosProductoIdGet({
-                path: { producto_id: inc.producto.id },
-                responseStyle: 'data',
-              });
+              const { result } = await apiBackendAction("productos.get", { id: inc.producto.id });
               producto = result;
             } catch (e) {
               console.warn(`Error fetching producto ${inc.producto.id}:`, e);
