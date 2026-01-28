@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { apiBackendAction } from "@/lib/api";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { MapPin } from "lucide-react";
+import { authService } from "@/lib/authService";
+import type { AuthenticatedUser } from "@/lib/authService";
 
 function getGreeting(): string {
   const hour = new Date().getHours();
@@ -23,8 +24,7 @@ export function WelcomeHeader() {
       if (!user?.email) return;
       
       try {
-        const response = await apiBackendAction("auth.me", {});
-        const profile = response.result;
+        const profile: AuthenticatedUser | null = await authService.getCurrentUser();
         if (profile) {
           // Set user name - try nombre first, then combine with apellido if available
           const fullName = profile.apellido 
