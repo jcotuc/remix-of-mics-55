@@ -20,6 +20,8 @@
 -   [x] **Client Detail View:** `src/pages/DetalleCliente.tsx` - *Completed*
     -   Replace `apiBackendAction("clientes.get", ...)` with `getClienteApiV1ClientesClienteIdGet(...)`.
     -   Update client and related type imports.
+-   [x] **Client Unified View:** `src/pages/ClientesUnificado.tsx` - *Completed*
+    -   Resolved API response destructuring for `listClientesApiV1ClientesGet`.
 
 #### Phase 2: Core Incident Workflow
 
@@ -44,3 +46,17 @@
 -   [ ] **Final Review:**
     -   Run a full project search for `apiBackendAction` and `src/generated/` to ensure no remnants are left.
     -   Run the application and perform a full regression test of all features.
+
+---
+
+### Best Practices / Lessons Learned from SDK Migration
+
+During the migration to the `@hey-api/openapi-ts` generated SDK, we observed an important pattern regarding API response handling:
+
+*   **Flattened Single-Status Responses:** When the generated client's configuration uses the default `responseStyle: 'fields'` (which returns `{ data, request, response }`), and an API endpoint has only a single successful HTTP status code (e.g., `200 OK`) defined in its OpenAPI specification, the actual API payload is directly accessible via the `data` property of the response object.
+*   **Example:** For an API call like `listClientesApiV1ClientesGet()`, even if its generated response type might conceptually suggest `response.data['200']`, the correct way to access the payload (e.g., `ClienteListOutput` containing `results` and `total`) is directly through `response.data`. For example:
+    ```typescript
+    const { data } = await listClientesApiV1ClientesGet(...);
+    const { results, total } = data; // Directly access results and total from 'data'
+    ```
+*   **Runtime Verification:** Always verify the actual structure of the API response at runtime (e.g., using `console.log`) if destructuring errors or unexpected `undefined` values occur. The generated types might sometimes suggest a more nested structure than what the client library actually provides in practice due to its internal flattening logic.
