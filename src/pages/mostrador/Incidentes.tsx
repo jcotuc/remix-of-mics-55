@@ -57,6 +57,8 @@ export default function IncidentesMostrador() {
       setIncidentesList(incidentesResult.results || []);
       setClientesList(clientesResult.results || []);
       setProductosList(productosResult.results || []);
+
+      console.log(">>>> incidentesResult", incidentesResult);
       
       // TODO: Cargar notificaciones usando apiBackendAction
       // try {
