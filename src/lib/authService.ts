@@ -11,8 +11,8 @@ interface AuthService {
 export const authService: AuthService = {
   async login(credentials) {
     try {
-      const response = await apiBackendAction("auth.login", credentials);
-      return response.user || null;
+      const response = await apiBackendAction("auth.login", credentials) as { success: boolean; message: string; user?: unknown };
+      return (response.user as AuthenticatedUser) || null;
     } catch (error) {
       console.error("Login error:", error);
       throw error;

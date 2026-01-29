@@ -43,8 +43,8 @@ export function PasoFisica({ familiaProductoId, respuestas, onRespuestaChange }:
         familia_producto_id: familiaProductoId,
         seccion: "fisica",
         activo: true,
-      });
-      setPreguntas((results || []).sort((a: PreguntaAuditoria, b: PreguntaAuditoria) => a.orden - b.orden));
+      }) as { results: PreguntaAuditoria[] };
+      setPreguntas((results || []).sort((a, b) => a.orden - b.orden));
     } catch (error) {
       console.error("Error fetching preguntas físicas:", error);
     } finally {

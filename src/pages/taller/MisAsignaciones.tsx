@@ -60,7 +60,7 @@ export default function MisAsignaciones() {
       return;
     }
 
-    setUserId(user.id);
+    setUserId(String(user.id));
     setUserEmail(user.email);
   }, [authLoading, user?.id, user?.email, navigate]);
 

@@ -29,8 +29,8 @@ export function PasoDocumental({ respuestas, onRespuestaChange }: PasoDocumental
       const { results } = await apiBackendAction("preguntas_auditoria.list", {
         seccion: "documental",
         activo: true,
-      });
-      setPreguntas((results || []).sort((a: PreguntaAuditoria, b: PreguntaAuditoria) => a.orden - b.orden));
+      }) as { results: PreguntaAuditoria[] };
+      setPreguntas((results || []).sort((a, b) => a.orden - b.orden));
     } catch (error) {
       console.error("Error fetching preguntas documentales:", error);
     } finally {

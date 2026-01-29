@@ -49,16 +49,17 @@ export function PasoSeleccion({
       try {
         const verRes = await apiBackendAction("verificaciones_reincidencia.getByIncidente", {
           incidente_id: found.id,
-        });
+        }) as { result: any | null };
         if (verRes.result) {
+          const vr = verRes.result;
           verificacionExistente = {
-            ...verRes.result,
-            evidencias_urls: [],
-            problema_actual: null,
-            problema_anterior: null,
-            dias_desde_reparacion: null,
-            created_at: verRes.result.verificado_at,
-            updated_at: verRes.result.verificado_at,
+            ...vr,
+            evidencias_urls: vr.evidencias_urls || [],
+            problema_actual: vr.problema_actual || null,
+            problema_anterior: vr.problema_anterior || null,
+            dias_desde_reparacion: vr.dias_desde_reparacion || null,
+            created_at: vr.verificado_at || vr.created_at,
+            updated_at: vr.verificado_at || vr.updated_at,
           };
         }
       } catch {

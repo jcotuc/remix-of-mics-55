@@ -27,14 +27,17 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/shared";
 
 import { apiBackendAction } from "@/lib/api-backend";
-import type { Incidente } from "@/lib/api-registry";
+import { formatFechaHora } from "@/utils/dateFormatters";
+
+// Alias for legacy function name
+const formatFechaConHora = formatFechaHora;
 
 export default function DetalleIncidente() {
   const { incidenteId } = useParams<{ incidenteId: string }>();
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(true);
-  const [incidente, setIncidente] = useState<Incidente | null>(null);
+  const [incidente, setIncidente] = useState<any>(null);
 
   useEffect(() => {
     if (incidenteId) {

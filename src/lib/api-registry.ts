@@ -651,9 +651,31 @@ export interface ActionRegistry {
   "productos.listAlternativos": { input: { exclude_familia_id?: number; descontinuado?: boolean }; output: { results: unknown[] } };
 
   // =============================================================================
+  // INCIDENTES (extended)
+  // =============================================================================
+  "incidentes.listMyAssigned": { input: { skip?: number; limit?: number }; output: { results: unknown[]; total: number } };
+  "incidentes.search": { input: { search?: string; limit?: number }; output: { results: unknown[] } };
+
+  // =============================================================================
+  // PREGUNTAS AUDITORIA
+  // =============================================================================
+  "preguntas_auditoria.list": { input: { seccion?: string; activo?: boolean; familia_producto_id?: number }; output: { results: unknown[] } };
+
+  // =============================================================================
+  // AUDITORIA RESPUESTAS
+  // =============================================================================
+  "auditoria_respuestas.createBatch": { input: { auditoria_id: number; respuestas: Array<{ pregunta_id: number; respuesta: string }> }; output: unknown };
+
+  // =============================================================================
+  // VERIFICACIONES REINCIDENCIA
+  // =============================================================================
+  "verificaciones_reincidencia.getByIncidente": { input: { incidente_id: number }; output: { result: unknown | null } };
+  "verificaciones_reincidencia.create": { input: Record<string, unknown>; output: unknown };
+
+  // =============================================================================
   // AUTH
   // =============================================================================
-  "auth.login": { input: { email: string; password: string }; output: { success: boolean; message: string } };
+  "auth.login": { input: { email: string; password: string }; output: { success: boolean; message: string; user?: unknown } };
   "auth.logout": { input: Record<string, never>; output: { success: boolean } };
   "auth.getSession": { input: Record<string, never>; output: { session: unknown | null } };
   "auth.getUser": { input: Record<string, never>; output: { user: { id: string; email: string } | null } };
