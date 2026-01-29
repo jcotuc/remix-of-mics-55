@@ -1,6 +1,15 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/contexts/AuthContext";
+import {
+  Search,
+  Eye,
+  AlertTriangle,
+  CheckCircle,
+  Package,
+  PlusCircle,
+  Bell,
+  Phone,
+} from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,16 +17,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import {
-  getIncidentesApiV1IncidentesGet,
-  listClientesApiV1ClientesGet,
-  listProductosApiV1ProductosGet,
-  // Assuming the notifications endpoint is available in the SDK
-  // createNotificacionesClienteApiV1NotificacionesClientePost, 
-  // getAllNotificacionesClienteApiV1NotificacionesClienteGet 
-} from "@/generated_sdk";
-import type { IncidenteSchema, ClienteSchema, ProductoSchema } from "@/generated_sdk/types.gen";
-import { AlertTriangle, Bell, CheckCircle, Eye, Package, Phone, PlusCircle, Search } from "lucide-react";
+import { apiBackendAction } from "@/lib/api-backend";
+import type { IncidenteSchema, ClienteSchema, ProductoSchema } from "@/generated/actions.d";
 
 // Notificaciones cliente - interface local ya que puede no estar tipada
 interface NotificacionCliente {
@@ -39,6 +40,7 @@ export default function IncidentesMostrador() {
   const [productosList, setProductosList] = useState<ProductoSchema[]>([]);
   const [notificacionesList, setNotificacionesList] = useState<NotificacionCliente[]>([]);
   const [loading, setLoading] = useState(true);
+  const [userCentroId, setUserCentroId] = useState<number | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -48,25 +50,42 @@ export default function IncidentesMostrador() {
     try {
       setLoading(true);
 
+      // Obtener el centro de servicio del usuario actual
+      let centroServicioId: number | null = null;
+      try {
+        const { result } = await apiBackendAction("auth.me", {});
+        if (result?.centro_de_servicio_id) {
+          centroServicioId = result.centro_de_servicio_id;
+          setUserCentroId(centroServicioId);
+        }
+      } catch (e) {
+        console.warn("No se pudo obtener el centro del usuario:", e);
+      }
+
+      // Usar apiBackendAction en paralelo
       const [incidentesResult, clientesResult, productosResult] = await Promise.all([
-        getIncidentesApiV1IncidentesGet({ query: { limit: 50 }, responseStyle: 'data' }),
-        listClientesApiV1ClientesGet({ query: { limit: 50 }, responseStyle: 'data' }),
-        listProductosApiV1ProductosGet({ query: { limit: 50 }, responseStyle: 'data' }),
+        apiBackendAction("incidentes.list", { limit: 300 }),
+        apiBackendAction("clientes.list", { limit: 300 }),
+        apiBackendAction("productos.list", { limit: 300 }),
       ]);
 
-      setIncidentesList(incidentesResult.results || []);
+      // Filtrar incidentes por centro de servicio del usuario
+      let incidentes = incidentesResult.results || [];
+      if (centroServicioId) {
+        incidentes = incidentes.filter((i: any) => i.centro_de_servicio_id === centroServicioId);
+      }
+
+      setIncidentesList(incidentes);
       setClientesList(clientesResult.results || []);
       setProductosList(productosResult.results || []);
-
-      console.log(">>>> incidentesResult", incidentesResult);
       
-      // TODO: Cargar notificaciones usando apiBackendAction
-      // try {
-      //   const { results } = await getAllNotificacionesClienteApiV1NotificacionesClienteGet({});
-      //   setNotificacionesList(results as NotificacionCliente[] || []);
-      // } catch {
-      //   setNotificacionesList([]);
-      // }
+      // Cargar notificaciones usando apiBackendAction
+      try {
+        const { results } = await apiBackendAction("notificaciones_cliente.list", {});
+        setNotificacionesList(results as NotificacionCliente[] || []);
+      } catch {
+        setNotificacionesList([]);
+      }
     } catch (error) {
       console.error("Error al cargar datos:", error);
       toast.error("Error al cargar los datos");
@@ -138,9 +157,9 @@ export default function IncidentesMostrador() {
   };
 
   // Función para enviar notificaciones masivas
-  const { user } = useAuth();
   const enviarNotificacionesMasivas = async (incidentes: IncidenteSchema[]) => {
     try {
+      const { user } = await apiBackendAction("auth.getUser", {});
       if (!user) {
         toast.error("No se encontró usuario autenticado");
         return;
@@ -154,8 +173,7 @@ export default function IncidentesMostrador() {
         enviado_por: user.id,
       }));
 
-      // This is a placeholder for the actual SDK call, as the function name is not clear
-      // await createNotificacionesClienteApiV1NotificacionesClientePost({ body: notificaciones });
+      await apiBackendAction("notificaciones_cliente.create", notificaciones as any);
 
       toast.success(`${incidentes.length} notificaciones enviadas correctamente`);
       await fetchData();
@@ -176,10 +194,9 @@ export default function IncidentesMostrador() {
           onClick={() => navigate("/mostrador/incidentes/nuevo")}
           size="lg"
           className="shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
-          disabled
         >
           <PlusCircle className="h-5 w-5 mr-2" />
-          Crear Incidente (En desarrollo)
+          Crear Incidente
         </Button>
       </div>
 

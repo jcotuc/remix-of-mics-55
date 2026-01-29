@@ -1,12 +1,9 @@
-import { loginUserApiV1AuthLoginPost, logoutApiV1AuthLogoutPost, readUserMeApiV1AuthMeGet } from "@/generated_sdk";
-import type { AppSchemasAuthUsuarioSchema, LoginUserApiV1AuthLoginPostData } from "@/generated_sdk/types.gen";
-import { client } from "@/generated_sdk/client.gen";
-
-// Custom type for the authenticated user, based on the SDK's schema
-export type AuthenticatedUser = AppSchemasAuthUsuarioSchema;
+import { apiBackendAction } from "./api-backend";
+import { apiFetch } from "./api-backend";
+import type { AuthenticatedUser } from "./types";
 
 interface AuthService {
-  login: (credentials: LoginUserApiV1AuthLoginPostData['body']) => Promise<AuthenticatedUser | null>;
+  login: (credentials: any) => Promise<AuthenticatedUser | null>;
   logout: () => Promise<void>;
   getCurrentUser: () => Promise<AuthenticatedUser | null>;
 }
@@ -14,14 +11,8 @@ interface AuthService {
 export const authService: AuthService = {
   async login(credentials) {
     try {
-      // The Hey API client automatically handles cookies if the server sets them
-      const response = await loginUserApiV1AuthLoginPost({
-        body: credentials,
-        // Ensure responseStyle is 'data' to get the direct user object
-        responseStyle: 'data', 
-      });
-      // Assuming the response is the user data directly when successful
-      return response || null;
+      const response = await apiBackendAction("auth.login", credentials);
+      return response.user || null;
     } catch (error) {
       console.error("Login error:", error);
       throw error;
@@ -30,7 +21,7 @@ export const authService: AuthService = {
 
   async logout() {
     try {
-      await logoutApiV1AuthLogoutPost();
+      await apiBackendAction("auth.logout", {});
     } catch (error) {
       console.error("Logout error:", error);
       throw error;
@@ -39,16 +30,9 @@ export const authService: AuthService = {
 
   async getCurrentUser() {
     try {
-      const response = await readUserMeApiV1AuthMeGet({
-        // Ensure responseStyle is 'data' to get the direct user object
-        responseStyle: 'data',
-      });
-      // The `readUserMeApiV1AuthMeGet` returns the user or null if not authenticated
-      return response || null;
+      const response = await apiBackendAction("auth.me", {});
+      return response.result || null;
     } catch (error) {
-      // Handle cases where the user might not be authenticated (e.g., 401 Unauthorized)
-      // The Hey API client might throw an error for non-2xx responses if throwOnError is true
-      // or return { error: ... } if throwOnError is false (which is the default in types.gen.ts)
       console.error("Get current user error:", error);
       return null;
     }

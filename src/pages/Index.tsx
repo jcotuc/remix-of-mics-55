@@ -34,7 +34,7 @@ const Index = () => {
     try {
       setLoading(true);
       const response = await withTimeout(
-        apiBackendAction("incidentes.list", { limit: 500 }),
+        apiBackendAction("incidentes.list", { limit: 100 }),
         8000,
         "incidentes.list",
       );

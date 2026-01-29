@@ -39,7 +39,7 @@ export default function EntregaMaquinas() {
     if (candidatosIds.length === 0) return { incidentes, fixedIds: [] as number[] };
 
     // 1) Diagnósticos de reparación en garantía para esos incidentes
-    const { results: diagnosticos } = await apiBackendAction("diagnosticos.list", { limit: 2000 });
+    const { results: diagnosticos } = await apiBackendAction("diagnosticos.list", { limit: 300 });
     const garantiaIds = Array.from(
       new Set(
         (diagnosticos || [])
@@ -90,9 +90,9 @@ export default function EntregaMaquinas() {
     try {
       // Fetch incidentes, clientes, y productos en paralelo
       const [incidentesResult, clientesResult, productosResult] = await Promise.all([
-        apiBackendAction("incidentes.list", { limit: 1000 }),
-        apiBackendAction("clientes.list", { limit: 5000 }),
-        apiBackendAction("productos.list", { limit: 2000 }),
+        apiBackendAction("incidentes.list", { limit: 300 }),
+        apiBackendAction("clientes.list", { limit: 300 }),
+        apiBackendAction("productos.list", { limit: 300 }),
       ]);
 
       // Hotfix: si es REPARAR_EN_GARANTIA y NO hay solicitudes_repuestos, debe pasar a REPARADO

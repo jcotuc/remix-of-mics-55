@@ -2,10 +2,13 @@
 // Typed backend action facade over Supabase operations
 
 import type { ActionRegistry, ActionName } from "./api-registry";
+import { list } from "../infra/list";
+import type { AuthenticatedUser } from "./types";
+import { API_BASE_URL } from "@/config/api";
 
 
 
-import { supabase } from "@/lib/supabase";
+// import { supabase } from "@/lib/supabase";
 
 
 
@@ -16,7 +19,7 @@ const notImplemented = (action: string) => async () => {
 };
 
 // Generic fetch utility that includes credentials
-async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
+export async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
   const response = await fetch(url, { ...options, credentials: 'include' });
 
   if (!response.ok) {
@@ -31,15 +34,8 @@ async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {
 // CLIENTES HANDLERS
 // =============================================================================
 const clientesHandlers: Record<string, ActionHandler<any>> = {
-  "clientes.list": async (input) => {
-    const { skip = 0, limit = 50, search = "" } = input;
-    const response = await listClientesApiV1ClientesGet({
-      query: { skip, limit, search },
-      responseStyle: 'data',
-    });
-    // The SDK returns { results, total, skip, limit }, match apiBackendAction output
-    return { results: response.results, total: response.total };
-  },
+  "clientes.list": (input) =>
+    list<any>("clientes", input),
   "clientes.get": async (input) => {
     const response = await getClienteApiV1ClientesClienteIdGet({
       path: { cliente_id: input.id },
@@ -85,19 +81,15 @@ const clientesHandlers: Record<string, ActionHandler<any>> = {
 // PRODUCTOS HANDLERS
 // =============================================================================
 const productosHandlers: Record<string, ActionHandler<any>> = {
-  "productos.list": async (input) => {
-    const { skip = 0, limit = 50 } = input;
-    const url = `/api/v1/productos/?skip=${skip}&limit=${limit}`;
-    const response = await apiFetch<any>(url);
-    return { results: response.results, total: response.total };
-  },
+  "productos.list": (input) =>
+    list<any>("productos", input),
   "productos.get": async (input) => {
-    const url = `/api/v1/productos/${input.id}`;
+    const url = `${API_BASE_URL}/api/v1/productos/${input.id}`;
     const response = await apiFetch<any>(url);
     return { result: response };
   },
   "productos.create": async (input) => {
-    const url = `/api/v1/productos/`;
+    const url = `${API_BASE_URL}/api/v1/productos/`;
     const response = await apiFetch<any>(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -107,7 +99,7 @@ const productosHandlers: Record<string, ActionHandler<any>> = {
   },
   "productos.update": async (input) => {
     const { id, ...updateData } = input as any;
-    const url = `/api/v1/productos/${id}`;
+    const url = `${API_BASE_URL}/api/v1/productos/${id}`;
     const response = await apiFetch<any>(url, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -116,7 +108,7 @@ const productosHandlers: Record<string, ActionHandler<any>> = {
     return { result: response };
   },
   "productos.delete": async (input) => {
-    const url = `/api/v1/productos/${input.id}`;
+    const url = `${API_BASE_URL}/api/v1/productos/${input.id}`;
     await apiFetch<any>(url, {
       method: 'DELETE',
     });
@@ -124,14 +116,14 @@ const productosHandlers: Record<string, ActionHandler<any>> = {
   },
   "productos.getByCodigo": async (input) => {
     const { codigo } = input;
-    const url = `/api/v1/productos/?codigo=${codigo}`;
+    const url = `${API_BASE_URL}/api/v1/productos/?codigo=${codigo}`;
     const response = await apiFetch<any>(url);
     // Assuming the backend returns a list, and we need the first one
     return { result: response.results && response.results.length > 0 ? response.results[0] : null };
   },
   "productos.listAlternativos": async (input) => {
     const { exclude_familia_id, descontinuado = false } = input as any;
-    let url = `/api/v1/productos/?descontinuado=${descontinuado}`;
+    let url = `${API_BASE_URL}/api/v1/productos/?descontinuado=${descontinuado}`;
     if (exclude_familia_id) {
       url += `&exclude_familia_id=${exclude_familia_id}`;
     }
@@ -144,19 +136,15 @@ const productosHandlers: Record<string, ActionHandler<any>> = {
 // INCIDENTES HANDLERS
 // =============================================================================
 const incidentesHandlers: Record<string, ActionHandler<any>> = {
-  "incidentes.list": async (input) => {
-    const { skip = 0, limit = 100 } = input;
-    const url = `/api/v1/incidentes/?skip=${skip}&limit=${limit}`;
-    const response = await apiFetch<any>(url);
-    return { results: response.results, total: response.total };
-  },
+  "incidentes.list": (input) =>
+    list<any>("incidentes", input),
   "incidentes.get": async (input) => {
-    const url = `/api/v1/incidentes/${input.id}`;
+    const url = `${API_BASE_URL}/api/v1/incidentes/${input.id}`;
     const response = await apiFetch<any>(url);
     return { result: response };
   },
   "incidentes.create": async (input) => {
-    const url = `/api/v1/incidentes/`;
+    const url = `${API_BASE_URL}/api/v1/incidentes/`;
     const response = await apiFetch<any>(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -166,7 +154,7 @@ const incidentesHandlers: Record<string, ActionHandler<any>> = {
   },
   "incidentes.update": async (input) => {
     const { id, ...updateData } = input as any;
-    const url = `/api/v1/incidentes/${id}`;
+    const url = `${API_BASE_URL}/api/v1/incidentes/${id}`;
     const response = await apiFetch<any>(url, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -175,36 +163,24 @@ const incidentesHandlers: Record<string, ActionHandler<any>> = {
     return { result: response };
   },
   "incidentes.delete": async (input) => {
-    const url = `/api/v1/incidentes/${input.id}`;
+    const url = `${API_BASE_URL}/api/v1/incidentes/${input.id}`;
     await apiFetch<any>(url, {
       method: 'DELETE',
     });
     return { status: "deleted", id: input.id };
   },
-  "incidentes.listMyAssigned": async (input) => {
-    const { skip = 0, limit = 100 } = input;
-    const url = `/api/v1/incidentes/mis-asignaciones?skip=${skip}&limit=${limit}`;
-    const response = await apiFetch<any>(url);
-    return { results: response.results, total: response.total };
-  },
+  "incidentes.listMyAssigned": (input) =>
+    list<any>("incidentes/mis-asignaciones", input),
 };
 
 // =============================================================================
 // SIMPLE LIST HANDLERS (read-only)
 // =============================================================================
 const diagnosticosHandlers: Record<string, ActionHandler<any>> = {
-  "diagnosticos.list": async (input) => {
-    // The SDK's list endpoint for diagnosticos is tied to an incidente_id.
-    // Assuming input will contain incidente_id for this action.
-    const { incidente_id, skip = 0, limit = 100 } = input as any;
+  "diagnosticos.list": (input) => {
+    const { incidente_id, ...rest } = input as any;
     if (!incidente_id) throw new Error("An incidente_id is required to list diagnosticos.");
-
-    const response = await getDiagnosticosIncidenteApiV1IncidentesIncidenteIdDiagnosticosGet({
-      path: { incidente_id },
-      query: { skip, limit },
-      responseStyle: 'data',
-    });
-    return { results: response.results, total: response.total };
+    return list<any>(`incidentes/${incidente_id}/diagnosticos`, rest);
   },
   "diagnosticos.get": async (input) => {
     const { incidente_id, id } = input as any;
@@ -226,173 +202,209 @@ const diagnosticosHandlers: Record<string, ActionHandler<any>> = {
     return { result: response.result };
   },
   "diagnosticos.update": async (input) => {
-    const { id, data: updateData } = input as any;
-    const { data, error } = await supabase.from("diagnosticos").update({ ...updateData, updated_at: new Date().toISOString() }).eq("id", id).select().single();
-    if (error) throw error;
-    return data;
+    const { incidente_id, id, data: updateData } = input as any;
+    if (!incidente_id) throw new Error("An incidente_id is required to update a diagnostico.");
+    const response = await updateDiagnosticoApiV1IncidentesIncidenteIdDiagnosticosDiagnosticoIdPatch({
+      path: { incidente_id, diagnostico_id: id },
+      body: { ...updateData, updated_at: new Date().toISOString() },
+      responseStyle: 'data',
+    });
+    return { result: response.result };
   },
   "diagnosticos.delete": async (input) => {
-    const { error } = await supabase.from("diagnosticos").delete().eq("id", input.id);
-    if (error) throw error;
-    return { status: "deleted", id: input.id };
+    const { incidente_id, id } = input as any;
+    if (!incidente_id) throw new Error("An incidente_id is required to delete a diagnostico.");
+    await deleteDiagnosticoApiV1IncidentesIncidenteIdDiagnosticosDiagnosticoIdDelete({
+      path: { incidente_id, diagnostico_id: id },
+      responseStyle: 'data',
+    });
+    return { status: "deleted", id: id };
   },
-  "diagnosticos.search": async (input) => { 
-    const { incidente_id, tecnico_id, search } = input as any;
-    let query = supabase.from("diagnosticos").select("*");
-    if (incidente_id) query = query.eq("incidente_id", incidente_id);
-    if (tecnico_id) query = query.eq("tecnico_id", tecnico_id);
-    if (search) query = query.ilike("recomendaciones", `%${search}%`);
-    const { data, error } = await query.order("created_at", { ascending: false });
-    if (error) throw error;
-    return { results: data || [] };
+    "diagnosticos.search": (input) =>
+      list<any>("diagnosticos/search", input),  "repuestos.list": (input) =>
+    list<any>("repuestos", input),
+  "repuestos.get": async (input) => {
+    const url = `${API_BASE_URL}/api/v1/repuestos/${input.id}`;
+    const response = await apiFetch<any>(url);
+    return { result: response };
   },
-  "repuestos.list": async () => { const { data, error } = await supabase.from("repuestos").select("*").order("codigo").limit(100); if (error) throw error; return { results: data || [], total: data?.length || 0 }; },
-  "repuestos.get": async (input) => { const { data, error } = await supabase.from("repuestos").select("*").eq("id", input.id).maybeSingle(); if (error) throw error; return { result: data }; },
   "repuestos.create": notImplemented("repuestos.create"),
   "repuestos.update": notImplemented("repuestos.update"),
   "repuestos.delete": notImplemented("repuestos.delete"),
-  "repuestos.search": async (input) => { const { search = "", limit = 20 } = input; let query = supabase.from("repuestos").select("id, codigo, descripcion, clave").limit(limit); if (search) query = query.or(`codigo.ilike.%${search}%,descripcion.ilike.%${search}%,clave.ilike.%${search}%`); const { data, error } = await query; if (error) throw error; return { results: data || [] }; },
-  "bodegas.list": async () => { const { data, error } = await supabase.from("bodegas").select("*").order("nombre"); if (error) throw error; return { results: data || [], total: data?.length || 0 }; },
-  "bodegas.get": async (input) => { const { data, error } = await supabase.from("bodegas").select("*").eq("id", input.id).maybeSingle(); if (error) throw error; return { result: data }; },
+  "repuestos.search": (input) =>
+    list<any>("repuestos/search", input),
+  "bodegas.list": (input) =>
+    list<any>("bodegas", input),
+  "bodegas.get": async (input) => {
+    const url = `${API_BASE_URL}/api/v1/bodegas/${input.id}`;
+    const response = await apiFetch<any>(url);
+    return { result: response };
+  },
   "bodegas.create": notImplemented("bodegas.create"),
   "bodegas.update": notImplemented("bodegas.update"),
   "bodegas.delete": notImplemented("bodegas.delete"),
-  "inventarios.list": async (input) => { const { centro_servicio_id, codigo_repuesto, bodega, offset = 0, limit = 50 } = input as any; let query = supabase.from("inventario").select("*", { count: "exact" }); if (centro_servicio_id) query = query.eq("centro_servicio_id", centro_servicio_id); if (codigo_repuesto) query = query.ilike("codigo_repuesto", `%${codigo_repuesto}%`); if (bodega) query = query.eq("bodega", bodega); const { data, error, count } = await query.range(offset, offset + limit - 1).order("codigo_repuesto"); if (error) throw error; return { data: data || [], count: count || 0 }; },
-  "inventarios.get": async (input) => { const { data, error } = await supabase.from("inventario").select("*").eq("id", input.id).maybeSingle(); if (error) throw error; return { result: data }; },
+  "inventarios.list": (input) => {
+    const { offset, ...rest } = input as any;
+    return list<any>("inventarios", { skip: offset, ...rest });
+  },
+  "inventarios.get": async (input) => {
+    const url = `${API_BASE_URL}/api/v1/inventarios/${input.id}`;
+    const response = await apiFetch<any>(url);
+    return { result: response };
+  },
   "inventarios.create": notImplemented("inventarios.create"),
   "inventarios.update": notImplemented("inventarios.update"),
   "inventarios.delete": notImplemented("inventarios.delete"),
-  "movimientos_inventario.list": async (input) => { const { centro_servicio_id, tipo_movimiento, offset = 0, limit = 50 } = input as any; let query = supabase.from("movimientos_inventario").select("*", { count: "exact" }); if (centro_servicio_id) query = query.eq("centro_servicio_id", centro_servicio_id); if (tipo_movimiento) query = query.eq("tipo_movimiento", tipo_movimiento); const { data, error, count } = await query.range(offset, offset + limit - 1).order("created_at", { ascending: false }); if (error) throw error; return { data: data || [], count: count || 0 }; },
-  "movimientos_inventario.get": async (input) => { const { data, error } = await supabase.from("movimientos_inventario").select("*").eq("id", input.id).maybeSingle(); if (error) throw error; return { result: data }; },
+  "movimientos_inventario.list": (input) => {
+    const { offset, ...rest } = input as any;
+    return list<any>("movimientos-inventario", { skip: offset, ...rest });
+  },
+  "movimientos_inventario.get": async (input) => {
+    const url = `${API_BASE_URL}/api/v1/movimientos-inventario/${input.id}`;
+    const response = await apiFetch<any>(url);
+    return { result: response };
+  },
   "movimientos_inventario.create": notImplemented("movimientos_inventario.create"),
-  "solicitudes_repuestos.list": async () => { const { data, error } = await supabase.from("solicitudes_repuestos").select("*").order("created_at", { ascending: false }); if (error) throw error; return { data: data || [], count: data?.length || 0 }; },
-  "solicitudes_repuestos.get": async (input) => { const { data, error } = await supabase.from("solicitudes_repuestos").select("*").eq("id", input.id).maybeSingle(); if (error) throw error; return { result: data }; },
+  "solicitudes_repuestos.list": (input) =>
+    list<any>("solicitudes-repuestos", input),
+  "solicitudes_repuestos.get": async (input) => {
+    const url = `${API_BASE_URL}/api/v1/solicitudes-repuestos/${input.id}`;
+    const response = await apiFetch<any>(url);
+    return { result: response };
+  },
   "solicitudes_repuestos.create": notImplemented("solicitudes_repuestos.create"),
   "solicitudes_repuestos.update": notImplemented("solicitudes_repuestos.update"),
   "solicitudes_repuestos.delete": notImplemented("solicitudes_repuestos.delete"),
-  "pedidos_bodega_central.list": async () => { const { data, error } = await supabase.from("pedidos_bodega_central").select("*").order("created_at", { ascending: false }); if (error) throw error; return { data: data || [], count: data?.length || 0 }; },
-  "pedidos_bodega_central.get": async (input) => { const { data, error } = await supabase.from("pedidos_bodega_central").select("*").eq("id", input.id).maybeSingle(); if (error) throw error; return { result: data }; },
+  "pedidos_bodega_central.list": (input) =>
+    list<any>("pedidos-bodega-central", input),
+  "pedidos_bodega_central.get": async (input) => {
+    const url = `${API_BASE_URL}/api/v1/pedidos-bodega-central/${input.id}`;
+    const response = await apiFetch<any>(url);
+    return { result: response };
+  },
   "pedidos_bodega_central.create": notImplemented("pedidos_bodega_central.create"),
   "pedidos_bodega_central.update": notImplemented("pedidos_bodega_central.update"),
   "pedidos_bodega_central.delete": notImplemented("pedidos_bodega_central.delete"),
-  "embarques.list": async () => { const { data, error } = await supabase.from("embarques").select("*").order("fecha_llegada", { ascending: false }); if (error) throw error; return { data: data || [], count: data?.length || 0 }; },
-  "embarques.get": async (input) => { const { data, error } = await supabase.from("embarques").select("*").eq("id", input.id).maybeSingle(); if (error) throw error; return { result: data }; },
+  "embarques.list": (input) =>
+    list<any>("embarques", input),
+  "embarques.get": async (input) => {
+    const url = `${API_BASE_URL}/api/v1/embarques/${input.id}`;
+    const response = await apiFetch<any>(url);
+    return { result: response };
+  },
   "embarques.create": notImplemented("embarques.create"),
   "embarques.update": notImplemented("embarques.update"),
   "embarques.delete": notImplemented("embarques.delete"),
-  "importaciones.list": async () => { const { data, error } = await supabase.from("importaciones").select("*").order("fecha_llegada", { ascending: false }); if (error) throw error; return { data: data || [], count: data?.length || 0 }; },
-  "importaciones.get": async (input) => { const { data, error } = await supabase.from("importaciones").select("*").eq("id", input.id).maybeSingle(); if (error) throw error; return { result: data }; },
+  "importaciones.list": (input) =>
+    list<any>("importaciones", input),
+  "importaciones.get": async (input) => {
+    const url = `${API_BASE_URL}/api/v1/importaciones/${input.id}`;
+    const response = await apiFetch<any>(url);
+    return { result: response };
+  },
   "importaciones.create": notImplemented("importaciones.create"),
   "importaciones.update": notImplemented("importaciones.update"),
   "importaciones.delete": notImplemented("importaciones.delete"),
-  "ubicaciones.list": async (input) => {
-    const { skip = 0, limit = 100, search, bodega_id } = input || {};
-    const response = await getAllUbicacionesApiV1UbicacionesGet({
-      query: { skip, limit, q: search, bodega_id },
-      responseStyle: 'data',
-    });
-    return { results: response.results, total: response.total };
+  "ubicaciones.list": (input) =>
+    list<any>("ubicaciones", input),
+  "ubicaciones.get": async (input) => {
+    const url = `${API_BASE_URL}/api/v1/ubicaciones/${input.id}`;
+    const response = await apiFetch<any>(url);
+    return { result: response };
   },
-  "ubicaciones.get": async (input) => { const { data, error } = await supabase.from("ubicaciones").select("*").eq("id", input.id).maybeSingle(); if (error) throw error; return { result: data }; },
   "ubicaciones.create": notImplemented("ubicaciones.create"),
   "ubicaciones.update": notImplemented("ubicaciones.update"),
   "ubicaciones.delete": notImplemented("ubicaciones.delete"),
-  "transitos_bodega.list": async () => { const { data, error } = await supabase.from("transitos_bodega").select("*").order("fecha_envio", { ascending: false }); if (error) throw error; return { data: data || [], count: data?.length || 0 }; },
-  "transitos_bodega.get": async (input) => { const { data, error } = await supabase.from("transitos_bodega").select("*").eq("id", input.id).maybeSingle(); if (error) throw error; return { result: data }; },
+  "transitos_bodega.list": (input) =>
+    list<any>("transitos-bodega", input),
+  "transitos_bodega.get": async (input) => {
+    const url = `${API_BASE_URL}/api/v1/transitos-bodega/${input.id}`;
+    const response = await apiFetch<any>(url);
+    return { result: response };
+  },
   "transitos_bodega.create": notImplemented("transitos_bodega.create"),
   "transitos_bodega.update": notImplemented("transitos_bodega.update"),
   "transitos_bodega.delete": notImplemented("transitos_bodega.delete"),
-  "usuarios.list": async (input) => {
-    const { skip = 0, limit = 100 } = input || {};
-    const response = await getAllUsersApiV1UsuariosGet({
-      query: { skip, limit },
-      responseStyle: 'data',
-    });
-    return { results: response.results, total: response.total };
-  },
+  "usuarios.list": (input) =>
+    list<any>("usuarios", input),
   "roles.list": async (input) => {
     // Note: The /api/v1/roles/ endpoint currently does not support filtering parameters in openapi.json.
     // Future backend updates could introduce a 'q' parameter for versatile searching.
-    const response = await getAllRolesApiV1RolesGet({
-      responseStyle: 'data',
-    });
+    const url = `${API_BASE_URL}/api/v1/roles/`;
+    const response = await apiFetch<any>(url);
     return { items: response };
   },
-  "fallas.list": async (input) => {
-    const { skip = 0, limit = 100, search, producto_id } = input || {};
-    const response = await getAllFallasApiV1FallasGet({
-      query: { skip, limit, q: search, producto_id },
-      responseStyle: 'data',
-    });
-    return { results: response.results, total: response.total };
-  },
-  "causas.list": async (input) => {
-    const { skip = 0, limit = 100, search, familia_id } = input || {};
-    const response = await getAllCausasApiV1CausasGet({
-      query: { skip, limit, q: search, familia_id },
-      responseStyle: 'data',
-    });
-    return { results: response.results, total: response.total };
-  },
-  "accesorios.list": async (input) => {
-    const { skip = 0, limit = 100, search, familia_id, producto_id } = input || {};
-    const response = await getAllAccesoriosApiV1AccesoriosGet({
-      query: { skip, limit, q: search, familia_id, producto_id },
-      responseStyle: 'data',
-    });
-    return { results: response.results, total: response.total };
-  },
+  "fallas.list": (input) =>
+    list<any>("fallas", input),
+  "causas.list": (input) =>
+    list<any>("causas", input),
+  "accesorios.list": (input) =>
+    list<any>("accesorios", input),
   "accesorios.create": notImplemented("accesorios.create"),
   "guias.list": async (input) => {
     const { skip = 0, limit = 100, incidente_id, estado, centro_de_servicio_origen_id, centro_de_servicio_destino_id, search } = input || {};
-    const response = await getAllGuiasApiV1GuiasGet({
-      query: { skip, limit, incidente_id, estado, centro_de_servicio_origen_id, centro_de_servicio_destino_id, q: search },
-      responseStyle: 'data',
-    });
+    let url = `${API_BASE_URL}/api/v1/guias/?skip=${skip}&limit=${limit}`;
+    const params = new URLSearchParams();
+    if (incidente_id) params.append("incidente_id", incidente_id.toString());
+    if (estado) params.append("estado", estado);
+    if (centro_de_servicio_origen_id) params.append("centro_de_servicio_origen_id", centro_de_servicio_origen_id.toString());
+    if (centro_de_servicio_destino_id) params.append("centro_de_servicio_destino_id", centro_de_servicio_destino_id.toString());
+    if (search) params.append("q", search);
+    if (params.toString()) {
+      url += `&${params.toString()}`;
+    }
+    const response = await apiFetch<any>(url);
     return { results: response.results, total: response.total };
   },
-  "presupuestos.list": async (input) => { const incidente_id = (input as any).incidente_id; let query = supabase.from("presupuestos").select("*"); if (incidente_id) query = query.eq("incidente_id", incidente_id); const { data, error } = await query.order("created_at", { ascending: false }); if (error) throw error; return { data: data || [], count: data?.length || 0 }; },
-  "presupuestos.get": async (input) => { const { data, error } = await supabase.from("presupuestos").select("*").eq("id", input.id).maybeSingle(); if (error) throw error; return data; },
+  "presupuestos.list": (input) =>
+    list<any>("presupuestos", input),
+  "presupuestos.get": async (input) => {
+    const url = `${API_BASE_URL}/api/v1/presupuestos/${input.id}`;
+    const response = await apiFetch<any>(url);
+    return { result: response };
+  },
   "presupuestos.create": notImplemented("presupuestos.create"),
   "presupuestos.update": notImplemented("presupuestos.update"),
   "presupuestos.delete": notImplemented("presupuestos.delete"),
-  "familias_producto.list": async (input) => {
-    const { skip = 0, limit = 100 } = input || {};
-    const response = await getGrandparentFamiliasProductoApiV1FamiliasProductoAbuelosGet({
-      query: { skip, limit },
-      responseStyle: 'data',
-    });
-    return { results: response.results, total: response.total };
-  },
+  "familias_producto.list": (input) =>
+    list<any>("familias-producto/abuelos", input),
   "centros_de_servicio.list": async (input) => {
-    const { skip = 0, limit = 100, search } = input || {};
-    // Note: The /api/v1/centros-de-servicio/ endpoint currently does not explicitly support
-    // an 'activo' filter in openapi.json. If needed, the backend and openapi.json
-    // should be updated to include it, possibly as part of the 'q' parameter.
-    const response = await getAllCentrosDeServicioApiV1CentrosDeServicioGet({
-      query: { skip, limit, q: search },
+    const { results, total } = await list<any>("centros-de-servicio", input);
+    return { items: results, total };
+  },
+  "grupos_cola_fifo.list": (input) =>
+    list<any>("grupos-cola-fifo", input),
+  "grupos_cola_fifo.get": async (input) => {
+    const url = `${API_BASE_URL}/api/v1/grupos-cola-fifo/${input.id}`;
+    const response = await apiFetch<any>(url);
+    return { result: response };
+  },
+  "grupos_cola_fifo.create": async (input) => {
+    const response = await createGrupoColaFifoApiV1GruposColaFifoPost({
+      body: input,
       responseStyle: 'data',
     });
-    return { items: response.results, total: response.total };
+    return response.result;
   },
-    "grupos_cola_fifo.list": async (input) => {
-      const { skip = 0, limit = 300, centro_servicio_id } = input || {};
-      // Note: The /api/v1/grupos-cola-fifo/ endpoint currently does not explicitly support
-      // a 'q' parameter for versatile searching in openapi.json.
-      const response = await getAllGruposColaFifoApiV1GruposColaFifoGet({
-        query: { skip, limit, centro_de_servicio_id },
-        responseStyle: 'data',
-      });
-      return { results: response, total: response.length };
-    },  "grupos_cola_fifo.get": async (input) => { const { data, error } = await supabase.from("grupos_cola_fifo").select("*").eq("id", input.id).maybeSingle(); if (error) throw error; return { result: data }; },
-  "grupos_cola_fifo.create": async (input) => { const { data, error } = await supabase.from("grupos_cola_fifo").insert(input as any).select().single(); if (error) throw error; return data; },
-  "grupos_cola_fifo.update": async (input) => { const { id, data: updateData } = input as any; const { data, error } = await supabase.from("grupos_cola_fifo").update(updateData).eq("id", id).select().single(); if (error) throw error; return data; },
-  "grupos_cola_fifo.delete": async (input) => { const { error } = await supabase.from("grupos_cola_fifo").delete().eq("id", input.id); if (error) throw error; return { status: "deleted", id: input.id }; },
+  "grupos_cola_fifo.update": async (input) => {
+    const { id, data: updateData } = input as any;
+    const response = await updateGrupoColaFifoApiV1GruposColaFifoGrupoIdPatch({
+      path: { grupo_id: id },
+      body: updateData,
+      responseStyle: 'data',
+    });
+    return response.result;
+  },
+  "grupos_cola_fifo.delete": async (input) => {
+    await deleteGrupoColaFifoApiV1GruposColaFifoGrupoIdDelete({
+      path: { grupo_id: input.id },
+      responseStyle: 'data',
+    });
+    return { status: "deleted", id: input.id };
+  },
   "grupos_cola_fifo_familias.list": async (input) => {
     const { grupo_id, skip = 0, limit = 300 } = input || {};
     if (!grupo_id) throw new Error("A grupo_id is required to list grupo_cola_fifo_familias.");
-    // Note: The /api/v1/grupos-cola-fifo/{grupo_id}/familias endpoint currently does not explicitly support
-    // a 'q' parameter for versatile searching in openapi.json.
     const response = await getGrupoColaFifoFamiliasApiV1GruposColaFifoGrupoIdFamiliasGet({
       path: { grupo_id },
       query: { skip, limit },
@@ -400,10 +412,44 @@ const diagnosticosHandlers: Record<string, ActionHandler<any>> = {
     });
     return { results: response, total: response.length };
   },
-  "grupos_cola_fifo_familias.get": async (input) => { const { data, error } = await supabase.from("grupos_cola_fifo_familias").select("*").eq("id", input.id).maybeSingle(); if (error) throw error; return { result: data }; },
-  "grupos_cola_fifo_familias.create": async (input) => { const { data, error } = await supabase.from("grupos_cola_fifo_familias").insert(input as any).select().single(); if (error) throw error; return data; },
-  "grupos_cola_fifo_familias.update": async (input) => { const { id, data: updateData } = input as any; const { data, error } = await supabase.from("grupos_cola_fifo_familias").update(updateData).eq("id", id).select().single(); if (error) throw error; return data; },
-  "grupos_cola_fifo_familias.delete": async (input) => { const { error } = await supabase.from("grupos_cola_fifo_familias").delete().eq("id", input.id); if (error) throw error; return { status: "deleted", id: input.id }; },
+  "grupos_cola_fifo_familias.get": async (input) => {
+    const { grupo_id, id } = input;
+    if (!grupo_id) throw new Error("A grupo_id is required to get a grupo_cola_fifo_familia.");
+    const response = await getGrupoColaFifoFamiliaApiV1GruposColaFifoGrupoIdFamiliasFamiliaIdGet({
+      path: { grupo_id, familia_id: id },
+      responseStyle: 'data',
+    });
+    return { result: response.result };
+  },
+  "grupos_cola_fifo_familias.create": async (input) => {
+    const { grupo_id, ...createData } = input;
+    if (!grupo_id) throw new Error("A grupo_id is required to create a grupo_cola_fifo_familia.");
+    const response = await createGrupoColaFifoFamiliaApiV1GruposColaFifoGrupoIdFamiliasPost({
+      path: { grupo_id },
+      body: createData,
+      responseStyle: 'data',
+    });
+    return response.result;
+  },
+  "grupos_cola_fifo_familias.update": async (input) => {
+    const { grupo_id, id, data: updateData } = input;
+    if (!grupo_id) throw new Error("A grupo_id is required to update a grupo_cola_fifo_familia.");
+    const response = await updateGrupoColaFifoFamiliaApiV1GruposColaFifoGrupoIdFamiliasFamiliaIdPatch({
+      path: { grupo_id, familia_id: id },
+      body: updateData,
+      responseStyle: 'data',
+    });
+    return response.result;
+  },
+  "grupos_cola_fifo_familias.delete": async (input) => {
+    const { grupo_id, id } = input;
+    if (!grupo_id) throw new Error("A grupo_id is required to delete a grupo_cola_fifo_familia.");
+    await deleteGrupoColaFifoFamiliaApiV1GruposColaFifoGrupoIdFamiliasFamiliaIdDelete({
+      path: { grupo_id, familia_id: id },
+      responseStyle: 'data',
+    });
+    return { status: "deleted", id: id };
+  },
 };
 
 // =============================================================================
@@ -412,151 +458,97 @@ const diagnosticosHandlers: Record<string, ActionHandler<any>> = {
 const mostradorHandlers: Record<string, ActionHandler<any>> = {
   // Cotizaciones
   "cotizaciones.create": async (input) => {
-    const { data, error } = await supabase.from("cotizaciones").insert(input as any).select().single();
-    if (error) throw error;
-    return data;
+    const response = await createCotizacionApiV1CotizacionesPost({
+      body: input,
+      responseStyle: 'data',
+    });
+    return response.result;
   },
-  "cotizaciones.list": async (input) => {
-    const { skip = 0, limit = 50 } = input || {};
-    const { data, error } = await supabase.from("cotizaciones").select("*").range(skip, skip + limit - 1).order("created_at", { ascending: false });
-    if (error) throw error;
-    return { results: data || [] };
-  },
+  "cotizaciones.list": (input) =>
+    list<any>("cotizaciones", input),
   // Notificaciones Cliente
-  "notificaciones_cliente.list": async (input) => {
-    const { incidente_id } = input || {} as any;
-    let query = (supabase as any).from("notificaciones_cliente").select("*");
-    if (incidente_id) query = query.eq("incidente_id", incidente_id);
-    const { data, error } = await query.order("created_at", { ascending: false });
-    if (error) throw error;
-    return { results: data || [] };
-  },
+  "notificaciones_cliente.list": (input) =>
+    list<any>("notificaciones-cliente", input),
   "notificaciones_cliente.create": async (input) => {
     const insertData = Array.isArray(input) ? input : [input];
-    const { data, error } = await (supabase as any).from("notificaciones_cliente").insert(insertData).select();
-    if (error) throw error;
-    return { results: data || [] };
+    const response = await createNotificacionClienteApiV1NotificacionesClientePost({
+      body: insertData,
+      responseStyle: 'data',
+    });
+    return { results: response.results || [] };
   },
   // Incidente Fotos
-  "incidente_fotos.list": async (input) => {
-    const { incidente_id } = input as any;
-    let query = supabase.from("incidente_fotos").select("*");
-    if (incidente_id) query = query.eq("incidente_id", incidente_id);
-    const { data, error } = await query.order("created_at", { ascending: false });
-    if (error) throw error;
-    return { results: data || [] };
-  },
+  "incidente_fotos.list": (input) =>
+    list<any>("incidente-fotos", input),
   "incidente_fotos.create": async (input) => {
     const insertData = Array.isArray(input) ? input : [input];
-    const { data, error } = await supabase.from("incidente_fotos").insert(insertData as any).select();
-    if (error) throw error;
-    return { results: data || [] };
+    const response = await createIncidenteFotoApiV1IncidenteFotosPost({
+      body: insertData,
+      responseStyle: 'data',
+    });
+    return { results: response.results || [] };
   },
-  // Incidente Accesorios
-  "incidente_accesorios.list": async (input) => {
-    const { incidente_id } = input as any;
-    const { data, error } = await supabase
-      .from("incidente_accesorios")
-      .select("accesorios:accesorio_id(nombre)")
-      .eq("incidente_id", incidente_id);
-    if (error) throw error;
-    return { results: data || [] };
-  },
-  // Incidente Tecnico
-  "incidente_tecnico.list": async (input) => {
-    const { incidente_id, es_principal, tecnico_id } = input as any;
-    let query = supabase.from("incidente_tecnico").select("*");
-    if (incidente_id) query = query.eq("incidente_id", incidente_id);
-    if (es_principal !== undefined) query = query.eq("es_principal", es_principal);
-    if (tecnico_id) query = query.eq("tecnico_id", tecnico_id);
-    const { data, error } = await query;
-    if (error) throw error;
-    return { results: data || [] };
-  },
-  // Usuarios - get single
+  "incidente_accesorios.list": (input) =>
+    list<any>("incidente-accesorios", { ...input, select: "accesorios:accesorio_id(nombre)" }),
+  "incidente_tecnico.list": (input) =>
+    list<any>("incidente-tecnico", input),
   "usuarios.get": async (input) => {
-    const { data, error } = await supabase.from("usuarios").select("*").eq("id", input.id).maybeSingle();
-    if (error) throw error;
-    return { result: data };
+    const response = await getUserApiV1UsuariosUserIdGet({
+      path: { user_id: input.id },
+      responseStyle: 'data',
+    });
+    return { result: response.result };
   },
-  // Centros de Servicio - get single
   "centros_de_servicio.get": async (input) => {
-    const { data, error } = await supabase.from("centros_de_servicio").select("*").eq("id", input.id).maybeSingle();
-    if (error) throw error;
-    return { result: data };
+    const response = await getCentroDeServicioApiV1CentrosDeServicioCentroIdGet({
+      path: { centro_id: input.id },
+      responseStyle: 'data',
+    });
+    return { result: response.result };
   },
   // Direcciones Envio
-  "direcciones_envio.list": async (input) => {
-    const { cliente_id } = input as any;
-    let query = (supabase as any).from("direcciones_envio").select("*");
-    if (cliente_id) query = query.eq("cliente_id", cliente_id);
-    const { data, error } = await query.order("created_at", { ascending: false });
-    if (error) throw error;
-    return { results: data || [] };
-  },
+  "direcciones_envio.list": (input) =>
+    list<any>("direcciones-envio", input),
   "direcciones_envio.get": async (input) => {
-    const { data, error } = await (supabase as any).from("direcciones_envio").select("*").eq("id", input.id).maybeSingle();
-    if (error) throw error;
-    return { result: data };
+    const response = await getDireccionEnvioApiV1DireccionesEnvioDireccionIdGet({
+      path: { direccion_id: input.id },
+      responseStyle: 'data',
+    });
+    return { result: response.result };
   },
   // Guias - with filters
   "guias.search": async (input) => {
-    const { incidente_codigo, incidente_id, estado, limit = 50 } = input as any;
-    let query = supabase.from("guias").select("*");
-    // Filter by incidente_id (preferred) or fallback to incidente_codigo text search
-    if (incidente_id) {
-      query = query.eq("incidente_id", incidente_id);
-    } else if (incidente_codigo) {
-      // Use textual search in the jsonb array since contains has issues with text arrays
-      query = query.or(`incidente_id.not.is.null`);
-    }
-    if (estado) query = query.eq("estado", estado);
-    const { data, error } = await query.order("fecha_guia", { ascending: false }).limit(limit);
-    if (error) throw error;
+    const { incidente_codigo, incidente_id, ...rest } = input as any;
+    const { results } = await list<any>("guias/search", rest);
+
     // If filtering by codigo, do it client-side since JSONB array contains is problematic
-    let results = data || [];
+    let filteredResults = results || [];
     if (incidente_codigo && !incidente_id) {
-      results = results.filter((g: any) => {
+      filteredResults = filteredResults.filter((g: any) => {
         const codigos = g.incidentes_codigos;
         if (Array.isArray(codigos)) return codigos.includes(incidente_codigo);
         return false;
       });
     }
-    return { results };
+    return { results: filteredResults };
   },
-  // Clientes - get by codigo
-  "clientes.getByCodigo": async (input) => {
-    const { codigo } = input as any;
-    const { data, error } = await supabase.from("clientes").select("*").eq("codigo", codigo).maybeSingle();
-    if (error) throw error;
-    return { result: data };
-  },
-  // Productos - get by codigo
-  "productos.getByCodigo": async (input) => {
-    const { codigo } = input as any;
-    const { data, error } = await supabase.from("productos").select("*").eq("codigo", codigo).maybeSingle();
-    if (error) throw error;
-    return { result: data };
-  },
+
+
   // Solicitudes Repuestos - search by incidente
   "solicitudes_repuestos.search": async (input) => {
     const { incidente_id, estado, limit = 50 } = input as any;
-    let query = supabase.from("solicitudes_repuestos").select("*");
-    if (incidente_id) query = query.eq("incidente_id", incidente_id);
-    if (estado) query = query.ilike("estado", `%${estado}%`);
-    const { data, error } = await query.order("created_at", { ascending: false }).limit(limit);
-    if (error) throw error;
-    return { results: data || [] };
+    const params = new URLSearchParams();
+    if (incidente_id) params.append("incidente_id", incidente_id.toString());
+    if (estado) params.append("estado", estado);
+    params.append("limit", limit.toString());
+    const url = `${API_BASE_URL}/api/v1/solicitudes-repuestos/search?${params.toString()}`;    const response = await apiFetch<any>(url);
+    return { results: response.results || [] };
   },
   // Inventario - search by codigos
-  "inventarios.search": async (input) => {
-    const { codigos_repuesto, centro_servicio_id } = input as any;
-    let query = supabase.from("inventario").select("codigo_repuesto, costo_unitario, descripcion");
-    if (codigos_repuesto?.length) query = query.in("codigo_repuesto", codigos_repuesto);
-    if (centro_servicio_id) query = query.eq("centro_servicio_id", centro_servicio_id);
-    const { data, error } = await query;
-    if (error) throw error;
-    return { results: data || [] };
+  "inventarios.search": (input) => {
+    const { codigos_repuesto, ...rest } = input as any;
+    if (!codigos_repuesto?.length) return { results: [] };
+    return list<any>("inventarios/search", { q: `codigo_repuesto=${codigos_repuesto.join(",")}`, ...rest });
   },
 };
 
@@ -564,58 +556,68 @@ const mostradorHandlers: Record<string, ActionHandler<any>> = {
 // CALIDAD MODULE HANDLERS
 // =============================================================================
 const calidadHandlers: Record<string, ActionHandler<any>> = {
-  "auditorias_calidad.list": async (input) => {
-    const { skip = 0, limit = 100 } = input || {};
-    const { data, error } = await supabase.from("auditorias_calidad").select("*").range(skip, skip + limit - 1).order("fecha_auditoria", { ascending: false });
-    if (error) throw error;
-    return { results: data || [] };
-  },
+  "auditorias_calidad.list": (input) =>
+    list<any>("auditorias-calidad", input),
   "auditorias_calidad.get": async (input) => {
-    const { data, error } = await supabase.from("auditorias_calidad").select("*").eq("id", input.id).maybeSingle();
-    if (error) throw error;
-    return { result: data };
+    const response = await getAuditoriaCalidadApiV1AuditoriasCalidadAuditoriaIdGet({
+      path: { auditoria_id: input.id },
+      responseStyle: 'data',
+    });
+    return { result: response.result };
   },
   "auditorias_calidad.create": async (input) => {
-    const { data, error } = await supabase.from("auditorias_calidad").insert(input as any).select().single();
-    if (error) throw error;
-    return data;
+    const response = await createAuditoriaCalidadApiV1AuditoriasCalidadPost({
+      body: input,
+      responseStyle: 'data',
+    });
+    return response.result;
   },
   "auditorias_calidad.update": async (input) => {
     const { id, data: updateData } = input as any;
-    const { data, error } = await supabase.from("auditorias_calidad").update(updateData).eq("id", id).select().single();
-    if (error) throw error;
-    return data;
+    const response = await updateAuditoriaCalidadApiV1AuditoriasCalidadAuditoriaIdPatch({
+      path: { auditoria_id: id },
+      body: updateData,
+      responseStyle: 'data',
+    });
+    return response.result;
   },
   "auditorias_calidad.delete": async (input) => {
-    const { error } = await supabase.from("auditorias_calidad").delete().eq("id", input.id);
-    if (error) throw error;
+    await deleteAuditoriaCalidadApiV1AuditoriasCalidadAuditoriaIdDelete({
+      path: { auditoria_id: input.id },
+      responseStyle: 'data',
+    });
     return { status: "deleted", id: input.id };
   },
-  "defectos_calidad.list": async (input) => {
-    const { skip = 0, limit = 100 } = input || {};
-    const { data, error } = await supabase.from("defectos_calidad").select("*").range(skip, skip + limit - 1).order("created_at", { ascending: false });
-    if (error) throw error;
-    return { results: data || [] };
-  },
+  "defectos_calidad.list": (input) =>
+    list<any>("defectos-calidad", input),
   "defectos_calidad.get": async (input) => {
-    const { data, error } = await supabase.from("defectos_calidad").select("*").eq("id", input.id).maybeSingle();
-    if (error) throw error;
-    return { result: data };
+    const response = await getDefectoCalidadApiV1DefectosCalidadDefectoIdGet({
+      path: { defecto_id: input.id },
+      responseStyle: 'data',
+    });
+    return { result: response.result };
   },
   "defectos_calidad.create": async (input) => {
-    const { data, error } = await supabase.from("defectos_calidad").insert(input as any).select().single();
-    if (error) throw error;
-    return data;
+    const response = await createDefectoCalidadApiV1DefectosCalidadPost({
+      body: input,
+      responseStyle: 'data',
+    });
+    return response.result;
   },
   "defectos_calidad.update": async (input) => {
     const { id, data: updateData } = input as any;
-    const { data, error } = await supabase.from("defectos_calidad").update(updateData).eq("id", id).select().single();
-    if (error) throw error;
-    return data;
+    const response = await updateDefectoCalidadApiV1DefectosCalidadDefectoIdPatch({
+      path: { defecto_id: id },
+      body: updateData,
+      responseStyle: 'data',
+    });
+    return response.result;
   },
   "defectos_calidad.delete": async (input) => {
-    const { error } = await supabase.from("defectos_calidad").delete().eq("id", input.id);
-    if (error) throw error;
+    await deleteDefectoCalidadApiV1DefectosCalidadDefectoIdDelete({
+      path: { defecto_id: input.id },
+      responseStyle: 'data',
+    });
     return { status: "deleted", id: input.id };
   },
 };
@@ -624,33 +626,36 @@ const calidadHandlers: Record<string, ActionHandler<any>> = {
 // GARANTIAS MANUALES HANDLERS
 // =============================================================================
 const garantiasHandlers: Record<string, ActionHandler<any>> = {
-  "garantias_manuales.list": async (input) => {
-    const { skip = 0, limit = 100, created_by } = input || {};
-    let query = supabase.from("garantias_manuales").select("*");
-    if (created_by) query = query.eq("created_by", created_by);
-    const { data, error } = await query.range(skip, skip + limit - 1).order("created_at", { ascending: false });
-    if (error) throw error;
-    return { results: data || [] };
-  },
+  "garantias_manuales.list": (input) =>
+    list<any>("garantias-manuales", input),
   "garantias_manuales.get": async (input) => {
-    const { data, error } = await supabase.from("garantias_manuales").select("*").eq("id", input.id).maybeSingle();
-    if (error) throw error;
-    return { result: data };
+    const response = await getGarantiaManualApiV1GarantiasManualesGarantiaIdGet({
+      path: { garantia_id: input.id },
+      responseStyle: 'data',
+    });
+    return { result: response.result };
   },
   "garantias_manuales.create": async (input) => {
-    const { data, error } = await supabase.from("garantias_manuales").insert(input as any).select().single();
-    if (error) throw error;
-    return data;
+    const response = await createGarantiaManualApiV1GarantiasManualesPost({
+      body: input,
+      responseStyle: 'data',
+    });
+    return response.result;
   },
   "garantias_manuales.update": async (input) => {
     const { id, data: updateData } = input as any;
-    const { data, error } = await supabase.from("garantias_manuales").update(updateData).eq("id", id).select().single();
-    if (error) throw error;
-    return data;
+    const response = await updateGarantiaManualApiV1GarantiasManualesGarantiaIdPatch({
+      path: { garantia_id: id },
+      body: updateData,
+      responseStyle: 'data',
+    });
+    return response.result;
   },
   "garantias_manuales.delete": async (input) => {
-    const { error } = await supabase.from("garantias_manuales").delete().eq("id", input.id);
-    if (error) throw error;
+    await deleteGarantiaManualApiV1GarantiasManualesGarantiaIdDelete({
+      path: { garantia_id: input.id },
+      responseStyle: 'data',
+    });
     return { status: "deleted", id: input.id };
   },
 };
@@ -659,35 +664,36 @@ const garantiasHandlers: Record<string, ActionHandler<any>> = {
 // SAC MODULE HANDLERS
 // =============================================================================
 const sacHandlers: Record<string, ActionHandler<any>> = {
-  "asignaciones_sac.list": async (input) => {
-    const { user_id, incidente_id, activo } = input || {};
-    let query = supabase.from("asignaciones_sac").select("*");
-    if (user_id) query = query.eq("user_id", user_id);
-    if (incidente_id) query = query.eq("incidente_id", incidente_id);
-    if (activo !== undefined) query = query.eq("activo", activo);
-    const { data, error } = await query.order("created_at", { ascending: false });
-    if (error) throw error;
-    return { results: data || [] };
-  },
+  "asignaciones_sac.list": (input) =>
+    list<any>("asignaciones-sac", input),
   "asignaciones_sac.get": async (input) => {
-    const { data, error } = await supabase.from("asignaciones_sac").select("*").eq("id", input.id).maybeSingle();
-    if (error) throw error;
-    return { result: data };
+    const response = await getAsignacionSacApiV1AsignacionesSacAsignacionIdGet({
+      path: { asignacion_id: input.id },
+      responseStyle: 'data',
+    });
+    return { result: response.result };
   },
   "asignaciones_sac.create": async (input) => {
-    const { data, error } = await supabase.from("asignaciones_sac").insert(input as any).select().single();
-    if (error) throw error;
-    return data;
+    const response = await createAsignacionSacApiV1AsignacionesSacPost({
+      body: input,
+      responseStyle: 'data',
+    });
+    return response.result;
   },
   "asignaciones_sac.update": async (input) => {
     const { id, data: updateData } = input as any;
-    const { data, error } = await supabase.from("asignaciones_sac").update(updateData).eq("id", id).select().single();
-    if (error) throw error;
-    return data;
+    const response = await updateAsignacionSacApiV1AsignacionesSacAsignacionIdPatch({
+      path: { asignacion_id: id },
+      body: updateData,
+      responseStyle: 'data',
+    });
+    return response.result;
   },
   "asignaciones_sac.delete": async (input) => {
-    const { error } = await supabase.from("asignaciones_sac").delete().eq("id", input.id);
-    if (error) throw error;
+    await deleteAsignacionSacApiV1AsignacionesSacAsignacionIdDelete({
+      path: { asignacion_id: input.id },
+      responseStyle: 'data',
+    });
     return { status: "deleted", id: input.id };
   },
 };
@@ -696,42 +702,46 @@ const sacHandlers: Record<string, ActionHandler<any>> = {
 // NOTIFICACIONES HANDLERS (sistema interno)
 // =============================================================================
 const notificacionesHandlers: Record<string, ActionHandler<any>> = {
-  "notificaciones.list": async (input) => {
-    const { usuario_id, leido, tipo } = input || {};
-    let query = (supabase as any).from("notificaciones").select("*");
-    if (usuario_id) query = query.eq("usuario_id", usuario_id);
-    if (leido !== undefined) query = query.eq("leido", leido);
-    if (tipo) query = query.eq("tipo", tipo);
-    const { data, error } = await query.order("created_at", { ascending: false });
-    if (error) throw error;
-    return { results: data || [] };
-  },
+  "notificaciones.list": (input) =>
+    list<any>("notificaciones", input),
   "notificaciones.get": async (input) => {
-    const { data, error } = await (supabase as any).from("notificaciones").select("*").eq("id", input.id).maybeSingle();
-    if (error) throw error;
-    return { result: data };
+    const url = `${API_BASE_URL}/api/v1/notificaciones/${input.id}`;
+    const response = await apiFetch<any>(url);
+    return { result: response };
   },
   "notificaciones.create": async (input) => {
-    const { data, error } = await (supabase as any).from("notificaciones").insert(input as any).select().single();
-    if (error) throw error;
-    return data;
+    const url = `${API_BASE_URL}/api/v1/notificaciones/`;
+    const response = await apiFetch<any>(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    });
+    return response;
   },
   "notificaciones.update": async (input) => {
     const { id, data: updateData } = input as any;
-    const { data, error } = await (supabase as any).from("notificaciones").update(updateData).eq("id", id).select().single();
-    if (error) throw error;
-    return data;
+    const url = `${API_BASE_URL}/api/v1/notificaciones/${id}`;
+    const response = await apiFetch<any>(url, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updateData),
+    });
+    return response;
   },
   "notificaciones.delete": async (input) => {
-    const { error } = await (supabase as any).from("notificaciones").delete().eq("id", input.id);
-    if (error) throw error;
+    const url = `${API_BASE_URL}/api/v1/notificaciones/${input.id}`;
+    await apiFetch<any>(url, {
+      method: 'DELETE',
+    });
     return { status: "deleted", id: input.id };
   },
   "notificaciones.markAsRead": async (input) => {
     const { id } = input;
-    const { data, error } = await (supabase as any).from("notificaciones").update({ leido: true, fecha_leido: new Date().toISOString() }).eq("id", id).select().single();
-    if (error) throw error;
-    return data;
+    const url = `${API_BASE_URL}/api/v1/notificaciones/${id}/mark-as-read`;
+    const response = await apiFetch<any>(url, {
+      method: 'POST',
+    });
+    return response;
   },
 };
 
@@ -739,33 +749,37 @@ const notificacionesHandlers: Record<string, ActionHandler<any>> = {
 // SOLICITUDES CAMBIO HANDLERS
 // =============================================================================
 const solicitudesCambioHandlers: Record<string, ActionHandler<any>> = {
-  "solicitudes_cambio.list": async (input) => {
-    const { skip = 0, limit = 100, estado } = input || {};
-    let query = (supabase as any).from("solicitudes_cambio").select("*");
-    if (estado) query = query.eq("estado", estado);
-    const { data, error } = await query.range(skip, skip + limit - 1).order("created_at", { ascending: false });
-    if (error) throw error;
-    return { results: data || [] };
-  },
+  "solicitudes_cambio.list": (input) =>
+    list<any>("solicitudes-cambio", input),
   "solicitudes_cambio.get": async (input) => {
-    const { data, error } = await (supabase as any).from("solicitudes_cambio").select("*").eq("id", input.id).maybeSingle();
-    if (error) throw error;
-    return { result: data };
+    const url = `${API_BASE_URL}/api/v1/solicitudes-cambio/${input.id}`;
+    const response = await apiFetch<any>(url);
+    return { result: response };
   },
   "solicitudes_cambio.create": async (input) => {
-    const { data, error } = await (supabase as any).from("solicitudes_cambio").insert(input as any).select().single();
-    if (error) throw error;
-    return data;
+    const url = `${API_BASE_URL}/api/v1/solicitudes-cambio/`;
+    const response = await apiFetch<any>(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    });
+    return response;
   },
   "solicitudes_cambio.update": async (input) => {
     const { id, data: updateData } = input as any;
-    const { data, error } = await (supabase as any).from("solicitudes_cambio").update(updateData).eq("id", id).select().single();
-    if (error) throw error;
-    return data;
+    const url = `${API_BASE_URL}/api/v1/solicitudes-cambio/${id}`;
+    const response = await apiFetch<any>(url, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updateData),
+    });
+    return response;
   },
   "solicitudes_cambio.delete": async (input) => {
-    const { error } = await (supabase as any).from("solicitudes_cambio").delete().eq("id", input.id);
-    if (error) throw error;
+    const url = `${API_BASE_URL}/api/v1/solicitudes-cambio/${input.id}`;
+    await apiFetch<any>(url, {
+      method: 'DELETE',
+    });
     return { status: "deleted", id: input.id };
   },
 };
@@ -775,106 +789,118 @@ const solicitudesCambioHandlers: Record<string, ActionHandler<any>> = {
 // =============================================================================
 const incidenteTecnicoHandlers: Record<string, ActionHandler<any>> = {
   "incidente_tecnico.get": async (input) => {
-    const { data, error } = await supabase.from("incidente_tecnico").select("*").eq("id", input.id).maybeSingle();
-    if (error) throw error;
-    return { result: data };
+    const response = await getIncidenteTecnicoApiV1IncidenteTecnicoIncidenteTecnicoIdGet({
+      path: { incidente_tecnico_id: input.id },
+      responseStyle: 'data',
+    });
+    return { result: response.result };
   },
   "incidente_tecnico.create": async (input) => {
-    const { data, error } = await supabase.from("incidente_tecnico").insert(input as any).select().single();
-    if (error) throw error;
-    return data;
+    const response = await createIncidenteTecnicoApiV1IncidenteTecnicoPost({
+      body: input,
+      responseStyle: 'data',
+    });
+    return response.result;
   },
   "incidente_tecnico.update": async (input) => {
     const { id, data: updateData } = input as any;
-    const { data, error } = await supabase.from("incidente_tecnico").update(updateData).eq("id", id).select().single();
-    if (error) throw error;
-    return data;
+    const response = await updateIncidenteTecnicoApiV1IncidenteTecnicoIncidenteTecnicoIdPatch({
+      path: { incidente_tecnico_id: id },
+      body: updateData,
+      responseStyle: 'data',
+    });
+    return response.result;
   },
   "incidente_tecnico.delete": async (input) => {
-    const { error } = await supabase.from("incidente_tecnico").delete().eq("id", input.id);
-    if (error) throw error;
+    await deleteIncidenteTecnicoApiV1IncidenteTecnicoIncidenteTecnicoIdDelete({
+      path: { incidente_tecnico_id: input.id },
+      responseStyle: 'data',
+    });
     return { status: "deleted", id: input.id };
   },
-  "incidente_tecnico.search": async (input) => {
-    const { tecnico_id, es_activo } = input || {};
-    let query = (supabase as any).from("incidente_tecnico").select("*");
-    if (tecnico_id) query = query.eq("tecnico_id", tecnico_id);
-    if (es_activo !== undefined) query = query.eq("es_activo", es_activo);
-    const { data, error } = await query.order("created_at", { ascending: false });
-    if (error) throw error;
-    return { results: data || [] };
-  },
+  "incidente_tecnico.search": (input) =>
+    list<any>("incidente-tecnico/search", input),
 };
 
 // =============================================================================
 // DIAGNOSTICO FALLAS/CAUSAS HANDLERS
 // =============================================================================
 const diagnosticoAsociacionesHandlers: Record<string, ActionHandler<any>> = {
-  "diagnostico_fallas.list": async (input) => {
-    const { diagnostico_id } = input;
-    const { data, error } = await supabase
-      .from("diagnostico_fallas")
-      .select("*, falla:fallas(id, nombre)")
-      .eq("diagnostico_id", diagnostico_id);
-    if (error) throw error;
-    return { results: data || [] };
+  "diagnostico_fallas.list": (input) => {
+    const { diagnostico_id, ...rest } = input;
+    return list<any>(`diagnosticos/${diagnostico_id}/fallas`, { ...rest, select: "*, falla:fallas(id, nombre)" });
   },
   "diagnostico_fallas.create": async (input) => {
-    const { data, error } = await supabase.from("diagnostico_fallas").insert(input as any).select().single();
-    if (error) throw error;
-    return data;
+    const { diagnostico_id, ...createData } = input;
+    const response = await createDiagnosticoFallaApiV1DiagnosticosDiagnosticoIdFallasPost({
+      path: { diagnostico_id },
+      body: createData,
+      responseStyle: 'data',
+    });
+    return response.result;
   },
   "diagnostico_fallas.delete": async (input) => {
     const { diagnostico_id, falla_id } = input;
-    let query = supabase.from("diagnostico_fallas").delete().eq("diagnostico_id", diagnostico_id);
-    if (falla_id) query = query.eq("falla_id", falla_id);
-    const { error } = await query;
-    if (error) throw error;
+    await deleteDiagnosticoFallaApiV1DiagnosticosDiagnosticoIdFallasFallaIdDelete({
+      path: { diagnostico_id, falla_id },
+      responseStyle: 'data',
+    });
     return { status: "deleted" };
   },
   "diagnostico_fallas.deleteByDiagnostico": async (input) => {
     const { diagnostico_id } = input;
-    const { error } = await supabase.from("diagnostico_fallas").delete().eq("diagnostico_id", diagnostico_id);
-    if (error) throw error;
+    await deleteDiagnosticoFallasApiV1DiagnosticosDiagnosticoIdFallasDelete({
+      path: { diagnostico_id },
+      responseStyle: 'data',
+    });
     return { status: "deleted" };
   },
   "diagnostico_fallas.createBatch": async (input) => {
-    const { data, error } = await supabase.from("diagnostico_fallas").insert(input as any).select();
-    if (error) throw error;
-    return data || [];
+    const { diagnostico_id, ...createData } = input;
+    const response = await createDiagnosticoFallasBatchApiV1DiagnosticosDiagnosticoIdFallasBatchPost({
+      path: { diagnostico_id },
+      body: createData,
+      responseStyle: 'data',
+    });
+    return response.results || [];
   },
-  "diagnostico_causas.list": async (input) => {
-    const { diagnostico_id } = input;
-    const { data, error } = await supabase
-      .from("diagnostico_causas")
-      .select("*, causa:causas(id, nombre)")
-      .eq("diagnostico_id", diagnostico_id);
-    if (error) throw error;
-    return { results: data || [] };
+  "diagnostico_causas.list": (input) => {
+    const { diagnostico_id, ...rest } = input;
+    return list<any>(`diagnosticos/${diagnostico_id}/causas`, { ...rest, select: "*, causa:causas(id, nombre)" });
   },
   "diagnostico_causas.create": async (input) => {
-    const { data, error } = await supabase.from("diagnostico_causas").insert(input as any).select().single();
-    if (error) throw error;
-    return data;
+    const { diagnostico_id, ...createData } = input;
+    const response = await createDiagnosticoCausaApiV1DiagnosticosDiagnosticoIdCausasPost({
+      path: { diagnostico_id },
+      body: createData,
+      responseStyle: 'data',
+    });
+    return response.result;
   },
   "diagnostico_causas.delete": async (input) => {
     const { diagnostico_id, causa_id } = input;
-    let query = supabase.from("diagnostico_causas").delete().eq("diagnostico_id", diagnostico_id);
-    if (causa_id) query = query.eq("causa_id", causa_id);
-    const { error } = await query;
-    if (error) throw error;
+    await deleteDiagnosticoCausaApiV1DiagnosticosDiagnosticoIdCausasCausaIdDelete({
+      path: { diagnostico_id, causa_id },
+      responseStyle: 'data',
+    });
     return { status: "deleted" };
   },
   "diagnostico_causas.deleteByDiagnostico": async (input) => {
     const { diagnostico_id } = input;
-    const { error } = await supabase.from("diagnostico_causas").delete().eq("diagnostico_id", diagnostico_id);
-    if (error) throw error;
+    await deleteDiagnosticoCausasApiV1DiagnosticosDiagnosticoIdCausasDelete({
+      path: { diagnostico_id },
+      responseStyle: 'data',
+    });
     return { status: "deleted" };
   },
   "diagnostico_causas.createBatch": async (input) => {
-    const { data, error } = await supabase.from("diagnostico_causas").insert(input as any).select();
-    if (error) throw error;
-    return data || [];
+    const { diagnostico_id, ...createData } = input;
+    const response = await createDiagnosticoCausasBatchApiV1DiagnosticosDiagnosticoIdCausasBatchPost({
+      path: { diagnostico_id },
+      body: createData,
+      responseStyle: 'data',
+    });
+    return response.results || [];
   },
 };
 
@@ -882,37 +908,13 @@ const diagnosticoAsociacionesHandlers: Record<string, ActionHandler<any>> = {
 // USUARIOS EXTENDED HANDLERS
 // =============================================================================
 const usuariosExtendedHandlers: Record<string, ActionHandler<any>> = {
-  "usuarios.search": async (input) => {
-    const { search, rol, email, skip = 0, limit = 100 } = input || {};
-    // Note: The /api/v1/usuarios/ endpoint currently does not support a 'q' parameter in openapi.json.
-    // This call is structured to align with future backend updates that will enable versatile searching via 'q'.
-    const qParams = new URLSearchParams();
-    if (search) {
-      qParams.append("q", search);
-    }
-    if (rol) {
-      qParams.append("rol", rol);
-    }
-    if (email) {
-      qParams.append("email", email);
-    }
-
-    const queryString = qParams.toString();
-
-    // Call the updated 'usuarios.list' handler, passing 'q' for backend to parse
-    const listInput: any = { skip, limit };
-    if (queryString) {
-        listInput.q = queryString; // Pass as 'q' for backend to parse
-    }
-
-    const { results, total } = await handlers["usuarios.list"](listInput);
-    return { results, total };
-  },
+  "usuarios.search": (input) =>
+    list<any>("usuarios", input),
   "usuarios.getByEmail": async (input) => {
     const { email } = input;
-    const { data, error } = await (supabase as any).from("usuarios").select("*").eq("email", email).maybeSingle();
-    if (error) throw error;
-    return { result: data };
+    const url = `/api/v1/usuarios/?q=email=${email}`;
+    const response = await apiFetch<any>(url);
+    return { result: response.results && response.results.length > 0 ? response.results[0] : null };
   },
 };
 
@@ -920,43 +922,37 @@ const usuariosExtendedHandlers: Record<string, ActionHandler<any>> = {
 // TRANSITOS BODEGA EXTENDED
 // =============================================================================
 const transitosExtendedHandlers: Record<string, ActionHandler<any>> = {
-  "transitos_bodega.search": async (input) => {
-    const { estado, bodega_origen_id, bodega_destino_id } = input || {};
-    let query = (supabase as any).from("transitos_bodega").select("*");
-    if (estado) query = query.eq("estado", estado);
-    if (bodega_origen_id) query = query.eq("bodega_origen_id", bodega_origen_id);
-    if (bodega_destino_id) query = query.eq("bodega_destino_id", bodega_destino_id);
-    const { data, error } = await query.order("fecha_envio", { ascending: false });
-    if (error) throw error;
-    return { results: data || [] };
-  },
+  "transitos_bodega.search": (input) =>
+    list<any>("transitos-bodega/search", input),
 };
 
 // =============================================================================
 // CENTROS SUPERVISOR HANDLERS
 // =============================================================================
 const centrosSupervisorHandlers: Record<string, ActionHandler<any>> = {
-  "centros_supervisor.list": async (input) => {
-    const { supervisor_id } = input || {};
-    let query = supabase.from("centros_supervisor").select("*");
-    if (supervisor_id) query = query.eq("supervisor_id", supervisor_id);
-    const { data, error } = await query;
-    if (error) throw error;
-    return { results: data || [] };
-  },
+  "centros_supervisor.list": (input) =>
+    list<any>("centros-supervisor", input),
   "centros_supervisor.create": async (input) => {
-    const { data, error } = await supabase.from("centros_supervisor").insert(input as any).select().single();
-    if (error) throw error;
-    return data;
+    const url = `${API_BASE_URL}/api/v1/centros-supervisor/`;
+    const response = await apiFetch<any>(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    });
+    return response;
   },
   "centros_supervisor.delete": async (input) => {
     const { id, supervisor_id } = input;
-    let query = supabase.from("centros_supervisor").delete();
-    if (id) query = query.eq("id", id);
-    if (supervisor_id) query = query.eq("supervisor_id", supervisor_id);
-    const { error } = await query;
-    if (error) throw error;
-    return { status: "deleted" };
+    const params = new URLSearchParams();
+    if (supervisor_id) params.append("supervisor_id", supervisor_id.toString());
+    let url = `${API_BASE_URL}/api/v1/centros-supervisor/${id}`;
+    if (params.toString()) {
+      url += `?${params.toString()}`;
+    }
+    await apiFetch<any>(url, {
+      method: 'DELETE',
+    });
+    return { status: "deleted", id: id };
   },
 };
 
@@ -964,31 +960,31 @@ const centrosSupervisorHandlers: Record<string, ActionHandler<any>> = {
 // SOLICITUDES TRANSFERENCIA MAQUINAS
 // =============================================================================
 const solicitudesTransferenciaHandlers: Record<string, ActionHandler<any>> = {
-  "solicitudes_transferencia_maquinas.list": async (input) => {
-    const { estado, centro_origen_id, centro_destino_id } = input || {};
-    let query = (supabase as any).from("solicitudes_transferencia_maquinas").select(`*, incidentes:incidente_id(codigo, producto_id)`);
-    if (estado) query = query.eq("estado", estado);
-    if (centro_origen_id) query = query.eq("centro_origen_id", centro_origen_id);
-    if (centro_destino_id) query = query.eq("centro_destino_id", centro_destino_id);
-    const { data, error } = await query.order("created_at", { ascending: false });
-    if (error) throw error;
-    return { results: data || [] };
-  },
+  "solicitudes_transferencia_maquinas.list": (input) =>
+    list<any>("solicitudes-transferencia-maquinas", input),
   "solicitudes_transferencia_maquinas.get": async (input) => {
-    const { data, error } = await (supabase as any).from("solicitudes_transferencia_maquinas").select("*").eq("id", input.id).maybeSingle();
-    if (error) throw error;
-    return { result: data };
+    const url = `${API_BASE_URL}/api/v1/solicitudes-transferencia-maquinas/${input.id}`;
+    const response = await apiFetch<any>(url);
+    return { result: response };
   },
   "solicitudes_transferencia_maquinas.create": async (input) => {
-    const { data, error } = await (supabase as any).from("solicitudes_transferencia_maquinas").insert(input).select().single();
-    if (error) throw error;
-    return data;
+    const url = `${API_BASE_URL}/api/v1/solicitudes-transferencia-maquinas/`;
+    const response = await apiFetch<any>(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    });
+    return response;
   },
   "solicitudes_transferencia_maquinas.update": async (input) => {
     const { id, data: updateData } = input as any;
-    const { data, error } = await (supabase as any).from("solicitudes_transferencia_maquinas").update(updateData).eq("id", id).select().single();
-    if (error) throw error;
-    return data;
+    const url = `${API_BASE_URL}/api/v1/solicitudes-transferencia-maquinas/${id}`;
+    const response = await apiFetch<any>(url, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updateData),
+    });
+    return response;
   },
 };
 
@@ -996,29 +992,17 @@ const solicitudesTransferenciaHandlers: Record<string, ActionHandler<any>> = {
 // USER ROLES HANDLERS
 // =============================================================================
 const userRolesHandlers: Record<string, ActionHandler<any>> = {
-  "user_roles.list": async (input) => {
-    const { user_id, role } = input || {};
-    let query = (supabase as any).from("user_roles").select("*");
-    if (user_id) query = query.eq("user_id", user_id);
-    if (role) query = query.eq("role", role);
-    const { data, error } = await query;
-    if (error) throw error;
-    return { results: data || [] };
-  },
+  "user_roles.list": (input) =>
+    list<any>("user-roles", input),
 };
 
 // =============================================================================
 // REPUESTOS RELACIONES HANDLERS
 // =============================================================================
 const repuestosRelacionesHandlers: Record<string, ActionHandler<any>> = {
-  "repuestos_relaciones.list": async (input) => {
-    const { limit = 1000, offset = 0 } = input || {};
-    const { data, error } = await (supabase as any)
-      .from("repuestos_relaciones")
-      .select("*")
-      .range(offset, offset + limit - 1);
-    if (error) throw error;
-    return { results: data || [] };
+  "repuestos_relaciones.list": (input) => {
+    const { offset, ...rest } = input || {};
+    return list<any>("repuestos-relaciones", { skip: offset, ...rest });
   },
 };
 
@@ -1026,29 +1010,32 @@ const repuestosRelacionesHandlers: Record<string, ActionHandler<any>> = {
 // CONFIGURACION FIFO CENTRO HANDLERS
 // =============================================================================
 const configuracionFifoHandlers: Record<string, ActionHandler<any>> = {
-  "configuracion_fifo_centro.list": async (input) => {
-    const { centro_servicio_id, activo } = input || {};
-    let query = (supabase as any).from("configuracion_fifo_centro").select("*");
-    if (centro_servicio_id) query = query.eq("centro_servicio_id", centro_servicio_id);
-    if (activo !== undefined) query = query.eq("activo", activo);
-    const { data, error } = await query;
-    if (error) throw error;
-    return { results: data || [] };
-  },
+  "configuracion_fifo_centro.list": (input) =>
+    list<any>("configuracion-fifo-centro", input),
   "configuracion_fifo_centro.create": async (input) => {
-    const { data, error } = await (supabase as any).from("configuracion_fifo_centro").insert(input).select().single();
-    if (error) throw error;
-    return data;
+    const url = `${API_BASE_URL}/api/v1/configuracion-fifo-centro/`;
+    const response = await apiFetch<any>(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    });
+    return response;
   },
   "configuracion_fifo_centro.update": async (input) => {
     const { id, data: updateData } = input as any;
-    const { data, error } = await (supabase as any).from("configuracion_fifo_centro").update(updateData).eq("id", id).select().single();
-    if (error) throw error;
-    return data;
+    const url = `${API_BASE_URL}/api/v1/configuracion-fifo-centro/${id}`;
+    const response = await apiFetch<any>(url, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updateData),
+    });
+    return response;
   },
   "configuracion_fifo_centro.delete": async (input) => {
-    const { error } = await (supabase as any).from("configuracion_fifo_centro").delete().eq("id", input.id);
-    if (error) throw error;
+    const url = `${API_BASE_URL}/api/v1/configuracion-fifo-centro/${input.id}`;
+    await apiFetch<any>(url, {
+      method: 'DELETE',
+    });
     return { status: "deleted", id: input.id };
   },
 };
@@ -1057,18 +1044,16 @@ const configuracionFifoHandlers: Record<string, ActionHandler<any>> = {
 // MEDIA HANDLERS
 // =============================================================================
 const mediaHandlers: Record<string, ActionHandler<any>> = {
-  "media.list": async (input) => {
-    const { incidente_id } = input || {};
-    let query = supabase.from("media").select("*");
-    if (incidente_id) query = query.eq("incidente_id", incidente_id);
-    const { data, error } = await query.order("created_at", { ascending: false });
-    if (error) throw error;
-    return { results: data || [] };
-  },
+  "media.list": (input) =>
+    list<any>("media", input),
   "media.create": async (input) => {
-    const { data, error } = await supabase.from("media").insert(input as any).select().single();
-    if (error) throw error;
-    return data;
+    const url = `${API_BASE_URL}/api/v1/media/`;
+    const response = await apiFetch<any>(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    });
+    return response;
   },
 };
 
@@ -1077,25 +1062,26 @@ const mediaHandlers: Record<string, ActionHandler<any>> = {
 // =============================================================================
 const pedidosBodegaExtendedHandlers: Record<string, ActionHandler<any>> = {
   "pedidos_bodega_central.create": async (input) => {
-    const { data, error } = await supabase.from("pedidos_bodega_central").insert(input as any).select().single();
-    if (error) throw error;
-    return data;
+    const url = `${API_BASE_URL}/api/v1/pedidos-bodega-central/`;
+    const response = await apiFetch<any>(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    });
+    return response;
   },
   "pedidos_bodega_central.update": async (input) => {
     const { id, data: updateData } = input as any;
-    const { data, error } = await supabase.from("pedidos_bodega_central").update(updateData).eq("id", id).select().single();
-    if (error) throw error;
-    return data;
+    const url = `${API_BASE_URL}/api/v1/pedidos-bodega-central/${id}`;
+    const response = await apiFetch<any>(url, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updateData),
+    });
+    return response;
   },
-  "pedidos_bodega_central.search": async (input) => {
-    const { incidente_id, estado } = input || {};
-    let query = supabase.from("pedidos_bodega_central").select("*");
-    if (incidente_id) query = query.eq("incidente_id", incidente_id);
-    if (estado) query = query.eq("estado", estado);
-    const { data, error } = await query.order("created_at", { ascending: false });
-    if (error) throw error;
-    return { results: data || [] };
-  },
+  "pedidos_bodega_central.search": (input) =>
+    list<any>("pedidos-bodega-central/search", input),
 };
 
 // =============================================================================
@@ -1103,19 +1089,26 @@ const pedidosBodegaExtendedHandlers: Record<string, ActionHandler<any>> = {
 // =============================================================================
 const diagnosticosWriteHandlers: Record<string, ActionHandler<any>> = {
   "diagnosticos.create": async (input) => {
-    const { data, error } = await supabase.from("diagnosticos").insert(input as any).select().single();
-    if (error) throw error;
-    return data;
+    const response = await createDiagnosticoApiV1DiagnosticosPost({
+      body: input,
+      responseStyle: 'data',
+    });
+    return response.result;
   },
   "diagnosticos.update": async (input) => {
     const { id, data: updateData } = input as any;
-    const { data, error } = await supabase.from("diagnosticos").update({ ...updateData, updated_at: new Date().toISOString() }).eq("id", id).select().single();
-    if (error) throw error;
-    return data;
+    const response = await updateDiagnosticoApiV1DiagnosticosDiagnosticoIdPatch({
+      path: { diagnostico_id: id },
+      body: { ...updateData, updated_at: new Date().toISOString() },
+      responseStyle: 'data',
+    });
+    return response.result;
   },
   "diagnosticos.delete": async (input) => {
-    const { error } = await supabase.from("diagnosticos").delete().eq("id", input.id);
-    if (error) throw error;
+    await deleteDiagnosticoApiV1DiagnosticosDiagnosticoIdDelete({
+      path: { diagnostico_id: input.id },
+      responseStyle: 'data',
+    });
     return { status: "deleted", id: input.id };
   },
 };
@@ -1124,27 +1117,28 @@ const diagnosticosWriteHandlers: Record<string, ActionHandler<any>> = {
 // GUIAS HANDLERS
 // =============================================================================
 const guiasHandlers: Record<string, ActionHandler<any>> = {
-  "guias.list": async (input) => {
-    const { skip = 0, limit = 100 } = input || {};
-    const { data, error } = await supabase.from("guias").select("*").range(skip, skip + limit - 1).order("fecha_guia", { ascending: false });
-    if (error) throw error;
-    return { results: data || [] };
-  },
+  "guias.list": (input) =>
+    list<any>("guias", input),
   "guias.get": async (input) => {
-    const { data, error } = await supabase.from("guias").select("*").eq("id", input.id).maybeSingle();
-    if (error) throw error;
-    return { result: data };
+    const url = `${API_BASE_URL}/api/v1/guias/${input.id}`;
+    const response = await apiFetch<any>(url);
+    return { result: response };
   },
   "guias.create": async (input) => {
-    const { data, error } = await supabase.from("guias").insert(input as any).select().single();
-    if (error) throw error;
-    return data;
+    const response = await createGuiaApiV1GuiasPost({
+      body: input,
+      responseStyle: 'data',
+    });
+    return response.result;
   },
   "guias.update": async (input) => {
     const { id, data: updateData } = input as any;
-    const { data, error } = await supabase.from("guias").update(updateData).eq("id", id).select().single();
-    if (error) throw error;
-    return data;
+    const response = await updateGuiaApiV1GuiasGuiaIdPatch({
+      path: { guia_id: id },
+      body: updateData,
+      responseStyle: 'data',
+    });
+    return response.result;
   },
 };
 
@@ -1154,23 +1148,21 @@ const guiasHandlers: Record<string, ActionHandler<any>> = {
 const solicitudesRepuestosExtendedHandlers: Record<string, ActionHandler<any>> = {
   "solicitudes_repuestos.update": async (input) => {
     const { id, data: updateData } = input as any;
-    const { data, error } = await supabase.from("solicitudes_repuestos").update(updateData).eq("id", id).select().single();
-    if (error) throw error;
-    return data;
+    const response = await updateSolicitudRepuestoApiV1SolicitudesRepuestosSolicitudIdPatch({
+      path: { solicitud_id: id },
+      body: updateData,
+      responseStyle: 'data',
+    });
+    return response.result;
   },
-  "solicitudes_repuestos.search": async (input) => {
-    const { incidente_id, estado } = input || {};
-    let query = supabase.from("solicitudes_repuestos").select("*");
-    if (incidente_id) query = query.eq("incidente_id", incidente_id);
-    if (estado) query = query.eq("estado", estado);
-    const { data, error } = await query.order("updated_at", { ascending: true });
-    if (error) throw error;
-    return { results: data || [] };
-  },
+  "solicitudes_repuestos.search": (input) =>
+    list<any>("solicitudes-repuestos/search", input),
   "solicitudes_repuestos.create": async (input) => {
-    const { data, error } = await supabase.from("solicitudes_repuestos").insert(input as any).select().single();
-    if (error) throw error;
-    return data;
+    const response = await createSolicitudRepuestoApiV1SolicitudesRepuestosPost({
+      body: input,
+      responseStyle: 'data',
+    });
+    return response.result;
   },
 };
 
@@ -1178,35 +1170,21 @@ const solicitudesRepuestosExtendedHandlers: Record<string, ActionHandler<any>> =
 // INVENTARIO HANDLERS
 // =============================================================================
 const inventarioGeneralHandlers: Record<string, ActionHandler<any>> = {
-  "inventario.list": async (input) => {
-    const { centro_servicio_id } = input || {};
-    let query = (supabase as any).from("inventario").select("*");
-    if (centro_servicio_id) query = query.eq("centro_servicio_id", centro_servicio_id);
-    const { data, error } = await query;
-    if (error) throw error;
-    return { results: data || [] };
-  },
+  "inventario.list": (input) =>
+    list<any>("inventario", input),
 };
 
 // =============================================================================
 // CDS TABLES HANDLERS (CDS_Fallas, CDS_Causas, CDS_Familias)
 // =============================================================================
 const cdsHandlers: Record<string, ActionHandler<any>> = {
-  "cds_fallas.list": async () => {
-    const { data, error } = await supabase.from("fallas").select("id, nombre, familia_id").order("nombre");
-    if (error) throw error;
-    return { results: data || [] };
-  },
-  "cds_causas.list": async () => {
-    const { data, error } = await supabase.from("causas").select("id, nombre, familia_id").order("nombre");
-    if (error) throw error;
-    return { results: data || [] };
-  },
-  "cds_familias.list": async () => {
-    const { data, error } = await supabase.from("familias_producto").select("id, nombre, parent_id");
-    if (error) throw error;
-    // Map to expected format for compatibility
-    return { results: (data || []).map((f: any) => ({ id: f.id, Categoria: f.nombre, Padre: f.parent_id })) };
+  "cds_fallas.list": (input) =>
+    list<any>("fallas", { ...input, select: "id,nombre,familia_id", order_by: "nombre" }),
+  "cds_causas.list": (input) =>
+    list<any>("causas", { ...input, select: "id,nombre,familia_id", order_by: "nombre" }),
+  "cds_familias.list": async (input) => {
+    const { results, total } = await list<any>("familias-producto", { ...input, select: "id,nombre,parent_id" });
+    return { results: (results || []).map((f: any) => ({ id: f.id, Categoria: f.nombre, Padre: f.parent_id })), total };
   },
 };
 
@@ -1214,28 +1192,18 @@ const cdsHandlers: Record<string, ActionHandler<any>> = {
 // REPUESTOS EXTENDED HANDLERS
 // =============================================================================
 const repuestosExtendedHandlers: Record<string, ActionHandler<any>> = {
-  "repuestos.listByProducto": async (input) => {
-    const { codigo_producto } = input as any;
-    const { data, error } = await supabase.from("repuestos").select("*").eq("codigo_producto", codigo_producto).order("descripcion");
-    if (error) throw error;
-    return { results: data || [] };
-  },
+  "repuestos.listByProducto": (input) =>
+    list<any>("repuestos", input),
 };
 
 // =============================================================================
 // INVENTARIOS EXTENDED HANDLERS
 // =============================================================================
 const inventariosExtendedHandlers: Record<string, ActionHandler<any>> = {
-  "inventarios.listByCodigos": async (input) => {
-    const { centro_servicio_id, codigos } = input as any;
+  "inventarios.listByCodigos": (input) => {
+    const { codigos, ...rest } = input as any;
     if (!codigos?.length) return { results: [] };
-    const { data, error } = await supabase
-      .from("inventario")
-      .select("codigo_repuesto, cantidad, ubicacion_legacy")
-      .eq("centro_servicio_id", centro_servicio_id)
-      .in("codigo_repuesto", codigos);
-    if (error) throw error;
-    return { results: data || [] };
+    return list<any>("inventario", { codigo_repuesto: codigos.join(","), ...rest });
   },
 };
 
@@ -1243,14 +1211,8 @@ const inventariosExtendedHandlers: Record<string, ActionHandler<any>> = {
 // PRODUCTOS EXTENDED HANDLERS
 // =============================================================================
 const productosExtendedHandlers: Record<string, ActionHandler<any>> = {
-  "productos.listAlternativos": async (input) => {
-    const { exclude_familia_id, descontinuado = false } = input as any;
-    let query = (supabase as any).from("productos").select("*, familia_padre:CDS_Familias!productos_familia_padre_id_fkey(id, Categoria, Padre)").eq("descontinuado", descontinuado);
-    if (exclude_familia_id) query = query.neq("familia_padre_id", exclude_familia_id);
-    const { data, error } = await query.order("descripcion");
-    if (error) throw error;
-    return { results: data || [] };
-  },
+  "productos.listAlternativos": (input) =>
+    list<any>("productos", input),
 };
 
 // =============================================================================
@@ -1260,78 +1222,63 @@ const productosExtendedHandlers: Record<string, ActionHandler<any>> = {
 // =============================================================================
 const authHandlers: Record<string, ActionHandler<any>> = {
   "auth.login": async (input) => {
-    const { email, password } = input;
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw error;
-    return { success: true, message: "Login exitoso" };
+    const response = await apiFetch<any>(`${API_BASE_URL}/api/v1/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    });
+    return { success: true, message: "Login exitoso", user: response };
   },
   "auth.logout": async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) throw error;
+    await apiFetch<any>(`${API_BASE_URL}/api/v1/auth/logout`, {
+      method: 'POST',
+    });
     return { success: true };
   },
   "auth.getSession": async () => {
-    const { data, error } = await supabase.auth.getSession();
-    if (error) throw error;
-    return { session: data.session };
+    // const { data, error } = await supabase.auth.getSession();
+    // if (error) throw error;
+    // return { session: data.session };
   },
   "auth.getUser": async () => {
-    const { data, error } = await supabase.auth.getUser();
-    if (error) throw error;
-    return { user: data.user };
+    // const { data, error } = await supabase.auth.getUser();
+    // if (error) throw error;
+    // return { user: data.user };
   },
   "auth.me": async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user?.email) return { result: null };
-    
-    const { data, error } = await supabase
-      .from("usuarios")
-      .select(`
-        id, nombre, apellido, email, telefono, activo,
-        centro_de_servicio_id, empresa_id, cliente_id,
-        centro_de_servicio:centros_de_servicio(id, nombre, codigo),
-        usuario_roles(
-          rol:roles(id, nombre, slug)
-        )
-      `)
-      .eq("email", user.email)
-      .maybeSingle();
-    
-    if (error) throw error;
-    
-    const roles = data?.usuario_roles?.map((ur: any) => ur.rol) || [];
-    return { result: data ? { ...data, roles } : null };
-  },
-};
+    const response = await apiFetch<any>(`${API_BASE_URL}/api/v1/auth/me`);
+    const roles = response?.usuario_roles?.map((ur: any) => ur.rol) || [];
+    return { result: response ? { ...response, roles } : null };
+  },};
 
 // =============================================================================
 // STORAGE HANDLERS
 // =============================================================================
 const storageHandlers: Record<string, ActionHandler<any>> = {
   "storage.upload": async (input) => {
-    const { bucket, path, file, options } = input;
-    const { data, error } = await supabase.storage
-      .from(bucket)
-      .upload(path, file, options);
+    // const { bucket, path, file, options } = input;
+    // const { data, error } = await supabase.storage
+    //   .from(bucket)
+    //   .upload(path, file, options);
     
-    if (error) throw error;
+    // if (error) throw error;
     
-    const { data: urlData } = supabase.storage
-      .from(bucket)
-      .getPublicUrl(data.path);
+    // const { data: urlData } = supabase.storage
+    //   .from(bucket)
+    //   .getPublicUrl(data.path);
     
-    return { url: urlData.publicUrl, storage_path: data.path };
+    // return { url: urlData.publicUrl, storage_path: data.path };
   },
   "storage.delete": async (input) => {
-    const { bucket, paths } = input;
-    const { error } = await supabase.storage.from(bucket).remove(paths);
-    if (error) throw error;
-    return { success: true };
+    // const { bucket, paths } = input;
+    // const { error } = await supabase.storage.from(bucket).remove(paths);
+    // if (error) throw error;
+    // return { success: true };
   },
   "storage.getPublicUrl": async (input) => {
-    const { bucket, path } = input;
-    const { data } = supabase.storage.from(bucket).getPublicUrl(path);
-    return { publicUrl: data.publicUrl };
+    // const { bucket, path } = input;
+    // const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+    // return { publicUrl: data.publicUrl };
   },
 };
 
@@ -1340,43 +1287,26 @@ const storageHandlers: Record<string, ActionHandler<any>> = {
 // =============================================================================
 const rpcHandlers: Record<string, ActionHandler<any>> = {
   "rpc.generarCodigoIncidente": async () => {
-    const { data, error } = await supabase.rpc("generar_codigo_incidente");
-    if (error) throw error;
-    return { codigo: data };
+    const response = await apiFetch<any>(`${API_BASE_URL}/api/v1/rpc/generar_codigo_incidente`, {
+      method: 'POST',
+    });
+    return { codigo: response.codigo };
   },
   "rpc.generarNumeroGuia": async () => {
-    // Generate guide number based on max existing HPC-* number
-    const { data } = await supabase
-      .from("guias")
-      .select("numero_guia")
-      .like("numero_guia", "HPC-%")
-      .order("id", { ascending: false })
-      .limit(1);
-
-    let nextNumber = 1;
-    if (data && data.length > 0 && data[0].numero_guia) {
-      const match = data[0].numero_guia.match(/HPC-(\d+)/);
-      if (match) {
-        nextNumber = parseInt(match[1], 10) + 1;
-      }
-    }
-
-    return { numero: `HPC-${String(nextNumber).padStart(8, "0")}` };
-  },
-};
+    const response = await apiFetch<any>(`${API_BASE_URL}/api/v1/rpc/generar_numero_guia`, {
+      method: 'POST',
+    });
+    return { numero: response.numero };
+  },};
 
 // =============================================================================
 // DIRECCIONES HANDLERS
 // =============================================================================
 const direccionesHandlers: Record<string, ActionHandler<any>> = {
   "direcciones.get": async (input) => {
-    const { data, error } = await supabase
-      .from("direcciones")
-      .select("*")
-      .eq("id", input.id)
-      .maybeSingle();
-    if (error) throw error;
-    return { result: data };
+    const url = `${API_BASE_URL}/api/v1/direcciones/${input.id}`;
+    const response = await apiFetch<any>(url);
+    return { result: response };
   },
 };
 
@@ -1385,25 +1315,20 @@ const direccionesHandlers: Record<string, ActionHandler<any>> = {
 // =============================================================================
 const guiasExtendedHandlers: Record<string, ActionHandler<any>> = {
   "guias.create": async (input) => {
-    const { data, error } = await supabase
-      .from("guias")
-      .insert(input as any)
-      .select()
-      .single();
-    if (error) throw error;
-    return data;
+    const url = `${API_BASE_URL}/api/v1/guias/`;
+    const response = await apiFetch<any>(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    });
+    return response;
   },
   "guias.getMaxNumero": async (input) => {
     const { prefix } = input as { prefix: string };
-    const { data } = await supabase
-      .from("guias")
-      .select("numero_guia")
-      .like("numero_guia", `${prefix}%`)
-      .order("id", { ascending: false })
-      .limit(1);
-    return { numero: data?.[0]?.numero_guia || null };
-  },
-};
+    const url = `${API_BASE_URL}/api/v1/guias/max-numero?prefix=${prefix}`;
+    const response = await apiFetch<any>(url);
+    return { numero: response.numero || null };
+  },};
 
 //
 const handlers: Partial<Record<ActionName, ActionHandler<any>>> = {

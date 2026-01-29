@@ -1,10 +1,8 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { DEV_BYPASS_AUTH, disableDevBypass, isDevBypassEnabled } from "@/config/devBypassAuth";
 import { authService } from "@/lib/authService";
-import type { AuthenticatedUser, AppSchemasRolRolSchema } from "@/generated_sdk/types.gen";
 
-// Simplified roles - actual role management requires user_roles table
+import type { AuthenticatedUser, AppSchemasRolRolSchema } from "@/lib/types";
 type UserRole = "admin" | "mostrador" | "logistica" | "taller" | "bodega" | "tecnico" | "digitador" | "jefe_taller" | "sac" | "control_calidad" | "asesor" | "gerente_centro" | "supervisor_regional" | "jefe_logistica" | "jefe_bodega" | "supervisor_bodega" | "supervisor_calidad" | "supervisor_sac" | "auxiliar_bodega" | "auxiliar_logistica" | "supervisor_inventarios" | "capacitador";
 
 interface AuthContextType {
@@ -36,21 +34,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const applyDevBypass = async () => {
-      // Simulate backend user object for dev bypass
-      const fakeUser: AuthenticatedUser = {
-        id: -1, // Use a distinguishing ID for bypass
-        email: DEV_BYPASS_AUTH.email,
-        nombre: "Dev Bypass User",
-        roles: [{ id: -1, nombre: DEV_BYPASS_AUTH.role, slug: DEV_BYPASS_AUTH.role }],
-      };
-
-      setUser(fakeUser);
-      // Ensure the role string is cast to UserRole if it's a known role
-      setUserRole(DEV_BYPASS_AUTH.role as UserRole);
-      setLoading(false);
-    };
-
     const fetchUser = async () => {
       setLoading(true);
       try {
@@ -64,22 +47,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           } else {
             setUserRole(null); // No roles assigned
           }
-        } else if (isDevBypassEnabled()) {
-          // Fallback to dev bypass if no user and dev bypass is enabled
-          await applyDevBypass();
         } else {
           setUser(null);
           setUserRole(null);
         }
       } catch (error) {
         console.error("Error fetching current user:", error);
-        // Fallback to dev bypass on API error
-        if (isDevBypassEnabled()) {
-          await applyDevBypass();
-        } else {
-          setUser(null);
-          setUserRole(null);
-        }
+        setUser(null);
+        setUserRole(null);
       } finally {
         setLoading(false);
       }
@@ -93,7 +68,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     try {
-      disableDevBypass();
       await authService.logout();
       setUser(null);
       setUserRole(null);

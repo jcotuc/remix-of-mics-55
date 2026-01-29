@@ -28,40 +28,9 @@ import {
   PenTool,
 } from "lucide-react";
 import { showError, showSuccess, showWarning } from "@/utils/toastHelpers";
-import {
-  listClientesApiV1ClientesGet,
-  createIncidenteApiV1IncidentesPost,
-  createDireccioneApiV1DireccionesPost,
-  updateClienteApiV1ClientesClienteIdPut,
-  getClienteApiV1ClientesClienteIdGet,
-  searchProductosApiV1ProductosSearchGet,
-  listAccesorioApiV1AccesoriosGet,
-  createAccesorioApiV1AccesoriosPost,
-  listFamiliasProductoApiV1FamiliasProductoGet,
-  listCentroDeServicioApiV1CentroDeServicioGet,
-  getUsuarioApiV1UsuariosUsuarioIdGet,
-  listIncidenteApiV1IncidentesGet,
-  createIncidenteAccesorioApiV1IncidenteAccesoriosPost,
-  generarCodigoHpcApiV1RpcGenerarCodigoHpcGet,
-  generarCodigoIncidenteApiV1RpcGenerarCodigoIncidenteGet,
-  createClienteApiV1ClientesPost,
-} from "@/generated_sdk/sdk.gen";
-import type {
-  ClienteOutput,
-  IncidenteInput,
-  IncidenteOutput,
-  ProductoOutput,
-  DireccionCreateInput,
-  AccesoriosCreateInput,
-  IncidenteAccesoriosCreateInput,
-  ProductoFamiliaOutput,
-  CentroDeServicioOutput,
-  UsuarioOutput,
-  IncidenteOutputPaginated,
-  ClienteUpdateInput,
-  IncidenteCreateInput,
-} from "@/generated_sdk/types.gen";
-type Producto = ProductoOutput;
+import { apiBackendAction } from "@/lib/api-backend";
+import type { Database } from "@/integrations/supabase/types";
+type Producto = Database["public"]["Tables"]["productos"]["Row"];
 import { SidebarMediaCapture, SidebarPhoto } from "@/components/features/media";
 import { uploadMediaToStorage, saveIncidentePhotos } from "@/lib/uploadMedia";
 import { MinimalStepper } from "@/components/ui/minimal-stepper";
@@ -499,7 +468,21 @@ const MUNICIPIOS: Record<string, string[]> = {
     "San Jorge",
   ],
 };
-interface Cliente extends ClienteOutput {}
+interface Cliente {
+  id: number;
+  codigo: string;
+  nombre: string;
+  nit: string;
+  celular: string;
+  direccion?: string;
+  correo?: string;
+  telefono_principal?: string;
+  telefono_secundario?: string;
+  nombre_facturacion?: string;
+  pais?: string;
+  departamento?: string;
+  municipio?: string;
+}
 const stepperSteps = [
   {
     id: 1,
@@ -631,25 +614,25 @@ export default function NuevoIncidente() {
       }
 
       try {
-        // Obtener el familia_padre_id del producto usando la SDK
-        const { data: productosData } = await searchProductosApiV1ProductosSearchGet({
-          query: productoSeleccionado.codigo,
-          limit: 1,
+        // Obtener el familia_padre_id del producto usando apiBackendAction
+        const { results: productosData } = await apiBackendAction("productos.search", { 
+          search: productoSeleccionado.codigo, 
+          limit: 1 
         });
-        const productoData = productosData?.[0];
+        const productoData = productosData?.[0] as any;
 
         if (!productoData?.familia_padre_id) {
           // Si no tiene familia, cargar todos los accesorios
-          const { data: accesorios } = await listAccesorioApiV1AccesoriosGet();
-          setAccesoriosDisponibles((accesorios || []).map((a: AccesoriosOutput) => ({ id: a.id!, nombre: a.nombre! })));
+          const { results: accesorios } = await apiBackendAction("accesorios.list", {});
+          setAccesoriosDisponibles((accesorios || []).map((a: any) => ({ id: a.id, nombre: a.nombre })));
           return;
         }
 
         const familiaProductoId = productoData.familia_padre_id;
 
         // Obtener la jerarquía de familias (padre y abuelo) para buscar accesorios
-        const { data: familiasData } = await listFamiliasProductoApiV1FamiliasProductoGet();
-        const familiaData = (familiasData as ProductoFamiliaOutput[])?.find((f) => f.id === familiaProductoId);
+        const { results: familiasData } = await apiBackendAction("familias_producto.list", {});
+        const familiaData = familiasData?.find((f: any) => f.id === familiaProductoId);
 
         // Construir lista de IDs de familia a buscar (la familia del producto y su padre/abuelo)
         const familiaIds: number[] = [familiaProductoId];
@@ -658,10 +641,10 @@ export default function NuevoIncidente() {
         }
 
         // Buscar accesorios que pertenezcan a cualquiera de estas familias
-        const { data: allAccesorios } = await listAccesorioApiV1AccesoriosGet();
+        const { results: allAccesorios } = await apiBackendAction("accesorios.list", {});
         const accesoriosFiltrados = (allAccesorios || [])
-          .filter((acc: AccesoriosOutput) => familiaIds.includes(acc.familia_id!))
-          .sort((a: AccesoriosOutput, b: AccesoriosOutput) => a.nombre!.localeCompare(b.nombre!));
+          .filter((acc: any) => familiaIds.includes(acc.familia_id))
+          .sort((a: any, b: any) => a.nombre.localeCompare(b.nombre));
 
         setAccesoriosDisponibles(accesoriosFiltrados.map((a: any) => ({ id: a.id, nombre: a.nombre })));
       } catch (error) {
@@ -676,21 +659,19 @@ export default function NuevoIncidente() {
   useEffect(() => {
     const fetchCentrosYUsuario = async () => {
       try {
-        // Cargar todos los centros de servicio usando la SDK
-        const { data: centrosRes } = await listCentroDeServicioApiV1CentroDeServicioGet();
-        const centros = centrosRes || [];
+        // Cargar todos los centros de servicio usando apiBackendAction
+        const centrosRes = await apiBackendAction("centros_de_servicio.list", {});
+        const centros = (centrosRes as any).results || (centrosRes as any).data || [];
         if (centros) {
-          const centrosActivos = centros.filter((c: CentroDeServicioOutput) => c.activo);
-          setCentrosServicioList(centrosActivos.map((c: CentroDeServicioOutput) => ({ id: c.id!, nombre: c.nombre! })));
+          const centrosActivos = centros.filter((c: any) => c.activo);
+          setCentrosServicioList(centrosActivos.map((c: any) => ({ id: c.id, nombre: c.nombre })));
         }
 
         // Establecer centro del usuario actual
-        if (user?.id) {
-          const { data: userProfile } = await getUsuarioApiV1UsuariosUsuarioIdGet({
-            usuarioId: user.id,
-          });
-          if (userProfile?.centro_de_servicio_id) {
-            setCentroServicio(userProfile.centro_de_servicio_id);
+        if (user) {
+          const { result: userProfile } = await apiBackendAction("usuarios.getByEmail", { email: user.email || "" });
+          if ((userProfile as any)?.centro_de_servicio_id) {
+            setCentroServicio((userProfile as any).centro_de_servicio_id);
           }
         }
       } catch (error) {
@@ -704,11 +685,9 @@ export default function NuevoIncidente() {
       if (!clienteSeleccionado) return;
       try {
         // Fetch direcciones using apiBackendAction - note: we need a direcciones.list handler
-        // Fetch direcciones using the SDK
-        const { data: clienteData } = await getClienteApiV1ClientesClienteIdGet({
-          clienteId: String(clienteSeleccionado.id),
-        });
-        const direccionesData = clienteData?.direcciones || [];
+        // For now we'll use the clientes.get which includes direcciones
+        const { result: clienteData } = await apiBackendAction("clientes.get", { id: clienteSeleccionado.id });
+        const direccionesData = (clienteData as any)?.direcciones || [];
         
         if (direccionesData && direccionesData.length > 0) {
           setDireccionesEnvio(direccionesData);
@@ -743,16 +722,16 @@ export default function NuevoIncidente() {
     if (busquedaCliente.length >= 2) {
       const fetchClientes = async () => {
         try {
-          const { data } = await listClientesApiV1ClientesGet({
-            query: busquedaCliente,
-            limit: 10,
+          const { results } = await apiBackendAction("clientes.search", { 
+            search: busquedaCliente, 
+            limit: 10 
           });
           // Enrich results with full client data if needed
-          setClientesEncontrados((data?.results || []).map((c: ClienteOutput) => ({
-            id: c.id!,
-            codigo: c.codigo!,
-            nombre: c.nombre!,
-            nit: c.nit!,
+          setClientesEncontrados((results || []).map((c: any) => ({
+            id: c.id,
+            codigo: c.codigo,
+            nombre: c.nombre,
+            nit: c.nit,
             celular: cleanString(c.celular) || "",
             telefono_principal: pickPrimaryPhone(c),
             telefono_secundario: cleanString(c.telefono_secundario) || "",
@@ -772,11 +751,11 @@ export default function NuevoIncidente() {
     if (skuMaquina.length >= 3) {
       const fetchProductos = async () => {
         try {
-          const { data } = await searchProductosApiV1ProductosSearchGet({
-            query: skuMaquina,
-            limit: 20,
+          const { results } = await apiBackendAction("productos.search", { 
+            search: skuMaquina, 
+            limit: 20 
           });
-          const transformedData = (data || []).map((item: ProductoOutput) => ({
+          const transformedData = (results || []).map((item: any) => ({
             ...item,
             url_foto: item.url_foto || "/api/placeholder/200/200",
           }));
@@ -811,21 +790,18 @@ export default function NuevoIncidente() {
       }
 
       try {
-        // Use listClientesApiV1ClientesGet to get client ID, then filter incidentes
-        const { data: clienteSearchData } = await listClientesApiV1ClientesGet({ query: codigoCliente, limit: 1 });
-        const clienteData = clienteSearchData?.results?.[0];
+        // Use clientes.getByCodigo to get client ID, then filter incidentes
+        const { result: clienteData } = await apiBackendAction("clientes.getByCodigo", { codigo: codigoCliente });
         if (!clienteData) {
           setIncidentesAnteriores([]);
           return;
         }
         
-        const { data } = await listIncidenteApiV1IncidentesGet({
-          limit: 100,
-          clienteId: clienteData.id!, // Assuming clienteData.id is available and not null
-        });
-        const incidentesDelCliente = (data?.results || [])
+        const { results } = await apiBackendAction("incidentes.list", { limit: 100 });
+        const incidentesDelCliente = (results || [])
+          .filter((inc: any) => inc.cliente?.id === (clienteData as any).id)
           .slice(0, 20);
-        setIncidentesAnteriores(incidentesDelCliente as IncidenteOutput[]);
+        setIncidentesAnteriores(incidentesDelCliente);
       } catch (error) {
         console.error("Error fetching incidentes anteriores:", error);
         setIncidentesAnteriores([]);
@@ -892,26 +868,24 @@ export default function NuevoIncidente() {
 
     try {
       // Obtener familia_padre_id del producto
-      const { data: productosData } = await searchProductosApiV1ProductosSearchGet({
-        query: productoSeleccionado.codigo,
-        limit: 1,
+      const { results: productosData } = await apiBackendAction("productos.search", { 
+        search: productoSeleccionado.codigo, 
+        limit: 1 
       });
-      const productoData = productosData?.[0];
+      const productoData = productosData?.[0] as any;
       const familiaId = productoData?.familia_padre_id || null;
 
-      // Insertar el nuevo accesorio usando la SDK
-      const { data: nuevoAcc } = await createAccesorioApiV1AccesoriosPost({
-        requestBody: {
-          nombre: nombre.trim(),
-          familia_id: familiaId,
-        },
-      });
+      // Insertar el nuevo accesorio usando apiBackendAction
+      const nuevoAcc = await apiBackendAction("accesorios.create", {
+        nombre: nombre.trim(),
+        familia_id: familiaId,
+      } as any);
 
       // Agregarlo a la lista de disponibles y seleccionarlo automáticamente
-      setAccesoriosDisponibles((prev) => [...prev, { id: nuevoAcc.id!, nombre: nuevoAcc.nombre! }]);
-      setAccesoriosSeleccionados((prev) => [...prev, nuevoAcc.nombre!]);
+      setAccesoriosDisponibles((prev: any[]) => [...prev, { id: (nuevoAcc as any).id, nombre: (nuevoAcc as any).nombre }]);
+      setAccesoriosSeleccionados((prev) => [...prev, (nuevoAcc as any).nombre]);
 
-      showSuccess(`"${nuevoAcc.nombre}" se agregó y seleccionó automáticamente.`, "Accesorio agregado");
+      showSuccess(`"${(nuevoAcc as any).nombre}" se agregó y seleccionó automáticamente.`, "Accesorio agregado");
     } catch (error) {
       console.error("Error agregando accesorio:", error);
       showError("No se pudo agregar el accesorio");
@@ -1012,63 +986,59 @@ export default function NuevoIncidente() {
         direccionEnvioId = direccionSeleccionada;
       }
       if (mostrarFormNuevoCliente) {
-        // Generar código HPC via la SDK
-        const { data: { codigo: nuevoCodigoHPC } } = await generarCodigoHpcApiV1RpcGenerarCodigoHpcGet();
+        // Generar código HPC via apiBackendAction
+        const { codigo: nuevoCodigoHPC } = await apiBackendAction("rpc.generarCodigoHPC", {});
         
-        // Crear cliente via la SDK
-        const { data: clienteData } = await createClienteApiV1ClientesPost({
-          requestBody: {
-            codigo: nuevoCodigoHPC,
-            nombre: nuevoCliente.nombre,
-            nit: nuevoCliente.nit,
-            direccion: nuevoCliente.direccion,
-            correo: nuevoCliente.correo,
-            telefono_principal: nuevoCliente.telefono_principal,
-            telefono_secundario: nuevoCliente.telefono_secundario,
-            nombre_facturacion: nuevoCliente.nombre_facturacion,
-            pais: nuevoCliente.pais,
-            departamento: nuevoCliente.departamento,
-            municipio: nuevoCliente.municipio,
-            celular: nuevoCliente.telefono_principal,
-          },
-        });
-
-        codigoCliente = clienteData.codigo!;
-        clienteId = clienteData.id!;
+        // Crear cliente via apiBackendAction
+        const clienteData = await apiBackendAction("clientes.create", {
+          codigo: nuevoCodigoHPC,
+          nombre: nuevoCliente.nombre,
+          nit: nuevoCliente.nit,
+          direccion: nuevoCliente.direccion,
+          correo: nuevoCliente.correo,
+          telefono_principal: nuevoCliente.telefono_principal,
+          telefono_secundario: nuevoCliente.telefono_secundario,
+          nombre_facturacion: nuevoCliente.nombre_facturacion,
+          pais: nuevoCliente.pais,
+          departamento: nuevoCliente.departamento,
+          municipio: nuevoCliente.municipio,
+          celular: nuevoCliente.telefono_principal,
+        } as any);
+        
+        codigoCliente = (clienteData as any).codigo;
+        clienteId = (clienteData as any).id;
         
         if (nuevoCliente.direccion && nuevoCliente.direccion.trim()) {
           try {
-            const { data: dirData } = await createDireccioneApiV1DireccionesPost({
-              requestBody: {
-                cliente_id: clienteData.id!,
-                direccion: nuevoCliente.direccion,
-                es_principal: true,
-              },
-            });
+            const dirData = await apiBackendAction("direcciones.create", {
+              cliente_id: (clienteData as any).id,
+              direccion: nuevoCliente.direccion,
+              es_principal: true,
+            } as any);
             setDireccionesEnvio([dirData]);
             if (opcionEnvio !== "recoger") {
-              setDireccionSeleccionada(String(dirData.id!));
-              direccionEnvioId = String(dirData.id!); 
+              setDireccionSeleccionada(String((dirData as any).id));
+              direccionEnvioId = String((dirData as any).id);
             }
           } catch (dirError) {
             console.error("Error creando dirección principal:", dirError);
           }
         }
-        setClienteSeleccionado(clienteData);
+        setClienteSeleccionado(clienteData as any);
         showSuccess(`Código HPC: ${nuevoCodigoHPC}`, "Cliente creado");
       } else {
-        // Actualizar cliente existente via la SDK
-        await updateClienteApiV1ClientesClienteIdPut({
-          clienteId: String(clienteSeleccionado!.id),
-          requestBody: {
+        // Actualizar cliente existente via apiBackendAction
+        await apiBackendAction("clientes.update", {
+          id: clienteSeleccionado!.id,
+          data: {
             nombre: datosClienteExistente.nombre,
             nit: datosClienteExistente.nit,
             correo: datosClienteExistente.correo,
             telefono_principal: datosClienteExistente.telefono_principal,
             telefono_secundario: datosClienteExistente.telefono_secundario,
             celular: datosClienteExistente.telefono_principal,
-          },
-        });
+          }
+        } as any);
       }
 
       if (!clienteId) {
@@ -1077,32 +1047,28 @@ export default function NuevoIncidente() {
 
       // Si hay una nueva dirección escrita, crearla
       if (nuevaDireccion.trim() && opcionEnvio !== "recoger") {
-        const { data: dirData } = await createDireccioneApiV1DireccionesPost({
-          requestBody: {
-            cliente_id: clienteId!,
-            direccion: nuevaDireccion,
-            es_principal: direccionesEnvio.length === 0,
-          },
-        });
-        direccionEnvioId = String(dirData.id!); 
+        const dirData = await apiBackendAction("direcciones.create", {
+          cliente_id: clienteId,
+          direccion: nuevaDireccion,
+          es_principal: direccionesEnvio.length === 0,
+        } as any);
+        direccionEnvioId = String((dirData as any).id);
       }
       // Si se seleccionó una dirección temporal (del cliente pero no guardada en direcciones_envio), crearla
       else if (direccionSeleccionada && direccionSeleccionada.startsWith("temp-") && opcionEnvio !== "recoger") {
         const direccionTemp = direccionesEnvio.find((d: any) => d.id === direccionSeleccionada);
         if (direccionTemp) {
-          const { data: dirData } = await createDireccioneApiV1DireccionesPost({
-            requestBody: {
-              cliente_id: clienteId!,
-              direccion: direccionTemp.direccion,
-              es_principal: true,
-            },
-          });
-          direccionEnvioId = String(dirData.id!); 
+          const dirData = await apiBackendAction("direcciones.create", {
+            cliente_id: clienteId,
+            direccion: direccionTemp.direccion,
+            es_principal: true,
+          } as any);
+          direccionEnvioId = String((dirData as any).id);
         }
       }
 
-      // Generar código de incidente via la SDK
-      const { data: { codigo: codigoIncidente } } = await generarCodigoIncidenteApiV1RpcGenerarCodigoIncidenteGet();
+      // Generar código de incidente via apiBackendAction
+      const { codigo: codigoIncidente } = await apiBackendAction("rpc.generarCodigoIncidente", {});
 
       // Determinar producto según si es manual o seleccionado
       let codigoProductoFinal: string | null = null;
@@ -1144,41 +1110,37 @@ export default function NuevoIncidente() {
         .filter(Boolean)
         .join(" | ");
 
-      // Crear incidente via la SDK
-      const { data: incidenteData } = await createIncidenteApiV1IncidentesPost({
-        requestBody: {
-          codigo: codigoIncidente,
-          cliente_id: clienteId!,
-          producto_id: productoId,
-          centro_de_servicio_id: centroServicio!,
-          quiere_envio: opcionEnvio !== "recoger",
-          direccion_entrega_id: direccionEntregaId ? parseInt(direccionEntregaId, 10) : null,
-          incidente_origen_id: esReingreso && incidenteReingresoId ? parseInt(incidenteReingresoId, 10) : null,
-          descripcion_problema: descripcionProblema || null,
-          observaciones: observacionesCompuestas || null,
-          tipologia: tipologiaEnum,
-          estado: ingresadoMostrador ? "REGISTRADO" : "EN_ENTREGA",
-          aplica_garantia: false,
-          tracking_token: trackingToken,
-        },
-      });
+      // Crear incidente via apiBackendAction
+      const incidenteData = await apiBackendAction("incidentes.create", {
+        codigo: codigoIncidente,
+        cliente_id: clienteId,
+        producto_id: productoId,
+        centro_de_servicio_id: centroServicio as number,
+        quiere_envio: opcionEnvio !== "recoger",
+        direccion_entrega_id: direccionEntregaId,
+        incidente_origen_id: esReingreso && incidenteReingresoId ? parseInt(String(incidenteReingresoId), 10) : null,
+        descripcion_problema: descripcionProblema || null,
+        observaciones: observacionesCompuestas || null,
+        tipologia: tipologiaEnum,
+        estado: ingresadoMostrador ? "REGISTRADO" : "EN_ENTREGA",
+        aplica_garantia: false,
+        tracking_token: trackingToken,
+      } as any);
 
       // Insertar accesorios en incidente_accesorios
       if (accesoriosSeleccionados.length > 0) {
         // Buscar IDs de los accesorios seleccionados
-        const { data: accesoriosData } = await listAccesorioApiV1AccesoriosGet();
-        const accesoriosFiltrados = (accesoriosData || []).filter((acc: AccesoriosOutput) =>
-          accesoriosSeleccionados.includes(acc.nombre!)
+        const { results: accesoriosData } = await apiBackendAction("accesorios.list", {});
+        const accesoriosFiltrados = (accesoriosData || []).filter((acc: any) => 
+          accesoriosSeleccionados.includes(acc.nombre)
         );
 
         if (accesoriosFiltrados.length > 0) {
           for (const acc of accesoriosFiltrados) {
-            await createIncidenteAccesorioApiV1IncidenteAccesoriosPost({
-              requestBody: {
-                incidente_id: incidenteData.id!,
-                accesorio_id: acc.id!,
-              },
-            });
+            await apiBackendAction("incidente_accesorios.create", {
+              incidente_id: (incidenteData as any).id,
+              accesorio_id: acc.id,
+            } as any);
           }
         }
       }

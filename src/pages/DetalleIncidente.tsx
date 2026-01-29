@@ -25,18 +25,16 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/shared";
-import {
-  getIncidenteApiV1IncidentesIncidenteIdGet,
-} from "@/generated_sdk";
-import type { IncidenteSchema } from "@/generated_sdk/types.gen";
-import { formatFechaCorta, formatFechaConHora } from "@/utils/dateFormatters";
+
+import { apiBackendAction } from "@/lib/api-backend";
+import type { Incidente } from "@/lib/api-registry";
 
 export default function DetalleIncidente() {
   const { incidenteId } = useParams<{ incidenteId: string }>();
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(true);
-  const [incidente, setIncidente] = useState<IncidenteSchema | null>(null);
+  const [incidente, setIncidente] = useState<Incidente | null>(null);
 
   useEffect(() => {
     if (incidenteId) {
@@ -47,10 +45,7 @@ export default function DetalleIncidente() {
   const fetchIncidenteData = async () => {
     try {
       setLoading(true);
-      const { result } = await getIncidenteApiV1IncidentesIncidenteIdGet({
-        path: { incidente_id: Number(incidenteId) },
-        responseStyle: 'data',
-      });
+      const { result } = await apiBackendAction("incidentes.get", { id: Number(incidenteId) });
       setIncidente(result);
     } catch (error) {
       console.error("Error fetching incidente data:", error);

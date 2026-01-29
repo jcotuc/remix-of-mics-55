@@ -16,3 +16,5 @@ export * from "./incidentes";
 export * from "./diagnostico";
 export * from "./media";
 export * from "./logistica";
+export * from "./auditoria";
+export * from "./reincidencias";

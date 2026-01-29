@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { apiBackendAction } from "@/lib/api-backend";
 import { toast } from "sonner";
 import { Search, Eye, Edit, Users, Truck, Phone, Mail, MapPin, Home, X, Filter } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -10,12 +11,23 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { OutlinedInput, OutlinedTextarea, OutlinedSelect } from "@/components/ui/outlined-input";
 import { TablePagination } from "@/components/shared";
-import { ClienteSchema as Cliente } from "@/generated_sdk/types.gen";
-import {
-  listClientesApiV1ClientesGet,
-  updateClienteApiV1ClientesClienteIdPatch,
-  deleteClienteApiV1ClientesClienteIdDelete,
-} from "@/generated_sdk/sdk.gen";
+
+interface ClienteRow {
+  id: number;
+  codigo: string;
+  nombre: string;
+  nit: string | null;
+  celular: string | null;
+  correo: string | null;
+  direccion: string | null;
+  direccion_envio: string | null;
+  departamento: string | null;
+  municipio: string | null;
+  telefono_principal: string | null;
+  telefono_secundario: string | null;
+  nombre_facturacion: string | null;
+  created_at: string | null;
+}
 
 interface Filtros {
   conTelefono: boolean;
@@ -38,8 +50,8 @@ export default function ClientesUnificado({
   const [activeTab, setActiveTab] = useState<string>(initialTab);
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [clientesMostrador, setClientesMostrador] = useState<Cliente[]>([]);
-  const [clientesLogistica, setClientesLogistica] = useState<Cliente[]>([]);
+  const [clientesMostrador, setClientesMostrador] = useState<ClienteRow[]>([]);
+  const [clientesLogistica, setClientesLogistica] = useState<ClienteRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
@@ -55,11 +67,11 @@ export default function ClientesUnificado({
   const [totalLogistica, setTotalLogistica] = useState(0);
   const [totalFiltered, setTotalFiltered] = useState(0);
 
-  const [editingCliente, setEditingCliente] = useState<Cliente | null>(null);
+  const [editingCliente, setEditingCliente] = useState<ClienteRow | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  const [deletingCliente, setDeletingCliente] = useState<Cliente | null>(null);
+  const [deletingCliente, setDeletingCliente] = useState<ClienteRow | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   const hasActiveFilters = filtros.conTelefono || filtros.conCorreo || filtros.conUbicacion || filtros.conDireccion;
@@ -98,16 +110,12 @@ export default function ClientesUnificado({
 
   const fetchCounts = async () => {
     try {
-      const mostradorParams = { q: "codigo=HPS-", limit: 1 };
-      const logisticaParams = { q: "codigo=HPC,codigo=!HPC-", limit: 1 };
-      
-      const [mostradorResult, logisticaResult] = await Promise.all([
-        listClientesApiV1ClientesGet(mostradorParams),
-        listClientesApiV1ClientesGet(logisticaParams)
-      ]);
-      
-      setTotalMostrador(mostradorResult.total ?? 0);
-      setTotalLogistica(logisticaResult.total ?? 0);
+      // Fetch all clients and count locally
+      const { results } = await apiBackendAction("clientes.list", { limit: 100 });
+      const mostradorCount = results.filter((c: any) => c.codigo?.startsWith("HPS-")).length;
+      const logisticaCount = results.filter((c: any) => c.codigo?.startsWith("HPC") && !c.codigo?.startsWith("HPC-")).length;
+      setTotalMostrador(mostradorCount);
+      setTotalLogistica(logisticaCount);
     } catch (error) {
       console.error("Error fetching counts:", error);
     }
@@ -116,47 +124,61 @@ export default function ClientesUnificado({
   const fetchClientes = async () => {
     setLoading(true);
     try {
-      const searchClauses = [];
+      // Fetch all clients and filter locally (server-side filtering not supported via apiBackendAction)
+      const { results: allClientes } = await apiBackendAction("clientes.list", { limit: 100 });
+      
+      // Filter by tab
+      let filtered = (allClientes as ClienteRow[]).filter(c => {
+        if (activeTab === 'mostrador') {
+          return c.codigo?.startsWith("HPS-");
+        } else {
+          return c.codigo?.startsWith("HPC") && !c.codigo?.startsWith("HPC-");
+        }
+      });
+
+      // Search filter
       if (debouncedSearch) {
-        searchClauses.push(`(codigo=${debouncedSearch},nombre=${debouncedSearch},nit=${debouncedSearch},celular=${debouncedSearch})`);
+        const search = debouncedSearch.toLowerCase();
+        filtered = filtered.filter(c => 
+          c.codigo?.toLowerCase().includes(search) ||
+          c.nombre?.toLowerCase().includes(search) ||
+          c.nit?.toLowerCase().includes(search) ||
+          c.celular?.toLowerCase().includes(search)
+        );
       }
 
+      // Apply boolean filters
+      if (filtros.conTelefono) {
+        filtered = filtered.filter(c => c.celular || c.telefono_principal);
+      }
+      if (filtros.conCorreo) {
+        filtered = filtered.filter(c => c.correo && c.correo !== '');
+      }
+      if (filtros.conUbicacion) {
+        filtered = filtered.filter(c => c.departamento || c.municipio);
+      }
+      if (filtros.conDireccion) {
+        filtered = filtered.filter(c => c.direccion || c.direccion_envio);
+      }
+
+      // Sort
       if (activeTab === 'mostrador') {
-        searchClauses.push("codigo=HPS-");
+        filtered.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
       } else {
-        searchClauses.push("codigo=HPC,codigo=!HPC-");
+        filtered.sort((a, b) => (a.nombre || '').localeCompare(b.nombre || ''));
       }
-      
-      if (filtros.conTelefono) searchClauses.push("(celular=!null,telefono_principal=!null)");
-      if (filtros.conCorreo) searchClauses.push("correo=!null");
-      if (filtros.conUbicacion) searchClauses.push("(departamento=!null,municipio=!null)");
-      if (filtros.conDireccion) searchClauses.push("(direccion=!null,direccion_envio=!null)");
 
-      const q = searchClauses.join(';');
+      setTotalFiltered(filtered.length);
 
-      const order_by = activeTab === 'mostrador' ? "-created_at" : "nombre";
-
-      const response = await listClientesApiV1ClientesGet({
-        q,
-        limit: itemsPerPage,
-        offset: (currentPage - 1) * itemsPerPage,
-        order_by,
-      });
-      const { data } = await listClientesApiV1ClientesGet({
-        q,
-        limit: itemsPerPage,
-        offset: (currentPage - 1) * itemsPerPage,
-        order_by,
-      });
-      const { results, total } = data;
+      // Paginate
+      const from = (currentPage - 1) * itemsPerPage;
+      const paginated = filtered.slice(from, from + itemsPerPage);
       
       if (activeTab === 'mostrador') {
-        setClientesMostrador(results ?? []);
+        setClientesMostrador(paginated);
       } else {
-        setClientesLogistica(results ?? []);
+        setClientesLogistica(paginated);
       }
-      setTotalFiltered(total ?? 0);
-
     } catch (error) {
       console.error("Error fetching clients:", error);
       toast.error("Error al cargar los clientes");
@@ -168,7 +190,7 @@ export default function ClientesUnificado({
   const currentClientes = activeTab === 'mostrador' ? clientesMostrador : clientesLogistica;
   const totalPages = Math.ceil(totalFiltered / itemsPerPage);
 
-  const handleViewDetail = (cliente: Cliente) => {
+  const handleViewDetail = (cliente: ClienteRow) => {
     if (activeTab === 'mostrador') {
       navigate(`/mostrador/clientes/${cliente.codigo}`);
     } else {
@@ -176,28 +198,27 @@ export default function ClientesUnificado({
     }
   };
 
-  const handleEdit = (cliente: Cliente) => {
+  const handleEdit = (cliente: ClienteRow) => {
     setEditingCliente({ ...cliente });
     setIsEditDialogOpen(true);
   };
 
   const handleSaveEdit = async () => {
-    if (!editingCliente || editingCliente.id === undefined) return;
+    if (!editingCliente) return;
     setIsSaving(true);
     try {
-      await updateClienteApiV1ClientesClienteIdPatch({
-        cliente_id: editingCliente.id,
-        body: {
+      await apiBackendAction("clientes.update", {
+        id: editingCliente.id,
+        data: {
           nombre: editingCliente.nombre,
-          nit: editingCliente.nit || null,
-          celular: editingCliente.celular || null,
-          correo: editingCliente.correo || null,
-          direccion: editingCliente.direccion || null,
-          departamento: editingCliente.departamento || null,
-          municipio: editingCliente.municipio || null,
-          telefono_principal: editingCliente.telefono_principal || null,
-          telefono_secundario: editingCliente.telefono_secundario || null,
-          direccion_envio: editingCliente.direccion_envio || null,
+          nit: editingCliente.nit,
+          celular: editingCliente.celular,
+          correo: editingCliente.correo,
+          direccion: editingCliente.direccion,
+          departamento: editingCliente.departamento,
+          municipio: editingCliente.municipio,
+          telefono_principal: editingCliente.telefono_principal,
+          telefono_secundario: editingCliente.telefono_secundario
         }
       });
       toast.success("Cliente actualizado correctamente");
@@ -212,15 +233,15 @@ export default function ClientesUnificado({
     }
   };
 
-  const handleDeleteConfirm = (cliente: Cliente) => {
+  const handleDeleteConfirm = (cliente: ClienteRow) => {
     setDeletingCliente(cliente);
     setIsDeleteDialogOpen(true);
   };
 
   const handleDelete = async () => {
-    if (!deletingCliente || deletingCliente.id === undefined) return;
+    if (!deletingCliente) return;
     try {
-      await deleteClienteApiV1ClientesClienteIdDelete({ cliente_id: deletingCliente.id });
+      await apiBackendAction("clientes.delete", { id: deletingCliente.id });
       toast.success("Cliente eliminado correctamente");
       setIsDeleteDialogOpen(false);
       setDeletingCliente(null);
