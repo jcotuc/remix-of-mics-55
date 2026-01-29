@@ -122,6 +122,8 @@ const productosHandlers: Record<string, ActionHandler<any>> = {
     });
     return { status: "deleted", id: input.id };
   },
+  "productos.search": (input) =>
+    list<any>("productos", { ...input, search: input.search }),
   "productos.getByCodigo": async (input) => {
     const { codigo } = input;
     const url = `${API_BASE_URL}/api/v1/productos/?codigo=${codigo}`;

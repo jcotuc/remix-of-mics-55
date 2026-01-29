@@ -8,7 +8,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Search, Plus, FileText, Printer, PackagePlus } from "lucide-react";
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client"; // Only for functions.invoke
 import { apiBackendAction } from "@/lib/api-backend";
 import { showError, showSuccess } from "@/utils/toastHelpers";
 import { formatFechaInput, formatFechaCorta } from "@/utils/dateFormatters";
@@ -237,34 +236,8 @@ export default function Guias() {
     }
 
     try {
-      // Generar número de guía usando apiBackendAction
-      const { numero: numeroGuia } = await apiBackendAction("rpc.generarNumeroGuia", {});
-
-      // Llamar al edge function para crear la guía en Zigo (mantener supabase.functions.invoke)
-      const { data: zigoResponse, error: zigoError } = await supabase.functions.invoke('zigo-create-guide', {
-        body: {
-          guiaData: {
-            ...formData,
-            peso: formData.peso ? parseFloat(formData.peso) : null,
-            tarifa: formData.tarifa ? parseFloat(formData.tarifa) : null
-          }
-        }
-      });
-
-      if (zigoError) {
-        console.error('Error llamando edge function:', zigoError);
-        throw new Error('Error al conectar con Zigo: ' + zigoError.message);
-      }
-
-      if (!zigoResponse.success) {
-        throw new Error(zigoResponse.error || 'Error desconocido al crear guía en Zigo');
-      }
-
-      console.log('Respuesta de Zigo:', zigoResponse);
-
-      // Guardar la guía en la base de datos usando apiBackendAction
-      await apiBackendAction("guias.create", {
-        numero_guia: numeroGuia,
+      // Create guide via backend - backend handles Zigo API call
+      const guiaCreada = await apiBackendAction("guias.create", {
         destinatario: formData.destinatario,
         direccion_destinatario: formData.direccion_destinatario,
         ciudad_destino: formData.ciudad_destino,
@@ -277,13 +250,13 @@ export default function Guias() {
         incidentes_codigos: formData.incidentes_codigos.length > 0 ? formData.incidentes_codigos : null,
         remitente: formData.remitente,
         direccion_remitente: formData.direccion_remitente,
+        telefono_destinatario: formData.telefono_destinatario || null,
         estado: 'PENDIENTE',
         tipo: 'SALIDA',
         centro_de_servicio_origen_id: 1,
-        zigo_request_payload: {}
       } as any);
 
-      showSuccess(`Guía ${numeroGuia} creada en Zigo y guardada localmente`);
+      showSuccess(`Guía creada exitosamente`);
 
       // Reset form
       setFormData({
@@ -297,8 +270,8 @@ export default function Guias() {
         referencia_2: "",
         fecha_promesa_entrega: "",
         incidentes_codigos: [],
-        remitente: "ZIGO",
-        direccion_remitente: "42A Av 9-16 Zona 5, Ciudad de Guatemala",
+        remitente: "Centro de servicio GUA",
+        direccion_remitente: "27 Calle Bodega C 41-55 Zona 5 Guatemala Guatemala",
         telefono_destinatario: ""
       });
       
