@@ -751,10 +751,10 @@ export default function NuevoIncidente() {
     if (skuMaquina.length >= 3) {
       const fetchProductos = async () => {
         try {
-          const { results } = await apiBackendAction("productos.search", { 
+          const { results } = await apiBackendAction("productos.list", { 
             search: skuMaquina, 
             limit: 20 
-          });
+          } as any);
           const transformedData = (results || []).map((item: any) => ({
             ...item,
             url_foto: item.url_foto || "/api/placeholder/200/200",
