@@ -176,7 +176,8 @@ const incidentesHandlers: Record<string, ActionHandler<any>> = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(input),
     });
-    return { result: response };
+    // Return directly (not wrapped) for direct field access like incidenteData.codigo
+    return response;
   },
   "incidentes.update": async (input) => {
     const { id, ...updateData } = input as any;
