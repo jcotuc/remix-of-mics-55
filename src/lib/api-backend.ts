@@ -37,41 +37,45 @@ const clientesHandlers: Record<string, ActionHandler<any>> = {
   "clientes.list": (input) =>
     list<any>("clientes", input),
   "clientes.get": async (input) => {
-    const response = await getClienteApiV1ClientesClienteIdGet({
-      path: { cliente_id: input.id },
-      responseStyle: 'data',
-    });
-    return { result: response.result };
+    const url = `${API_BASE_URL}/api/v1/clientes/${input.id}`;
+    const response = await apiFetch<any>(url);
+    return { result: response };
   },
   "clientes.create": async (input) => {
-    const response = await createClienteApiV1ClientesPost({
-      body: input,
-      responseStyle: 'data',
+    const url = `${API_BASE_URL}/api/v1/clientes/`;
+    const response = await apiFetch<any>(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
     });
-    return { result: response.result };
+    return { result: response };
   },
   "clientes.update": async (input) => {
     const { id, data: updateData } = input as any;
-    const response = await updateClienteApiV1ClientesClienteIdPatch({
-      path: { cliente_id: id },
-      body: updateData,
-      responseStyle: 'data',
+    const url = `${API_BASE_URL}/api/v1/clientes/${id}`;
+    const response = await apiFetch<any>(url, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updateData),
     });
-    return { result: response.result };
+    return { result: response };
   },
   "clientes.delete": async (input) => {
-    await deleteClienteApiV1ClientesClienteIdDelete({
-      path: { cliente_id: input.id },
-      responseStyle: 'data',
+    const url = `${API_BASE_URL}/api/v1/clientes/${input.id}`;
+    await apiFetch<any>(url, {
+      method: 'DELETE',
     });
     return { status: "deleted", id: input.id };
   },
   "clientes.search": async (input) => {
     const { search, limit = 10, skip = 0 } = input as any;
-    const response = await listClientesApiV1ClientesGet({
-      query: { search, limit, skip },
-      responseStyle: 'data',
+    const params = new URLSearchParams({
+      search: search || "",
+      limit: limit.toString(),
+      skip: skip.toString(),
     });
+    const url = `${API_BASE_URL}/api/v1/clientes/?${params.toString()}`;
+    const response = await apiFetch<any>(url);
     return { results: response.results, total: response.total };
   },
   "clientes.getByCodigo": notImplemented("clientes.getByCodigo"), // This action is not directly in SDK, requires a custom search
@@ -185,38 +189,38 @@ const diagnosticosHandlers: Record<string, ActionHandler<any>> = {
   "diagnosticos.get": async (input) => {
     const { incidente_id, id } = input as any;
     if (!incidente_id) throw new Error("An incidente_id is required to get a diagnostico.");
-    const response = await getDiagnosticoApiV1IncidentesIncidenteIdDiagnosticosDiagnosticoIdGet({
-      path: { incidente_id, diagnostico_id: id },
-      responseStyle: 'data',
-    });
-    return { result: response.result };
+    const url = `${API_BASE_URL}/api/v1/incidentes/${incidente_id}/diagnosticos/${id}`;
+    const response = await apiFetch<any>(url);
+    return { result: response };
   },
   "diagnosticos.create": async (input) => {
     const { incidente_id, ...createData } = input as any;
     if (!incidente_id) throw new Error("An incidente_id is required to create a diagnostico.");
-    const response = await createDiagnosticoApiV1IncidentesIncidenteIdDiagnosticosPost({
-      path: { incidente_id },
-      body: createData,
-      responseStyle: 'data',
+    const url = `${API_BASE_URL}/api/v1/incidentes/${incidente_id}/diagnosticos/`;
+    const response = await apiFetch<any>(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(createData),
     });
-    return { result: response.result };
+    return { result: response };
   },
   "diagnosticos.update": async (input) => {
     const { incidente_id, id, data: updateData } = input as any;
     if (!incidente_id) throw new Error("An incidente_id is required to update a diagnostico.");
-    const response = await updateDiagnosticoApiV1IncidentesIncidenteIdDiagnosticosDiagnosticoIdPatch({
-      path: { incidente_id, diagnostico_id: id },
-      body: { ...updateData, updated_at: new Date().toISOString() },
-      responseStyle: 'data',
+    const url = `${API_BASE_URL}/api/v1/incidentes/${incidente_id}/diagnosticos/${id}`;
+    const response = await apiFetch<any>(url, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...updateData, updated_at: new Date().toISOString() }),
     });
-    return { result: response.result };
+    return { result: response };
   },
   "diagnosticos.delete": async (input) => {
     const { incidente_id, id } = input as any;
     if (!incidente_id) throw new Error("An incidente_id is required to delete a diagnostico.");
-    await deleteDiagnosticoApiV1IncidentesIncidenteIdDiagnosticosDiagnosticoIdDelete({
-      path: { incidente_id, diagnostico_id: id },
-      responseStyle: 'data',
+    const url = `${API_BASE_URL}/api/v1/incidentes/${incidente_id}/diagnosticos/${id}`;
+    await apiFetch<any>(url, {
+      method: 'DELETE',
     });
     return { status: "deleted", id: id };
   },
@@ -380,73 +384,74 @@ const diagnosticosHandlers: Record<string, ActionHandler<any>> = {
     return { result: response };
   },
   "grupos_cola_fifo.create": async (input) => {
-    const response = await createGrupoColaFifoApiV1GruposColaFifoPost({
-      body: input,
-      responseStyle: 'data',
+    const url = `${API_BASE_URL}/api/v1/grupos-cola-fifo/`;
+    const response = await apiFetch<any>(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
     });
-    return response.result;
+    return response;
   },
   "grupos_cola_fifo.update": async (input) => {
     const { id, data: updateData } = input as any;
-    const response = await updateGrupoColaFifoApiV1GruposColaFifoGrupoIdPatch({
-      path: { grupo_id: id },
-      body: updateData,
-      responseStyle: 'data',
+    const url = `${API_BASE_URL}/api/v1/grupos-cola-fifo/${id}`;
+    const response = await apiFetch<any>(url, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updateData),
     });
-    return response.result;
+    return response;
   },
   "grupos_cola_fifo.delete": async (input) => {
-    await deleteGrupoColaFifoApiV1GruposColaFifoGrupoIdDelete({
-      path: { grupo_id: input.id },
-      responseStyle: 'data',
+    const url = `${API_BASE_URL}/api/v1/grupos-cola-fifo/${input.id}`;
+    await apiFetch<any>(url, {
+      method: 'DELETE',
     });
     return { status: "deleted", id: input.id };
   },
   "grupos_cola_fifo_familias.list": async (input) => {
     const { grupo_id, skip = 0, limit = 300 } = input || {};
     if (!grupo_id) throw new Error("A grupo_id is required to list grupo_cola_fifo_familias.");
-    const response = await getGrupoColaFifoFamiliasApiV1GruposColaFifoGrupoIdFamiliasGet({
-      path: { grupo_id },
-      query: { skip, limit },
-      responseStyle: 'data',
-    });
+    const params = new URLSearchParams({ skip: skip.toString(), limit: limit.toString() });
+    const url = `${API_BASE_URL}/api/v1/grupos-cola-fifo/${grupo_id}/familias?${params.toString()}`;
+    const response = await apiFetch<any>(url);
     return { results: response, total: response.length };
   },
   "grupos_cola_fifo_familias.get": async (input) => {
     const { grupo_id, id } = input;
     if (!grupo_id) throw new Error("A grupo_id is required to get a grupo_cola_fifo_familia.");
-    const response = await getGrupoColaFifoFamiliaApiV1GruposColaFifoGrupoIdFamiliasFamiliaIdGet({
-      path: { grupo_id, familia_id: id },
-      responseStyle: 'data',
-    });
-    return { result: response.result };
+    const url = `${API_BASE_URL}/api/v1/grupos-cola-fifo/${grupo_id}/familias/${id}`;
+    const response = await apiFetch<any>(url);
+    return { result: response };
   },
   "grupos_cola_fifo_familias.create": async (input) => {
     const { grupo_id, ...createData } = input;
     if (!grupo_id) throw new Error("A grupo_id is required to create a grupo_cola_fifo_familia.");
-    const response = await createGrupoColaFifoFamiliaApiV1GruposColaFifoGrupoIdFamiliasPost({
-      path: { grupo_id },
-      body: createData,
-      responseStyle: 'data',
+    const url = `${API_BASE_URL}/api/v1/grupos-cola-fifo/${grupo_id}/familias`;
+    const response = await apiFetch<any>(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(createData),
     });
-    return response.result;
+    return response;
   },
   "grupos_cola_fifo_familias.update": async (input) => {
     const { grupo_id, id, data: updateData } = input;
     if (!grupo_id) throw new Error("A grupo_id is required to update a grupo_cola_fifo_familia.");
-    const response = await updateGrupoColaFifoFamiliaApiV1GruposColaFifoGrupoIdFamiliasFamiliaIdPatch({
-      path: { grupo_id, familia_id: id },
-      body: updateData,
-      responseStyle: 'data',
+    const url = `${API_BASE_URL}/api/v1/grupos-cola-fifo/${grupo_id}/familias/${id}`;
+    const response = await apiFetch<any>(url, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updateData),
     });
-    return response.result;
+    return response;
   },
   "grupos_cola_fifo_familias.delete": async (input) => {
     const { grupo_id, id } = input;
     if (!grupo_id) throw new Error("A grupo_id is required to delete a grupo_cola_fifo_familia.");
-    await deleteGrupoColaFifoFamiliaApiV1GruposColaFifoGrupoIdFamiliasFamiliaIdDelete({
-      path: { grupo_id, familia_id: id },
-      responseStyle: 'data',
+    const url = `${API_BASE_URL}/api/v1/grupos-cola-fifo/${grupo_id}/familias/${id}`;
+    await apiFetch<any>(url, {
+      method: 'DELETE',
     });
     return { status: "deleted", id: id };
   },
@@ -458,11 +463,13 @@ const diagnosticosHandlers: Record<string, ActionHandler<any>> = {
 const mostradorHandlers: Record<string, ActionHandler<any>> = {
   // Cotizaciones
   "cotizaciones.create": async (input) => {
-    const response = await createCotizacionApiV1CotizacionesPost({
-      body: input,
-      responseStyle: 'data',
+    const url = `${API_BASE_URL}/api/v1/cotizaciones/`;
+    const response = await apiFetch<any>(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
     });
-    return response.result;
+    return response;
   },
   "cotizaciones.list": (input) =>
     list<any>("cotizaciones", input),
@@ -471,9 +478,11 @@ const mostradorHandlers: Record<string, ActionHandler<any>> = {
     list<any>("notificaciones-cliente", input),
   "notificaciones_cliente.create": async (input) => {
     const insertData = Array.isArray(input) ? input : [input];
-    const response = await createNotificacionClienteApiV1NotificacionesClientePost({
-      body: insertData,
-      responseStyle: 'data',
+    const url = `${API_BASE_URL}/api/v1/notificaciones-cliente/`;
+    const response = await apiFetch<any>(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(insertData),
     });
     return { results: response.results || [] };
   },
@@ -482,9 +491,11 @@ const mostradorHandlers: Record<string, ActionHandler<any>> = {
     list<any>("incidente-fotos", input),
   "incidente_fotos.create": async (input) => {
     const insertData = Array.isArray(input) ? input : [input];
-    const response = await createIncidenteFotoApiV1IncidenteFotosPost({
-      body: insertData,
-      responseStyle: 'data',
+    const url = `${API_BASE_URL}/api/v1/incidente-fotos/`;
+    const response = await apiFetch<any>(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(insertData),
     });
     return { results: response.results || [] };
   },
@@ -493,28 +504,22 @@ const mostradorHandlers: Record<string, ActionHandler<any>> = {
   "incidente_tecnico.list": (input) =>
     list<any>("incidente-tecnico", input),
   "usuarios.get": async (input) => {
-    const response = await getUserApiV1UsuariosUserIdGet({
-      path: { user_id: input.id },
-      responseStyle: 'data',
-    });
-    return { result: response.result };
+    const url = `${API_BASE_URL}/api/v1/usuarios/${input.id}`;
+    const response = await apiFetch<any>(url);
+    return { result: response };
   },
   "centros_de_servicio.get": async (input) => {
-    const response = await getCentroDeServicioApiV1CentrosDeServicioCentroIdGet({
-      path: { centro_id: input.id },
-      responseStyle: 'data',
-    });
-    return { result: response.result };
+    const url = `${API_BASE_URL}/api/v1/centros-de-servicio/${input.id}`;
+    const response = await apiFetch<any>(url);
+    return { result: response };
   },
   // Direcciones Envio
   "direcciones_envio.list": (input) =>
     list<any>("direcciones-envio", input),
   "direcciones_envio.get": async (input) => {
-    const response = await getDireccionEnvioApiV1DireccionesEnvioDireccionIdGet({
-      path: { direccion_id: input.id },
-      responseStyle: 'data',
-    });
-    return { result: response.result };
+    const url = `${API_BASE_URL}/api/v1/direcciones-envio/${input.id}`;
+    const response = await apiFetch<any>(url);
+    return { result: response };
   },
   // Guias - with filters
   "guias.search": async (input) => {
@@ -559,64 +564,66 @@ const calidadHandlers: Record<string, ActionHandler<any>> = {
   "auditorias_calidad.list": (input) =>
     list<any>("auditorias-calidad", input),
   "auditorias_calidad.get": async (input) => {
-    const response = await getAuditoriaCalidadApiV1AuditoriasCalidadAuditoriaIdGet({
-      path: { auditoria_id: input.id },
-      responseStyle: 'data',
-    });
-    return { result: response.result };
+    const url = `${API_BASE_URL}/api/v1/auditorias-calidad/${input.id}`;
+    const response = await apiFetch<any>(url);
+    return { result: response };
   },
   "auditorias_calidad.create": async (input) => {
-    const response = await createAuditoriaCalidadApiV1AuditoriasCalidadPost({
-      body: input,
-      responseStyle: 'data',
+    const url = `${API_BASE_URL}/api/v1/auditorias-calidad/`;
+    const response = await apiFetch<any>(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
     });
-    return response.result;
+    return response;
   },
   "auditorias_calidad.update": async (input) => {
     const { id, data: updateData } = input as any;
-    const response = await updateAuditoriaCalidadApiV1AuditoriasCalidadAuditoriaIdPatch({
-      path: { auditoria_id: id },
-      body: updateData,
-      responseStyle: 'data',
+    const url = `${API_BASE_URL}/api/v1/auditorias-calidad/${id}`;
+    const response = await apiFetch<any>(url, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updateData),
     });
-    return response.result;
+    return response;
   },
   "auditorias_calidad.delete": async (input) => {
-    await deleteAuditoriaCalidadApiV1AuditoriasCalidadAuditoriaIdDelete({
-      path: { auditoria_id: input.id },
-      responseStyle: 'data',
+    const url = `${API_BASE_URL}/api/v1/auditorias-calidad/${input.id}`;
+    await apiFetch<any>(url, {
+      method: 'DELETE',
     });
     return { status: "deleted", id: input.id };
   },
   "defectos_calidad.list": (input) =>
     list<any>("defectos-calidad", input),
   "defectos_calidad.get": async (input) => {
-    const response = await getDefectoCalidadApiV1DefectosCalidadDefectoIdGet({
-      path: { defecto_id: input.id },
-      responseStyle: 'data',
-    });
-    return { result: response.result };
+    const url = `${API_BASE_URL}/api/v1/defectos-calidad/${input.id}`;
+    const response = await apiFetch<any>(url);
+    return { result: response };
   },
   "defectos_calidad.create": async (input) => {
-    const response = await createDefectoCalidadApiV1DefectosCalidadPost({
-      body: input,
-      responseStyle: 'data',
+    const url = `${API_BASE_URL}/api/v1/defectos-calidad/`;
+    const response = await apiFetch<any>(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
     });
-    return response.result;
+    return response;
   },
   "defectos_calidad.update": async (input) => {
     const { id, data: updateData } = input as any;
-    const response = await updateDefectoCalidadApiV1DefectosCalidadDefectoIdPatch({
-      path: { defecto_id: id },
-      body: updateData,
-      responseStyle: 'data',
+    const url = `${API_BASE_URL}/api/v1/defectos-calidad/${id}`;
+    const response = await apiFetch<any>(url, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updateData),
     });
-    return response.result;
+    return response;
   },
   "defectos_calidad.delete": async (input) => {
-    await deleteDefectoCalidadApiV1DefectosCalidadDefectoIdDelete({
-      path: { defecto_id: input.id },
-      responseStyle: 'data',
+    const url = `${API_BASE_URL}/api/v1/defectos-calidad/${input.id}`;
+    await apiFetch<any>(url, {
+      method: 'DELETE',
     });
     return { status: "deleted", id: input.id };
   },
@@ -629,32 +636,33 @@ const garantiasHandlers: Record<string, ActionHandler<any>> = {
   "garantias_manuales.list": (input) =>
     list<any>("garantias-manuales", input),
   "garantias_manuales.get": async (input) => {
-    const response = await getGarantiaManualApiV1GarantiasManualesGarantiaIdGet({
-      path: { garantia_id: input.id },
-      responseStyle: 'data',
-    });
-    return { result: response.result };
+    const url = `${API_BASE_URL}/api/v1/garantias-manuales/${input.id}`;
+    const response = await apiFetch<any>(url);
+    return { result: response };
   },
   "garantias_manuales.create": async (input) => {
-    const response = await createGarantiaManualApiV1GarantiasManualesPost({
-      body: input,
-      responseStyle: 'data',
+    const url = `${API_BASE_URL}/api/v1/garantias-manuales/`;
+    const response = await apiFetch<any>(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
     });
-    return response.result;
+    return response;
   },
   "garantias_manuales.update": async (input) => {
     const { id, data: updateData } = input as any;
-    const response = await updateGarantiaManualApiV1GarantiasManualesGarantiaIdPatch({
-      path: { garantia_id: id },
-      body: updateData,
-      responseStyle: 'data',
+    const url = `${API_BASE_URL}/api/v1/garantias-manuales/${id}`;
+    const response = await apiFetch<any>(url, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updateData),
     });
-    return response.result;
+    return response;
   },
   "garantias_manuales.delete": async (input) => {
-    await deleteGarantiaManualApiV1GarantiasManualesGarantiaIdDelete({
-      path: { garantia_id: input.id },
-      responseStyle: 'data',
+    const url = `${API_BASE_URL}/api/v1/garantias-manuales/${input.id}`;
+    await apiFetch<any>(url, {
+      method: 'DELETE',
     });
     return { status: "deleted", id: input.id };
   },
@@ -667,32 +675,33 @@ const sacHandlers: Record<string, ActionHandler<any>> = {
   "asignaciones_sac.list": (input) =>
     list<any>("asignaciones-sac", input),
   "asignaciones_sac.get": async (input) => {
-    const response = await getAsignacionSacApiV1AsignacionesSacAsignacionIdGet({
-      path: { asignacion_id: input.id },
-      responseStyle: 'data',
-    });
-    return { result: response.result };
+    const url = `${API_BASE_URL}/api/v1/asignaciones-sac/${input.id}`;
+    const response = await apiFetch<any>(url);
+    return { result: response };
   },
   "asignaciones_sac.create": async (input) => {
-    const response = await createAsignacionSacApiV1AsignacionesSacPost({
-      body: input,
-      responseStyle: 'data',
+    const url = `${API_BASE_URL}/api/v1/asignaciones-sac/`;
+    const response = await apiFetch<any>(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
     });
-    return response.result;
+    return response;
   },
   "asignaciones_sac.update": async (input) => {
     const { id, data: updateData } = input as any;
-    const response = await updateAsignacionSacApiV1AsignacionesSacAsignacionIdPatch({
-      path: { asignacion_id: id },
-      body: updateData,
-      responseStyle: 'data',
+    const url = `${API_BASE_URL}/api/v1/asignaciones-sac/${id}`;
+    const response = await apiFetch<any>(url, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updateData),
     });
-    return response.result;
+    return response;
   },
   "asignaciones_sac.delete": async (input) => {
-    await deleteAsignacionSacApiV1AsignacionesSacAsignacionIdDelete({
-      path: { asignacion_id: input.id },
-      responseStyle: 'data',
+    const url = `${API_BASE_URL}/api/v1/asignaciones-sac/${input.id}`;
+    await apiFetch<any>(url, {
+      method: 'DELETE',
     });
     return { status: "deleted", id: input.id };
   },
@@ -789,32 +798,33 @@ const solicitudesCambioHandlers: Record<string, ActionHandler<any>> = {
 // =============================================================================
 const incidenteTecnicoHandlers: Record<string, ActionHandler<any>> = {
   "incidente_tecnico.get": async (input) => {
-    const response = await getIncidenteTecnicoApiV1IncidenteTecnicoIncidenteTecnicoIdGet({
-      path: { incidente_tecnico_id: input.id },
-      responseStyle: 'data',
-    });
-    return { result: response.result };
+    const url = `${API_BASE_URL}/api/v1/incidente-tecnico/${input.id}`;
+    const response = await apiFetch<any>(url);
+    return { result: response };
   },
   "incidente_tecnico.create": async (input) => {
-    const response = await createIncidenteTecnicoApiV1IncidenteTecnicoPost({
-      body: input,
-      responseStyle: 'data',
+    const url = `${API_BASE_URL}/api/v1/incidente-tecnico/`;
+    const response = await apiFetch<any>(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
     });
-    return response.result;
+    return response;
   },
   "incidente_tecnico.update": async (input) => {
     const { id, data: updateData } = input as any;
-    const response = await updateIncidenteTecnicoApiV1IncidenteTecnicoIncidenteTecnicoIdPatch({
-      path: { incidente_tecnico_id: id },
-      body: updateData,
-      responseStyle: 'data',
+    const url = `${API_BASE_URL}/api/v1/incidente-tecnico/${id}`;
+    const response = await apiFetch<any>(url, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updateData),
     });
-    return response.result;
+    return response;
   },
   "incidente_tecnico.delete": async (input) => {
-    await deleteIncidenteTecnicoApiV1IncidenteTecnicoIncidenteTecnicoIdDelete({
-      path: { incidente_tecnico_id: input.id },
-      responseStyle: 'data',
+    const url = `${API_BASE_URL}/api/v1/incidente-tecnico/${input.id}`;
+    await apiFetch<any>(url, {
+      method: 'DELETE',
     });
     return { status: "deleted", id: input.id };
   },
@@ -832,35 +842,37 @@ const diagnosticoAsociacionesHandlers: Record<string, ActionHandler<any>> = {
   },
   "diagnostico_fallas.create": async (input) => {
     const { diagnostico_id, ...createData } = input;
-    const response = await createDiagnosticoFallaApiV1DiagnosticosDiagnosticoIdFallasPost({
-      path: { diagnostico_id },
-      body: createData,
-      responseStyle: 'data',
+    const url = `${API_BASE_URL}/api/v1/diagnosticos/${diagnostico_id}/fallas`;
+    const response = await apiFetch<any>(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(createData),
     });
-    return response.result;
+    return response;
   },
   "diagnostico_fallas.delete": async (input) => {
     const { diagnostico_id, falla_id } = input;
-    await deleteDiagnosticoFallaApiV1DiagnosticosDiagnosticoIdFallasFallaIdDelete({
-      path: { diagnostico_id, falla_id },
-      responseStyle: 'data',
+    const url = `${API_BASE_URL}/api/v1/diagnosticos/${diagnostico_id}/fallas/${falla_id}`;
+    await apiFetch<any>(url, {
+      method: 'DELETE',
     });
     return { status: "deleted" };
   },
   "diagnostico_fallas.deleteByDiagnostico": async (input) => {
     const { diagnostico_id } = input;
-    await deleteDiagnosticoFallasApiV1DiagnosticosDiagnosticoIdFallasDelete({
-      path: { diagnostico_id },
-      responseStyle: 'data',
+    const url = `${API_BASE_URL}/api/v1/diagnosticos/${diagnostico_id}/fallas`;
+    await apiFetch<any>(url, {
+      method: 'DELETE',
     });
     return { status: "deleted" };
   },
   "diagnostico_fallas.createBatch": async (input) => {
     const { diagnostico_id, ...createData } = input;
-    const response = await createDiagnosticoFallasBatchApiV1DiagnosticosDiagnosticoIdFallasBatchPost({
-      path: { diagnostico_id },
-      body: createData,
-      responseStyle: 'data',
+    const url = `${API_BASE_URL}/api/v1/diagnosticos/${diagnostico_id}/fallas/batch`;
+    const response = await apiFetch<any>(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(createData),
     });
     return response.results || [];
   },
@@ -870,35 +882,37 @@ const diagnosticoAsociacionesHandlers: Record<string, ActionHandler<any>> = {
   },
   "diagnostico_causas.create": async (input) => {
     const { diagnostico_id, ...createData } = input;
-    const response = await createDiagnosticoCausaApiV1DiagnosticosDiagnosticoIdCausasPost({
-      path: { diagnostico_id },
-      body: createData,
-      responseStyle: 'data',
+    const url = `${API_BASE_URL}/api/v1/diagnosticos/${diagnostico_id}/causas`;
+    const response = await apiFetch<any>(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(createData),
     });
-    return response.result;
+    return response;
   },
   "diagnostico_causas.delete": async (input) => {
     const { diagnostico_id, causa_id } = input;
-    await deleteDiagnosticoCausaApiV1DiagnosticosDiagnosticoIdCausasCausaIdDelete({
-      path: { diagnostico_id, causa_id },
-      responseStyle: 'data',
+    const url = `${API_BASE_URL}/api/v1/diagnosticos/${diagnostico_id}/causas/${causa_id}`;
+    await apiFetch<any>(url, {
+      method: 'DELETE',
     });
     return { status: "deleted" };
   },
   "diagnostico_causas.deleteByDiagnostico": async (input) => {
     const { diagnostico_id } = input;
-    await deleteDiagnosticoCausasApiV1DiagnosticosDiagnosticoIdCausasDelete({
-      path: { diagnostico_id },
-      responseStyle: 'data',
+    const url = `${API_BASE_URL}/api/v1/diagnosticos/${diagnostico_id}/causas`;
+    await apiFetch<any>(url, {
+      method: 'DELETE',
     });
     return { status: "deleted" };
   },
   "diagnostico_causas.createBatch": async (input) => {
     const { diagnostico_id, ...createData } = input;
-    const response = await createDiagnosticoCausasBatchApiV1DiagnosticosDiagnosticoIdCausasBatchPost({
-      path: { diagnostico_id },
-      body: createData,
-      responseStyle: 'data',
+    const url = `${API_BASE_URL}/api/v1/diagnosticos/${diagnostico_id}/causas/batch`;
+    const response = await apiFetch<any>(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(createData),
     });
     return response.results || [];
   },
@@ -1089,25 +1103,28 @@ const pedidosBodegaExtendedHandlers: Record<string, ActionHandler<any>> = {
 // =============================================================================
 const diagnosticosWriteHandlers: Record<string, ActionHandler<any>> = {
   "diagnosticos.create": async (input) => {
-    const response = await createDiagnosticoApiV1DiagnosticosPost({
-      body: input,
-      responseStyle: 'data',
+    const url = `${API_BASE_URL}/api/v1/diagnosticos/`;
+    const response = await apiFetch<any>(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
     });
-    return response.result;
+    return response;
   },
   "diagnosticos.update": async (input) => {
     const { id, data: updateData } = input as any;
-    const response = await updateDiagnosticoApiV1DiagnosticosDiagnosticoIdPatch({
-      path: { diagnostico_id: id },
-      body: { ...updateData, updated_at: new Date().toISOString() },
-      responseStyle: 'data',
+    const url = `${API_BASE_URL}/api/v1/diagnosticos/${id}`;
+    const response = await apiFetch<any>(url, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...updateData, updated_at: new Date().toISOString() }),
     });
-    return response.result;
+    return response;
   },
   "diagnosticos.delete": async (input) => {
-    await deleteDiagnosticoApiV1DiagnosticosDiagnosticoIdDelete({
-      path: { diagnostico_id: input.id },
-      responseStyle: 'data',
+    const url = `${API_BASE_URL}/api/v1/diagnosticos/${input.id}`;
+    await apiFetch<any>(url, {
+      method: 'DELETE',
     });
     return { status: "deleted", id: input.id };
   },
@@ -1125,20 +1142,23 @@ const guiasHandlers: Record<string, ActionHandler<any>> = {
     return { result: response };
   },
   "guias.create": async (input) => {
-    const response = await createGuiaApiV1GuiasPost({
-      body: input,
-      responseStyle: 'data',
+    const url = `${API_BASE_URL}/api/v1/guias/`;
+    const response = await apiFetch<any>(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
     });
-    return response.result;
+    return response;
   },
   "guias.update": async (input) => {
     const { id, data: updateData } = input as any;
-    const response = await updateGuiaApiV1GuiasGuiaIdPatch({
-      path: { guia_id: id },
-      body: updateData,
-      responseStyle: 'data',
+    const url = `${API_BASE_URL}/api/v1/guias/${id}`;
+    const response = await apiFetch<any>(url, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updateData),
     });
-    return response.result;
+    return response;
   },
 };
 
@@ -1148,21 +1168,24 @@ const guiasHandlers: Record<string, ActionHandler<any>> = {
 const solicitudesRepuestosExtendedHandlers: Record<string, ActionHandler<any>> = {
   "solicitudes_repuestos.update": async (input) => {
     const { id, data: updateData } = input as any;
-    const response = await updateSolicitudRepuestoApiV1SolicitudesRepuestosSolicitudIdPatch({
-      path: { solicitud_id: id },
-      body: updateData,
-      responseStyle: 'data',
+    const url = `${API_BASE_URL}/api/v1/solicitudes-repuestos/${id}`;
+    const response = await apiFetch<any>(url, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updateData),
     });
-    return response.result;
+    return response;
   },
   "solicitudes_repuestos.search": (input) =>
     list<any>("solicitudes-repuestos/search", input),
   "solicitudes_repuestos.create": async (input) => {
-    const response = await createSolicitudRepuestoApiV1SolicitudesRepuestosPost({
-      body: input,
-      responseStyle: 'data',
+    const url = `${API_BASE_URL}/api/v1/solicitudes-repuestos/`;
+    const response = await apiFetch<any>(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
     });
-    return response.result;
+    return response;
   },
 };
 

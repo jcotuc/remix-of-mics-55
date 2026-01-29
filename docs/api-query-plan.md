@@ -1,7 +1,7 @@
 # API Query Plan: Centralizing Filtering with the `q` Parameter
 
 ## Goal
-To standardize and simplify frontend API interactions by centralizing filtering and search logic within the `apiBackendAction` function. This involves primarily using `list` endpoints from the generated SDK and leveraging a flexible `q` query parameter for complex queries.
+To standardize and simplify frontend API interactions by centralizing filtering and search logic within the `apiBackendAction` function. This involves primarily using `list` endpoints from the generated SDK (/src/generated) and leveraging a flexible `q` query parameter for complex queries.
 
 ## Strategy
 

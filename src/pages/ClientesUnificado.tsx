@@ -111,7 +111,7 @@ export default function ClientesUnificado({
   const fetchCounts = async () => {
     try {
       // Fetch all clients and count locally
-      const { results } = await apiBackendAction("clientes.list", { limit: 100 });
+      const { results } = await apiBackendAction("clientes.list", { limit: 5000 });
       const mostradorCount = results.filter((c: any) => c.codigo?.startsWith("HPS-")).length;
       const logisticaCount = results.filter((c: any) => c.codigo?.startsWith("HPC") && !c.codigo?.startsWith("HPC-")).length;
       setTotalMostrador(mostradorCount);
@@ -125,7 +125,7 @@ export default function ClientesUnificado({
     setLoading(true);
     try {
       // Fetch all clients and filter locally (server-side filtering not supported via apiBackendAction)
-      const { results: allClientes } = await apiBackendAction("clientes.list", { limit: 100 });
+      const { results: allClientes } = await apiBackendAction("clientes.list", { limit: 5000 });
       
       // Filter by tab
       let filtered = (allClientes as ClienteRow[]).filter(c => {
