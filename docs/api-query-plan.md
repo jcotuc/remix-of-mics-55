@@ -1,45 +1,64 @@
-# API Query Plan: Centralizing Filtering with the `q` Parameter
+# API Implementation Plan: Standardizing `apiBackendAction` Handlers
 
 ## Goal
-To standardize and simplify frontend API interactions by centralizing filtering and search logic within the `apiBackendAction` function. This involves primarily using `list` endpoints from the generated SDK (/src/generated) and leveraging a flexible `q` query parameter for complex queries.
+To standardize all frontend API interactions within the `apiBackendAction` function in `src/lib/api-backend.ts`. This ensures consistency, simplifies maintenance, and provides a clear pattern for implementing new endpoints.
 
 ## Strategy
 
-1.  **Prioritize `list` Endpoints:** All data retrieval operations, especially those involving filtering or searching, should be routed through `list` endpoints where applicable (e.g., `clientes.list`, `productos.list`).
+The strategy revolves around two primary utilities: `apiFetch` for direct entity operations and `list` for collection-based operations.
 
-2.  **Flexible `q` Parameter:** For `list` endpoints, the `apiBackendAction` will process frontend input (e.g., `search` strings, multiple filter criteria) and consolidate them into a single `q` query parameter for the underlying SDK function call.
-    *   **Backend Expectation:** The backend API, as defined in `src/openapi.json`, is expected to implement the `q` parameter for `list` endpoints. This parameter should accept a string that the backend can parse to apply versatile filtering (e.g., `key=value&key2=value2` or a general search string).
-    *   **Frontend Translation:** `apiBackendAction` will be responsible for translating various input properties into the `q` parameter format expected by the backend.
+1.  **Standardize on `apiFetch` for CRUD Operations:**
+    *   All handlers for direct CRUD (Create, Read, Update, Delete) operations on single entities **must** use the `apiFetch` utility from `src/lib/api-backend.ts`.
+    *   Handlers are responsible for manually constructing the full, RESTful API endpoint URL (e.g., `/api/v1/productos/<id>`).
+    *   The `method`, `headers`, and `body` for the request must be explicitly provided in the `options` argument to `apiFetch`.
+    *   **This approach is the required standard.** Usage of any auto-generated SDK functions is deprecated and has been removed.
 
-3.  **Consistency with `apiBackendAction`:** Instead of migrating `apiBackendAction` handlers that directly use `supabase.from(...)` to SDK functions, adapt `apiBackendAction` to `openapi.json` and continue using `apiBackendAction` for consistency.
+2.  **Standardize on `list` for Collection Queries:**
+    *   All handlers that retrieve collections of data (e.g., lists of clients, products with filters) **must** use the `list` utility from `src/infra/list.ts`.
+    *   This utility is responsible for centralizing the logic for pagination (`limit`, `skip`), sorting, and filtering.
 
-4.  **Handling `.search` Actions:** If a dedicated `.search` action exists (e.g., `usuarios.search`), it should be refactored to internally call its corresponding `.list` SDK function, passing its search criteria via the `q` parameter.
+3.  **Flexible `q` Parameter for Filtering:**
+    *   For complex filtering and searching within `list`-based handlers, the frontend input parameters should be consolidated into a single `q` query parameter.
+    *   **Backend Expectation:** The backend API is expected to parse the `q` parameter to apply versatile filtering (e.g., `key=value&key2=value2`).
+    *   **Frontend Translation:** The `apiBackendAction` handler is responsible for translating its input object into the `q` string format.
 
-5.  **Documentation of Discrepancies:** A running list will be maintained for cases where the `openapi.json` definition for an endpoint does not yet support the expected `q` parameter or other necessary filter criteria. These will be flagged for backend updates.
+## Correct Implementation Examples
 
-## Current Discrepancies / Backend Update Requirements
+### Example 1: `apiFetch` for a `get` operation (`clientes.get`)
+```typescript
+// Correct: Manually constructed URL passed to apiFetch
+"clientes.get": async (input) => {
+  const url = `${API_BASE_URL}/api/v1/clientes/${input.id}`;
+  const response = await apiFetch<any>(url);
+  return { result: response };
+},
+```
 
-*   **`GET /api/v1/usuarios/` (for `usuarios.list`):** Currently, the `openapi.json` definition for `getAllUsersApiV1UsuariosGet` does not include a `q` query parameter for versatile searching.
-    *   **Impact:** Until the backend and `openapi.json` are updated to support `q` for this endpoint, the `usuarios.search` functionality (once refactored to use `usuarios.list`) will not provide advanced filtering via `q`.
-    *   **Action Needed (Backend):** Update the `GET /api/v1/usuarios/` endpoint in `src/openapi.json` to include a `q` query parameter, similar to how `GET /api/v1/incidentes/` handles it.
+### Example 2: `apiFetch` for an `update` operation (`productos.update`)
+```typescript
+// Correct: Manually constructed URL and request options for PATCH
+"productos.update": async (input) => {
+  const { id, ...updateData } = input as any;
+  const url = `${API_BASE_URL}/api/v1/productos/${id}`;
+  const response = await apiFetch<any>(url, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(updateData),
+  });
+  return { result: response };
+},
+```
 
-*   **`GET /api/v1/centros-de-servicio/` (for `centros_de_servicio.list`):** The `openapi.json` definition for `getAllCentrosDeServicioApiV1CentrosDeServicioGet` does not currently include an `activo` query parameter or equivalent in `q` for filtering by active status.
-    *   **Impact:** The `centros_de_servicio.list` handler in the frontend can no longer directly filter by `activo=true` after migration to the SDK.
-    *   **Action Needed (Backend):** Update the `GET /api/v1/centros-de-servicio/` endpoint in `src/openapi.json` to include an `activo` filter, possibly as part of the `q` parameter.
+### Example 3: `list` utility for a `list` operation (`productos.list`)
+```typescript
+// Correct: Uses the centralized 'list' utility
+"productos.list": (input) =>
+  list<any>("productos", input),
+```
 
-*   **`GET /api/v1/grupos-cola-fifo/` (for `grupos_cola_fifo.list`):** The `openapi.json` definition for `getAllGruposColaFifoApiV1GruposColaFifoGet` does not currently include a `q` query parameter for versatile searching.
-    *   **Impact:** If versatile searching is required for `grupos_cola_fifo`, the frontend cannot currently pass a general search string via the `q` parameter to this endpoint.
-    *   **Action Needed (Backend):** Update the `GET /api/v1/grupos-cola-fifo/` endpoint in `src/openapi.json` to include a `q` query parameter, similar to how `GET /api/v1/incidentes/` handles it.
+## Backend API Requirements (Ongoing)
 
-*   **`GET /api/v1/grupos-cola-fifo/{grupo_id}/familias` (for `grupos_cola_fifo_familias.list`):** The `openapi.json` definition for `getGrupoColaFifoFamiliasApiV1GruposColaFifoGrupoIdFamiliasGet` does not currently include a `q` query parameter for versatile searching.
-    *   **Impact:** If versatile searching is required for `grupos_cola_fifo_familias`, the frontend cannot currently pass a general search string via the `q` parameter to this endpoint.
-    *   **Action Needed (Backend):** Update the `GET /api/v1/grupos-cola-fifo/{grupo_id}/familias` endpoint in `src/openapi.json` to include a `q` query parameter.
+This section tracks features required from the backend API, as defined in `src/openapi.json`, that are not yet implemented.
 
-## Example of `q` parameter usage (Backend perspective for `incidentes.list`):
-
-For `GET /api/v1/incidentes/`:
-The `q` parameter can accept advanced search queries like:
-`q=cliente.nombre=Pedro&observaciones=urgente`
-`q=codigo=XYZ-ABC&propietario.dpi=1234567`
-
-The `apiBackendAction` for `incidentes.list` is expected to take an `input` object, from which it will construct this `q` string.
+*   **`GET /api/v1/usuarios/`:** This endpoint needs a `q` query parameter to allow for versatile searching and filtering, which will simplify the `usuarios.search` handler.
+*   **`GET /api/v1/centros-de-servicio/`:** This endpoint requires a filter for `activo` status, preferably within the `q` parameter, to allow filtering for active service centers.
