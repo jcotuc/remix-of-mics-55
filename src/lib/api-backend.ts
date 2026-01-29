@@ -195,6 +195,53 @@ const incidentesHandlers: Record<string, ActionHandler<any>> = {
   },
   "incidentes.listMyAssigned": (input) =>
     list<any>("incidentes/mis-asignaciones", input),
+  "incidentes.search": async (input) => {
+    const { search, limit = 50 } = input as any;
+    const { results } = await list<any>("incidentes", { q: search, limit });
+    return { results: results || [] };
+  },
+};
+
+// =============================================================================
+// AUDITORIA HANDLERS (preguntas, respuestas)
+// =============================================================================
+const auditoriaHandlers: Record<string, ActionHandler<any>> = {
+  "preguntas_auditoria.list": async (input) => {
+    const { seccion, activo, familia_producto_id } = input as any;
+    const params: Record<string, any> = {};
+    if (seccion) params.seccion = seccion;
+    if (activo !== undefined) params.activo = activo;
+    if (familia_producto_id) params.familia_producto_id = familia_producto_id;
+    const { results } = await list<any>("preguntas-auditoria", params);
+    return { results: results || [] };
+  },
+  "auditoria_respuestas.createBatch": async (input) => {
+    const url = `${API_BASE_URL}/api/v1/auditoria-respuestas/batch`;
+    return apiFetch<any>(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    });
+  },
+};
+
+// =============================================================================
+// VERIFICACIONES REINCIDENCIA HANDLERS
+// =============================================================================
+const verificacionesReincidenciaHandlers: Record<string, ActionHandler<any>> = {
+  "verificaciones_reincidencia.getByIncidente": async (input) => {
+    const { incidente_id } = input as any;
+    const { results } = await list<any>("verificaciones-reincidencia", { incidente_id });
+    return { result: results && results.length > 0 ? results[0] : null };
+  },
+  "verificaciones_reincidencia.create": async (input) => {
+    const url = `${API_BASE_URL}/api/v1/verificaciones-reincidencia/`;
+    return apiFetch<any>(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    });
+  },
 };
 
 // =============================================================================
@@ -559,7 +606,7 @@ const mostradorHandlers: Record<string, ActionHandler<any>> = {
     return { results: response.results || [] };
   },
   // Inventario - search by codigos
-  "inventarios.search": (input) => {
+  "inventarios.search": async (input) => {
     const { codigos_repuesto, ...rest } = input as any;
     if (!codigos_repuesto?.length) return { results: [] };
     return list<any>("inventarios/search", { q: `codigo_repuesto=${codigos_repuesto.join(",")}`, ...rest });
@@ -1232,7 +1279,7 @@ const repuestosExtendedHandlers: Record<string, ActionHandler<any>> = {
 // INVENTARIOS EXTENDED HANDLERS
 // =============================================================================
 const inventariosExtendedHandlers: Record<string, ActionHandler<any>> = {
-  "inventarios.listByCodigos": (input) => {
+  "inventarios.listByCodigos": async (input) => {
     const { codigos, ...rest } = input as any;
     if (!codigos?.length) return { results: [] };
     return list<any>("inventario", { codigo_repuesto: codigos.join(","), ...rest });
@@ -1399,6 +1446,8 @@ const handlers: Partial<Record<ActionName, ActionHandler<any>>> = {
   ...rpcHandlers,
   ...direccionesHandlers,
   ...guiasExtendedHandlers,
+  ...auditoriaHandlers,
+  ...verificacionesReincidenciaHandlers,
 };
 
 // =============================================================================

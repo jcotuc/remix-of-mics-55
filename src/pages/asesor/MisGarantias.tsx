@@ -75,7 +75,7 @@ export default function MisGarantias() {
     try {
       setLoading(true);
       const { results } = await apiBackendAction("garantias_manuales.list", { 
-        created_by: user?.id 
+        created_by: user?.id ? String(user.id) : undefined 
       });
       setGarantias((results || []) as GarantiaManual[]);
     } catch (error) {

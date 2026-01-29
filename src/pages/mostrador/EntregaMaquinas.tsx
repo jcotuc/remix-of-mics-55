@@ -167,10 +167,10 @@ export default function EntregaMaquinas() {
       const { results } = await apiBackendAction("incidentes.search", { 
         search: searchTerm.toUpperCase(), 
         limit: 5 
-      });
+      }) as { results: any[] };
       
       // Find exact match by code
-      const incidenteData = results.find(inc => inc.codigo === searchTerm.toUpperCase());
+      const incidenteData = results.find((inc: any) => inc.codigo === searchTerm.toUpperCase());
       
       if (!incidenteData) {
         toast.error("Incidente no encontrado");
