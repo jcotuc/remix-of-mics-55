@@ -152,7 +152,7 @@ const productosHandlers: Record<string, ActionHandler<any>> = {
 const centrosDeServicioHandlers: Record<string, ActionHandler<any>> = {
   "centros_de_servicio.list": async (input) => {
     const { results, total } = await list<any>("centros-de-servicio", input);
-    return { items: results, total };
+    return { results, total };
   },
   "centros_de_servicio.get": async (input) => {
     const url = `${API_BASE_URL}/api/v1/centros-de-servicio/${input.id}`;
