@@ -30,6 +30,19 @@ export async function apiFetch<T>(url: string, options?: RequestInit): Promise<T
   return response.json();
 }
 
+const ordenesHandlers: Record<string, ActionHandler<any>> = {
+  "ordenes.notify": async (input) => {
+    const { order_id, message } = input;
+    const url = `${API_BASE_URL}/api/v1/ordenes/${order_id}/notify`;
+    await apiFetch<any>(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message }),
+    });
+    return { success: true };
+  },
+};
+
 // =============================================================================
 // CLIENTES HANDLERS
 // =============================================================================
@@ -67,17 +80,8 @@ const clientesHandlers: Record<string, ActionHandler<any>> = {
     });
     return { status: "deleted", id: input.id };
   },
-  "clientes.search": async (input) => {
-    const { search, limit = 10, skip = 0 } = input as any;
-    const params = new URLSearchParams({
-      search: search || "",
-      limit: limit.toString(),
-      skip: skip.toString(),
-    });
-    const url = `${API_BASE_URL}/api/v1/clientes/?${params.toString()}`;
-    const response = await apiFetch<any>(url);
-    return { results: response.results, total: response.total };
-  },
+  "clientes.search": (input) =>
+    list<any>("clientes", input),
   "clientes.getByCodigo": notImplemented("clientes.getByCodigo"), // This action is not directly in SDK, requires a custom search
 };
 
@@ -139,6 +143,22 @@ const productosHandlers: Record<string, ActionHandler<any>> = {
 // =============================================================================
 // INCIDENTES HANDLERS
 // =============================================================================
+
+// =============================================================================
+// CENTROS DE SERVICIO HANDLERS
+// =============================================================================
+const centrosDeServicioHandlers: Record<string, ActionHandler<any>> = {
+  "centros_de_servicio.list": async (input) => {
+    const { results, total } = await list<any>("centros-de-servicio", input);
+    return { items: results, total };
+  },
+  "centros_de_servicio.get": async (input) => {
+    const url = `${API_BASE_URL}/api/v1/centros-de-servicio/${input.id}`;
+    const response = await apiFetch<any>(url);
+    return { result: response };
+  },
+};
+
 const incidentesHandlers: Record<string, ActionHandler<any>> = {
   "incidentes.list": (input) =>
     list<any>("incidentes", input),
@@ -372,12 +392,6 @@ const diagnosticosHandlers: Record<string, ActionHandler<any>> = {
   "presupuestos.delete": notImplemented("presupuestos.delete"),
   "familias_producto.list": (input) =>
     list<any>("familias-producto/abuelos", input),
-  "centros_de_servicio.list": async (input) => {
-    const { results, total } = await list<any>("centros-de-servicio", input);
-    return { items: results, total };
-  },
-  "grupos_cola_fifo.list": (input) =>
-    list<any>("grupos-cola-fifo", input),
   "grupos_cola_fifo.get": async (input) => {
     const url = `${API_BASE_URL}/api/v1/grupos-cola-fifo/${input.id}`;
     const response = await apiFetch<any>(url);
@@ -505,11 +519,6 @@ const mostradorHandlers: Record<string, ActionHandler<any>> = {
     list<any>("incidente-tecnico", input),
   "usuarios.get": async (input) => {
     const url = `${API_BASE_URL}/api/v1/usuarios/${input.id}`;
-    const response = await apiFetch<any>(url);
-    return { result: response };
-  },
-  "centros_de_servicio.get": async (input) => {
-    const url = `${API_BASE_URL}/api/v1/centros-de-servicio/${input.id}`;
     const response = await apiFetch<any>(url);
     return { result: response };
   },
@@ -1259,9 +1268,8 @@ const authHandlers: Record<string, ActionHandler<any>> = {
     return { success: true };
   },
   "auth.getSession": async () => {
-    // const { data, error } = await supabase.auth.getSession();
-    // if (error) throw error;
-    // return { session: data.session };
+    const response = await apiFetch<any>(`${API_BASE_URL}/api/v1/auth/session`);
+    return { session: response };
   },
   "auth.getUser": async () => {
     // const { data, error } = await supabase.auth.getUser();
@@ -1358,6 +1366,8 @@ const handlers: Partial<Record<ActionName, ActionHandler<any>>> = {
   ...clientesHandlers,
   ...productosHandlers,
   ...incidentesHandlers,
+  ...ordenesHandlers,
+  ...centrosDeServicioHandlers,
   // ...simpleHandlers,
   ...mostradorHandlers,
   ...calidadHandlers,

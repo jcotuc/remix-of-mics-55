@@ -253,7 +253,7 @@ export interface ActionRegistry {
   "incidentes.create": { input: IncidenteCreateInput; output: IncidenteCreateOutput };
   "incidentes.update": { input: IncidenteUpdateInput; output: IncidenteUpdateOutput };
   "incidentes.delete": { input: IncidenteDeleteInput; output: IncidenteDeleteOutput };
-  "incidentes.search": { input: IncidenteSearchInput; output: IncidenteSearchOutput };
+  "ordenes.notify": { input: { order_id: number; message: string }; output: { success: boolean } };
 
   // =============================================================================
   // DIAGNOSTICOS
