@@ -11,7 +11,7 @@ import { Loader2, Truck, Plus, Search, CheckCircle2, XCircle, Clock, ArrowRight,
 import { formatFechaCorta } from "@/utils/dateFormatters";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
-import { apiBackendAction } from "@/lib/api-backend";
+import { mycsapi } from "@/mics-api";
 import {
   AlertBanner,
   MetricCard,
@@ -65,13 +65,13 @@ export default function Transferencias() {
 
   const fetchData = async () => {
     try {
-      const transferenciasRes = await apiBackendAction("solicitudes_transferencia_maquinas.list", {});
+      const transferenciasRes = await mycsapi.fetch("/api/v1/solicitudes-transferencia-maquinas", { method: "GET" }) as any;
 
-      const centrosRes = await apiBackendAction("centros_de_servicio.list", {});
+      const centrosRes = await mycsapi.get("/api/v1/centros-de-servicio", {}) as any;
       const allCentros = ((centrosRes as any).results || (centrosRes as any).data || [])
         .filter((c: any) => c.activo);
 
-      const incidentesRes = await apiBackendAction("incidentes.list", { limit: 2000 });
+      const incidentesRes = await mycsapi.get("/api/v1/incidentes", { query: { limit: 2000 } }) as any;
       const allIncidentes = (incidentesRes as any).results || [];
       
       const eligibleIncidentes = allIncidentes.filter((inc: any) => 
@@ -116,18 +116,18 @@ export default function Transferencias() {
 
     setSubmitting(true);
     try {
-      const { result: usuario } = await apiBackendAction("usuarios.getByEmail", { email: user.email || "" });
+      const usuario = await mycsapi.fetch("/api/v1/usuarios/by-email", { method: "GET", query: { email: user.email || "" } }) as any;
 
       const centroOrigenId = (usuario as any)?.centro_de_servicio_id || centros[0]?.id;
 
-      await apiBackendAction("solicitudes_transferencia_maquinas.create", {
+      await mycsapi.fetch("/api/v1/solicitudes-transferencia-maquinas", { method: "POST", body: {
         incidente_id: parseInt(selectedIncidente),
         centro_origen_id: centroOrigenId,
         centro_destino_id: parseInt(selectedCentroDestino),
         motivo: motivo.trim(),
         solicitado_por: (usuario as any)?.id || 0,
         estado: "PENDIENTE",
-      });
+      } }) as any;
 
       toast.success("Solicitud de transferencia creada");
       setIsDialogOpen(false);

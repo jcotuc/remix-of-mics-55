@@ -8,8 +8,8 @@ import { toast } from "sonner";
 import { StatusBadge, TablePagination } from "@/components/shared";
 import { OutlinedInput, OutlinedSelect } from "@/components/ui/outlined-input";
 import { differenceInDays } from "date-fns";
-import { apiBackendAction } from "@/lib/api-backend";
 import type { IncidenteSchema } from "@/generated/actions.d";
+import { mycsapi } from "@/mics-api";
 
 type IncidenteConCliente = IncidenteSchema;
 
@@ -45,17 +45,17 @@ export default function IncidentesSAC() {
       setLoading(true);
       
       // Get current user via apiBackendAction
-      const { user } = await apiBackendAction("auth.getUser", {});
+      const { user } = await mycsapi.get("/api/v1/auth/me") as any;
       if (user) {
         // Get user profile via apiBackendAction
-        const { result: perfil } = await apiBackendAction("usuarios.getByEmail", { email: user.email || "" });
+        const perfil = await mycsapi.fetch("/api/v1/usuarios/by-email", { method: "GET", query: { email: user.email || "" } }) as any;
         if (perfil) {
           setCurrentUserId((perfil as any).id);
         }
       }
 
       // Use apiBackendAction for incidents
-      const incidentesResponse = await apiBackendAction("incidentes.list", { limit: 1000 });
+      const incidentesResponse = await mycsapi.get("/api/v1/incidentes", { query: { limit: 1000 } }) as any;
       
       // Filter by status client-side
       const filtered = incidentesResponse.results
@@ -63,7 +63,7 @@ export default function IncidentesSAC() {
         .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
 
       // Fetch SAC assignments via apiBackendAction
-      const { results: asignacionesData } = await apiBackendAction("asignaciones_sac.list", { activo: true });
+      const { results: asignacionesData } = await mycsapi.fetch("/api/v1/asignaciones-sac", { method: "GET", query: { activo: true } }) as any;
 
       setIncidentesList(filtered);
       setAsignaciones((asignacionesData || []) as AsignacionSAC[]);

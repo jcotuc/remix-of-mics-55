@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { apiBackendAction } from "@/lib/api-backend";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -15,6 +14,7 @@ import { Plus, Search, FileText, Image as ImageIcon } from "lucide-react";
 import { PhotoGalleryWithDescriptions } from "@/components/shared";
 import { uploadMediaToStorage } from "@/lib/uploadMedia";
 import { MediaFile } from "@/components/features/media";
+import { mycsapi } from "@/mics-api";
 
 interface GarantiaManual {
   id: number;
@@ -74,9 +74,9 @@ export default function MisGarantias() {
   const fetchGarantias = async () => {
     try {
       setLoading(true);
-      const { results } = await apiBackendAction("garantias_manuales.list", { 
+      const { results } = await mycsapi.fetch("/api/v1/garantias-manuales", { method: "GET", query: { 
         created_by: user?.id ? String(user.id) : undefined 
-      });
+      } }) as any;
       setGarantias((results || []) as GarantiaManual[]);
     } catch (error) {
       console.error("Error fetching garantías:", error);
@@ -112,7 +112,7 @@ export default function MisGarantias() {
         fotosUrls = uploadedMedia.map(m => m.url);
       }
 
-      await apiBackendAction("garantias_manuales.create", {
+      await mycsapi.fetch("/api/v1/garantias-manuales", { method: "POST", body: {
         codigo_cliente: codigoCliente,
         sku_reportado: skuReportado,
         descripcion_sku: descripcionSku,
@@ -121,7 +121,7 @@ export default function MisGarantias() {
         fotos_urls: fotosUrls,
         created_by: user?.id,
         estatus: "pendiente_resolucion"
-      });
+      } }) as any;
 
       toast.success("Garantía creada exitosamente");
       setShowCreateDialog(false);

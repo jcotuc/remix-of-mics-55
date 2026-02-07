@@ -6,9 +6,9 @@ import { Search, Calendar, Hash, Wrench, X } from "lucide-react";
 import { StatusBadge } from "@/components/shared";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { apiBackendAction } from "@/lib/api";
 import { withTimeout } from "@/utils/withTimeout";
 import type { IncidenteSchema } from "@/generated/actions.d";
+import { mycsapi } from "@/mics-api";
 import {
   WelcomeHeader,
   UrgentAlerts,
@@ -34,11 +34,11 @@ const Index = () => {
     try {
       setLoading(true);
       const response = await withTimeout(
-        apiBackendAction("incidentes.list", { limit: 100 }),
+        mycsapi.get("/api/v1/incidentes", { query: { limit: 100 } }),
         8000,
         "incidentes.list",
       );
-      setIncidentes(response.results);
+      setIncidentes(response.results as any);
     } catch (error) {
       console.error('Error:', error);
     } finally {

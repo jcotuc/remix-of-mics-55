@@ -3,7 +3,6 @@
  */
 
 import { useState, useEffect, useCallback } from "react";
-import { apiBackendAction } from "@/lib/api-backend";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -11,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Search, Building2, User, Package, Loader2, X, CheckCircle2 } from "lucide-react";
 import type { AuditoriaFormData, IncidenteParaAuditoria } from "./types";
+import { mycsapi } from "@/mics-api";
 
 interface PasoIncidenteProps {
   formData: AuditoriaFormData;
@@ -49,7 +49,7 @@ export function PasoIncidente({
     if (!searchTerm.trim()) return;
     setLoading(true);
     try {
-      const { results } = await apiBackendAction("incidentes.list", { limit: 50 });
+      const { results } = await mycsapi.get("/api/v1/incidentes", { query: { limit: 50 } });
       const filtered = (results || []).filter((inc: any) =>
         inc.codigo?.toLowerCase().includes(searchTerm.toLowerCase()) &&
         ["REPARADO", "CAMBIO_POR_GARANTIA", "NOTA_DE_CREDITO", "EN_DIAGNOSTICO", "EN_REPARACION"].includes(inc.estado)

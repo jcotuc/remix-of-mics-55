@@ -7,8 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Search, AlertTriangle, Package } from "lucide-react";
 import { toast } from "sonner";
-import { apiBackendAction } from "@/lib/api-backend";
 import type { IncidenteSchema } from "@/generated/actions.d";
+import { mycsapi } from "@/mics-api";
 
 type RepuestoConStock = {
   id: number;
@@ -34,7 +34,7 @@ export default function FaltanteAccesorios() {
     try {
       setLoading(true);
       
-      const response = await apiBackendAction("incidentes.list", { limit: 2000 });
+      const response = await mycsapi.get("/api/v1/incidentes", { query: { limit: 2000 } }) as any;
       const incidentesData = (response.results || []).filter(
         inc => inc.estado === 'REPARADO'
       );
@@ -57,14 +57,14 @@ export default function FaltanteAccesorios() {
 
     try {
       // Search repuestos via API
-      const response = await apiBackendAction("repuestos.search", { 
+      const response = await mycsapi.get("/api/v1/repuestos", { query: { 
         search: repuestoSearch, 
         limit: 20 
-      });
+      } as any }) as any;
       const repuestosData = response.results || [];
 
       // Get inventory data
-      const inventarioResponse = await apiBackendAction("inventarios.list", { limit: 5000 });
+      const inventarioResponse = await mycsapi.get("/api/v1/inventario", { query: { limit: 5000 } }) as any;
       const inventarioData = inventarioResponse.data || [];
 
       // Combine data

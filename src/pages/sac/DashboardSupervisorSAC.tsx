@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, Users, Bell, FileText, TrendingUp } from "lucide-react";
-import { apiBackendAction } from "@/lib/api-backend";
+import { mycsapi } from "@/mics-api";
 
 interface DashboardStats {
   incidentesHoy: number;
@@ -25,12 +25,12 @@ export default function DashboardSupervisorSAC() {
 
       // Fetch data in parallel using apiBackendAction
       const [incidentesResponse, usuariosResponse] = await Promise.all([
-        apiBackendAction("incidentes.list", { limit: 5000 }),
-        apiBackendAction("usuarios.list", {})
+        mycsapi.get("/api/v1/incidentes", { query: { limit: 5000 } }),
+        mycsapi.get("/api/v1/usuarios/")
       ]);
 
       const incidentes = incidentesResponse.results || [];
-      const usuarios = usuariosResponse.results || [];
+      const usuarios = (usuariosResponse as any).results || [];
 
       // Calculate stats from fetched data
       const hoy = new Date().toISOString().split('T')[0];

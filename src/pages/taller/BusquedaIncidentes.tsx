@@ -9,12 +9,12 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { apiBackendAction } from "@/lib/api-backend";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Database } from "@/integrations/supabase/types";
+import { mycsapi } from "@/mics-api";
 
 type IncidenteDB = Database["public"]["Tables"]["incidentes"]["Row"];
 type ClienteDB = Database["public"]["Tables"]["clientes"]["Row"];
@@ -65,7 +65,7 @@ export default function BusquedaIncidentes() {
       setLoading(true);
       
       // Use apiBackendAction for incidentes
-      const result = await apiBackendAction("incidentes.list", { limit: 1000 });
+      const result = await mycsapi.get("/api/v1/incidentes", { query: { limit: 1000 } }) as any;
       
       // Filter by estados and sort by created_at, map to local type
       const filtered = result.results
@@ -119,28 +119,28 @@ export default function BusquedaIncidentes() {
 
       // If not in incidente, fetch from registry
       if (!clienteData && incidente.cliente_id) {
-        const clientesResult = await apiBackendAction("clientes.list", { limit: 5000 });
+        const clientesResult = await mycsapi.get("/api/v1/clientes", { query: { limit: 5000 } }) as any;
         clienteData = clientesResult.results.find(c => c.id === incidente.cliente_id) as unknown as ClienteDB || null;
       }
       
       if (!productoData && incidente.producto_id) {
-        const productosResult = await apiBackendAction("productos.list", { limit: 2000 });
+        const productosResult = await mycsapi.get("/api/v1/productos", { query: { limit: 2000 } }) as any;
         productoData = productosResult.results.find(p => p.id === incidente.producto_id) as unknown as ProductoDB || null;
       }
 
       // Diagnóstico and media via apiBackendAction
       const [diagnosticoResult, mediaResult] = await Promise.all([
-        apiBackendAction("diagnosticos.search", { incidente_id: incidente.id }),
-        apiBackendAction("media.list", { incidente_id: incidente.id })
+        mycsapi.fetch("/api/v1/diagnosticos/search", { method: "GET", query: { incidente_id: incidente.id } }),
+        mycsapi.fetch("/api/v1/media", { method: "GET", query: { incidente_id: incidente.id } })
       ]);
 
-      const diagnosticoData = diagnosticoResult.results?.[0] || null;
+      const diagnosticoData = (diagnosticoResult as any).results?.[0] || null;
 
       setDetalleData({
         cliente: clienteData as ClienteDB | null,
         producto: productoData as ProductoDB | null,
         diagnostico: diagnosticoData as unknown as DiagnosticoDB | null,
-        mediaFiles: (mediaResult.results || []) as MediaDB[],
+        mediaFiles: ((mediaResult as any).results || []) as MediaDB[],
       });
     } catch (error) {
       console.error("Error al cargar detalles:", error);

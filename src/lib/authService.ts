@@ -1,5 +1,4 @@
-import { apiBackendAction } from "./api-backend";
-import { apiFetch } from "./api-backend";
+import { mycsapi, tokenStore } from "@/mics-api";
 import type { AuthenticatedUser } from "./types";
 
 interface AuthService {
@@ -11,8 +10,9 @@ interface AuthService {
 export const authService: AuthService = {
   async login(credentials) {
     try {
-      const response = await apiBackendAction("auth.login", credentials) as { success: boolean; message: string; user?: unknown };
-      return (response.user as AuthenticatedUser) || null;
+      const data = await mycsapi.post("/api/v1/auth/login", { body: credentials });
+      // Tokens are auto-stored by the client on login response
+      return (data.user as AuthenticatedUser) || null;
     } catch (error) {
       console.error("Login error:", error);
       throw error;
@@ -21,17 +21,17 @@ export const authService: AuthService = {
 
   async logout() {
     try {
-      await apiBackendAction("auth.logout", {});
+      await mycsapi.post("/api/v1/auth/logout");
     } catch (error) {
       console.error("Logout error:", error);
-      throw error;
     }
+    tokenStore.clear();
   },
 
   async getCurrentUser() {
     try {
-      const response = await apiBackendAction("auth.me", {});
-      return response.result || null;
+      const user = await mycsapi.get("/api/v1/auth/me");
+      return (user as AuthenticatedUser) || null;
     } catch (error) {
       console.error("Get current user error:", error);
       return null;

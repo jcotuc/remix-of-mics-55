@@ -8,7 +8,7 @@ import { AlertCircle, ArrowLeft, CheckCircle2, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { WhatsAppStyleMediaCapture, MediaFile } from "@/components/features/media";
 import { uploadMediaToStorage } from "@/lib/uploadMedia";
-import { apiBackendAction } from "@/lib/api-backend";
+import { mycsapi } from "@/mics-api";
 
 type IncidenteDB = {
   id: number;
@@ -48,7 +48,7 @@ export default function RevisionStockCemaco() {
   const fetchIncidentes = async () => {
     try {
       // Fetch incidentes via apiBackendAction
-      const { results } = await apiBackendAction("incidentes.list", { limit: 2000 });
+      const { results } = await mycsapi.get("/api/v1/incidentes", { query: { limit: 2000 } }) as any;
       
       // Filter by tipologia and estado
       const filtered = (results || []).filter((inc: any) => 
@@ -96,7 +96,7 @@ export default function RevisionStockCemaco() {
       const uploadedUrls = uploadedMedia.map(m => m.url);
 
       // Get usuario_id via apiBackendAction
-      const { results: usuarioResults } = await apiBackendAction("usuarios.list", {});
+      const { results: usuarioResults } = await mycsapi.get("/api/v1/usuarios/") as any;
       // Note: We'll use a fallback approach since we don't have direct auth access here
       const usuario = (usuarioResults as any)?.[0] as { id: number } | undefined;
 
@@ -106,13 +106,10 @@ export default function RevisionStockCemaco() {
       const newObs = currentObs ? `${currentObs}\n${revisionLog}` : revisionLog;
 
       // Actualizar estado del incidente via apiBackendAction
-      await apiBackendAction("incidentes.update", {
-        id: selectedIncidente.id,
-        data: { 
+      await mycsapi.patch("/api/v1/incidentes/{incidente_id}", { path: { incidente_id: selectedIncidente.id }, body: { 
           estado: "EN_DIAGNOSTICO",
           observaciones: newObs,
-        }
-      } as any);
+        } as any }) as any;
 
       // Upload photos to incidente_fotos via apiBackendAction
       if (uploadedUrls.length > 0 && usuario) {
@@ -125,7 +122,7 @@ export default function RevisionStockCemaco() {
           created_by: usuario.id,
         }));
 
-        await apiBackendAction("incidente_fotos.create", fotosToInsert as any);
+        await mycsapi.fetch("/api/v1/incidente-fotos", { method: "POST", body: fotosToInsert as any }) as any;
       }
 
       toast.success("Revisión enviada para aprobación del jefe de taller");

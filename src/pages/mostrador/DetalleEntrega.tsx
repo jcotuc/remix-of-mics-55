@@ -8,11 +8,11 @@ import { OutlinedInput } from "@/components/ui/outlined-input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { apiBackendAction } from "@/lib/api-backend";
 import { toast } from "sonner";
 import { SignatureCanvasComponent, SignatureCanvasRef, StatusBadge } from "@/components/shared";
 import { SidebarMediaCapture, SidebarPhoto } from "@/components/features/media";
 import { getResolutionLabel, RESOLUTION_LABELS } from "@/constants/status";
+import { mycsapi } from "@/mics-api";
 
 type IncidenteData = {
   id: number;
@@ -84,7 +84,7 @@ export default function DetalleEntrega() {
     const loadTecnicoNombre = async () => {
       if (diagnostico?.tecnico_id) {
         try {
-          const { result } = await apiBackendAction("usuarios.get", { id: diagnostico.tecnico_id });
+          const result = await mycsapi.fetch("/api/v1/usuarios/{usuario_id}".replace("{usuario_id}", String(diagnostico.tecnico_id)), { method: "GET" }) as any;
           if (result) {
             setTecnicoNombre((result as any).nombre);
           }
@@ -100,7 +100,7 @@ export default function DetalleEntrega() {
     setLoading(true);
     try {
       // Cargar incidente
-      const { result: incidenteData } = await apiBackendAction("incidentes.get", { id: Number(incidenteId) });
+      const incidenteData = await mycsapi.get("/api/v1/incidentes/{incidente_id}", { path: { incidente_id: Number(incidenteId) } }) as any;
       
       if (!incidenteData) {
         toast.error("Incidente no encontrado");
@@ -157,9 +157,9 @@ export default function DetalleEntrega() {
 
       // Cargar accesorios del incidente
       try {
-        const { results: accesoriosData } = await apiBackendAction("incidente_accesorios.list", { 
+        const { results: accesoriosData } = await mycsapi.fetch("/api/v1/incidente-accesorios", { method: "GET", query: { 
           incidente_id: Number(incidenteId) 
-        });
+        } }) as any;
         
         const nombres = (accesoriosData || []).map((a: any) => a.accesorios?.nombre).filter(Boolean);
         setAccesoriosIngreso(nombres);
@@ -169,15 +169,15 @@ export default function DetalleEntrega() {
 
       // Cargar diagnóstico, centro de servicio y solicitudes de repuestos en paralelo
       const [diagRes, centroRes, solicitudesRes] = await Promise.all([
-        apiBackendAction("diagnosticos.search", { incidente_id: Number(incidenteId) }),
+        mycsapi.fetch("/api/v1/diagnosticos/search", { method: "GET", query: { incidente_id: Number(incidenteId) } }),
         incidenteData.centro_de_servicio_id 
-          ? apiBackendAction("centros_de_servicio.get", { id: incidenteData.centro_de_servicio_id })
+          ? mycsapi.get("/api/v1/centros-de-servicio/{centro_de_servicio_id}", { path: { centro_de_servicio_id: incidenteData.centro_de_servicio_id } })
           : Promise.resolve({ result: null }),
-        apiBackendAction("solicitudes_repuestos.search", { incidente_id: Number(incidenteId), limit: 20 }),
+        mycsapi.fetch("/api/v1/solicitudes-repuestos/search", { method: "GET", query: { incidente_id: Number(incidenteId), limit: 20 } }),
       ]);
 
       // diagRes.results es un array, tomamos el primer elemento completado
-      const diagList = diagRes.results || [];
+      const diagList = (diagRes as any).results || [];
       const diagData = diagList.find((d: any) => d.estado === 'COMPLETADO') || diagList[0] || null;
       if (diagData) {
         setDiagnostico({
@@ -194,8 +194,8 @@ export default function DetalleEntrega() {
         // Cargar fallas y causas del diagnóstico
         try {
           const [fallasRes, causasRes] = await Promise.all([
-            apiBackendAction("diagnostico_fallas.list", { diagnostico_id: diagData.id }),
-            apiBackendAction("diagnostico_causas.list", { diagnostico_id: diagData.id }),
+            mycsapi.fetch("/api/v1/diagnostico-fallas", { method: "GET", query: { diagnostico_id: diagData.id } }),
+            mycsapi.fetch("/api/v1/diagnostico-causas", { method: "GET", query: { diagnostico_id: diagData.id } }),
           ]);
           
           const fallasData = (fallasRes as any).results || [];
@@ -214,7 +214,7 @@ export default function DetalleEntrega() {
 
       // Cargar repuestos utilizados
       let repuestosUtilizados: any[] = [];
-      const solicitudesData = solicitudesRes.results || [];
+      const solicitudesData = (solicitudesRes as any).results || [];
 
       if (solicitudesData.length > 0) {
         const entregadas = solicitudesData.filter((s: any) => (s.estado || '').toLowerCase().includes('entreg'));
@@ -242,7 +242,7 @@ export default function DetalleEntrega() {
         const repuestosAgrupados = Array.from(grouped.values());
         const codigosRepuestos = repuestosAgrupados.map(r => r.codigo);
 
-        const { results: inventarioData } = await apiBackendAction("inventarios.search", { codigos_repuesto: codigosRepuestos });
+        const { results: inventarioData } = await mycsapi.fetch("/api/v1/inventario/search", { method: "GET", query: { codigos_repuesto: codigosRepuestos } }) as any;
 
         const invMap = new Map<string, { costo: number; descripcion: string }>();
         for (const inv of (inventarioData || [])) {
@@ -305,14 +305,11 @@ export default function DetalleEntrega() {
       const observacionesActuales = incidente.observaciones || '';
       const nuevasObservaciones = `${observacionesActuales}\n[${fechaEntregaActual}] ENTREGA CONFIRMADA - Recibe: ${nombreRecibe}, DPI: ${dpiRecibe}`;
       
-      await apiBackendAction("incidentes.update", {
-        id: incidente.id,
-        data: {
+      await mycsapi.patch("/api/v1/incidentes/{incidente_id}", { path: { incidente_id: incidente.id }, body: {
           estado: 'ENTREGADO',
           fecha_entrega: fechaEntregaActual,
           observaciones: nuevasObservaciones
-        }
-      } as any);
+        } as any }) as any;
 
       toast.success("Entrega registrada exitosamente");
       navigate('/mostrador/entrega-maquinas');

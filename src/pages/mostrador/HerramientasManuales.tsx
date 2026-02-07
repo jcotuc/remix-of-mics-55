@@ -12,8 +12,8 @@ import { toast } from "sonner";
 import { Plus, Search, Wrench, CheckCircle, XCircle, Clock, Package } from "lucide-react";
 import { PhotoGalleryWithDescriptions, type PhotoWithDescription } from "@/components/shared";
 import { uploadMediaToStorage } from "@/lib/uploadMedia";
-import { apiBackendAction } from "@/lib/api-backend";
 import type { MediaFile } from "@/components/features/media";
+import { mycsapi } from "@/mics-api";
 
 type IncidenteHerramienta = {
   id: number;
@@ -65,7 +65,7 @@ export default function HerramientasManuales() {
     try {
       setLoading(true);
       // Fetch incidentes using apiBackendAction
-      const { results } = await apiBackendAction("incidentes.list", { limit: 500 });
+      const { results } = await mycsapi.get("/api/v1/incidentes", { query: { limit: 500 } });
       
       // Filter for REPARACION tipologia and map to our type
       const filtered = (results || [])
@@ -104,7 +104,7 @@ export default function HerramientasManuales() {
 
     try {
       // Obtener cliente_id numérico using apiBackendAction
-      const { result: clienteData } = await apiBackendAction("clientes.getByCodigo", { codigo: formData.cliente_id });
+      const clienteData = await mycsapi.get("/api/v1/clientes/search", { query: { codigo: formData.cliente_id } as any });
 
       if (!clienteData) {
         toast.error("Cliente no encontrado");
@@ -112,7 +112,7 @@ export default function HerramientasManuales() {
       }
 
       // Obtener producto_id numérico using apiBackendAction
-      const { result: productoData } = await apiBackendAction("productos.getByCodigo", { codigo: formData.producto_id });
+      const productoData = await mycsapi.get("/api/v1/productos/search", { query: { codigo: formData.producto_id } as any });
 
       if (!productoData) {
         toast.error("Producto no encontrado");
@@ -123,7 +123,7 @@ export default function HerramientasManuales() {
       const centroServicioId = 1;
 
       // Generar código de incidente via apiBackendAction
-      const { codigo: nuevoCodigoIncidente } = await apiBackendAction("rpc.generarCodigoIncidente", {});
+      const { codigo: nuevoCodigoIncidente } = await mycsapi.fetch("/api/v1/rpc/generar_codigo_incidente", { method: "POST" }) as any;
 
       // Subir fotos
       const mediaFiles: MediaFile[] = fotos.map(p => ({
@@ -135,7 +135,7 @@ export default function HerramientasManuales() {
       }));
 
       // Crear incidente using apiBackendAction
-      const incidenteData = await apiBackendAction("incidentes.create", {
+      const incidenteData = await mycsapi.post("/api/v1/incidentes", { body: {
         codigo: nuevoCodigoIncidente,
         cliente_id: (clienteData as any).id,
         producto_id: (productoData as any).id,
@@ -147,7 +147,7 @@ export default function HerramientasManuales() {
         aplica_garantia: false,
         tracking_token: crypto.randomUUID(),
         quiere_envio: false
-      } as any);
+      } as any });
 
       // Subir fotos asociadas al incidente
       const uploadedMedia = await uploadMediaToStorage(mediaFiles, String((incidenteData as any).id));
@@ -160,7 +160,7 @@ export default function HerramientasManuales() {
         storage_path: media.storage_path
       }));
 
-      await apiBackendAction("incidente_fotos.create", fotosInserts as any);
+      await mycsapi.fetch("/api/v1/incidente-fotos", { method: "POST", body: fotosInserts as any });
 
       toast.success("Herramienta recibida correctamente");
       setShowNewDialog(false);
@@ -186,14 +186,11 @@ export default function HerramientasManuales() {
     try {
       const nuevoEstado = aplicaGarantia ? "CAMBIO_POR_GARANTIA" : "ESPERA_APROBACION";
       
-      await apiBackendAction("incidentes.update", {
-        id: selectedIncidente.id,
-        data: {
+      await mycsapi.patch("/api/v1/incidentes/{incidente_id}", { path: { incidente_id: selectedIncidente.id }, body: {
           estado: nuevoEstado,
           aplica_garantia: aplicaGarantia,
           observaciones: justificacion
-        }
-      } as any);
+        } as any });
 
       toast.success(
         aplicaGarantia 

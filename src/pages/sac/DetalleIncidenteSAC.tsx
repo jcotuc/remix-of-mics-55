@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { apiBackendAction } from "@/lib/api-backend";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -49,6 +48,7 @@ import { toast } from "sonner";
 import { StatusBadge } from "@/components/shared";
 import { differenceInDays } from "date-fns";
 import type { Database } from "@/integrations/supabase/types";
+import { mycsapi } from "@/mics-api";
 
 type IncidenteDB = Database["public"]["Tables"]["incidentes"]["Row"];
 type ClienteDB = Database["public"]["Tables"]["clientes"]["Row"];
@@ -117,16 +117,16 @@ export default function DetalleIncidenteSAC() {
 
   const assignIncident = async () => {
     try {
-      const { user } = await apiBackendAction("auth.getUser", {});
+      const { user } = await mycsapi.get("/api/v1/auth/me") as any;
       if (!user) return;
 
-      const { result: userProfile } = await apiBackendAction("usuarios.getByEmail", { email: user.email || "" });
+      const userProfile = await mycsapi.fetch("/api/v1/usuarios/by-email", { method: "GET", query: { email: user.email || "" } }) as any;
       if (!userProfile) return;
 
-      const { results: existingAssignments } = await apiBackendAction("asignaciones_sac.list", { 
+      const { results: existingAssignments } = await mycsapi.fetch("/api/v1/asignaciones-sac", { method: "GET", query: { 
         incidente_id: Number(id),
         activo: true 
-      });
+      } }) as any;
 
       const existingAssignment = existingAssignments?.[0] as any;
 
@@ -138,11 +138,11 @@ export default function DetalleIncidenteSAC() {
         }
         setAsignacion(existingAssignment);
       } else {
-        const newAssignment = await apiBackendAction("asignaciones_sac.create", {
+        const newAssignment = await mycsapi.fetch("/api/v1/asignaciones-sac", { method: "POST", body: {
           incidente_id: Number(id),
           user_id: (userProfile as any).id,
           activo: true
-        });
+        } }) as any;
         setAsignacion(newAssignment);
         toast.success("Incidente asignado exitosamente");
       }
@@ -156,7 +156,7 @@ export default function DetalleIncidenteSAC() {
     try {
       setLoading(true);
 
-      const incidenteResult = await apiBackendAction("incidentes.get", { id: Number(id) });
+      const incidenteResult = await mycsapi.get("/api/v1/incidentes/{incidente_id}", { path: { incidente_id: Number(id) } }) as any;
       const incData = incidenteResult.result;
       
       if (!incData) {
@@ -204,7 +204,7 @@ export default function DetalleIncidenteSAC() {
       }
 
       // Fetch diagnosis
-      const diagnosticoResult = await apiBackendAction("diagnosticos.search", { incidente_id: Number(id) });
+      const diagnosticoResult = await mycsapi.fetch("/api/v1/diagnosticos/search", { method: "GET", query: { incidente_id: Number(id) } }) as any;
       const diagnosticoData = diagnosticoResult.results?.[0] || null;
       setDiagnostico(diagnosticoData as unknown as DiagnosticoDB | null);
 
@@ -215,14 +215,14 @@ export default function DetalleIncidenteSAC() {
       // Fetch fallas, causas and repuestos if diagnostico exists
       if (diagnosticoData) {
         const [fallasRes, causasRes, repuestosRes] = await Promise.all([
-          apiBackendAction("diagnostico_fallas.list", { diagnostico_id: diagnosticoData.id }),
-          apiBackendAction("diagnostico_causas.list", { diagnostico_id: diagnosticoData.id }),
-          apiBackendAction("solicitudes_repuestos.search", { incidente_id: Number(id) }),
+          mycsapi.fetch("/api/v1/diagnostico-fallas", { method: "GET", query: { diagnostico_id: diagnosticoData.id } }),
+          mycsapi.fetch("/api/v1/diagnostico-causas", { method: "GET", query: { diagnostico_id: diagnosticoData.id } }),
+          mycsapi.fetch("/api/v1/solicitudes-repuestos/search", { method: "GET", query: { incidente_id: Number(id) } }),
         ]);
 
-        setFallas((fallasRes.results || []).map((f: any) => f.fallas?.nombre).filter(Boolean));
-        setCausas((causasRes.results || []).map((c: any) => c.causas?.nombre).filter(Boolean));
-        setRepuestos((repuestosRes.results || []).map((r: any) => ({
+        setFallas(((fallasRes as any).results || []).map((f: any) => f.fallas?.nombre).filter(Boolean));
+        setCausas(((causasRes as any).results || []).map((c: any) => c.causas?.nombre).filter(Boolean));
+        setRepuestos(((repuestosRes as any).results || []).map((r: any) => ({
           codigo: r.repuestos?.codigo || r.codigo_repuesto,
           descripcion: r.repuestos?.descripcion || "Repuesto",
           cantidad: r.cantidad || 1,
@@ -231,7 +231,7 @@ export default function DetalleIncidenteSAC() {
 
         // Fetch producto alternativo if tipo_resolucion is CANJE
         if (diagnosticoData.producto_alternativo_id) {
-          const { result: prodAlt } = await apiBackendAction("productos.get", { id: diagnosticoData.producto_alternativo_id });
+          const prodAlt = await mycsapi.get("/api/v1/productos/{producto_id}", { path: { producto_id: diagnosticoData.producto_alternativo_id } }) as any;
           
           if (prodAlt) {
             setProductoAlternativo({
@@ -245,17 +245,17 @@ export default function DetalleIncidenteSAC() {
       }
 
       // Fetch accesorios del incidente
-      const { results: accesoriosData } = await apiBackendAction("incidente_accesorios.list", { incidente_id: Number(id) });
+      const { results: accesoriosData } = await mycsapi.fetch("/api/v1/incidente-accesorios", { method: "GET", query: { incidente_id: Number(id) as any } }) as any;
       
       setAccesorios((accesoriosData || []).map((a: any) => a.accesorios?.nombre).filter(Boolean));
 
       // Fetch fotos del incidente
-      const { results: fotosData } = await apiBackendAction("incidente_fotos.list", { incidente_id: Number(id) });
+      const { results: fotosData } = await mycsapi.fetch("/api/v1/incidente-fotos", { method: "GET", query: { incidente_id: Number(id) as any } }) as any;
       setFotos(fotosData || []);
 
       // Fetch guía del incidente
       try {
-        const { results: guiasData } = await apiBackendAction("guias.search", { incidente_id: Number(id), limit: 1 });
+        const { results: guiasData } = await mycsapi.fetch("/api/v1/guias/search", { method: "GET", query: { incidente_id: Number(id) as any, limit: 1 } }) as any;
         setGuia(guiasData?.[0] || null);
       } catch (e) {
         console.warn("Could not fetch guia:", e);
@@ -263,7 +263,7 @@ export default function DetalleIncidenteSAC() {
 
       // Fetch centro de servicio
       if (incData.centro_de_servicio_id) {
-        const { result: centro } = await apiBackendAction("centros_de_servicio.get", { id: incData.centro_de_servicio_id });
+        const centro = await mycsapi.get("/api/v1/centros-de-servicio/{centro_de_servicio_id}", { path: { centro_de_servicio_id: incData.centro_de_servicio_id } }) as any;
         setCentroServicio((centro as any)?.nombre || "Centro de Servicio");
       }
 
@@ -282,10 +282,7 @@ export default function DetalleIncidenteSAC() {
   const handleReleaseIncident = async () => {
     try {
       if (asignacion) {
-        await apiBackendAction("asignaciones_sac.update", {
-          id: asignacion.id,
-          data: { activo: false }
-        });
+        await mycsapi.fetch("/api/v1/asignaciones-sac/{id}".replace("{id}", String(asignacion.id)), { method: "PATCH", body: { activo: false } as any }) as any;
         toast.success("Incidente liberado");
         navigate("/sac/incidentes");
       }
@@ -339,13 +336,10 @@ export default function DetalleIncidenteSAC() {
     try {
       setProcessingDecision(true);
 
-      await apiBackendAction("incidentes.update", {
-        id: incidente.id,
-        data: { 
+      await mycsapi.patch("/api/v1/incidentes/{incidente_id}", { path: { incidente_id: incidente.id }, body: { 
           estado: "EN_REPARACION",
           updated_at: new Date().toISOString()
-        }
-      } as any);
+        } as any }) as any;
 
       toast.success("Cliente aprobó. El incidente pasa a reparación.");
       await handleReleaseIncident();
@@ -364,13 +358,10 @@ export default function DetalleIncidenteSAC() {
     try {
       setProcessingDecision(true);
 
-      await apiBackendAction("incidentes.update", {
-        id: incidente.id,
-        data: { 
+      await mycsapi.patch("/api/v1/incidentes/{incidente_id}", { path: { incidente_id: incidente.id }, body: { 
           estado: "EN_ENTREGA",
           updated_at: new Date().toISOString()
-        }
-      } as any);
+        } as any }) as any;
 
       toast.success("Cliente rechazó. El incidente pasa a entrega.");
       await handleReleaseIncident();

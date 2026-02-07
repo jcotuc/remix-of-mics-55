@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, CheckCircle, AlertTriangle, TrendingDown, BarChart3 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
-import { apiBackendAction } from "@/lib/api-backend";
+import { mycsapi } from "@/mics-api";
 
 interface DefectoStats {
   tipo: string;
@@ -31,7 +31,7 @@ export default function DashboardSupervisorCalidad() {
 
       // Fetch data in parallel using apiBackendAction
       const [incidentesResponse] = await Promise.all([
-        apiBackendAction("incidentes.list", { limit: 5000 })
+        mycsapi.get("/api/v1/incidentes", { query: { limit: 5000 } })
       ]);
 
       const incidentes = incidentesResponse.results || [];

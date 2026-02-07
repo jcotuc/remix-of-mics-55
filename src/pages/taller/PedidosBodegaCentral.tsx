@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { apiBackendAction } from "@/lib/api-backend";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,6 +12,7 @@ import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { mycsapi } from "@/mics-api";
 
 interface PedidoBodegaExtended {
   id: number;
@@ -55,16 +55,16 @@ export default function PedidosBodegaCentral() {
   const fetchPedidos = async () => {
     try {
       const [pedidosRes, incidentesRes, centrosRes, usuariosRes] = await Promise.all([
-        apiBackendAction("pedidos_bodega_central.list", { limit: 500 }),
-        apiBackendAction("incidentes.list", { limit: 2000 }),
-        apiBackendAction("centros_de_servicio.list", {}),
-        apiBackendAction("usuarios.list", {}),
+        mycsapi.fetch("/api/v1/pedidos-bodega-central", { method: "GET", query: { limit: 500 } }),
+        mycsapi.get("/api/v1/incidentes", { query: { limit: 2000 } }),
+        mycsapi.get("/api/v1/centros-de-servicio", {}),
+        mycsapi.get("/api/v1/usuarios/"),
       ]);
 
       const incidentesMap = new Map((incidentesRes.results || []).map((i: any) => [i.id, i]));
       const centrosData = (centrosRes as any).data || (centrosRes as any).results || [];
       const centrosMap = new Map(centrosData.map((c: any) => [c.id, c]));
-      const usuariosMap = new Map((usuariosRes.results || []).map((u: any) => [u.id, u]));
+      const usuariosMap = new Map(((usuariosRes as any).results || []).map((u: any) => [u.id, u]));
 
       const pedidosData = (pedidosRes as any).data || (pedidosRes as any).results || [];
       const formattedData: PedidoBodegaExtended[] = pedidosData.map((item: any) => {
@@ -104,11 +104,11 @@ export default function PedidosBodegaCentral() {
     if (!selectedPedido || !user) return;
     setIsProcessing(true);
     try {
-      await apiBackendAction("pedidos_bodega_central.update", {
+      await mycsapi.fetch("/api/v1/pedidos-bodega-central/{id}".replace("{id}", String(typeof user.id === 'string' ? parseInt(user.id) || 0 : user.id)), { method: "PATCH", body: {
         id: selectedPedido.id,
         estado: "APROBADO_JEFE_TALLER",
         aprobado_jefe_taller_id: typeof user.id === 'string' ? parseInt(user.id) || 0 : user.id,
-      } as any);
+      } as any }) as any;
       toast.success("Pedido aprobado exitosamente");
       setShowApprovalDialog(false);
       setSelectedPedido(null);
@@ -128,10 +128,10 @@ export default function PedidosBodegaCentral() {
     }
     setIsProcessing(true);
     try {
-      await apiBackendAction("pedidos_bodega_central.update", {
+      await mycsapi.fetch("/api/v1/pedidos-bodega-central/{id}".replace("{id}", String(selectedPedido.id)), { method: "PATCH", body: {
         id: selectedPedido.id,
         estado: "RECHAZADO"
-      } as any);
+      } as any }) as any;
       toast.success("Pedido rechazado");
       setShowRejectDialog(false);
       setRejectReason("");

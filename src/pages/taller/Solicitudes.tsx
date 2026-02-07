@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Textarea } from "@/components/ui/textarea";
 import { CheckCircle, XCircle, Clock, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
-import { apiBackendAction } from "@/lib/api-backend";
+import { mycsapi } from "@/mics-api";
 
 interface SolicitudDisplay {
   id: number;
@@ -35,8 +35,13 @@ export default function Solicitudes() {
       setLoading(true);
       
       // Fetch diagnosticos via Registry
-      const diagnosticosRes = await apiBackendAction("diagnosticos.list", { limit: 1000 });
-      const allDiagnosticos = (diagnosticosRes as any).results || [];
+      // Fetch all incidentes first, then diagnosticos per incidente
+      const incidentesRes = await mycsapi.get("/api/v1/incidentes", { query: { limit: 1000 } });
+      const incIds = ((incidentesRes as any).results || []).map((i: any) => i.id);
+      const diagArrays = await Promise.all(
+        incIds.slice(0, 50).map((id: number) => mycsapi.get("/api/v1/incidentes/{incidente_id}/diagnosticos", { path: { incidente_id: id } }).catch(() => ({ results: [] })))
+      );
+      const allDiagnosticos = diagArrays.flatMap(r => (r as any).results || []);
       
       // Filter by estado
       const filteredDiagnosticos = allDiagnosticos.filter((d: any) => 
@@ -44,7 +49,7 @@ export default function Solicitudes() {
       );
 
       // Fetch usuarios for technician names
-      const usuariosRes = await apiBackendAction("usuarios.list", {});
+      const usuariosRes = await mycsapi.get("/api/v1/usuarios/");
       const allUsuarios = (usuariosRes as any).results || [];
       const usuariosMap = new Map(allUsuarios.map((u: any) => [u.id, u]));
 
@@ -85,13 +90,10 @@ export default function Solicitudes() {
 
     try {
       // Use apiBackendAction for updates
-      await apiBackendAction("diagnosticos.update", {
-        id: selectedSolicitud.id,
-        data: {
+      await mycsapi.fetch("/api/v1/diagnosticos/{diagnostico_id}".replace("{diagnostico_id}", String(selectedSolicitud.id)), { method: "PATCH", body: {
           estado: 'COMPLETADO',
           updated_at: new Date().toISOString()
-        }
-      } as any);
+        } as any });
 
       toast.success('Solicitud aprobada');
       setSelectedSolicitud(null);
@@ -108,13 +110,10 @@ export default function Solicitudes() {
 
     try {
       // Use apiBackendAction for updates
-      await apiBackendAction("diagnosticos.update", {
-        id: selectedSolicitud.id,
-        data: {
+      await mycsapi.fetch("/api/v1/diagnosticos/{diagnostico_id}".replace("{diagnostico_id}", String(selectedSolicitud.id)), { method: "PATCH", body: {
           estado: 'PENDIENTE',
           updated_at: new Date().toISOString()
-        }
-      } as any);
+        } as any });
 
       toast.success('Solicitud rechazada');
       setSelectedSolicitud(null);

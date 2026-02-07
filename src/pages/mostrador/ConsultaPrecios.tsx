@@ -10,9 +10,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Badge } from "@/components/ui/badge";
-import { apiBackendAction } from "@/lib/api-backend";
 import { toast } from "sonner";
 import type { ClienteSchema } from "@/generated/actions.d";
+import { mycsapi } from "@/mics-api";
 
 type ProductoDisplay = {
   id: number;
@@ -69,7 +69,7 @@ export default function ConsultaPrecios() {
 
   const fetchClientes = async () => {
     try {
-      const { results } = await apiBackendAction("clientes.list", { limit: 5000 });
+      const { results } = await mycsapi.get("/api/v1/clientes", { query: { limit: 5000 } });
       const sorted = [...results].sort((a, b) => (a.nombre || "").localeCompare(b.nombre || ""));
       setClientes(sorted);
     } catch (error) {
@@ -80,10 +80,10 @@ export default function ConsultaPrecios() {
   const fetchProductos = async () => {
     try {
       setLoading(true);
-      const { results } = await apiBackendAction("productos.search", { 
+      const { results } = await mycsapi.get("/api/v1/productos/search", { query: { 
         search: searchTerm, 
         limit: 20 
-      });
+      } as any });
       setProductos(results.map(r => ({
         id: r.id,
         codigo: r.codigo,
@@ -132,13 +132,13 @@ export default function ConsultaPrecios() {
     }
 
     try {
-      await apiBackendAction("cotizaciones.create", {
+      await mycsapi.fetch("/api/v1/cotizaciones", { method: "POST", body: {
         codigo_cliente: selectedCliente,
         codigo_producto: selectedProducto.codigo,
         cantidad: parseInt(cantidad),
         precio_unitario: precioFinal,
         notas: notas || null
-      } as any);
+      } as any });
 
       toast.success('Cotización creada exitosamente');
       setIsDialogOpen(false);

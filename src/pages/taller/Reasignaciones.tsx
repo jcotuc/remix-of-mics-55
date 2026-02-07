@@ -10,7 +10,6 @@ import { Loader2, RefreshCw, Search, User, ArrowRight, AlertTriangle, BarChart3,
 import { differenceInDays } from "date-fns";
 import { toast } from "sonner";
 import { formatLogEntry } from "@/utils/dateFormatters";
-import { apiBackendAction } from "@/lib/api-backend";
 import {
   AlertBanner,
   MetricCard,
@@ -22,6 +21,7 @@ import {
 import { DndContext, closestCenter, DragEndEvent } from "@dnd-kit/core";
 import { useSortable, SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { mycsapi } from "@/mics-api";
 
 interface Incidente {
   id: number;
@@ -125,7 +125,7 @@ export default function Reasignaciones() {
 
   const fetchData = async () => {
     try {
-      const incidentesRes = await apiBackendAction("incidentes.list", { limit: 2000 });
+      const incidentesRes = await mycsapi.get("/api/v1/incidentes", { query: { limit: 2000 } });
       const allIncidentes = (incidentesRes as any).results || [];
       
       const filteredByEstado = allIncidentes.filter((inc: any) => 
@@ -134,14 +134,14 @@ export default function Reasignaciones() {
       
       const incidenteIds = filteredByEstado.map((i: any) => i.id);
 
-      const asignacionesRes = await apiBackendAction("incidente_tecnico.list", { es_principal: true });
+      const asignacionesRes = await mycsapi.fetch("/api/v1/incidente-tecnico", { method: "GET", query: { es_principal: true } }) as any;
       const allAsignaciones = (asignacionesRes.results || []).filter((a: any) => 
         incidenteIds.includes(a.incidente_id)
       );
 
       const tecnicoIds = [...new Set((allAsignaciones || []).map((a: any) => a.tecnico_id).filter(Boolean))] as number[];
       
-      const usuariosRes = await apiBackendAction("usuarios.list", {});
+      const usuariosRes = await mycsapi.get("/api/v1/usuarios/");
       const allUsuarios = (usuariosRes as any).results || [];
       
       const tecnicoProfiles: Record<number, { nombre: string; apellido: string | null }> = {};
@@ -163,7 +163,7 @@ export default function Reasignaciones() {
             ...item,
             cliente: item.cliente || null,
             producto: item.producto || null,
-            tecnico_profile: tecnicoId ? tecnicoProfiles[tecnicoId] || null : null,
+            tecnico_profile: tecnicoId ? (tecnicoProfiles as any)[tecnicoId as any] || null : null,
             tecnico_asignado_id_from_junction: tecnicoId || null,
           };
         });
@@ -205,27 +205,24 @@ export default function Reasignaciones() {
       const logEntry = formatLogEntry(`Reasignado de ${tecnicoAnterior} a ${tecnicoCodigo}${motivoReasignacion ? `. Motivo: ${motivoReasignacion}` : ""}`);
 
       if (selectedIncidente.tecnico_asignado_id_from_junction) {
-        await apiBackendAction("incidente_tecnico.update", {
+        await mycsapi.fetch("/api/v1/incidente-tecnico/{id}".replace("{id}", String(nuevoTecnicoId)), { method: "PATCH", body: {
           incidente_id: selectedIncidente.id,
           tecnico_id: nuevoTecnicoId,
           es_principal: true
-        } as any);
+        } as any });
       } else {
-        await apiBackendAction("incidente_tecnico.create", {
+        await mycsapi.fetch("/api/v1/incidente-tecnico", { method: "POST", body: {
           incidente_id: selectedIncidente.id,
           tecnico_id: nuevoTecnicoId,
           es_principal: true,
-        } as any);
+        } as any });
       }
 
       const currentObs = selectedIncidente.observaciones || "";
-      await apiBackendAction("incidentes.update", {
-        id: selectedIncidente.id,
-        data: {
+      await mycsapi.patch("/api/v1/incidentes/{incidente_id}", { path: { incidente_id: selectedIncidente.id }, body: {
           observaciones: currentObs ? `${currentObs}\n${logEntry}` : logEntry,
           updated_at: new Date().toISOString(),
-        }
-      } as any);
+        } as any });
 
       toast.success("Incidente reasignado correctamente");
       setIsDialogOpen(false);

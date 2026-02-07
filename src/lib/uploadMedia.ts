@@ -1,5 +1,5 @@
-import { apiBackendAction } from "@/lib/api-backend";
 import { MediaFile } from "@/components/features/media";
+import { mycsapi } from "@/mics-api";
 
 export interface UploadedMedia {
   url: string;
@@ -32,12 +32,13 @@ export async function uploadMediaToStorage(
     const fileName = `${folder}/${timestamp}_${randomId}.${extension}`;
 
     try {
-      const { url, storage_path } = await apiBackendAction("storage.upload", {
+      // TODO: Replace with direct Supabase storage upload
+      const { url, storage_path } = await (window as any).__supabaseUpload?.({
         bucket: 'incidente-fotos',
         path: fileName,
         file: item.file,
         options: { cacheControl: '3600', upsert: false }
-      });
+      }) ?? { url: '', storage_path: '' };
 
       uploaded.push({
         url,
@@ -65,7 +66,7 @@ export async function saveIncidentePhotos(
   uploadedMedia: (UploadedMedia & { comment?: string })[],
   tipo: 'ingreso' | 'salida' | 'diagnostico' | 'reparacion'
 ) {
-  const { user } = await apiBackendAction("auth.getUser", {});
+  const { user } = await mycsapi.get("/api/v1/auth/me") as any;
   
   const photosToInsert = uploadedMedia.map(media => ({
     incidente_id: incidenteId,
@@ -79,7 +80,7 @@ export async function saveIncidentePhotos(
   }));
 
   // Use apiBackendAction for insert
-  await apiBackendAction("incidente_fotos.create", photosToInsert as any);
+  await mycsapi.fetch("/api/v1/incidente-fotos", { method: "POST", body: photosToInsert as any }) as any;
 }
 
 /**
@@ -87,7 +88,8 @@ export async function saveIncidentePhotos(
  * @param storagePaths - Array de rutas de storage a eliminar
  */
 export async function deleteMediaFromStorage(storagePaths: string[]) {
-  await apiBackendAction("storage.delete", {
+  // TODO: Replace with direct Supabase storage delete
+  await (window as any).__supabaseDelete?.({
     bucket: 'incidente-fotos',
     paths: storagePaths
   });

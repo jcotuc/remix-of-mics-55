@@ -1,3 +1,4 @@
+import { mycsapi } from "@/mics-api";
 /**
  * Servicio para generación automática de guías INTERNAS de envío
  * Se ejecuta cuando un incidente pasa a estado final y tiene quiere_envio = true
@@ -8,7 +9,6 @@
  * - CAMBIO_POR_GARANTIA
  */
 
-import { apiBackendAction } from "@/lib/api-backend";
 
 interface GenerarGuiaInternaResult {
   success: boolean;
@@ -26,7 +26,7 @@ export async function generarGuiaInterna(incidenteId: number): Promise<GenerarGu
     console.log("🚚 Iniciando generación de guía INTERNA para incidente:", incidenteId);
 
     // 1. Obtener datos del incidente usando apiBackendAction
-    const { result: incidente } = await apiBackendAction("incidentes.get", { id: incidenteId });
+    const incidente = await mycsapi.get("/api/v1/incidentes/{incidente_id}", { path: { incidente_id: incidenteId } }) as any;
 
     if (!incidente) {
       throw new Error(`No se pudo obtener el incidente con ID: ${incidenteId}`);
@@ -39,9 +39,9 @@ export async function generarGuiaInterna(incidenteId: number): Promise<GenerarGu
     }
 
     // 3. Verificar que no tenga ya una guía usando apiBackendAction
-    const { results: guiasExistentes } = await apiBackendAction("guias.search", { 
+    const { results: guiasExistentes } = await mycsapi.fetch("/api/v1/guias/search", { method: "GET", query: { 
       incidente_id: incidenteId 
-    });
+    } }) as any;
 
     if (guiasExistentes && guiasExistentes.length > 0) {
       const guiaExistente = guiasExistentes[0] as any;
@@ -62,9 +62,10 @@ export async function generarGuiaInterna(incidenteId: number): Promise<GenerarGu
     let direccionEnvio = cliente.direccion || "";
 
     if ((incidente as any).direccion_entrega_id) {
-      const { result: direccion } = await apiBackendAction("direcciones.get", { 
-        id: (incidente as any).direccion_entrega_id 
-      });
+      const direccion = await mycsapi.fetch(
+        `/api/v1/clientes/${cliente.id}/direcciones/${(incidente as any).direccion_entrega_id}`,
+        { method: "GET" }
+      ) as any;
 
       if ((direccion as any)?.direccion) {
         direccionEnvio = (direccion as any).direccion;
@@ -72,12 +73,10 @@ export async function generarGuiaInterna(incidenteId: number): Promise<GenerarGu
     }
 
     // 5. Obtener datos del centro de servicio (remitente)
-    const { result: centroServicio } = await apiBackendAction("centros_de_servicio.get", { 
-      id: incidente.centro_de_servicio_id 
-    });
+    const centroServicio = await mycsapi.get("/api/v1/centros-de-servicio/{centro_de_servicio_id}", { path: { centro_de_servicio_id: incidente.centro_de_servicio_id } }) as any;
 
     // 6. Generar número de guía interno usando apiBackendAction
-    const { numero: numeroGuia } = await apiBackendAction("rpc.generarNumeroGuia", {});
+    const { numero: numeroGuia } = await mycsapi.fetch("/api/v1/rpc/generar_numero_guia", { method: "POST" }) as any;
 
     // 7. Construir datos de la guía
     const ciudadDestino = `${cliente.municipio || ""}, ${cliente.departamento || "Guatemala"}`.trim().replace(/^,\s*/, "");
@@ -111,16 +110,13 @@ export async function generarGuiaInterna(incidenteId: number): Promise<GenerarGu
     console.log("📦 Datos de la guía interna:", guiaData);
 
     // 8. Insertar guía en la base de datos usando apiBackendAction
-    const guiaCreada = await apiBackendAction("guias.create", guiaData as any) as any;
+    const guiaCreada = await mycsapi.post("/api/v1/guias", { body: guiaData as any }) as any;
 
     console.log("✅ Guía interna guardada en BD:", guiaCreada);
 
     // 9. Actualizar el incidente a EN_ENTREGA usando apiBackendAction
     try {
-      await apiBackendAction("incidentes.update", {
-        id: incidenteId,
-        data: { estado: "EN_ENTREGA" }
-      } as any);
+      await mycsapi.patch("/api/v1/incidentes/{incidente_id}", { path: { incidente_id: incidenteId }, body: { estado: "EN_ENTREGA" } as any }) as any;
       console.log("✅ Estado del incidente actualizado a EN_ENTREGA");
     } catch (updateError) {
       console.warn("⚠️ Guía creada pero error actualizando estado:", updateError);
@@ -145,7 +141,7 @@ export async function generarGuiaInterna(incidenteId: number): Promise<GenerarGu
  */
 export async function tieneGuiaEnvio(incidenteId: number): Promise<boolean> {
   try {
-    const { results } = await apiBackendAction("guias.search", { incidente_id: incidenteId });
+    const { results } = await mycsapi.fetch("/api/v1/guias/search", { method: "GET", query: { incidente_id: incidenteId } }) as any;
     return results && results.length > 0;
   } catch {
     return false;

@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { apiBackendAction } from "@/lib/api-backend";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,6 +14,7 @@ import { format, differenceInDays } from "date-fns";
 import { es } from "date-fns/locale";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { mycsapi } from "@/mics-api";
 
 interface RepuestoSolicitado {
   codigo: string;
@@ -69,7 +69,7 @@ export default function DetallePendienteRepuesto() {
       }
 
       // Fetch incidente with API
-      const { result: incidenteData } = await apiBackendAction("incidentes.get", { id: numericId });
+      const incidenteData = await mycsapi.get("/api/v1/incidentes/{incidente_id}", { path: { incidente_id: numericId } }) as any;
       
       if (!incidenteData) {
         toast.error("Incidente no encontrado");
@@ -82,7 +82,7 @@ export default function DetallePendienteRepuesto() {
       setProducto(incidenteData.producto);
 
       // Fetch solicitudes de repuestos
-      const solicitudesRes = await apiBackendAction("solicitudes_repuestos.list", { limit: 100 });
+      const solicitudesRes = await mycsapi.fetch("/api/v1/solicitudes-repuestos", { method: "GET", query: { limit: 100 } }) as any;
       const solicitudesData = ((solicitudesRes as any).data || (solicitudesRes as any).results || [])
         .filter((s: any) => s.incidente_id === numericId);
 
@@ -95,23 +95,21 @@ export default function DetallePendienteRepuesto() {
       setSolicitudes(solicitudesFormateadas);
 
       // Fetch pedido a bodega central
-      const pedidosRes = await apiBackendAction("pedidos_bodega_central.list", { limit: 500 });
+      const pedidosRes = await mycsapi.fetch("/api/v1/pedidos-bodega-central", { method: "GET", query: { limit: 500 } }) as any;
       const pedidosData = ((pedidosRes as any).data || (pedidosRes as any).results || [])
         .filter((p: any) => p.incidente_id === numericId);
       if (pedidosData?.[0]) setPedidoBodega(pedidosData[0]);
 
       // Fetch técnico asignado
       if ((incidenteData as any).propietario_id) {
-        const { result: tecnicoData } = await apiBackendAction("usuarios.get", { 
-          id: (incidenteData as any).propietario_id 
-        });
+        const tecnicoData = await mycsapi.fetch("/api/v1/usuarios/{usuario_id}".replace("{usuario_id}", String((incidenteData as any).propietario_id)), { method: "GET" }) as any;
         if (tecnicoData) setTecnico(tecnicoData);
       }
 
       // Fetch inventario del centro de servicio
-      const inventarioRes = await apiBackendAction("inventarios.list", { 
+      const inventarioRes = await mycsapi.get("/api/v1/inventario", { query: { 
         centro_servicio_id: incidenteData.centro_de_servicio_id 
-      });
+      } }) as any;
       const inventarioData = (inventarioRes as any).data || (inventarioRes as any).results || [];
       setInventario(inventarioData);
     } catch (error) {
@@ -127,7 +125,7 @@ export default function DetallePendienteRepuesto() {
 
     setIsCreatingPedido(true);
     try {
-      const { results: usuarios } = await apiBackendAction("usuarios.list", {});
+      const { results: usuarios } = await mycsapi.get("/api/v1/usuarios/") as any;
       const userData = (usuarios || []).find((u: any) => u.email === user.email);
 
       if (!userData) {
@@ -135,12 +133,12 @@ export default function DetallePendienteRepuesto() {
         return;
       }
 
-      await apiBackendAction("pedidos_bodega_central.create", {
+      await mycsapi.fetch("/api/v1/pedidos-bodega-central", { method: "POST", body: {
         incidente_id: incidente.id,
         centro_servicio_id: incidente.centro_de_servicio_id,
         estado: "PENDIENTE",
         solicitado_por_id: userData.id,
-      });
+      } }) as any;
 
       toast.success("Pedido a bodega central creado");
       setShowPedidoDialog(false);

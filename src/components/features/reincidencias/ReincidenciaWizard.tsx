@@ -5,13 +5,13 @@ import { Button } from "@/components/ui/button";
 import { MinimalStepper, type StepperStep } from "@/components/ui/minimal-stepper";
 import { Search, GitCompare, Scale, ArrowLeft, ArrowRight, Save, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { apiBackendAction } from "@/lib/api-backend";
 import { useAuth } from "@/contexts/AuthContext";
 
 import { PasoSeleccion } from "./PasoSeleccion";
 import { PasoComparacion } from "./PasoComparacion";
 import { PasoDecision } from "./PasoDecision";
 import type { WizardData, IncidenteParaVerificar, IncidenteHistorial, MotivoNoReingreso } from "./types";
+import { mycsapi } from "@/mics-api";
 
 const STEPS: StepperStep[] = [
   { id: 1, title: "Selección", description: "Buscar incidente", icon: <Search /> },
@@ -128,7 +128,7 @@ export function ReincidenciaWizard() {
       // Get verificado_por ID - convert to number if string
       const verificadorId = typeof user.id === 'string' ? parseInt(user.id, 10) : user.id;
 
-      await apiBackendAction("verificaciones_reincidencia.create", {
+      await mycsapi.post("/api/v1/verificaciones-reincidencia", { body: {
         incidente_id: data.incidenteActual.id,
         incidente_anterior_id: data.incidenteAnteriorId || undefined,
         es_reincidencia: data.esReincidencia!,
@@ -140,17 +140,14 @@ export function ReincidenciaWizard() {
         problema_anterior: incidenteAnterior?.descripcion_problema || undefined,
         dias_desde_reparacion: incidenteAnterior?.dias_desde_reparacion || undefined,
         verificado_por: verificadorId,
-      });
+      } as any });
 
       // If approved, update incident with origen_id
       if (data.esReincidencia && data.aplicaReingreso && data.incidenteAnteriorId) {
-        await apiBackendAction("incidentes.update", {
-          id: data.incidenteActual.id,
-          data: {
+        await mycsapi.patch("/api/v1/incidentes/{incidente_id}", { path: { incidente_id: data.incidenteActual.id }, body: {
             incidente_origen_id: data.incidenteAnteriorId,
             aplica_garantia: true,
-          },
-        } as any);
+          } as any });
       }
 
       toast.success("Verificación guardada exitosamente");

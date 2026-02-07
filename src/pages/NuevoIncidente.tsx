@@ -28,7 +28,6 @@ import {
   PenTool,
 } from "lucide-react";
 import { showError, showSuccess, showWarning } from "@/utils/toastHelpers";
-import { apiBackendAction } from "@/lib/api-backend";
 import type { Database } from "@/integrations/supabase/types";
 type Producto = Database["public"]["Tables"]["productos"]["Row"];
 import { SidebarMediaCapture, SidebarPhoto } from "@/components/features/media";
@@ -40,6 +39,7 @@ import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/contexts/AuthContext";
 import { IncidentePrintSheet } from "@/components/features/incidentes";
 import { SignatureCanvasComponent, SignatureCanvasRef } from "@/components/shared/SignatureCanvas";
+import { mycsapi } from "@/mics-api";
 const tipologias = ["Mantenimiento", "Reparación", "Daños por transporte", "Venta de repuestos"];
 
 const cleanString = (v?: string | null) => (v ?? "").trim();
@@ -615,15 +615,15 @@ export default function NuevoIncidente() {
 
       try {
         // Obtener el familia_padre_id del producto usando apiBackendAction
-        const { results: productosData } = await apiBackendAction("productos.search", { 
+        const { results: productosData } = await mycsapi.get("/api/v1/productos/search", { query: { 
           search: productoSeleccionado.codigo, 
           limit: 1 
-        });
+        } as any }) as any;
         const productoData = productosData?.[0] as any;
 
         if (!productoData?.familia_padre_id) {
           // Si no tiene familia, cargar todos los accesorios
-          const { results: accesorios } = await apiBackendAction("accesorios.list", {});
+          const { results: accesorios } = await mycsapi.get("/api/v1/accesorios", {}) as any;
           setAccesoriosDisponibles((accesorios || []).map((a: any) => ({ id: a.id, nombre: a.nombre })));
           return;
         }
@@ -631,7 +631,7 @@ export default function NuevoIncidente() {
         const familiaProductoId = productoData.familia_padre_id;
 
         // Obtener la jerarquía de familias (padre y abuelo) para buscar accesorios
-        const { results: familiasData } = await apiBackendAction("familias_producto.list", {});
+        const { results: familiasData } = await mycsapi.get("/api/v1/familias-producto", {}) as any;
         const familiaData = familiasData?.find((f: any) => f.id === familiaProductoId);
 
         // Construir lista de IDs de familia a buscar (la familia del producto y su padre/abuelo)
@@ -641,7 +641,7 @@ export default function NuevoIncidente() {
         }
 
         // Buscar accesorios que pertenezcan a cualquiera de estas familias
-        const { results: allAccesorios } = await apiBackendAction("accesorios.list", {});
+        const { results: allAccesorios } = await mycsapi.get("/api/v1/accesorios", {}) as any;
         const accesoriosFiltrados = (allAccesorios || [])
           .filter((acc: any) => familiaIds.includes(acc.familia_id))
           .sort((a: any, b: any) => a.nombre.localeCompare(b.nombre));
@@ -660,7 +660,7 @@ export default function NuevoIncidente() {
     const fetchCentrosYUsuario = async () => {
       try {
         // Cargar todos los centros de servicio usando apiBackendAction
-        const centrosRes = await apiBackendAction("centros_de_servicio.list", {});
+        const centrosRes = await mycsapi.get("/api/v1/centros-de-servicio", {}) as any;
         const centros = (centrosRes as any).results || (centrosRes as any).data || [];
         if (centros) {
           const centrosActivos = centros.filter((c: any) => c.activo);
@@ -669,7 +669,7 @@ export default function NuevoIncidente() {
 
         // Establecer centro del usuario actual
         if (user) {
-          const { result: userProfile } = await apiBackendAction("usuarios.getByEmail", { email: user.email || "" });
+          const userProfile = await mycsapi.fetch("/api/v1/usuarios/by-email", { method: "GET", query: { email: user.email || "" } }) as any;
           if ((userProfile as any)?.centro_de_servicio_id) {
             setCentroServicio((userProfile as any).centro_de_servicio_id);
           }
@@ -686,7 +686,7 @@ export default function NuevoIncidente() {
       try {
         // Fetch direcciones using apiBackendAction - note: we need a direcciones.list handler
         // For now we'll use the clientes.get which includes direcciones
-        const { result: clienteData } = await apiBackendAction("clientes.get", { id: clienteSeleccionado.id });
+        const clienteData = await mycsapi.get("/api/v1/clientes/{cliente_id}", { path: { cliente_id: clienteSeleccionado.id } }) as any;
         const direccionesData = (clienteData as any)?.direcciones || [];
         
         if (direccionesData && direccionesData.length > 0) {
@@ -722,10 +722,10 @@ export default function NuevoIncidente() {
     if (busquedaCliente.length >= 2) {
       const fetchClientes = async () => {
         try {
-          const { results } = await apiBackendAction("clientes.search", { 
+          const { results } = await mycsapi.get("/api/v1/clientes/search", { query: { 
             search: busquedaCliente, 
             limit: 10 
-          });
+          } as any }) as any;
           // Enrich results with full client data if needed
           setClientesEncontrados((results || []).map((c: any) => ({
             id: c.id,
@@ -751,10 +751,10 @@ export default function NuevoIncidente() {
     if (skuMaquina.length >= 3) {
       const fetchProductos = async () => {
         try {
-          const { results } = await apiBackendAction("productos.list", { 
+          const { results } = await mycsapi.get("/api/v1/productos", { query: { 
             search: skuMaquina, 
             limit: 20 
-          } as any);
+          } as any }) as any;
           const transformedData = (results || []).map((item: any) => ({
             ...item,
             url_foto: item.url_foto || "/api/placeholder/200/200",
@@ -791,13 +791,13 @@ export default function NuevoIncidente() {
 
       try {
         // Use clientes.getByCodigo to get client ID, then filter incidentes
-        const { result: clienteData } = await apiBackendAction("clientes.getByCodigo", { codigo: codigoCliente });
+        const clienteData = await mycsapi.get("/api/v1/clientes/search", { query: { codigo: codigoCliente } as any }) as any;
         if (!clienteData) {
           setIncidentesAnteriores([]);
           return;
         }
         
-        const { results } = await apiBackendAction("incidentes.list", { limit: 100 });
+        const { results } = await mycsapi.get("/api/v1/incidentes", { query: { limit: 100 } }) as any;
         const incidentesDelCliente = (results || [])
           .filter((inc: any) => inc.cliente?.id === (clienteData as any).id)
           .slice(0, 20);
@@ -868,18 +868,18 @@ export default function NuevoIncidente() {
 
     try {
       // Obtener familia_padre_id del producto
-      const { results: productosData } = await apiBackendAction("productos.search", { 
+      const { results: productosData } = await mycsapi.get("/api/v1/productos/search", { query: { 
         search: productoSeleccionado.codigo, 
         limit: 1 
-      });
+      } as any }) as any;
       const productoData = productosData?.[0] as any;
       const familiaId = productoData?.familia_padre_id || null;
 
       // Insertar el nuevo accesorio usando apiBackendAction
-      const nuevoAcc = await apiBackendAction("accesorios.create", {
+      const nuevoAcc = await mycsapi.post("/api/v1/accesorios", { body: {
         nombre: nombre.trim(),
         familia_id: familiaId,
-      } as any);
+      } as any }) as any;
 
       // Agregarlo a la lista de disponibles y seleccionarlo automáticamente
       setAccesoriosDisponibles((prev: any[]) => [...prev, { id: (nuevoAcc as any).id, nombre: (nuevoAcc as any).nombre }]);
@@ -987,10 +987,10 @@ export default function NuevoIncidente() {
       }
       if (mostrarFormNuevoCliente) {
         // Generar código HPC via apiBackendAction
-        const { codigo: nuevoCodigoHPC } = await apiBackendAction("rpc.generarCodigoHPC", {});
+        const { codigo: nuevoCodigoHPC } = await mycsapi.fetch("/api/v1/rpc/generar_codigo_hpc", { method: "POST" }) as any;
         
         // Crear cliente via apiBackendAction
-        const clienteData = await apiBackendAction("clientes.create", {
+        const clienteData = await mycsapi.post("/api/v1/clientes", { body: {
           codigo: nuevoCodigoHPC,
           nombre: nuevoCliente.nombre,
           nit: nuevoCliente.nit,
@@ -1003,18 +1003,18 @@ export default function NuevoIncidente() {
           departamento: nuevoCliente.departamento,
           municipio: nuevoCliente.municipio,
           celular: nuevoCliente.telefono_principal,
-        } as any);
+        } as any }) as any;
         
         codigoCliente = (clienteData as any).codigo;
         clienteId = (clienteData as any).id;
         
         if (nuevoCliente.direccion && nuevoCliente.direccion.trim()) {
           try {
-            const dirData = await apiBackendAction("direcciones.create", {
+            const dirData = await mycsapi.post("/api/v1/clientes/{cliente_id}/direcciones", { path: { cliente_id: (clienteData as any).id }, body: {
               cliente_id: (clienteData as any).id,
               direccion: nuevoCliente.direccion,
               es_principal: true,
-            } as any);
+            } as any }) as any;
             setDireccionesEnvio([dirData]);
             if (opcionEnvio !== "recoger") {
               setDireccionSeleccionada(String((dirData as any).id));
@@ -1028,17 +1028,14 @@ export default function NuevoIncidente() {
         showSuccess(`Código HPC: ${nuevoCodigoHPC}`, "Cliente creado");
       } else {
         // Actualizar cliente existente via apiBackendAction
-        await apiBackendAction("clientes.update", {
-          id: clienteSeleccionado!.id,
-          data: {
+        await mycsapi.patch("/api/v1/clientes/{cliente_id}", { path: { cliente_id: clienteSeleccionado!.id }, body: {
             nombre: datosClienteExistente.nombre,
             nit: datosClienteExistente.nit,
             correo: datosClienteExistente.correo,
             telefono_principal: datosClienteExistente.telefono_principal,
             telefono_secundario: datosClienteExistente.telefono_secundario,
             celular: datosClienteExistente.telefono_principal,
-          }
-        } as any);
+          } as any }) as any;
       }
 
       if (!clienteId) {
@@ -1047,28 +1044,28 @@ export default function NuevoIncidente() {
 
       // Si hay una nueva dirección escrita, crearla
       if (nuevaDireccion.trim() && opcionEnvio !== "recoger") {
-        const dirData = await apiBackendAction("direcciones.create", {
+        const dirData = await mycsapi.post("/api/v1/clientes/{cliente_id}/direcciones", { path: { cliente_id: clienteId }, body: {
           cliente_id: clienteId,
           direccion: nuevaDireccion,
           es_principal: direccionesEnvio.length === 0,
-        } as any);
+        } as any }) as any;
         direccionEnvioId = String((dirData as any).id);
       }
       // Si se seleccionó una dirección temporal (del cliente pero no guardada en direcciones_envio), crearla
       else if (direccionSeleccionada && direccionSeleccionada.startsWith("temp-") && opcionEnvio !== "recoger") {
         const direccionTemp = direccionesEnvio.find((d: any) => d.id === direccionSeleccionada);
         if (direccionTemp) {
-          const dirData = await apiBackendAction("direcciones.create", {
+          const dirData = await mycsapi.post("/api/v1/clientes/{cliente_id}/direcciones", { path: { cliente_id: clienteId }, body: {
             cliente_id: clienteId,
             direccion: direccionTemp.direccion,
             es_principal: true,
-          } as any);
+          } as any }) as any;
           direccionEnvioId = String((dirData as any).id);
         }
       }
 
       // Generar código de incidente via apiBackendAction
-      const { codigo: codigoIncidente } = await apiBackendAction("rpc.generarCodigoIncidente", {});
+      const { codigo: codigoIncidente } = await mycsapi.fetch("/api/v1/rpc/generar_codigo_incidente", { method: "POST" }) as any;
 
       // Determinar producto según si es manual o seleccionado
       let codigoProductoFinal: string | null = null;
@@ -1111,7 +1108,7 @@ export default function NuevoIncidente() {
         .join(" | ");
 
       // Crear incidente via apiBackendAction
-      const incidenteData = await apiBackendAction("incidentes.create", {
+      const incidenteData = await mycsapi.post("/api/v1/incidentes", { body: {
         codigo: codigoIncidente,
         cliente_id: clienteId,
         producto_id: productoId,
@@ -1125,22 +1122,22 @@ export default function NuevoIncidente() {
         estado: ingresadoMostrador ? "REGISTRADO" : "EN_ENTREGA",
         aplica_garantia: false,
         tracking_token: trackingToken,
-      } as any);
+      } as any }) as any;
 
       // Insertar accesorios en incidente_accesorios
       if (accesoriosSeleccionados.length > 0) {
         // Buscar IDs de los accesorios seleccionados
-        const { results: accesoriosData } = await apiBackendAction("accesorios.list", {});
+        const { results: accesoriosData } = await mycsapi.get("/api/v1/accesorios", {}) as any;
         const accesoriosFiltrados = (accesoriosData || []).filter((acc: any) => 
           accesoriosSeleccionados.includes(acc.nombre)
         );
 
         if (accesoriosFiltrados.length > 0) {
           for (const acc of accesoriosFiltrados) {
-            await apiBackendAction("incidente_accesorios.create", {
+            await mycsapi.fetch("/api/v1/incidente-accesorios", { method: "POST", body: {
               incidente_id: (incidenteData as any).id,
               accesorio_id: acc.id,
-            } as any);
+            } as any }) as any;
           }
         }
       }

@@ -26,8 +26,8 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StatusBadge } from "@/components/shared";
 
-import { apiBackendAction } from "@/lib/api-backend";
 import { formatFechaHora } from "@/utils/dateFormatters";
+import { mycsapi } from "@/mics-api";
 
 // Alias for legacy function name
 const formatFechaConHora = formatFechaHora;
@@ -48,7 +48,7 @@ export default function DetalleIncidente() {
   const fetchIncidenteData = async () => {
     try {
       setLoading(true);
-      const { result } = await apiBackendAction("incidentes.get", { id: Number(incidenteId) });
+      const result = await mycsapi.get("/api/v1/incidentes/{incidente_id}", { path: { incidente_id: Number(incidenteId) } });
       setIncidente(result);
     } catch (error) {
       console.error("Error fetching incidente data:", error);

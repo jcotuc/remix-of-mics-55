@@ -7,8 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Search, PackageCheck } from "lucide-react";
 import { toast } from "sonner";
-import { apiBackendAction } from "@/lib/api-backend";
 import type { IncidenteSchema, ClienteSchema } from "@/generated/actions.d";
+import { mycsapi } from "@/mics-api";
 
 type IncidenteConCliente = IncidenteSchema & { clienteNombre: string };
 
@@ -28,8 +28,8 @@ export default function MaquinasNuevasRT() {
 
       // Fetch data in parallel using apiBackendAction
       const [incidentesResponse, clientesResponse] = await Promise.all([
-        apiBackendAction("incidentes.list", { limit: 2000 }),
-        apiBackendAction("clientes.list", { limit: 5000 })
+        mycsapi.get("/api/v1/incidentes", { query: { limit: 2000 } }),
+        mycsapi.get("/api/v1/clientes", { query: { limit: 5000 } })
       ]);
 
       const incidentes = incidentesResponse.results || [];
@@ -40,7 +40,7 @@ export default function MaquinasNuevasRT() {
       clientes.forEach((c: ClienteSchema) => clienteMap.set(c.id, c));
 
       // Helper to enrich incidente with client name
-      const enrichIncidente = (inc: IncidenteSchema): IncidenteConCliente => {
+      const enrichIncidente = (inc: any): IncidenteConCliente => {
         const cliente = inc.cliente || clienteMap.get(inc.cliente?.id || 0);
         return {
           ...inc,
@@ -50,13 +50,13 @@ export default function MaquinasNuevasRT() {
 
       // Filter cambios por garantía
       const cambiosData = incidentes
-        .filter((i: IncidenteSchema) => i.estado === 'CAMBIO_POR_GARANTIA')
+        .filter((i: any) => i.estado === 'CAMBIO_POR_GARANTIA')
         .map(enrichIncidente)
         .sort((a, b) => new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime());
 
       // Filter autoconsumos - usando descripcion_problema como proxy
       const autoconsumosData = incidentes
-        .filter((i: IncidenteSchema) => 
+        .filter((i: any) =>
           i.descripcion_problema?.toLowerCase().includes('mantenimiento') ||
           i.descripcion_problema?.toLowerCase().includes('autoconsumo')
         )

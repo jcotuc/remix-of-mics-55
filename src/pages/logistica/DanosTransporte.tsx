@@ -9,8 +9,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Search, AlertCircle, Calculator, DollarSign } from "lucide-react";
 import { toast } from "sonner";
-import { apiBackendAction } from "@/lib/api-backend";
 import type { IncidenteSchema } from "@/generated/actions.d";
+import { mycsapi } from "@/mics-api";
 
 interface DanoTransporte {
   incidente: IncidenteSchema;
@@ -35,7 +35,7 @@ export default function DanosTransporte() {
     try {
       setLoading(true);
 
-      const response = await apiBackendAction("incidentes.list", { limit: 2000 });
+      const response = await mycsapi.get("/api/v1/incidentes", { query: { limit: 2000 } }) as any;
       const incidentes = response.results || [];
 
       // Filter incidents that might have transport damage

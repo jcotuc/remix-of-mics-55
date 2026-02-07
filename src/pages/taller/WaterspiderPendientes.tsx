@@ -20,8 +20,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
 import { formatFechaRelativa, formatLogEntry, formatFechaCorta } from "@/utils/dateFormatters";
-import { apiBackendAction } from "@/lib/api-backend";
 import type { IncidenteSchema, ClienteSchema } from "@/generated/entities";
+import { mycsapi } from "@/mics-api";
 
 interface IncidenteReparado {
   id: number;
@@ -85,12 +85,12 @@ export default function WaterspiderPendientes() {
   const fetchIncidentes = async () => {
     try {
       const [incidentesRes, clientesRes] = await Promise.all([
-        apiBackendAction("incidentes.list", { limit: 2000 }),
-        apiBackendAction("clientes.list", { limit: 5000 }),
+        mycsapi.get("/api/v1/incidentes", { query: { limit: 2000 } }),
+        mycsapi.get("/api/v1/clientes", { query: { limit: 5000 } }),
       ]);
 
-      const allIncidentes = (incidentesRes.results || []) as IncidenteSchema[];
-      const allClientes = (clientesRes.results || []) as ClienteSchema[];
+      const allIncidentes = (incidentesRes.results || []) as any[];
+      const allClientes = (clientesRes.results || []) as any[];
 
       // Filter REPARADO and sort by updated_at
       const reparados = allIncidentes
@@ -133,7 +133,7 @@ export default function WaterspiderPendientes() {
   // Fetch depuración data (NC, Cambio por garantía resueltos) using apiBackendAction
   const fetchDepuracion = async () => {
     try {
-      const incidentesRes = await apiBackendAction("incidentes.list", { limit: 2000 });
+      const incidentesRes = await mycsapi.get("/api/v1/incidentes", { query: { limit: 2000 } }) as any;
       const allIncidentes = (incidentesRes.results || []) as IncidenteSchema[];
 
       // Filter NC and Cambio por garantía
@@ -168,7 +168,7 @@ export default function WaterspiderPendientes() {
   // Fetch rechazados using apiBackendAction
   const fetchRechazados = async () => {
     try {
-      const incidentesRes = await apiBackendAction("incidentes.list", { limit: 2000 });
+      const incidentesRes = await mycsapi.get("/api/v1/incidentes", { query: { limit: 2000 } }) as any;
       const allIncidentes = (incidentesRes.results || []) as IncidenteSchema[];
 
       // Filter RECHAZADO
@@ -203,7 +203,7 @@ export default function WaterspiderPendientes() {
   const fetchSolicitudesDespachadas = async () => {
     try {
       // Fetch solicitudes using apiBackendAction
-      const solicitudesResult = await apiBackendAction("solicitudes_repuestos.search", { estado: "DESPACHADO" });
+      const solicitudesResult = await mycsapi.fetch("/api/v1/solicitudes-repuestos/search", { method: "GET", query: { estado: "DESPACHADO" } }) as any;
       const rawData = (solicitudesResult.results || []) as any[];
       
       // Get unique incidente_ids
@@ -212,7 +212,7 @@ export default function WaterspiderPendientes() {
       // Fetch incidentes data using apiBackendAction
       let incidentesMap: Record<number, { codigo: string; producto_id: number | null }> = {};
       if (incidenteIds.length > 0) {
-        const incidentesResult = await apiBackendAction("incidentes.list", { limit: 2000 });
+        const incidentesResult = await mycsapi.get("/api/v1/incidentes", { query: { limit: 2000 } }) as any;
         (incidentesResult.results || []).forEach((inc: any) => {
           if (incidenteIds.includes(inc.id)) {
             incidentesMap[inc.id] = { codigo: inc.codigo, producto_id: inc.producto?.id || null };
@@ -370,19 +370,19 @@ export default function WaterspiderPendientes() {
         
         for (const incId of selectedIds) {
           // Get current observaciones
-          const incResult = await apiBackendAction("incidentes.get", { id: incId });
+          const incResult = await mycsapi.get("/api/v1/incidentes/{incidente_id}", { path: { incidente_id: incId } }) as any;
           const currentObs = incResult.result?.observaciones || "";
           const newObs = currentObs ? `${currentObs}\n${logEntry}` : logEntry;
           
           // Cast to any to allow full update - handler supports all fields
-          await (apiBackendAction as any)("incidentes.update", {
-            id: incId,
-            data: { 
-              estado: nuevoEstado, 
+          await mycsapi.patch("/api/v1/incidentes/{incidente_id}", {
+            path: { incidente_id: incId },
+            body: {
+              estado: nuevoEstado,
               observaciones: newObs,
-              updated_at: new Date().toISOString() 
-            }
-          });
+              updated_at: new Date().toISOString()
+            } as any
+          }) as any;
         }
 
         toast.success(`${selectedIds.length} incidente(s) entregados a ${destinoLabel}`);
@@ -392,14 +392,11 @@ export default function WaterspiderPendientes() {
         const logEntry = formatLogEntry(`Waterspider: Máquina depurada/descartada${observaciones ? ` - ${observaciones}` : ''}`);
         
         for (const incId of selectedIds) {
-          const incResult = await apiBackendAction("incidentes.get", { id: incId });
+          const incResult = await mycsapi.get("/api/v1/incidentes/{incidente_id}", { path: { incidente_id: incId } }) as any;
           const currentObs = incResult.result?.observaciones || "";
           const newObs = currentObs ? `${currentObs}\n${logEntry}` : logEntry;
           
-          await apiBackendAction("incidentes.update", {
-            id: incId,
-            data: { observaciones: newObs }
-          });
+          await mycsapi.patch("/api/v1/incidentes/{incidente_id}", { path: { incidente_id: incId }, body: { observaciones: newObs } as any }) as any;
         }
 
         toast.success(`${selectedIds.length} máquina(s) marcadas como depuradas`);
@@ -407,13 +404,13 @@ export default function WaterspiderPendientes() {
         const selectedIds = Array.from(selectedRepuestos);
         
         for (const solId of selectedIds) {
-          await (apiBackendAction as any)("solicitudes_repuestos.update", {
-            id: solId,
-            data: { 
+          await mycsapi.fetch("/api/v1/solicitudes-repuestos/{id}".replace("{id}", String(solId)), {
+            method: "PATCH",
+            body: {
               estado: "EN_PROCESO",
               updated_at: new Date().toISOString()
             }
-          });
+          }) as any;
         }
 
         toast.success(`${selectedIds.length} solicitud(es) de repuestos recogidas`);

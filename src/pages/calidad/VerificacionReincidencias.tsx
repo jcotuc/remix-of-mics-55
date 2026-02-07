@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { apiBackendAction } from "@/lib/api-backend";
 import type { IncidenteSchema } from "@/generated/actions.d";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +10,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { toast } from "sonner";
 import { RefreshCw, CheckCircle, XCircle, AlertCircle, Calendar } from "lucide-react";
 import { formatFechaCorta } from "@/utils/dateFormatters";
+import { mycsapi } from "@/mics-api";
 
 interface IncidenteReingreso {
   id: number;
@@ -64,7 +64,7 @@ export default function VerificacionReincidencias() {
 
   const fetchIncidentesPendientes = async () => {
     try {
-      const incidentesRes = await apiBackendAction("incidentes.list", { limit: 2000 });
+      const incidentesRes = await mycsapi.get("/api/v1/incidentes", { query: { limit: 2000 } }) as any;
       const incidentes = incidentesRes.results || [];
       setAllIncidentes(incidentes);
 
@@ -93,7 +93,7 @@ export default function VerificacionReincidencias() {
 
   const fetchStats = async () => {
     try {
-      const response = await apiBackendAction("incidentes.list", { limit: 2000 });
+      const response = await mycsapi.get("/api/v1/incidentes", { query: { limit: 2000 } }) as any;
       const incidentes = response.results || [];
 
       const pendientes = incidentes.filter((i: IncidenteSchema) =>
@@ -157,12 +157,9 @@ export default function VerificacionReincidencias() {
 
     try {
       // Use apiBackendAction for update
-      await apiBackendAction("incidentes.update", {
-        id: selectedIncidente.id,
-        data: { 
+      await mycsapi.patch("/api/v1/incidentes/{incidente_id}", { path: { incidente_id: selectedIncidente.id }, body: { 
           observaciones: `Verificación: ${esReincidenciaValida === "si" ? "Es reincidencia" : "No es reincidencia"}. ${justificacion}`,
-        }
-      } as any);
+        } as any }) as any;
 
       toast.success("Verificación guardada exitosamente");
       setModalOpen(false);

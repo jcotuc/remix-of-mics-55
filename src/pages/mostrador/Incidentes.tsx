@@ -17,8 +17,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { apiBackendAction } from "@/lib/api-backend";
 import type { IncidenteSchema, ClienteSchema, ProductoSchema } from "@/generated/actions.d";
+import { mycsapi } from "@/mics-api";
 
 // Notificaciones cliente - interface local ya que puede no estar tipada
 interface NotificacionCliente {
@@ -53,7 +53,7 @@ export default function IncidentesMostrador() {
       // Obtener el centro de servicio del usuario actual
       let centroServicioId: number | null = null;
       try {
-        const { result } = await apiBackendAction("auth.me", {});
+        const result = await mycsapi.get("/api/v1/auth/me") as any;
         if (result?.centro_de_servicio_id) {
           centroServicioId = result.centro_de_servicio_id;
           setUserCentroId(centroServicioId);
@@ -64,9 +64,9 @@ export default function IncidentesMostrador() {
 
       // Usar apiBackendAction en paralelo
       const [incidentesResult, clientesResult, productosResult] = await Promise.all([
-        apiBackendAction("incidentes.list", { limit: 300 }),
-        apiBackendAction("clientes.list", { limit: 300 }),
-        apiBackendAction("productos.list", { limit: 300 }),
+        mycsapi.get("/api/v1/incidentes", { query: { limit: 300 } }),
+        mycsapi.get("/api/v1/clientes", { query: { limit: 300 } }),
+        mycsapi.get("/api/v1/productos", { query: { limit: 300 } }),
       ]);
 
       // Filtrar incidentes por centro de servicio del usuario
@@ -75,13 +75,13 @@ export default function IncidentesMostrador() {
         incidentes = incidentes.filter((i: any) => i.centro_de_servicio_id === centroServicioId);
       }
 
-      setIncidentesList(incidentes);
-      setClientesList(clientesResult.results || []);
-      setProductosList(productosResult.results || []);
+      setIncidentesList(incidentes as any);
+      setClientesList(clientesResult.results as any || []);
+      setProductosList(productosResult.results as any || []);
       
       // Cargar notificaciones usando apiBackendAction
       try {
-        const { results } = await apiBackendAction("notificaciones_cliente.list", {});
+        const { results } = await mycsapi.fetch("/api/v1/notificaciones-cliente", { method: "GET" }) as any;
         setNotificacionesList(results as NotificacionCliente[] || []);
       } catch {
         setNotificacionesList([]);
@@ -159,7 +159,7 @@ export default function IncidentesMostrador() {
   // Función para enviar notificaciones masivas
   const enviarNotificacionesMasivas = async (incidentes: IncidenteSchema[]) => {
     try {
-      const { user } = await apiBackendAction("auth.getUser", {});
+      const { user } = await mycsapi.get("/api/v1/auth/me") as any;
       if (!user) {
         toast.error("No se encontró usuario autenticado");
         return;
@@ -173,7 +173,7 @@ export default function IncidentesMostrador() {
         enviado_por: user.id,
       }));
 
-      await apiBackendAction("notificaciones_cliente.create", notificaciones as any);
+      await mycsapi.fetch("/api/v1/notificaciones-cliente", { method: "POST", body: notificaciones as any }) as any;
 
       toast.success(`${incidentes.length} notificaciones enviadas correctamente`);
       await fetchData();

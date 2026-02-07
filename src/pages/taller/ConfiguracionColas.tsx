@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { apiBackendAction } from "@/lib/api";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -27,6 +26,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { mycsapi } from "@/mics-api";
 
 interface FamiliaAbuelo {
   id: number;
@@ -205,15 +205,15 @@ export default function ConfiguracionColas() {
     try {
       // Use apiBackendAction for familias_producto and centros_de_servicio
       const [familiasResponse, centrosResponse] = await Promise.all([
-        apiBackendAction("familias_producto.list", {}),
-        apiBackendAction("centros_de_servicio.list", {}),
+        mycsapi.get("/api/v1/familias-producto", {}),
+        mycsapi.get("/api/v1/centros-de-servicio", {}),
       ]);
 
       setFamilias(
         familiasResponse.results.map((f) => ({ id: f.id, nombre: f.nombre }))
       );
       
-      const centrosData = centrosResponse.items || [];
+      const centrosData = (centrosResponse as any).items || [];
       setCentros(centrosData.map((c: any) => ({ id: c.id, nombre: c.nombre })));
 
       if (centrosData.length > 0) {
@@ -236,7 +236,7 @@ export default function ConfiguracionColas() {
   const fetchConfiguracion = async () => {
     try {
       // Use apiBackendAction for grupos_cola_fifo
-      const gruposResponse = await apiBackendAction("grupos_cola_fifo.list", {});
+      const gruposResponse = await mycsapi.get("/api/v1/grupos-cola-fifo", {}) as any;
       const allGrupos = gruposResponse.results;
       
       // Filter by selected centro
@@ -246,14 +246,11 @@ export default function ConfiguracionColas() {
 
       if (gruposDelCentro.length > 0) {
         // Use apiBackendAction for grupos_cola_fifo_familias
-        const familiasGruposResponse = await apiBackendAction("grupos_cola_fifo_familias.list", {});
-        const allFamiliasGrupos = familiasGruposResponse.results;
-        
-        // Filter by grupo ids
         const grupoIds = gruposDelCentro.map((g) => g.id);
-        const familiasGrupos = allFamiliasGrupos.filter(
-          (fg) => grupoIds.includes(fg.grupo_id)
+        const familiasArrays = await Promise.all(
+          grupoIds.map(gid => mycsapi.get("/api/v1/grupos-cola-fifo/{grupo_id}/familias", { path: { grupo_id: gid } }).catch(() => ({ results: [] })))
         );
+        const familiasGrupos = familiasArrays.flatMap(r => (r as any).results || (r as any).data || []);
 
         const gruposConFamilias: GrupoColaFifo[] = gruposDelCentro
           .sort((a, b) => a.orden - b.orden)
@@ -437,7 +434,7 @@ export default function ConfiguracionColas() {
 
     try {
       // Use apiBackendAction for fetching grupos from source centro
-      const gruposResponse = await apiBackendAction("grupos_cola_fifo.list", {});
+      const gruposResponse = await mycsapi.get("/api/v1/grupos-cola-fifo", {}) as any;
       const gruposDelCentro = gruposResponse.results.filter(
         (g) => g.centro_servicio_id === Number(copyFromCentro)
       );
@@ -448,14 +445,11 @@ export default function ConfiguracionColas() {
       }
 
       // Use apiBackendAction for fetching familias asociadas
-      const familiasGruposResponse = await apiBackendAction(
-        "grupos_cola_fifo_familias.list",
-        {}
-      );
       const grupoIds = gruposDelCentro.map((g) => g.id);
-      const familiasGrupos = familiasGruposResponse.results.filter((fg) =>
-        grupoIds.includes(fg.grupo_id)
+      const familiasArrays = await Promise.all(
+        grupoIds.map(gid => mycsapi.get("/api/v1/grupos-cola-fifo/{grupo_id}/familias", { path: { grupo_id: gid } }).catch(() => ({ results: [] })))
       );
+      const familiasGrupos = familiasArrays.flatMap(r => (r as any).results || (r as any).data || []);
 
       const gruposCopiados: GrupoColaFifo[] = gruposDelCentro
         .sort((a, b) => a.orden - b.orden)
@@ -490,34 +484,34 @@ export default function ConfiguracionColas() {
     setSaving(true);
     try {
       // First, fetch existing grupos for this centro and delete them
-      const existingGruposResponse = await apiBackendAction("grupos_cola_fifo.list", {});
+      const existingGruposResponse = await mycsapi.get("/api/v1/grupos-cola-fifo", {}) as any;
       const gruposToDelete = existingGruposResponse.results.filter(
         (g) => g.centro_servicio_id === Number(selectedCentro)
       );
 
       // Delete existing grupos (cascade will handle familias)
       for (const grupo of gruposToDelete) {
-        await apiBackendAction("grupos_cola_fifo.delete", { id: grupo.id });
+        await mycsapi.delete("/api/v1/grupos-cola-fifo/{grupo_cola_fifo_id}", { path: { grupo_cola_fifo_id: grupo.id } }) as any;
       }
 
       // Insert new groups and their families
       for (const grupo of grupos) {
         const nombreGuardar = grupo.nombre.trim() || getNombreMostrado(grupo);
 
-        const grupoInserted = await apiBackendAction("grupos_cola_fifo.create", {
+        const grupoInserted = await mycsapi.post("/api/v1/grupos-cola-fifo", { body: {
           centro_servicio_id: Number(selectedCentro),
           nombre: nombreGuardar,
           orden: grupo.orden,
           activo: grupo.activo,
           color: grupo.color || null,
-        });
+        } }) as any;
 
         // Insert familia associations
         for (const familiaId of grupo.familias) {
-          await apiBackendAction("grupos_cola_fifo_familias.create", {
+          await mycsapi.post("/api/v1/grupos-cola-fifo/{grupo_id}/familias", { path: { grupo_id: grupoInserted.id }, body: {
             grupo_id: grupoInserted.id,
             familia_abuelo_id: familiaId,
-          });
+          } as any }) as any;
         }
       }
 

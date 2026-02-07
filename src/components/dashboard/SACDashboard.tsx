@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { apiBackendAction } from "@/lib/api-backend";
 import { Package, MessageCircle, AlertCircle, CheckCircle, Clock, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { mycsapi } from "@/mics-api";
 
 type NotificacionCliente = {
   id: number;
@@ -39,17 +39,17 @@ export function SACDashboard() {
       setLoading(true);
 
       // Fetch incidents usando apiBackendAction
-      const incidentesResult = await apiBackendAction("incidentes.list", { limit: 1000 });
+      const incidentesResult = await mycsapi.get("/api/v1/incidentes", { query: { limit: 1000 } });
       const incidentes = (incidentesResult.results || []).filter((i: any) =>
         ["ESPERA_APROBACION", "CAMBIO_POR_GARANTIA", "NOTA_DE_CREDITO", "REPARADO", "PENDIENTE_ENTREGA"].includes(i.estado)
       );
 
       // Fetch notifications usando apiBackendAction
-      const notifResult = await apiBackendAction("notificaciones_cliente.list", {});
+      const notifResult = await mycsapi.fetch("/api/v1/notificaciones-cliente", { method: "GET" }) as any;
       const notificacionesData = notifResult.results || [];
 
       // Fetch active assignments usando apiBackendAction
-      const asignResult = await apiBackendAction("asignaciones_sac.list", { activo: true });
+      const asignResult = await mycsapi.fetch("/api/v1/asignaciones-sac", { method: "GET", query: { activo: true } }) as any;
       const asignaciones = asignResult.results || [];
       const presupuestos = incidentes.filter(
         (i: any) => i.estado === "ESPERA_APROBACION"

@@ -6,8 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { apiBackendAction } from "@/lib/api-backend";
 import { TablePagination } from "@/components/shared";
+import { mycsapi } from "@/mics-api";
 
 interface Producto {
   id: number;
@@ -58,10 +58,10 @@ export default function Repuestos() {
       const relPageSize = 1000;
       
       while (true) {
-        const { results: relacionesData } = await apiBackendAction("repuestos_relaciones.list", { 
+        const { results: relacionesData } = await mycsapi.fetch("/api/v1/repuestos-relaciones", { method: "GET", query: { 
           limit: relPageSize, 
           offset: relOffset 
-        });
+        } }) as any;
 
         if (!relacionesData || relacionesData.length === 0) break;
         
@@ -93,10 +93,10 @@ export default function Repuestos() {
       setPadreHijosMap(newPadreHijosMap);
       
       // Fetch repuestos using existing handler
-      const { results: repuestosData } = await apiBackendAction("repuestos.list", {});
+      const { results: repuestosData } = await mycsapi.get("/api/v1/repuestos", {}) as any;
 
       // Fetch productos using apiBackendAction
-      const { results: productosData } = await apiBackendAction("productos.list", { limit: 2000 });
+      const { results: productosData } = await mycsapi.get("/api/v1/productos", { query: { limit: 2000 } }) as any;
 
       const codigosHijo = new Set(newHijoPadreMap.keys());
       

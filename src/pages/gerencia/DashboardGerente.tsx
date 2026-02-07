@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, Activity, TrendingUp, AlertCircle, Users, Clock } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
-import { apiBackendAction } from "@/lib/api-backend";
+import { mycsapi } from "@/mics-api";
 
 interface DashboardStats {
   incidentesTotales: number;
@@ -29,12 +29,12 @@ export default function DashboardGerente() {
 
       // Fetch data in parallel using apiBackendAction
       const [incidentesResponse, inventarioResponse] = await Promise.all([
-        apiBackendAction("incidentes.list", { limit: 5000 }),
-        apiBackendAction("inventarios.list", { limit: 5000 })
+        mycsapi.get("/api/v1/incidentes", { query: { limit: 5000 } }),
+        mycsapi.get("/api/v1/inventario", { query: { limit: 5000 } })
       ]);
 
       const todosIncidentes = incidentesResponse.results || [];
-      const inventarioData = (inventarioResponse as any).results || inventarioResponse.data || [];
+      const inventarioData = (inventarioResponse as any).results || (inventarioResponse as any).data || [];
 
       // Incidentes de hoy
       const hoy = new Date().toISOString().split('T')[0];

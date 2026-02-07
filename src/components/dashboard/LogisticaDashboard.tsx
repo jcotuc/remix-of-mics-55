@@ -2,8 +2,8 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Truck, Package, MapPin, TrendingUp } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { apiBackendAction } from "@/lib/api-backend";
 import type { IncidenteSchema, Embarque } from "@/generated/actions.d";
+import { mycsapi } from "@/mics-api";
 
 interface LogisticaDashboardProps {
   incidentes: IncidenteSchema[];
@@ -18,7 +18,7 @@ export function LogisticaDashboard({ incidentes }: LogisticaDashboardProps) {
 
   const fetchEmbarques = async () => {
     try {
-      const response = await apiBackendAction("embarques.list", { limit: 200 });
+      const response = await mycsapi.fetch("/api/v1/embarques", { method: "GET", query: { limit: 200 } }) as any;
       setEmbarques(response.data || []);
     } catch (error) {
       console.error("Error fetching embarques:", error);

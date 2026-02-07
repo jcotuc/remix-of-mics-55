@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, User, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { apiBackendAction } from "@/lib/api-backend";
+import { mycsapi } from "@/mics-api";
 import {
   ClienteHeroCard,
   ClienteInfoGrid,
@@ -69,28 +69,26 @@ export default function DetalleCliente() {
     try {
       setLoading(true);
 
-      const { results: clientes } = await apiBackendAction("clientes.search", {
+      const { results: clientes } = await mycsapi.get("/api/v1/clientes/search", { query: {
         search: codigo,
         limit: 1,
-      });
+      } as any }) as any;
 
       if (!clientes || clientes.length === 0) {
         setLoading(false);
         return;
       }
 
-      const { result: clienteData } = await apiBackendAction("clientes.get", {
-        id: clientes[0].id,
-      });
+      const clienteData = await mycsapi.get("/api/v1/clientes/{cliente_id}", { path: { cliente_id: clientes[0].id, } }) as any;
 
       if (clienteData) {
         setCliente(clienteData);
         setDirecciones((clienteData as any).direcciones || []);
       }
 
-      const { results: allIncidentes } = await apiBackendAction("incidentes.list", {
+      const { results: allIncidentes } = await mycsapi.get("/api/v1/incidentes", { query: {
         limit: 1000,
-      });
+      } }) as any;
 
       const clienteIncidentes = (allIncidentes || [])
         .filter((inc: any) => inc.cliente?.id === clientes[0].id)

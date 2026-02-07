@@ -4,7 +4,6 @@
 
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { apiBackendAction } from "@/lib/api-backend";
 import { Button } from "@/components/ui/button";
 import { MinimalStepper, StepperStep } from "@/components/ui/minimal-stepper";
 import { toast } from "sonner";
@@ -14,6 +13,7 @@ import { PasoDocumental } from "./PasoDocumental";
 import { PasoFisica } from "./PasoFisica";
 import { PasoValidacion } from "./PasoValidacion";
 import type { AuditoriaFormData, IncidenteParaAuditoria, WizardStep } from "./types";
+import { mycsapi } from "@/mics-api";
 
 const STEPS: StepperStep[] = [
   { id: 0, title: "Incidente", icon: <FileText className="w-5 h-5" /> },
@@ -106,7 +106,7 @@ export function AuditoriaWizard() {
         updated_at: new Date().toISOString(),
       };
 
-      const auditoria = await apiBackendAction("auditorias_calidad.create", auditoriaData) as { id: number };
+      const auditoria = await mycsapi.fetch("/api/v1/auditorias-calidad", { method: "POST", body: auditoriaData }) as any as { id: number };
 
       // 2. Save all responses
       const allRespuestas = [
@@ -121,10 +121,10 @@ export function AuditoriaWizard() {
       ];
 
       if (allRespuestas.length > 0) {
-        await apiBackendAction("auditoria_respuestas.createBatch", {
+        await mycsapi.post("/api/v1/auditoria-respuestas/batch", { body: {
           auditoria_id: auditoria.id,
-          respuestas: allRespuestas,
-        });
+          respuestas: allRespuestas as any,
+        } as any }) as any;
       }
 
       toast.success("Auditoría registrada exitosamente");

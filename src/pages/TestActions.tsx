@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { apiBackendAction } from "@/lib/api-backend";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import { mycsapi } from "@/mics-api";
 
 export default function TestActions() {
   const [clientes, setClientes] = useState<any[]>([]);
@@ -15,7 +15,7 @@ export default function TestActions() {
     setLoading(true);
     setError(null);
     try {
-      const result = await apiBackendAction("clientes.list", { skip: 0, limit: 10 });
+      const result = await mycsapi.get("/api/v1/clientes", { query: { skip: 0, limit: 10 } });
       setClientes(result.results || []);
       toast.success(`Loaded ${result.results?.length || 0} clientes`);
     } catch (err) {

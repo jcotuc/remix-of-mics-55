@@ -3,13 +3,13 @@
  */
 
 import { useState, useEffect } from "react";
-import { apiBackendAction } from "@/lib/api-backend";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, Wrench, AlertCircle } from "lucide-react";
 import { PreguntaCard } from "./PreguntaCard";
 import type { PreguntaAuditoria } from "./types";
+import { mycsapi } from "@/mics-api";
 
 interface PasoFisicaProps {
   familiaProductoId: number | null;
@@ -34,16 +34,16 @@ export function PasoFisica({ familiaProductoId, respuestas, onRespuestaChange }:
     setLoading(true);
     try {
       // Fetch family name
-      const { results: familias } = await apiBackendAction("familias_producto.list", {});
+      const { results: familias } = await mycsapi.get("/api/v1/familias-producto", {}) as any;
       const familia = familias?.find((f: any) => f.id === familiaProductoId);
       setFamiliaNombre(familia?.nombre || "Desconocida");
 
       // Fetch questions for this family
-      const { results } = await apiBackendAction("preguntas_auditoria.list", {
+      const { results } = await mycsapi.get("/api/v1/preguntas-auditoria", { query: {
         familia_producto_id: familiaProductoId,
         seccion: "fisica",
         activo: true,
-      }) as { results: PreguntaAuditoria[] };
+      } as any }) as any as { results: PreguntaAuditoria[] };
       setPreguntas((results || []).sort((a, b) => a.orden - b.orden));
     } catch (error) {
       console.error("Error fetching preguntas físicas:", error);

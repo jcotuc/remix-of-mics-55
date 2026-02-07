@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { apiBackendAction } from "@/lib/api-backend";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import type { Database } from "@/integrations/supabase/types";
+import { mycsapi } from "@/mics-api";
 import {
   AlertBanner,
   MetricCard,
@@ -65,7 +65,7 @@ export default function PendientesRepuestos() {
 
   const fetchIncidentes = async () => {
     try {
-      const { results: allIncidentes } = await apiBackendAction("incidentes.list", { limit: 1000 });
+      const { results: allIncidentes } = await mycsapi.get("/api/v1/incidentes", { query: { limit: 1000 } }) as any;
       
       const data = allIncidentes
         .filter(i => i.estado === "ESPERA_REPUESTOS")
@@ -74,15 +74,15 @@ export default function PendientesRepuestos() {
       const incidenteIds = data.map(i => i.id);
 
       const [clientesResult, productosResult] = await Promise.all([
-        apiBackendAction("clientes.list", { limit: 5000 }),
-        apiBackendAction("productos.list", { limit: 2000 }),
+        mycsapi.get("/api/v1/clientes", { query: { limit: 5000 } }),
+        mycsapi.get("/api/v1/productos", { query: { limit: 2000 } }),
       ]);
 
       const clientesMap = new Map(clientesResult.results.map(c => [c.id, c]));
       const productosMap = new Map(productosResult.results.map(p => [p.id, p]));
 
       const pedidosSearchResults = await Promise.all(
-        incidenteIds.map(id => apiBackendAction("pedidos_bodega_central.search", { incidente_id: id }))
+        incidenteIds.map(id => mycsapi.fetch("/api/v1/pedidos-bodega-central/search", { method: "GET", query: { incidente_id: id } }))
       );
       const pedidosData = pedidosSearchResults.flatMap(r => r.results || []);
 
@@ -90,7 +90,7 @@ export default function PendientesRepuestos() {
         (pedidosData || []).map((p: any) => [p.incidente_id, { id: p.id, estado: p.estado, created_at: p.created_at }])
       );
 
-      const solicitudesResult = await apiBackendAction("solicitudes_repuestos.list", {});
+      const solicitudesResult = await mycsapi.fetch("/api/v1/solicitudes-repuestos", { method: "GET" }) as any;
       const solicitudesData = (solicitudesResult as any).data || (solicitudesResult as any).results || [];
 
       const solicitudesMap = new Map<number, any[]>();
@@ -102,14 +102,14 @@ export default function PendientesRepuestos() {
         }
       });
 
-      const { results: asignaciones } = await apiBackendAction("incidente_tecnico.list", { es_principal: true });
+      const { results: asignaciones } = await mycsapi.fetch("/api/v1/incidente-tecnico", { method: "GET", query: { es_principal: true } }) as any;
       const filteredAsignaciones = (asignaciones as any[]).filter(a => incidenteIds.includes(a.incidente_id));
 
       const tecnicoIds = [...new Set(filteredAsignaciones.map(a => a.tecnico_id).filter(Boolean))] as number[];
       
       let tecnicosMap = new Map<number, { nombre: string; apellido: string | null }>();
       if (tecnicoIds.length > 0) {
-        const { results: usuariosData } = await apiBackendAction("usuarios.list", {});
+        const { results: usuariosData } = await mycsapi.get("/api/v1/usuarios/") as any;
         (usuariosData as any[]).filter(u => tecnicoIds.includes(u.id)).forEach(u => {
           tecnicosMap.set(u.id, { nombre: u.nombre, apellido: u.apellido });
         });
@@ -181,20 +181,20 @@ export default function PendientesRepuestos() {
 
     setIsCreatingPedido(true);
     try {
-      const { result: usuario } = await apiBackendAction("usuarios.getByEmail", { email: user.email || "" });
+      const usuario = await mycsapi.fetch("/api/v1/usuarios/by-email", { method: "GET", query: { email: user.email || "" } }) as any;
 
       if (!(usuario as any)?.centro_de_servicio_id) {
         toast.error("No se encontró tu centro de servicio asignado");
         return;
       }
 
-      await apiBackendAction("pedidos_bodega_central.create", {
+      await mycsapi.fetch("/api/v1/pedidos-bodega-central", { method: "POST", body: {
         incidente_id: selectedIncidente.id,
         centro_servicio_id: (usuario as any).centro_de_servicio_id,
         solicitado_por_id: (usuario as any).id,
         dias_sin_stock: getDaysWaiting(selectedIncidente.updated_at),
         estado: "PENDIENTE"
-      } as any);
+      } as any }) as any;
 
       toast.success("Pedido a Bodega Central creado exitosamente");
       setShowPedidoDialog(false);
@@ -211,10 +211,7 @@ export default function PendientesRepuestos() {
 
   const handleConvertirCXG = async (incidente: IncidentePendiente) => {
     try {
-      await apiBackendAction("incidentes.update", {
-        id: incidente.id,
-        data: { estado: "CAMBIO_POR_GARANTIA" }
-      } as any);
+      await mycsapi.patch("/api/v1/incidentes/{incidente_id}", { path: { incidente_id: incidente.id }, body: { estado: "CAMBIO_POR_GARANTIA" } as any }) as any;
 
       toast.success(`Incidente ${incidente.codigo} convertido a Cambio por Garantía`);
       fetchIncidentes();

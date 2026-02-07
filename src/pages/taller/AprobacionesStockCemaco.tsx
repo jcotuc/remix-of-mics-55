@@ -5,7 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { CheckCircle2, XCircle } from "lucide-react";
 import { toast } from "sonner";
-import { apiBackendAction } from "@/lib/api-backend";
+import { mycsapi } from "@/mics-api";
 
 interface RevisionDisplay {
   id: number;
@@ -31,7 +31,7 @@ export default function AprobacionesStockCemaco() {
   const fetchRevisiones = async () => {
     try {
       // Fetch incidentes via Registry
-      const incidentesRes = await apiBackendAction("incidentes.list", { limit: 2000 });
+      const incidentesRes = await mycsapi.get("/api/v1/incidentes", { query: { limit: 2000 } });
       const allIncidentes = (incidentesRes as any).results || [];
       
       // Filter by estado ESPERA_APROBACION
@@ -70,13 +70,10 @@ export default function AprobacionesStockCemaco() {
 
     try {
       // Update status via apiBackendAction
-      await apiBackendAction("incidentes.update", {
-        id: selectedRevision.incidente_id,
-        data: { 
+      await mycsapi.patch("/api/v1/incidentes/{incidente_id}", { path: { incidente_id: selectedRevision.incidente_id }, body: { 
           estado: "EN_REPARACION",
           updated_at: new Date().toISOString()
-        }
-      } as any);
+        } as any });
 
       toast.success(`Incidente ${selectedRevision.incidente_codigo} aprobado`);
 
@@ -102,14 +99,11 @@ export default function AprobacionesStockCemaco() {
 
     try {
       // Update via apiBackendAction
-      await apiBackendAction("incidentes.update", {
-        id: selectedRevision.incidente_id,
-        data: { 
+      await mycsapi.patch("/api/v1/incidentes/{incidente_id}", { path: { incidente_id: selectedRevision.incidente_id }, body: { 
           estado: "EN_DIAGNOSTICO",
           observaciones: observacionesRechazo,
           updated_at: new Date().toISOString()
-        }
-      } as any);
+        } as any });
 
       toast.success(`El incidente ${selectedRevision.incidente_codigo} fue devuelto para revisión`);
 

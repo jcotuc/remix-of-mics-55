@@ -8,7 +8,7 @@ import { Wrench, Clock, Bell, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
-import { apiBackendAction } from "@/lib/api-backend";
+import { mycsapi } from "@/mics-api";
 
 type NotificacionDB = {
   id: number;
@@ -97,7 +97,7 @@ export default function MisAsignaciones() {
 
     try {
       setLoading(true);
-      const { result: usuario } = await apiBackendAction("usuarios.getByEmail", { email: userEmail });
+      const usuario = await mycsapi.fetch("/api/v1/usuarios/by-email", { method: "GET", query: { email: userEmail } }) as any;
 
       if (!usuario) {
         setIncidentes([]);
@@ -108,9 +108,9 @@ export default function MisAsignaciones() {
       setCodigoEmpleado(String((usuario as any).id));
 
       // Buscar asignaciones via apiBackendAction
-      const { results: asignaciones } = await apiBackendAction("incidente_tecnico.list", { 
+      const { results: asignaciones } = await mycsapi.fetch("/api/v1/incidente-tecnico", { method: "GET", query: { 
         tecnico_id: (usuario as any).id 
-      });
+      } }) as any;
 
       if (!asignaciones || asignaciones.length === 0) {
         setIncidentes([]);
@@ -121,7 +121,7 @@ export default function MisAsignaciones() {
       const incidenteIds = asignaciones.map((a: any) => a.incidente_id);
 
       // Fetch incidentes via apiBackendAction
-      const { results: allIncidentes } = await apiBackendAction("incidentes.list", { limit: 2000 });
+      const { results: allIncidentes } = await mycsapi.get("/api/v1/incidentes", { query: { limit: 2000 } }) as any;
       
       // Filter by ids and estado
       const filteredIncidentes = (allIncidentes || []).filter((inc: any) => 
@@ -135,7 +135,7 @@ export default function MisAsignaciones() {
           let diagResults: any[] = [];
           let producto: any = null;
           try {
-            const resp = await apiBackendAction("diagnosticos.search", { incidente_id: inc.id });
+            const resp = await mycsapi.fetch("/api/v1/diagnosticos/search", { method: "GET", query: { incidente_id: inc.id } }) as any;
             diagResults = (resp as any).results || [];
           } catch (e) {
             console.warn("diagnosticos.search failed", { incidente_id: inc.id, error: e });
@@ -144,7 +144,7 @@ export default function MisAsignaciones() {
           // Fetch producto info
           if (inc.producto_id) {
             try {
-              const prodResp = await apiBackendAction("productos.get", { id: inc.producto_id });
+              const prodResp = await mycsapi.get("/api/v1/productos/{producto_id}", { path: { producto_id: inc.producto_id } }) as any;
               producto = (prodResp as any).result || null;
             } catch (e) {
               console.warn("productos.get failed", { producto_id: inc.producto_id, error: e });
@@ -176,14 +176,14 @@ export default function MisAsignaciones() {
     try {
       if (!userEmail) return;
 
-      const { result: usuario } = await apiBackendAction("usuarios.getByEmail", { email: userEmail });
+      const usuario = await mycsapi.fetch("/api/v1/usuarios/by-email", { method: "GET", query: { email: userEmail } }) as any;
 
       if (!usuario) return;
 
       // Buscar asignaciones via apiBackendAction
-      const { results: asignaciones } = await apiBackendAction("incidente_tecnico.list", { 
+      const { results: asignaciones } = await mycsapi.fetch("/api/v1/incidente-tecnico", { method: "GET", query: { 
         tecnico_id: (usuario as any).id 
-      });
+      } }) as any;
 
       if (!asignaciones || asignaciones.length === 0) {
         setNotificaciones([]);
@@ -193,7 +193,7 @@ export default function MisAsignaciones() {
       const incidenteIds = asignaciones.map((a: any) => a.incidente_id);
 
       // Fetch notificaciones via apiBackendAction
-      const { results: allNotifs } = await apiBackendAction("notificaciones.list", {});
+      const { results: allNotifs } = await mycsapi.fetch("/api/v1/notificaciones", { method: "GET" }) as any;
       
       // Filter by incidente_id and enviada
       const filteredNotifs = (allNotifs || []).filter((n: any) => 
@@ -213,7 +213,7 @@ export default function MisAsignaciones() {
 
   const marcarNotificacionLeida = async (id: number, incidenteId?: number | null) => {
     try {
-      await apiBackendAction("notificaciones.markAsRead", { id });
+      await mycsapi.fetch("/api/v1/notificaciones/mark-read", { method: "POST", body: { id } }) as any;
       setNotificaciones(prev => prev.filter(n => n.id !== id));
       
       if (incidenteId) {
@@ -234,20 +234,17 @@ export default function MisAsignaciones() {
       } else {
         // El técnico decide esperar - cambiar incidente a Espera repuestos
         if (incidenteId) {
-          await apiBackendAction("incidentes.update", {
-            id: incidenteId,
-            data: {
+          await mycsapi.patch("/api/v1/incidentes/{incidente_id}", { path: { incidente_id: incidenteId }, body: {
               estado: "ESPERA_REPUESTOS",
               updated_at: new Date().toISOString()
-            }
-          } as any);
+            } as any }) as any;
         }
 
         toast.success("Incidente marcado como pendiente por repuestos");
       }
 
       // Marcar notificación como leída via apiBackendAction
-      await apiBackendAction("notificaciones.markAsRead", { id: notif.id });
+      await mycsapi.fetch("/api/v1/notificaciones/mark-read", { method: "POST", body: { id: notif.id } }) as any;
 
       setNotificaciones(prev => prev.filter(n => n.id !== notif.id));
       
@@ -281,12 +278,16 @@ export default function MisAsignaciones() {
     
     const fetchMetricas = async () => {
       try {
-        const { result: usuario } = await apiBackendAction("usuarios.getByEmail", { email: userEmail });
+        const usuario = await mycsapi.fetch("/api/v1/usuarios/by-email", { method: "GET", query: { email: userEmail } }) as any;
 
         if (!usuario) return;
 
         // Productividad del día: diagnósticos completados hoy por este técnico
-        const { results: allDiagnosticos } = await apiBackendAction("diagnosticos.list", { limit: 1000 });
+        // Fetch diagnosticos for assigned incidentes
+        const diagArrays = await Promise.all(
+          incidentes.map((inc: any) => mycsapi.get("/api/v1/incidentes/{incidente_id}/diagnosticos", { path: { incidente_id: inc.id } }).catch(() => ({ results: [] })))
+        );
+        const allDiagnosticos = diagArrays.flatMap(r => (r as any).results || []);
         const diagHoy = (allDiagnosticos || []).filter((d: any) => 
           d.estado === 'COMPLETADO' && 
           d.tecnico_id === (usuario as any).id &&
@@ -296,13 +297,13 @@ export default function MisAsignaciones() {
         setProductividadDia(diagHoy.length);
 
         // Reingresos: incidentes marcados como reingreso asignados a este técnico
-        const { results: asignaciones } = await apiBackendAction("incidente_tecnico.list", { 
+        const { results: asignaciones } = await mycsapi.fetch("/api/v1/incidente-tecnico", { method: "GET", query: { 
           tecnico_id: (usuario as any).id 
-        });
+        } }) as any;
 
         if (asignaciones && asignaciones.length > 0) {
           const incidenteIds = asignaciones.map((a: any) => a.incidente_id) as number[];
-          const { results: allIncidentes } = await apiBackendAction("incidentes.list", { limit: 2000 });
+          const { results: allIncidentes } = await mycsapi.get("/api/v1/incidentes", { query: { limit: 2000 } }) as any;
           const reingresosData = (allIncidentes || []).filter((inc: any) => 
             (inc as any).es_reingreso === true &&
             inc.estado === 'EN_DIAGNOSTICO' &&

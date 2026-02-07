@@ -5,10 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Search, AlertCircle, CheckCircle2, User, Package, FileText, Calendar } from "lucide-react";
-import { apiBackendAction } from "@/lib/api-backend";
 import { formatFechaCorta } from "@/utils/dateFormatters";
 import { toast } from "sonner";
 import type { IncidenteParaVerificar, VerificacionReincidencia } from "./types";
+import { mycsapi } from "@/mics-api";
 
 interface PasoSeleccionProps {
   incidenteActual: IncidenteParaVerificar | null;
@@ -31,7 +31,7 @@ export function PasoSeleccion({
     setLoading(true);
     try {
       // Search incident by code
-      const response = await apiBackendAction("incidentes.list", { limit: 1000 });
+      const response = await mycsapi.get("/api/v1/incidentes", { query: { limit: 1000 } }) as any;
       const incidentes = response.results || [];
       
       const found = incidentes.find(
@@ -47,9 +47,9 @@ export function PasoSeleccion({
       // Check if verification already exists
       let verificacionExistente: VerificacionReincidencia | null = null;
       try {
-        const verRes = await apiBackendAction("verificaciones_reincidencia.getByIncidente", {
+        const verRes = await mycsapi.get("/api/v1/verificaciones-reincidencia", { query: {
           incidente_id: found.id,
-        }) as { result: any | null };
+        } }) as any as { result: any | null };
         if (verRes.result) {
           const vr = verRes.result;
           verificacionExistente = {

@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
-import { apiBackendAction } from "@/lib/api-backend";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Users, FolderTree, X, Save, AlertTriangle, CheckCircle2, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
+import { mycsapi } from "@/mics-api";
 import {
   AlertBanner,
   MetricCard,
@@ -52,10 +52,10 @@ export default function AsignacionTecnicos() {
 
   const fetchData = async () => {
     try {
-      const familiasResult = await apiBackendAction("familias_producto.list", {});
+      const familiasResult = await mycsapi.get("/api/v1/familias-producto", {}) as any;
       const familiasData = (familiasResult.results || []).filter((f: any) => f.parent_id === null);
 
-      const usuariosResult = await apiBackendAction("usuarios.list", {});
+      const usuariosResult = await mycsapi.get("/api/v1/usuarios/") as any;
       const usuariosData = (usuariosResult.results || [])
         .filter((u: any) => u.rol === "tecnico" && u.activo);
 
@@ -66,7 +66,7 @@ export default function AsignacionTecnicos() {
         email: u.email || ""
       })));
 
-      const centrosResult = await apiBackendAction("centros_de_servicio.list", {});
+      const centrosResult = await mycsapi.get("/api/v1/centros-de-servicio", {}) as any;
       const centrosData = ((centrosResult as any).results || (centrosResult as any).data || []).filter((c: any) => c.activo);
 
       setCentros(centrosData.map((c: any) => ({
@@ -98,10 +98,10 @@ export default function AsignacionTecnicos() {
 
   const fetchAsignaciones = async () => {
     try {
-      const result = await apiBackendAction("configuracion_fifo_centro.list", { 
+      const result = await mycsapi.fetch("/api/v1/configuracion-fifo-centro", { method: "GET", query: { 
         centro_servicio_id: Number(selectedCentro), 
         activo: true 
-      });
+      } }) as any;
 
       const mapped: AsignacionTecnico[] = ((result as any).results || []).map((d: any) => ({
         id: d.id,
@@ -128,13 +128,13 @@ export default function AsignacionTecnicos() {
         return;
       }
 
-      await apiBackendAction("configuracion_fifo_centro.create", {
+      await mycsapi.fetch("/api/v1/configuracion-fifo-centro", { method: "POST", body: {
         updated_by: userId,
         familia_abuelo_id: familiaId,
         centro_servicio_id: Number(selectedCentro),
         activo: true,
         orden: asignaciones.length + 1
-      });
+      } }) as any;
 
       toast.success("Técnico asignado correctamente");
       fetchAsignaciones();
@@ -146,10 +146,7 @@ export default function AsignacionTecnicos() {
 
   const handleRemover = async (asignacionId: number) => {
     try {
-      await apiBackendAction("configuracion_fifo_centro.update", {
-        id: asignacionId,
-        data: { activo: false }
-      });
+      await mycsapi.fetch("/api/v1/configuracion-fifo-centro/{id}".replace("{id}", String(asignacionId)), { method: "PATCH", body: { activo: false } as any }) as any;
 
       toast.success("Asignación removida");
       fetchAsignaciones();

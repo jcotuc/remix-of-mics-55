@@ -8,7 +8,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Search, Plus, FileText, Printer, PackagePlus } from "lucide-react";
 import { useState, useEffect } from "react";
-import { apiBackendAction } from "@/lib/api-backend";
 import { showError, showSuccess } from "@/utils/toastHelpers";
 import { formatFechaInput, formatFechaCorta } from "@/utils/dateFormatters";
 import { format } from "date-fns";
@@ -20,6 +19,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import { mycsapi } from "@/mics-api";
 import {
   Popover,
   PopoverContent,
@@ -118,7 +118,7 @@ export default function Guias() {
 
   const fetchGuias = async () => {
     try {
-      const result = await (apiBackendAction as any)("guias.list", { limit: 200 });
+      const result = await mycsapi.get("/api/v1/guias", { query: { limit: 200 } });
       setGuias((result.results || []) as unknown as Guia[]);
     } catch (error) {
       console.error('Error fetching guias:', error);
@@ -131,7 +131,7 @@ export default function Guias() {
   const fetchIncidentesDisponibles = async () => {
     try {
       // Use apiBackendAction for incidentes
-      const result = await apiBackendAction("incidentes.list", { limit: 1000 });
+      const result = await mycsapi.get("/api/v1/incidentes", { query: { limit: 1000 } });
       const filtered = result.results
         .filter((i: any) => i.estado === 'EN_ENTREGA' && i.quiere_envio === true)
         .map((i: any) => ({ id: i.id, codigo: i.codigo, descripcion_problema: i.descripcion_problema, cliente_id: i.cliente?.id, quiere_envio: i.quiere_envio }));
@@ -143,7 +143,7 @@ export default function Guias() {
 
   const fetchClientes = async () => {
     try {
-      const result = await apiBackendAction("clientes.list", { limit: 5000 });
+      const result = await mycsapi.get("/api/v1/clientes", { query: { limit: 5000 } });
       const sorted = (result.results || []).sort((a: any, b: any) => 
         (a.nombre || "").localeCompare(b.nombre || "")
       );
@@ -156,7 +156,7 @@ export default function Guias() {
   const loadCentroServicioUsuario = async () => {
     try {
       // Use apiBackendAction for centros_de_servicio
-      const result = await apiBackendAction("centros_de_servicio.list", {});
+      const result = await mycsapi.get("/api/v1/centros-de-servicio", {});
       const centros = ((result as any).results || (result as any).data || []) as any[];
       const centro = centros.find((c: any) => c.nombre === 'GUA');
 
@@ -237,7 +237,7 @@ export default function Guias() {
 
     try {
       // Create guide via backend - backend handles Zigo API call
-      const guiaCreada = await apiBackendAction("guias.create", {
+      const guiaCreada = await mycsapi.post("/api/v1/guias", { body: {
         destinatario: formData.destinatario,
         direccion_destinatario: formData.direccion_destinatario,
         ciudad_destino: formData.ciudad_destino,
@@ -254,7 +254,7 @@ export default function Guias() {
         estado: 'PENDIENTE',
         tipo: 'SALIDA',
         centro_de_servicio_origen_id: 1,
-      } as any);
+      } as any });
 
       showSuccess(`Guía creada exitosamente`);
 

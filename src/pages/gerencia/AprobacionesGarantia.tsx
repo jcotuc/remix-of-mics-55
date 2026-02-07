@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { apiBackendAction } from "@/lib/api-backend";
 import type { IncidenteSchema } from "@/generated/actions.d";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +13,7 @@ import { differenceInDays } from "date-fns";
 import { formatFechaCorta } from "@/utils/dateFormatters";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
+import { mycsapi } from "@/mics-api";
 
 interface SolicitudCambio {
   id: number;
@@ -54,17 +54,17 @@ export default function AprobacionesGarantia() {
   const fetchSolicitudes = async () => {
     try {
       const [solicitudesRes, incidentesRes, centrosSupervisorRes] = await Promise.all([
-        apiBackendAction("solicitudes_cambio.list", { limit: 500 }),
-        apiBackendAction("incidentes.list", { limit: 2000 }),
-        apiBackendAction("centros_supervisor.list", {}),
+        mycsapi.fetch("/api/v1/solicitudes-cambio", { method: "GET", query: { limit: 500 } }),
+        mycsapi.get("/api/v1/incidentes", { query: { limit: 2000 } }),
+        mycsapi.fetch("/api/v1/centros-supervisor", { method: "GET" }),
       ]);
 
       const incidentes = incidentesRes.results || [];
-      const centrosSupervisor = centrosSupervisorRes.results || [];
+      const centrosSupervisor = (centrosSupervisorRes as any).results || [];
       
       // Build incidentes map
-      const iMap: Record<number, IncidenteSchema> = {};
-      incidentes.forEach((i: IncidenteSchema) => {
+      const iMap: Record<number, any> = {};
+      incidentes.forEach((i: any) => {
         iMap[i.id] = i;
       });
       setIncidentesMap(iMap);
@@ -120,15 +120,12 @@ export default function AprobacionesGarantia() {
     setSubmitting(true);
     try {
       // Update solicitud via API
-      await apiBackendAction("solicitudes_cambio.update", {
-        id: selectedSolicitud.id,
-        data: {
+      await mycsapi.fetch("/api/v1/solicitudes-cambio/{id}".replace("{id}", String(selectedSolicitud.id)), { method: "PATCH", body: {
           estado: aprobado ? "aprobada" : "rechazada",
           aprobado_por: Number(user.id),
           fecha_aprobacion: new Date().toISOString(),
           observaciones_aprobacion: observaciones.trim() || null,
-        }
-      });
+        } as any });
 
       // Determine new incident status
       let nuevoEstado: string;
@@ -144,14 +141,11 @@ export default function AprobacionesGarantia() {
       if (selectedSolicitud.incidente_id) {
         const existingIncidente = incidentesMap[selectedSolicitud.incidente_id];
         const logEntry = `[${new Date().toISOString()}] Estado cambiado a ${nuevoEstado} por aprobación/rechazo de garantía`;
-        await apiBackendAction("incidentes.update", {
-          id: selectedSolicitud.incidente_id,
-          data: { 
-            observaciones: existingIncidente?.observaciones 
+        await mycsapi.patch("/api/v1/incidentes/{incidente_id}", { path: { incidente_id: selectedSolicitud.incidente_id }, body: {
+            observaciones: existingIncidente?.observaciones
               ? `${existingIncidente.observaciones}\n${logEntry}`
               : logEntry
-          }
-        });
+          } as any });
       }
 
       toast.success(

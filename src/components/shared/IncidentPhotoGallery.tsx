@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight, X, Image as ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatFechaCorta, formatFechaLarga } from "@/utils/dateFormatters";
 import { format } from "date-fns";
+import { mycsapi } from "@/mics-api";
 
 interface IncidentPhoto {
   id: string;
@@ -30,10 +31,9 @@ export function IncidentPhotoGallery({ incidenteId }: IncidentPhotoGalleryProps)
 
   const fetchPhotos = async () => {
     try {
-      const { apiBackendAction } = await import("@/lib/api-backend");
-      const { results } = await apiBackendAction("incidente_fotos.list", { 
+      const { results } = await mycsapi.fetch("/api/v1/incidente-fotos", { method: "GET", query: {
         incidente_id: parseInt(incidenteId) 
-      });
+      } }) as any;
       
       setPhotos((results || []).map((p: any) => ({
         id: String(p.id),

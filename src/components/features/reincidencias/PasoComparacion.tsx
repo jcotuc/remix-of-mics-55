@@ -5,11 +5,11 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { History, Package, User, FileText, Calendar, AlertCircle } from "lucide-react";
-import { apiBackendAction } from "@/lib/api-backend";
 import { formatFechaCorta } from "@/utils/dateFormatters";
 import { IncidenteHistorialCard } from "./IncidenteHistorialCard";
 import { PERIODO_GARANTIA_DIAS } from "./types";
 import type { IncidenteParaVerificar, IncidenteHistorial } from "./types";
+import { mycsapi } from "@/mics-api";
 
 interface PasoComparacionProps {
   incidenteActual: IncidenteParaVerificar;
@@ -47,7 +47,7 @@ export function PasoComparacion({
 
     setLoading(true);
     try {
-      const response = await apiBackendAction("incidentes.list", { limit: 2000 });
+      const response = await mycsapi.get("/api/v1/incidentes", { query: { limit: 2000 } });
       const incidentes = response.results || [];
 
       // Filter previous incidents from same client

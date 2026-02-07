@@ -6,7 +6,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { apiBackendAction } from "@/lib/api-backend";
 import { toast } from "sonner";
 import { StatusBadge } from "@/components/shared";
 import type { Database } from "@/integrations/supabase/types";
@@ -15,6 +14,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { es } from "date-fns/locale";
 import { formatFechaCorta } from "@/utils/dateFormatters";
+import { mycsapi } from "@/mics-api";
 
 type EstadoIncidente = Database["public"]["Enums"]["estadoincidente"];
 
@@ -39,7 +39,11 @@ export default function EntregaMaquinas() {
     if (candidatosIds.length === 0) return { incidentes, fixedIds: [] as number[] };
 
     // 1) Diagnósticos de reparación en garantía para esos incidentes
-    const { results: diagnosticos } = await apiBackendAction("diagnosticos.list", { limit: 300 });
+    // Fetch diagnosticos for all candidate incidentes
+    const diagnosticosArrays = await Promise.all(
+      candidatosIds.map(id => mycsapi.get("/api/v1/incidentes/{incidente_id}/diagnosticos", { path: { incidente_id: id } }))
+    );
+    const diagnosticos = diagnosticosArrays.flatMap(r => (r as any).results || []);
     const garantiaIds = Array.from(
       new Set(
         (diagnosticos || [])
@@ -51,7 +55,7 @@ export default function EntregaMaquinas() {
     if (garantiaIds.length === 0) return { incidentes, fixedIds: [] as number[] };
 
     // 2) Ver si existen solicitudes de repuestos
-    const solicitudesRes = await apiBackendAction("solicitudes_repuestos.list", {});
+    const solicitudesRes = await mycsapi.fetch("/api/v1/solicitudes-repuestos", { method: "GET" }) as any;
     const solicitudes = (solicitudesRes as any).data || (solicitudesRes as any).results || [];
     const conSolicitud = new Set(
       (solicitudes || [])
@@ -65,7 +69,7 @@ export default function EntregaMaquinas() {
 
     // 3) Corregir estado del incidente uno por uno
     for (const id of idsParaCorregir) {
-      await apiBackendAction("incidentes.update", { id, data: { estado: "REPARADO" } } as any);
+      await mycsapi.patch("/api/v1/incidentes/{incidente_id}", { path: { incidente_id: id }, body: { estado: "REPARADO" } as any }) as any;
     }
 
     const idsSet = new Set(idsParaCorregir);
@@ -90,15 +94,15 @@ export default function EntregaMaquinas() {
     try {
       // Fetch incidentes, clientes, y productos en paralelo
       const [incidentesResult, clientesResult, productosResult] = await Promise.all([
-        apiBackendAction("incidentes.list", { limit: 300 }),
-        apiBackendAction("clientes.list", { limit: 300 }),
-        apiBackendAction("productos.list", { limit: 300 }),
+        mycsapi.get("/api/v1/incidentes", { query: { limit: 300 } }),
+        mycsapi.get("/api/v1/clientes", { query: { limit: 300 } }),
+        mycsapi.get("/api/v1/productos", { query: { limit: 300 } }),
       ]);
 
       // Hotfix: si es REPARAR_EN_GARANTIA y NO hay solicitudes_repuestos, debe pasar a REPARADO
-      let incidentesNormalizados = incidentesResult.results;
+      let incidentesNormalizados = incidentesResult.results as any[];
       try {
-        const { incidentes, fixedIds } = await autoFixReparadoEnGarantiaSinRepuestos(incidentesResult.results);
+        const { incidentes, fixedIds } = await autoFixReparadoEnGarantiaSinRepuestos(incidentesResult.results as any);
         incidentesNormalizados = incidentes;
         if (fixedIds.length > 0) {
           toast.success(`Se corrigieron ${fixedIds.length} incidente(s) a REPARADO (sin repuestos solicitados)`);
@@ -115,7 +119,7 @@ export default function EntregaMaquinas() {
       const clientesMap = new Map(clientesResult.results.map(c => [c.id, c]));
       const productosMap = new Map(productosResult.results.map(p => [p.id, p]));
 
-      const incidentesConRelaciones: IncidenteConRelaciones[] = incidentesData.map(inc => ({
+      const incidentesConRelaciones: IncidenteConRelaciones[] = incidentesData.map((inc: any) => ({
         ...inc,
         clienteData: inc.cliente ? clientesMap.get(inc.cliente.id) : undefined,
         productoData: inc.producto ? productosMap.get(inc.producto.id) : undefined
@@ -164,10 +168,10 @@ export default function EntregaMaquinas() {
     setSearching(true);
     try {
       // Use apiBackendAction to search by code
-      const { results } = await apiBackendAction("incidentes.search", { 
+      const { results } = await mycsapi.get("/api/v1/incidentes/search", { query: { 
         search: searchTerm.toUpperCase(), 
         limit: 5 
-      }) as { results: any[] };
+      } as any }) as any as { results: any[] };
       
       // Find exact match by code
       const incidenteData = results.find((inc: any) => inc.codigo === searchTerm.toUpperCase());

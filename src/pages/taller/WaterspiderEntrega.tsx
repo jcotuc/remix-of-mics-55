@@ -10,8 +10,8 @@ import { toast } from "sonner";
 import { formatFechaLarga } from "@/utils/dateFormatters";
 import { format } from "date-fns";
 import { useAuth } from "@/contexts/AuthContext";
-import { apiBackendAction } from "@/lib/api-backend";
 import type { IncidenteSchema, ClienteSchema } from "@/generated/entities";
+import { mycsapi } from "@/mics-api";
 
 interface IncidenteLocal {
   id: number;
@@ -47,7 +47,7 @@ export default function WaterspiderEntrega() {
 
       try {
         // Use apiBackendAction for incidente
-        const incResult = await apiBackendAction("incidentes.get", { id: parseInt(incidenteId) });
+        const incResult = await mycsapi.get("/api/v1/incidentes/{incidente_id}", { path: { incidente_id: parseInt(incidenteId) } }) as any;
         const incData = incResult.result as IncidenteSchema | null;
         
         if (!incData) {
@@ -76,7 +76,7 @@ export default function WaterspiderEntrega() {
             direccion: incAny.cliente.direccion || null,
           };
         } else if (clienteId) {
-          const clienteResult = await apiBackendAction("clientes.get", { id: clienteId });
+          const clienteResult = await mycsapi.get("/api/v1/clientes/{cliente_id}", { path: { cliente_id: clienteId } }) as any;
           const cliente = clienteResult.result as ClienteSchema | null;
           if (cliente) {
             clienteData = {
@@ -130,14 +130,11 @@ export default function WaterspiderEntrega() {
       const newObs = currentObs ? `${currentObs}\n${logEntry}` : logEntry;
 
       // Use apiBackendAction for update
-      await apiBackendAction("incidentes.update", {
-        id: incidente.id,
-        data: { 
+      await mycsapi.patch("/api/v1/incidentes/{incidente_id}", { path: { incidente_id: incidente.id }, body: { 
           estado: nuevoEstado,
           observaciones: newObs,
           updated_at: fechaActual,
-        }
-      } as any);
+        } as any }) as any;
 
       toast.success(
         `Incidente ${incidente.codigo} entregado a ${incidente.quiere_envio ? 'Logística' : 'Mostrador'}`,

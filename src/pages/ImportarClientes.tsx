@@ -2,10 +2,10 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { apiBackendAction } from "@/lib/api-backend";
 import { showSuccess, showError } from "@/utils/toastHelpers";
 import * as XLSX from 'xlsx';
 import { Upload, CheckCircle2, Loader2 } from "lucide-react";
+import { mycsapi } from "@/mics-api";
 
 export default function ImportarClientes() {
   const [loading, setLoading] = useState(false);
@@ -110,7 +110,7 @@ export default function ImportarClientes() {
       // Insert clients one by one via API
       for (const cliente of clientesData) {
         try {
-          await apiBackendAction("clientes.create", cliente);
+          await mycsapi.post("/api/v1/clientes", { body: cliente });
           count++;
         } catch (e: any) {
           // If duplicate, skip - client already exists
@@ -179,7 +179,7 @@ export default function ImportarClientes() {
 
         if (clienteData.codigo && clienteData.nombre) {
           try {
-            await apiBackendAction("clientes.create", clienteData);
+            await mycsapi.post("/api/v1/clientes", { body: clienteData });
             count++;
           } catch (error) {
             errors++;

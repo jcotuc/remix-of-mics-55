@@ -30,7 +30,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { apiBackendAction } from "@/lib/api-backend";
 import { StatusBadge, CompactPhotoGallery } from "@/components/shared";
 import {
   Dialog,
@@ -58,6 +57,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { DiagnosticoPrintSheet, type DiagnosticoPrintData } from "@/components/features/diagnostico";
 import { IncidentePrintSheet } from "@/components/features/incidentes";
+import { mycsapi } from "@/mics-api";
 type IncidenteData = {
   id: number;
   codigo: string;
@@ -148,7 +148,7 @@ export default function SeguimientoIncidente() {
 
   const fetchData = async () => {
     try {
-      const { result: incData } = await apiBackendAction("incidentes.get", { id: Number(id) });
+      const incData = await mycsapi.get("/api/v1/incidentes/{incidente_id}", { path: { incidente_id: Number(id) } }) as any;
 
       if (!incData) {
         setLoading(false);
@@ -210,7 +210,7 @@ export default function SeguimientoIncidente() {
       // Fetch guias (wrapped in try-catch to not break the rest of the flow)
       let guiasRes: any = { results: [] };
       try {
-        guiasRes = await apiBackendAction("guias.search", { incidente_id: incData.id });
+        guiasRes = await mycsapi.fetch("/api/v1/guias/search", { method: "GET", query: { incidente_id: incData.id } }) as any;
       } catch (e) {
         console.warn("Could not fetch guias:", e);
       }
@@ -247,7 +247,7 @@ export default function SeguimientoIncidente() {
           .eq("incidente_id", incidenteIdNum)
           .order("created_at", { ascending: true }),
         incData.cliente
-          ? apiBackendAction("incidentes.list", { limit: 1000 })
+          ? mycsapi.get("/api/v1/incidentes", { query: { limit: 1000 } })
           : Promise.resolve({ results: [] }),
       ]);
 
@@ -522,19 +522,16 @@ export default function SeguimientoIncidente() {
     }
 
     try {
-      const { result: newProdData } = await apiBackendAction("productos.getByCodigo", {
+      const newProdData = await mycsapi.get("/api/v1/productos/search", { query: {
         codigo: editedProductCode.toUpperCase(),
-      });
+      } as any }) as any;
 
       if (!newProdData) {
         showError("Producto no encontrado");
         return;
       }
 
-      await apiBackendAction("incidentes.update", {
-        id: incidente.id,
-        data: { producto_id: (newProdData as any).id },
-      } as any);
+      await mycsapi.patch("/api/v1/incidentes/{incidente_id}", { path: { incidente_id: incidente.id }, body: { producto_id: (newProdData as any).id } as any }) as any;
 
       const p = newProdData as any;
       setProducto({

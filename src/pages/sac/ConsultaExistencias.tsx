@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Search, Package, DollarSign } from "lucide-react";
 import { toast } from "sonner";
-import { apiBackendAction } from "@/lib/api";
+import { mycsapi } from "@/mics-api";
 
 type RepuestoConStock = {
   id: number;
@@ -35,12 +35,12 @@ export default function ConsultaExistencias() {
 
       // Search repuestos via API
       const [repuestosRes, inventarioRes] = await Promise.all([
-        apiBackendAction("repuestos.search", { search: searchTerm, limit: 50 }),
-        apiBackendAction("inventarios.list", { limit: 5000 })
+        mycsapi.get("/api/v1/repuestos", { query: { search: searchTerm, limit: 50 } as any }),
+        mycsapi.get("/api/v1/inventario", { query: { limit: 5000 } })
       ]);
 
       const repuestosData = repuestosRes.results || [];
-      const inventarioData = inventarioRes.data || [];
+      const inventarioData = (inventarioRes as any).data || [];
 
       // Combine data
       const repuestosConStock: RepuestoConStock[] = repuestosData.map(rep => {

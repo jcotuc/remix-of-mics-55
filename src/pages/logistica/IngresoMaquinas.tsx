@@ -10,11 +10,11 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Search, CheckCircle, Package, Plus, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
-import { apiBackendAction } from "@/lib/api-backend";
 import type { IncidenteSchema, ClienteSchema, ProductoSchema, Embarque } from "@/generated/actions.d";
 import { WhatsAppStyleMediaCapture, MediaFile } from "@/components/features/media";
 import { uploadMediaToStorage, saveIncidentePhotos } from "@/lib/uploadMedia";
 import { OutlinedInput, OutlinedTextarea, OutlinedSelect } from "@/components/ui/outlined-input";
+import { mycsapi } from "@/mics-api";
 
 type IncidenteConCliente = IncidenteSchema & { cliente?: ClienteSchema };
 
@@ -56,23 +56,23 @@ export default function IngresoMaquinas() {
       
       // Use apiBackendAction for incidents and embarques
       const [incidentesResponse, embarquesResponse] = await Promise.all([
-        apiBackendAction("incidentes.list", { limit: 1000 }),
-        apiBackendAction("embarques.list", { limit: 200 })
+        mycsapi.get("/api/v1/incidentes", { query: { limit: 1000 } }),
+        mycsapi.fetch("/api/v1/embarques", { method: "GET", query: { limit: 200 } })
       ]);
 
       // Filter by status and sort by created_at
-      const filtered = incidentesResponse.results
+      const filtered = (incidentesResponse.results as any[])
         .filter(inc => inc.estado === "EN_ENTREGA")
         .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
 
       // Map to include cliente property for compatibility
       const incidentesWithClients: IncidenteConCliente[] = filtered.map(inc => ({
         ...inc,
-        cliente: inc.cliente || undefined
+        cliente: (inc as any).cliente || undefined
       }));
 
       setIncidentes(incidentesWithClients);
-      setEmbarques(embarquesResponse.data.map((e: Embarque) => e.numero_embarque));
+      setEmbarques((embarquesResponse as any).data.map((e: Embarque) => e.numero_embarque));
 
     } catch (error) {
       console.error('Error:', error);
@@ -85,7 +85,7 @@ export default function IngresoMaquinas() {
   const fetchClientesSAP = async () => {
     try {
       // Use apiBackendAction for clients with codigo_sap filter
-      const result = await apiBackendAction("clientes.list", { limit: 5000 });
+      const result = await mycsapi.get("/api/v1/clientes", { query: { limit: 5000 } }) as any;
       const filtered = (result.results || []).filter((c: any) => c.codigo_sap != null);
       const sorted = filtered.sort((a: any, b: any) => (a.nombre || "").localeCompare(b.nombre || ""));
       setClientesSAP(sorted as any);
@@ -96,7 +96,7 @@ export default function IngresoMaquinas() {
 
   const fetchProductos = async () => {
     try {
-      const response = await apiBackendAction("productos.list", { limit: 2000 });
+      const response = await mycsapi.get("/api/v1/productos", { query: { limit: 2000 } }) as any;
       setProductos(response.results);
     } catch (error) {
       console.error('Error fetching productos:', error);
@@ -113,12 +113,12 @@ export default function IngresoMaquinas() {
     setCreatingIncidente(true);
     try {
       // Generar código de incidente usando apiBackendAction
-      const { codigo: codigoData } = await apiBackendAction("rpc.generarCodigoIncidente", {});
+      const { codigo: codigoData } = await mycsapi.fetch("/api/v1/rpc/generar_codigo_incidente", { method: "POST" }) as any;
 
       // Buscar cliente por código usando apiBackendAction
-      const { result: clienteData } = await apiBackendAction("clientes.getByCodigo", {
+      const clienteData = await mycsapi.get("/api/v1/clientes/search", { query: {
         codigo: manualIncidente.codigo_cliente
-      });
+      } as any }) as any;
 
       if (!clienteData) {
         toast.error('No se encontró el cliente con ese código');
@@ -140,7 +140,7 @@ export default function IngresoMaquinas() {
         observaciones: `SKU Maquina: ${manualIncidente.sku_maquina}`
       };
 
-      await apiBackendAction("incidentes.create", nuevoIncidente as any);
+      await mycsapi.post("/api/v1/incidentes", { body: nuevoIncidente as any }) as any;
 
       toast.success('Incidente creado exitosamente');
       setShowManualDialog(false);
@@ -167,7 +167,7 @@ export default function IngresoMaquinas() {
     setProcesandoIngreso(true);
 
     try {
-      const { user } = await apiBackendAction("auth.getUser", {});
+      const { user } = await mycsapi.get("/api/v1/auth/me") as any;
       if (!user) throw new Error("Usuario no autenticado");
 
       // 1. Subir fotos a storage
@@ -194,10 +194,7 @@ export default function IngresoMaquinas() {
         updateData.observaciones = `SKU Verificado: ${skuVerificado}. ${observacionesIngreso || ''} ${existingObservaciones}`.trim();
       }
 
-      await apiBackendAction("incidentes.update", {
-        id: selectedIncidenteForIngreso.id,
-        data: updateData
-      });
+      await mycsapi.patch("/api/v1/incidentes/{incidente_id}", { path: { incidente_id: selectedIncidenteForIngreso.id }, body: updateData as any }) as any;
 
       toast.success("Ingreso formalizado correctamente");
 

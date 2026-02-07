@@ -12,8 +12,8 @@ import {
 import { Wrench, Eye, Plus, Loader2, Clock, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { useActiveIncidents, MAX_ASSIGNMENTS } from "@/contexts/ActiveIncidentsContext";
-import { apiBackendAction } from "@/lib/api-backend";
 import { DEV_BYPASS_AUTH, isDevBypassEnabled } from "@/config/devBypassAuth";
+import { mycsapi } from "@/mics-api";
 
 interface IncidenteConProducto {
   id: number;
@@ -62,14 +62,14 @@ export default function Asignaciones() {
       try {
         setLoadingConfig(true);
         // 1) Obtener usuario usando apiBackendAction
-        const { user } = await apiBackendAction("auth.getUser", {});
+        const { user } = await mycsapi.get("/api/v1/auth/me") as any;
         const effectiveEmail = user?.email ?? (isDevBypassEnabled() ? DEV_BYPASS_AUTH.email : null);
 
         // 2) Obtener centro de servicio del usuario
         let userProfile: any = null;
         try {
           if (user?.email) {
-            const r = await apiBackendAction("usuarios.getByEmail", { email: user.email });
+            const r = await mycsapi.fetch("/api/v1/usuarios/by-email", { method: "GET", query: { email: user.email } }) as any;
             userProfile = (r as any)?.result ?? null;
           }
         } catch {
@@ -77,7 +77,7 @@ export default function Asignaciones() {
         }
 
         if (!userProfile && effectiveEmail) {
-          const searchResult = await apiBackendAction("usuarios.search", { email: effectiveEmail });
+          const searchResult = await mycsapi.fetch("/api/v1/usuarios/search", { method: "GET", query: { email: effectiveEmail } }) as any;
           userProfile = (searchResult.results || [])[0] || null;
         }
 
@@ -93,13 +93,13 @@ export default function Asignaciones() {
         setCentroServicioId(userCentroId);
 
         // Obtener nombre del centro de servicio usando apiBackendAction
-        const { result: centroData } = await apiBackendAction("centros_de_servicio.get", { id: userCentroId });
+        const centroData = await mycsapi.get("/api/v1/centros-de-servicio/{centro_de_servicio_id}", { path: { centro_de_servicio_id: userCentroId } }) as any;
         setCentroServicioNombre((centroData as any)?.nombre || `Centro ${userCentroId}`);
 
         // Cargar grupos activos del centro
-        const { results: allGruposData } = await apiBackendAction("grupos_cola_fifo.list", {
+        const { results: allGruposData } = await mycsapi.get("/api/v1/grupos-cola-fifo", { query: {
           centro_servicio_id: userCentroId,
-        } as any);
+        } as any }) as any;
         console.log("Todos los grupos:", allGruposData);
 
         // Filtrar por centro de servicio del usuario
@@ -119,7 +119,7 @@ export default function Asignaciones() {
 
         // Cargar familias de cada grupo
         const familiasPromises = gruposActivos.map((g: any) =>
-          apiBackendAction("grupos_cola_fifo_familias.list", { grupo_id: g.id } as any)
+          mycsapi.get("/api/v1/grupos-cola-fifo/{grupo_id}/familias", { path: { grupo_id: g.id } })
         );
         const familiasResults = await Promise.all(familiasPromises);
         const allFamiliasGrupos = familiasResults.flatMap((r, i) =>
@@ -163,7 +163,7 @@ export default function Asignaciones() {
 
   const fetchFamilias = async () => {
     try {
-      const result = await apiBackendAction("familias_producto.list", {});
+      const result = await mycsapi.get("/api/v1/familias-producto", {}) as any;
       const data = result.results || [];
       setFamilias(
         data.map((f: any) => ({
@@ -202,7 +202,7 @@ export default function Asignaciones() {
     try {
       setLoading(true);
 
-      const response = await apiBackendAction("incidentes.list", { limit: 1000 });
+      const response = await mycsapi.get("/api/v1/incidentes", { query: { limit: 1000 } }) as any;
 
       // Filtrar por estado REGISTRADO y centro de servicio, ordenar por fecha
       const filtered = response.results
@@ -252,7 +252,7 @@ export default function Asignaciones() {
     }
 
     try {
-      const { user } = await apiBackendAction("auth.getUser", {});
+      const { user } = await mycsapi.get("/api/v1/auth/me") as any;
       const effectiveEmail = user?.email ?? (isDevBypassEnabled() ? DEV_BYPASS_AUTH.email : null);
       if (!user && !effectiveEmail) {
         toast.error("No se pudo obtener el usuario actual");
@@ -262,7 +262,7 @@ export default function Asignaciones() {
       // Get user profile using apiBackendAction
       let profile: any = null;
       if (effectiveEmail) {
-        const { result } = await apiBackendAction("usuarios.getByEmail", { email: effectiveEmail });
+        const result = await mycsapi.fetch("/api/v1/usuarios/by-email", { method: "GET", query: { email: effectiveEmail } }) as any;
         profile = result;
       }
 
@@ -273,37 +273,31 @@ export default function Asignaciones() {
       }
 
       // 1) Asegurar vínculo incidente <-> técnico (tabla incidente_tecnico)
-      const { results: existentes } = await apiBackendAction("incidente_tecnico.list", {
+      const { results: existentes } = await mycsapi.fetch("/api/v1/incidente-tecnico", { method: "GET", query: {
         incidente_id: primerIncidente.id,
         es_principal: true,
-      } as any);
+      } as any }) as any;
 
       const existente = (existentes || [])[0] as any;
       if (existente?.id) {
         // Si ya existe un principal, lo reasignamos a este técnico
-        await apiBackendAction("incidente_tecnico.update", {
-          id: existente.id,
-          data: {
+        await mycsapi.fetch("/api/v1/incidente-tecnico/{id}".replace("{id}", String(existente.id)), { method: "PATCH", body: {
             tecnico_id: tecnicoId,
             es_principal: true,
-          },
-        } as any);
+          } as any }) as any;
       } else {
-        await apiBackendAction("incidente_tecnico.create", {
+        await mycsapi.fetch("/api/v1/incidente-tecnico", { method: "POST", body: {
           incidente_id: primerIncidente.id,
           tecnico_id: tecnicoId,
           es_principal: true,
-        } as any);
+        } as any }) as any;
       }
 
       // 2) Actualizar estado del incidente (NO usar propietario_id: FK apunta a propietarios)
-      await apiBackendAction("incidentes.update", {
-        id: primerIncidente.id,
-        data: {
+      await mycsapi.patch("/api/v1/incidentes/{incidente_id}", { path: { incidente_id: primerIncidente.id }, body: {
           estado: "EN_DIAGNOSTICO",
           updated_at: new Date().toISOString(),
-        },
-      } as any);
+        } as any }) as any;
 
       toast.success("Incidente asignado");
       refreshIncidents();

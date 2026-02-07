@@ -140,7 +140,7 @@ export function FloatingIncidentsWidget() {
                     )}
                   </div>
                   <p className="text-xs text-muted-foreground truncate mt-0.5">
-                    {incident.producto?.codigo || incident.codigo_producto || "Sin producto"}
+                    {(incident as any).producto?.codigo || incident.codigo_producto || "Sin producto"}
                   </p>
                 </div>
 

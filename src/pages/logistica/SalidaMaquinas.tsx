@@ -19,9 +19,9 @@ import {
   Eye,
   CheckCircle
 } from "lucide-react";
-import { apiBackendAction } from "@/lib/api-backend";
 import { DetalleDespachoSheet } from "@/components/features/logistica";
 import type { IncidenteSchema, ClienteSchema, GuiaInDBSchema } from "@/generated/entities";
+import { mycsapi } from "@/mics-api";
 
 export type IncidenteEnriquecido = IncidenteSchema & {
   clienteNombre: string;
@@ -61,9 +61,9 @@ export default function SalidaMaquinas() {
     try {
       // Fetch en paralelo: incidentes, clientes y guías
       const [incidentesRes, clientesRes, guiasRes] = await Promise.all([
-        apiBackendAction("incidentes.list", { limit: 2000 }),
-        apiBackendAction("clientes.list", { limit: 5000 }),
-        apiBackendAction("guias.list", {})
+        mycsapi.get("/api/v1/incidentes", { query: { limit: 2000 } }),
+        mycsapi.get("/api/v1/clientes", { query: { limit: 5000 } }),
+        mycsapi.get("/api/v1/guias", {})
       ]);
 
       const todosIncidentes = incidentesRes.results || [];
@@ -83,8 +83,8 @@ export default function SalidaMaquinas() {
       const estadosRelevantes = ["REPARADO", "RECHAZADO", "CAMBIO_POR_GARANTIA", "EN_ENTREGA"];
       
       const incidentesFiltrados = todosIncidentes
-        .filter((inc: IncidenteSchema) => estadosRelevantes.includes(inc.estado))
-        .map((inc: IncidenteSchema) => {
+        .filter((inc: any) => estadosRelevantes.includes(inc.estado))
+        .map((inc: any) => {
           const cliente = inc.cliente;
           return {
             ...inc,

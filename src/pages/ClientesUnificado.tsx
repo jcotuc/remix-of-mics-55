@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { apiBackendAction } from "@/lib/api-backend";
 import { toast } from "sonner";
 import { Search, Eye, Edit, Users, Truck, Phone, Mail, MapPin, Home, X, Filter } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -11,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { OutlinedInput, OutlinedTextarea, OutlinedSelect } from "@/components/ui/outlined-input";
 import { TablePagination } from "@/components/shared";
+import { mycsapi } from "@/mics-api";
 
 interface ClienteRow {
   id: number;
@@ -111,7 +111,7 @@ export default function ClientesUnificado({
   const fetchCounts = async () => {
     try {
       // Fetch all clients and count locally
-      const { results } = await apiBackendAction("clientes.list", { limit: 5000 });
+      const { results } = await mycsapi.get("/api/v1/clientes", { query: { limit: 5000 } }) as any;
       const mostradorCount = results.filter((c: any) => c.codigo?.startsWith("HPS-")).length;
       const logisticaCount = results.filter((c: any) => c.codigo?.startsWith("HPC") && !c.codigo?.startsWith("HPC-")).length;
       setTotalMostrador(mostradorCount);
@@ -125,7 +125,7 @@ export default function ClientesUnificado({
     setLoading(true);
     try {
       // Fetch all clients and filter locally (server-side filtering not supported via apiBackendAction)
-      const { results: allClientes } = await apiBackendAction("clientes.list", { limit: 5000 });
+      const { results: allClientes } = await mycsapi.get("/api/v1/clientes", { query: { limit: 5000 } }) as any;
       
       // Filter by tab
       let filtered = (allClientes as ClienteRow[]).filter(c => {
@@ -207,9 +207,7 @@ export default function ClientesUnificado({
     if (!editingCliente) return;
     setIsSaving(true);
     try {
-      await apiBackendAction("clientes.update", {
-        id: editingCliente.id,
-        data: {
+      await mycsapi.patch("/api/v1/clientes/{cliente_id}", { path: { cliente_id: editingCliente.id }, body: {
           nombre: editingCliente.nombre,
           nit: editingCliente.nit,
           celular: editingCliente.celular,
@@ -219,8 +217,7 @@ export default function ClientesUnificado({
           municipio: editingCliente.municipio,
           telefono_principal: editingCliente.telefono_principal,
           telefono_secundario: editingCliente.telefono_secundario
-        }
-      });
+        } as any });
       toast.success("Cliente actualizado correctamente");
       setIsEditDialogOpen(false);
       setEditingCliente(null);
@@ -241,7 +238,7 @@ export default function ClientesUnificado({
   const handleDelete = async () => {
     if (!deletingCliente) return;
     try {
-      await apiBackendAction("clientes.delete", { id: deletingCliente.id });
+      await mycsapi.delete("/api/v1/clientes/{cliente_id}", { path: { cliente_id: deletingCliente.id } }) as any;
       toast.success("Cliente eliminado correctamente");
       setIsDeleteDialogOpen(false);
       setDeletingCliente(null);

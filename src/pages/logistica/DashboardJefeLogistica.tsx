@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, Truck, AlertCircle, Package, TrendingUp, Clock } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
-import { apiBackendAction } from "@/lib/api-backend";
+import { mycsapi } from "@/mics-api";
 
 interface DashboardStats {
   guiasPendientes: number;
@@ -28,13 +28,13 @@ export default function DashboardJefeLogistica() {
 
       // Fetch data in parallel using apiBackendAction
       const [guiasResponse, embarquesResponse, incidentesResponse] = await Promise.all([
-        apiBackendAction("guias.list", {}),
-        apiBackendAction("embarques.list", { limit: 500 }),
-        apiBackendAction("incidentes.list", { limit: 2000 })
+        mycsapi.get("/api/v1/guias", {}),
+        mycsapi.fetch("/api/v1/embarques", { method: "GET", query: { limit: 500 } }),
+        mycsapi.get("/api/v1/incidentes", { query: { limit: 2000 } })
       ]);
 
       const guias = (guiasResponse as any).results || [];
-      const embarques = embarquesResponse.data || [];
+      const embarques = (embarquesResponse as any).data || [];
       const incidentes = incidentesResponse.results || [];
 
       // Calculate stats from fetched data

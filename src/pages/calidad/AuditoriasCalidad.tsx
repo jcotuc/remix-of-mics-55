@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { apiBackendAction } from "@/lib/api-backend";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -15,6 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { WhatsAppStyleMediaCapture } from "@/components/features/media";
 import type { IncidenteSchema } from "@/generated/actions.d";
+import { mycsapi } from "@/mics-api";
 
 interface Incidente {
   id: number;
@@ -91,7 +91,7 @@ export default function AuditoriasCalidad() {
 
   const fetchIncidentes = async () => {
     try {
-      const { results } = await apiBackendAction("incidentes.list", { limit: 500 });
+      const { results } = await mycsapi.get("/api/v1/incidentes", { query: { limit: 500 } }) as any;
       const filtered = (results || []).filter((inc: any) =>
         ["REPARADO", "CAMBIO_POR_GARANTIA", "NOTA_DE_CREDITO"].includes(inc.estado)
       );
@@ -112,13 +112,13 @@ export default function AuditoriasCalidad() {
   const fetchAuditorias = async () => {
     setLoading(true);
     try {
-      const { results } = await apiBackendAction("auditorias_calidad.list", {});
+      const { results } = await mycsapi.fetch("/api/v1/auditorias-calidad", { method: "GET" }) as any;
       
       // Fetch incidente details for each auditoria
       const auditoriasConIncidentes = await Promise.all(
         (results || []).map(async (aud: any) => {
           try {
-            const { result: incidente } = await apiBackendAction("incidentes.get", { id: aud.incidente_id });
+            const incidente = await mycsapi.get("/api/v1/incidentes/{incidente_id}", { path: { incidente_id: aud.incidente_id } }) as any;
             return {
               ...aud,
               incidentes: incidente ? { codigo: incidente.codigo, producto_id: incidente.producto?.id } : null
@@ -166,7 +166,7 @@ export default function AuditoriasCalidad() {
         updated_at: new Date().toISOString(),
       };
       
-      await apiBackendAction("auditorias_calidad.create", insertData);
+      await mycsapi.fetch("/api/v1/auditorias-calidad", { method: "POST", body: insertData }) as any;
 
       toast.success("Auditoría registrada exitosamente");
       setIsDialogOpen(false);

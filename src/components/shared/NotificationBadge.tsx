@@ -9,9 +9,9 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
-import { apiBackendAction } from "@/lib/api-backend";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
+import { mycsapi } from "@/mics-api";
 
 interface SystemAlert {
   id: string;
@@ -33,7 +33,7 @@ export function NotificationBadge() {
   useEffect(() => {
     const fetchAlerts = async () => {
       try {
-        const result = await apiBackendAction("incidentes.list", {});
+        const result = await mycsapi.get("/api/v1/incidentes", {});
         const incidentes = result.results || [];
         const today = new Date();
         const eightDaysAgo = new Date(today);

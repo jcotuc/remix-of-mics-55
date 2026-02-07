@@ -2,8 +2,8 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { showSuccess, showError } from "@/utils/toastHelpers";
-import { apiBackendAction } from "@/lib/api-backend";
 import { RefreshCw, CheckCircle2 } from "lucide-react";
+import { mycsapi } from "@/mics-api";
 
 export default function ActualizarCodigos() {
   const [loading, setLoading] = useState(false);
@@ -13,7 +13,7 @@ export default function ActualizarCodigos() {
     setLoading(true);
     try {
       // Get clients with HPC prefix
-      const response = await apiBackendAction("clientes.list", { limit: 5000 });
+      const response = await mycsapi.get("/api/v1/clientes", { query: { limit: 5000 } });
       const clientes = response.results || [];
       const hpcClientes = clientes.filter((c: any) => c.codigo?.startsWith("HPC"));
       

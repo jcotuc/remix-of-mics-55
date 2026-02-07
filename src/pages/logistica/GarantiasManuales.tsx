@@ -11,7 +11,7 @@ import { useState, useEffect } from "react";
 import { PhotoGalleryWithDescriptions, type PhotoWithDescription } from "@/components/shared";
 import { toast } from "sonner";
 import { OutlinedInput, OutlinedTextarea, OutlinedSelect } from "@/components/ui/outlined-input";
-import { apiBackendAction } from "@/lib/api-backend";
+import { mycsapi } from "@/mics-api";
 
 type GarantiaManuaDB = {
   id: number;
@@ -83,13 +83,13 @@ export default function GarantiasManuales() {
   const fetchGarantias = async () => {
     try {
       // Fetch garantias via apiBackendAction
-      const { results: garantiasData } = await apiBackendAction("garantias_manuales.list", { limit: 500 });
+      const { results: garantiasData } = await mycsapi.fetch("/api/v1/garantias-manuales", { method: "GET", query: { limit: 500 } }) as any;
       
       // Fetch user data for each garantia via apiBackendAction
       const garantiasWithProfiles = await Promise.all(
         (garantiasData || []).map(async (garantia: any) => {
           if (garantia.created_by) {
-            const { result: usuarioData } = await apiBackendAction("usuarios.get", { id: garantia.created_by });
+            const usuarioData = await mycsapi.fetch("/api/v1/usuarios/{usuario_id}".replace("{usuario_id}", String(garantia.created_by)), { method: "GET" });
             
             return {
               ...garantia,
@@ -119,11 +119,12 @@ export default function GarantiasManuales() {
         const filePath = `garantias/${fileName}`;
         
         try {
-          const { url } = await apiBackendAction("storage.upload", {
+          // TODO: Replace with direct Supabase storage upload
+          const { url } = await (window as any).__supabaseUpload?.({
             bucket: 'garantias-manuales',
             path: filePath,
             file: foto.file
-          });
+          }) ?? { url: '' };
           fotosUrls.push(url);
         } catch (uploadError) {
           console.error('Error uploading photo:', uploadError);
@@ -132,11 +133,11 @@ export default function GarantiasManuales() {
       }
       
       // Create garantia via apiBackendAction
-      await apiBackendAction("garantias_manuales.create", {
+      await mycsapi.fetch("/api/v1/garantias-manuales", { method: "POST", body: {
         ...formData,
         fotos_urls: fotosUrls.length > 0 ? fotosUrls : null,
         estatus: 'pendiente_resolucion'
-      } as any);
+      } as any });
 
       toast.success("Garantía creada exitosamente");
       setShowNewDialog(false);
@@ -173,7 +174,7 @@ export default function GarantiasManuales() {
       let codigoIncidente: string | null = null;
 
       // Generar código de incidente via apiBackendAction
-      const { codigo } = await apiBackendAction("rpc.generarCodigoIncidente", {});
+      const { codigo } = await mycsapi.fetch("/api/v1/rpc/generar_codigo_incidente", { method: "POST" }) as any;
       codigoIncidente = codigo;
 
       // Determinar el status del incidente basado en la decisión
@@ -189,7 +190,7 @@ export default function GarantiasManuales() {
       }
 
       // Buscar cliente por código via apiBackendAction
-      const { result: clienteData } = await apiBackendAction("clientes.getByCodigo", { codigo: selectedGarantia.codigo_cliente });
+      const clienteData = await mycsapi.get("/api/v1/clientes/search", { query: { codigo: selectedGarantia.codigo_cliente } as any });
 
       if (!clienteData) {
         toast.error("No se encontró el cliente");
@@ -197,7 +198,7 @@ export default function GarantiasManuales() {
       }
 
       // Crear el incidente via apiBackendAction
-      const incidenteData = await apiBackendAction("incidentes.create", {
+      const incidenteData = await mycsapi.post("/api/v1/incidentes", { body: {
         codigo: codigoIncidente,
         cliente_id: (clienteData as any).id,
         centro_de_servicio_id: 1, // Default center
@@ -207,12 +208,12 @@ export default function GarantiasManuales() {
         aplica_garantia: coberturaGarantia,
         observaciones: updateData.comentarios_logistica,
         tracking_token: crypto.randomUUID()
-      } as any);
+      } as any });
 
       incidenteId = (incidenteData as any).id;
 
       // Actualizar la garantía con referencia al incidente via apiBackendAction
-      await apiBackendAction("garantias_manuales.update", {
+      await mycsapi.fetch("/api/v1/garantias-manuales/{id}".replace("{id}", String({
         id: selectedGarantia.id,
         data: {
           estatus: updateData.estatus,
@@ -221,7 +222,25 @@ export default function GarantiasManuales() {
           incidente_id: incidenteId,
           origen: 'asesor'
         }
-      });
+      }.id)), { method: "PATCH", body: {
+        id: selectedGarantia.id,
+        data: {
+          estatus: updateData.estatus,
+          comentarios_logistica: updateData.comentarios_logistica,
+          numero_incidente: codigoIncidente,
+          incidente_id: incidenteId,
+          origen: 'asesor'
+        }
+      }.data ?? {
+        id: selectedGarantia.id,
+        data: {
+          estatus: updateData.estatus,
+          comentarios_logistica: updateData.comentarios_logistica,
+          numero_incidente: codigoIncidente,
+          incidente_id: incidenteId,
+          origen: 'asesor'
+        }
+      } });
       
       toast.success(`Garantía actualizada e incidente ${codigoIncidente} creado`);
       setShowDetailDialog(false);

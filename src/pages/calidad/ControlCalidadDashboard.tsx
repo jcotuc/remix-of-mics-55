@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { apiBackendAction } from "@/lib/api-backend";
 import type { IncidenteSchema } from "@/generated/actions.d";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, XCircle, AlertCircle, TrendingUp, Package } from "lucide-react";
+import { mycsapi } from "@/mics-api";
 
 export default function ControlCalidadDashboard() {
   const [stats, setStats] = useState({
@@ -23,13 +23,13 @@ export default function ControlCalidadDashboard() {
   const fetchStats = async () => {
     try {
       const [auditoriasRes, defectosRes, incidentesRes] = await Promise.all([
-        apiBackendAction("auditorias_calidad.list", {}),
-        apiBackendAction("defectos_calidad.list", {}),
-        apiBackendAction("incidentes.list", { limit: 2000 }),
+        mycsapi.fetch("/api/v1/auditorias-calidad", { method: "GET" }),
+        mycsapi.fetch("/api/v1/defectos-calidad", { method: "GET" }),
+        mycsapi.get("/api/v1/incidentes", { query: { limit: 2000 } }),
       ]);
 
-      const auditorias = auditoriasRes.results || [];
-      const defectos = defectosRes.results || [];
+      const auditorias = (auditoriasRes as any).results || [];
+      const defectos = (defectosRes as any).results || [];
       const incidentes = incidentesRes.results || [];
 
       const aprobadas = auditorias.filter((a: any) => a.resultado === "aprobado").length;
@@ -38,7 +38,7 @@ export default function ControlCalidadDashboard() {
       const defectosCriticos = defectos.filter((d: any) => d.gravedad === "critica").length;
 
       // Count pending incidents as approximation
-      const reincidenciasPendientes = incidentes.filter((i: IncidenteSchema) => 
+      const reincidenciasPendientes = incidentes.filter((i: any) =>
         ["EN_DIAGNOSTICO", "EN_REPARACION"].includes(i.estado)
       ).length;
 

@@ -9,8 +9,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Badge } from "@/components/ui/badge";
 import { Truck, Plus, Package, Clock, Sparkles } from "lucide-react";
 import { toast } from "sonner";
-import { apiBackendAction } from "@/lib/api";
 import type { Embarque, ClienteSchema, IncidenteSchema } from "@/generated/actions.d";
+import { mycsapi } from "@/mics-api";
 
 export default function Embarques() {
   const navigate = useNavigate();
@@ -29,7 +29,7 @@ export default function Embarques() {
   const fetchEmbarques = async () => {
     try {
       setLoading(true);
-      const response = await apiBackendAction("embarques.list", { limit: 200 });
+      const response = await mycsapi.fetch("/api/v1/embarques", { method: "GET", query: { limit: 200 } }) as any;
       const data = response.data || [];
       // Sort by fecha_llegada descending
       const sorted = [...data].sort((a, b) => 
@@ -48,12 +48,12 @@ export default function Embarques() {
     e.preventDefault();
     
     try {
-      await apiBackendAction("embarques.create", {
+      await mycsapi.fetch("/api/v1/embarques", { method: "POST", body: {
         numero_embarque: numeroEmbarque,
         transportista,
         notas,
         fecha_llegada: new Date().toISOString(),
-      });
+      } });
 
       toast.success('Embarque creado');
       setDialogOpen(false);
@@ -71,12 +71,12 @@ export default function Embarques() {
     setCreatingTest(true);
     try {
       // 1. Crear embarque
-      await apiBackendAction("embarques.create", {
+      await mycsapi.fetch("/api/v1/embarques", { method: "POST", body: {
         numero_embarque: 'EMB-2024-001',
         transportista: 'Transportes Guatemala Express',
         notas: 'Embarque de prueba con máquinas desde zonas',
         fecha_llegada: new Date().toISOString(),
-      });
+      } });
       
       toast.success(`Embarque de prueba creado`);
       fetchEmbarques();

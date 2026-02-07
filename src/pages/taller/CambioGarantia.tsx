@@ -5,9 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { apiBackendAction } from "@/lib/api-backend";
 import { toast } from "sonner";
 import type { ProductoSchema } from "@/generated/actions.d";
+import { mycsapi } from "@/mics-api";
 
 interface StockInfo {
   centro_servicio_id: number;
@@ -45,7 +45,7 @@ export default function CambioGarantia() {
   const fetchIncidenteData = async () => {
     setLoading(true);
     try {
-      const { result: incData } = await apiBackendAction("incidentes.get", { id: Number(id) });
+      const incData = await mycsapi.get("/api/v1/incidentes/{incidente_id}", { path: { incidente_id: Number(id) } }) as any;
       if (!incData) throw new Error("Incidente no encontrado");
       setIncidente(incData);
 
@@ -67,12 +67,12 @@ export default function CambioGarantia() {
 
   const verificarStock = async (codigoProducto: string, centroActual: number) => {
     try {
-      const inventariosRes = await apiBackendAction("inventarios.list", { 
+      const inventariosRes = await mycsapi.get("/api/v1/inventario", { query: { 
         codigo_repuesto: codigoProducto 
-      });
+      } as any }) as any;
       
       const stockData = ((inventariosRes as any).data || (inventariosRes as any).results || []).filter((inv: any) => inv.cantidad > 0);
-      const centrosRes = await apiBackendAction("centros_de_servicio.list", {});
+      const centrosRes = await mycsapi.get("/api/v1/centros-de-servicio", {}) as any;
       const centros = (centrosRes as any).data || (centrosRes as any).results || [];
       const centrosMap = new Map(centros.map((c: any) => [c.id, c.nombre]));
 
@@ -96,7 +96,7 @@ export default function CambioGarantia() {
 
   const fetchProductosAlternativos = async () => {
     try {
-      const { results } = await apiBackendAction("productos.list", { limit: 500 });
+      const { results } = await mycsapi.get("/api/v1/productos", { query: { limit: 500 } }) as any;
       const productos = (results || []).filter((p: ProductoSchema) => 
         p.activo && p.familia_padre_id !== FAMILIA_HERRAMIENTA_MANUAL
       );
@@ -123,12 +123,12 @@ export default function CambioGarantia() {
     setStockAlternativo([]);
     
     try {
-      const inventariosRes = await apiBackendAction("inventarios.list", { 
+      const inventariosRes = await mycsapi.get("/api/v1/inventario", { query: { 
         codigo_repuesto: codigoProducto 
-      });
+      } as any }) as any;
       
       const stockData = ((inventariosRes as any).data || (inventariosRes as any).results || []).filter((inv: any) => inv.cantidad > 0);
-      const centrosRes = await apiBackendAction("centros_de_servicio.list", {});
+      const centrosRes = await mycsapi.get("/api/v1/centros-de-servicio", {}) as any;
       const centros = (centrosRes as any).data || (centrosRes as any).results || [];
       const centrosMap = new Map(centros.map((c: any) => [c.id, c.nombre]));
 
@@ -157,23 +157,22 @@ export default function CambioGarantia() {
     setSaving(true);
     try {
       // Get current user via apiBackendAction - will use auth context for email
-      const { result: profile } = await apiBackendAction("usuarios.getByEmail", { 
+      const profile = await mycsapi.fetch("/api/v1/usuarios/by-email", { method: "GET", query: { 
         email: "" // Will need to pass user email from context
-      }).catch(() => ({ result: null }));
+      } }).catch(() => ({ result: null })) as any;
       
       // Create order to central warehouse
-      await apiBackendAction("pedidos_bodega_central.create", {
+      await mycsapi.fetch("/api/v1/pedidos-bodega-central", { method: "POST", body: {
         incidente_id: Number(id),
         solicitado_por_id: (profile as any)?.id || 0,
         centro_servicio_id: incidente?.centro_de_servicio_id || (profile as any)?.centro_de_servicio_id || 0,
         estado: "PENDIENTE"
-      });
+      } }) as any;
 
       // Update incident status
-      await apiBackendAction("incidentes.update", {
-        id: Number(id),
-        data: { observaciones: `${incidente?.observaciones || ""}\n[${new Date().toISOString()}] Solicitud de cambio por garantía enviada` }
-      });
+      await mycsapi.patch("/api/v1/incidentes/{incidente_id}", { path: { incidente_id: Number(id) }, body: {
+        observaciones: `${incidente?.observaciones || ""}\n[${new Date().toISOString()}] Solicitud de cambio por garantía enviada`
+      } as any }) as any;
 
       toast.success("Solicitud de cambio por garantía enviada para aprobación");
       navigate("/taller/mis-asignaciones");

@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { apiBackendAction } from "@/lib/api-backend";
 import type { IncidenteSchema } from "@/generated/actions.d";
 import { Loader2, Building2, TrendingUp, Truck, Package, Users, Settings } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
@@ -11,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { mycsapi } from "@/mics-api";
 
 interface CentroStats {
   nombre: string;
@@ -60,10 +60,10 @@ export default function DashboardSupervisorRegional() {
 
       // Use apiBackendAction for all queries
       const [centrosRes, incidentesRes, inventarioRes, transitosRes] = await Promise.all([
-        apiBackendAction("centros_de_servicio.list", {}),
-        apiBackendAction("incidentes.list", { limit: 5000 }),
-        apiBackendAction("inventario.list", {}),
-        apiBackendAction("transitos_bodega.list", { estado: "en_transito" }),
+        mycsapi.get("/api/v1/centros-de-servicio", {}),
+        mycsapi.get("/api/v1/incidentes", { query: { limit: 5000 } }),
+        mycsapi.get("/api/v1/inventario", {}),
+        mycsapi.fetch("/api/v1/transitos-bodega", { method: "GET", query: { estado: "en_transito" } }),
       ]);
 
       const centrosData = (centrosRes as any).results || [];
@@ -74,7 +74,7 @@ export default function DashboardSupervisorRegional() {
       const centroStats: CentroStats[] = centrosData
         .filter((c: any) => c.activo)
         .map((centro: any) => {
-          const incidentesCentro = incidentes.filter((i: IncidenteSchema) => 
+          const incidentesCentro = incidentes.filter((i: any) =>
             i.centro_de_servicio_id === centro.id
           ).length;
           const stockCentro = inventarioData
@@ -110,10 +110,10 @@ export default function DashboardSupervisorRegional() {
 
       // Fetch via apiBackendAction
       const [centrosRes, rolesRes, usuariosRes, asignacionesRes] = await Promise.all([
-        apiBackendAction("centros_de_servicio.list", {}),
-        apiBackendAction("user_roles.list", { role: "supervisor_regional" }),
-        apiBackendAction("usuarios.list", {}),
-        apiBackendAction("centros_supervisor.list", {}),
+        mycsapi.get("/api/v1/centros-de-servicio", {}),
+        mycsapi.fetch("/api/v1/user-roles", { method: "GET", query: { role: "supervisor_regional" } }),
+        mycsapi.get("/api/v1/usuarios/"),
+        mycsapi.fetch("/api/v1/centros-supervisor", { method: "GET" }),
       ]);
 
       const centrosData = ((centrosRes as any).results || []).filter((c: any) => c.activo);
@@ -185,17 +185,15 @@ export default function DashboardSupervisorRegional() {
       setSaving(true);
 
       // Delete existing assignments via apiBackendAction
-      await apiBackendAction("centros_supervisor.delete", { 
-        supervisor_id: selectedSupervisor.user_id 
-      });
+      await mycsapi.fetch("/api/v1/centros-supervisor/{id}".replace("{id}", String(selectedSupervisor.user_id)), { method: "DELETE" }) as any;
 
       // Create new assignments
       if (selectedCentros.length > 0) {
         for (const centroId of selectedCentros) {
-          await apiBackendAction("centros_supervisor.create", {
+          await mycsapi.fetch("/api/v1/centros-supervisor", { method: "POST", body: {
             supervisor_id: Number(selectedSupervisor.user_id),
             centro_servicio_id: Number(centroId)
-          });
+          } }) as any;
         }
       }
 

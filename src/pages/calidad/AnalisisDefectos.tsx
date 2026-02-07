@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { apiBackendAction } from "@/lib/api-backend";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -12,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
+import { mycsapi } from "@/mics-api";
 
 interface Defecto {
   id: number;
@@ -69,13 +69,13 @@ export default function AnalisisDefectos() {
 
   const fetchAuditorias = async () => {
     try {
-      const { results } = await apiBackendAction("auditorias_calidad.list", {});
+      const { results } = await mycsapi.fetch("/api/v1/auditorias-calidad", { method: "GET" }) as any;
       
       // Fetch incidente codes for each auditoria
       const auditoriasConIncidentes = await Promise.all(
         (results || []).map(async (aud: any) => {
           try {
-            const { result: incidente } = await apiBackendAction("incidentes.get", { id: aud.incidente_id });
+            const incidente = await mycsapi.get("/api/v1/incidentes/{incidente_id}", { path: { incidente_id: aud.incidente_id } }) as any;
             return {
               ...aud,
               incidentes: incidente ? { codigo: incidente.codigo } : null
@@ -95,7 +95,7 @@ export default function AnalisisDefectos() {
   const fetchDefectos = async () => {
     setLoading(true);
     try {
-      const { results } = await apiBackendAction("defectos_calidad.list", {});
+      const { results } = await mycsapi.fetch("/api/v1/defectos-calidad", { method: "GET" }) as any;
       setDefectos((results || []) as Defecto[]);
     } catch (error) {
       console.error("Error fetching defectos:", error);
@@ -114,7 +114,7 @@ export default function AnalisisDefectos() {
 
     setLoading(true);
     try {
-      await apiBackendAction("defectos_calidad.create", {
+      await mycsapi.fetch("/api/v1/defectos-calidad", { method: "POST", body: {
         auditoria_id: Number(formData.auditoria_id),
         tipo_elemento: formData.tipo_elemento,
         codigo_elemento: formData.codigo_elemento,
@@ -126,7 +126,7 @@ export default function AnalisisDefectos() {
         gravedad: formData.gravedad,
         comentarios_tecnicos: formData.comentarios_tecnicos || null,
         sugerencias_mejora: formData.sugerencias_mejora || null,
-      });
+      } }) as any;
 
       toast.success("Defecto registrado exitosamente");
       setIsDialogOpen(false);

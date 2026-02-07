@@ -30,7 +30,6 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { supabase } from "@/integrations/supabase/client";
-import { apiBackendAction } from "@/lib/api-backend";
 import { useAuth } from "@/contexts/AuthContext";
 import { useActiveIncidents } from "@/contexts/ActiveIncidentsContext";
 import { toast } from "sonner";
@@ -47,6 +46,7 @@ import {
 } from "@/components/ui/dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { SidebarMediaCapture, SidebarPhoto } from "@/components/features/media";
+import { mycsapi } from "@/mics-api";
 
 export default function DiagnosticoInicial() {
   const { user } = useAuth();
@@ -238,13 +238,13 @@ export default function DiagnosticoInicial() {
   const fetchFallasYCausas = async () => {
     try {
       const [fallasRes, causasRes, familiasRes] = await Promise.all([
-        apiBackendAction("cds_fallas.list", {}),
-        apiBackendAction("cds_causas.list", {}),
-        apiBackendAction("cds_familias.list", {}),
+        mycsapi.fetch("/api/v1/cds-fallas", { method: "GET" }),
+        mycsapi.fetch("/api/v1/cds-causas", { method: "GET" }),
+        mycsapi.fetch("/api/v1/cds-familias", { method: "GET" }),
       ]);
-      setFallasDB(fallasRes.results);
-      setCausasDB(causasRes.results);
-      setFamiliasDB(familiasRes.results);
+      setFallasDB((fallasRes as any).results);
+      setCausasDB((causasRes as any).results);
+      setFamiliasDB((familiasRes as any).results);
     } catch (error) {
       console.error("Error cargando fallas y causas:", error);
     }
@@ -320,7 +320,7 @@ export default function DiagnosticoInicial() {
     });
     try {
       // Get user profile for name
-      const { results } = await apiBackendAction("usuarios.search", { email: user.email });
+      const { results } = await mycsapi.fetch("/api/v1/usuarios/search", { method: "GET", query: { email: user.email } }) as any;
       const usuario = results?.[0] as any;
       const tecnicoNombre = usuario ? `${usuario.nombre} ${usuario.apellido}` : user.email || "Técnico";
 
@@ -381,7 +381,7 @@ export default function DiagnosticoInicial() {
   const verificarSolicitudRepuestos = async () => {
     try {
       console.log("🔍 Verificando solicitudes de repuestos para incidente:", id);
-      const { results } = await apiBackendAction("solicitudes_repuestos.search", { incidente_id: Number(id) });
+      const { results } = await mycsapi.fetch("/api/v1/solicitudes-repuestos/search", { method: "GET", query: { incidente_id: Number(id) as any } }) as any;
       if (results && results.length > 0) {
         console.log("✅ Solicitudes encontradas:", results.length);
 
@@ -410,7 +410,7 @@ export default function DiagnosticoInicial() {
       let from = 0;
       const pageSize = 1000;
       while (true) {
-        const { results } = await apiBackendAction("repuestos_relaciones.list", { limit: pageSize, offset: from });
+        const { results } = await mycsapi.fetch("/api/v1/repuestos-relaciones", { method: "GET", query: { limit: pageSize, offset: from } }) as any;
         if (!results || results.length === 0) break;
         allRelaciones = [...allRelaciones, ...results];
         if (results.length < pageSize) break;
@@ -511,10 +511,10 @@ export default function DiagnosticoInicial() {
       const centroServicioId = incidente?.centro_de_servicio_id;
 
       if (centroServicioId && todosLosCodigos.length > 0) {
-        const { results: inventarioData } = await apiBackendAction("inventarios.listByCodigos", {
+        const { results: inventarioData } = await mycsapi.fetch("/api/v1/inventario/search", { method: "GET", query: {
           centro_servicio_id: centroServicioId,
           codigos: todosLosCodigos,
-        });
+        } }) as any;
 
         // Crear mapa de stock (sumando si hay múltiples ubicaciones)
         (inventarioData || []).forEach((item: any) => {
@@ -875,7 +875,7 @@ export default function DiagnosticoInicial() {
           if (!user) throw new Error("No user found");
 
           // Get user profile for name
-          const { results: usuarios } = await apiBackendAction("usuarios.search", { email: user.email });
+          const { results: usuarios } = await mycsapi.fetch("/api/v1/usuarios/search", { method: "GET", query: { email: user.email } }) as any;
           const usuario = usuarios?.[0] as any;
           const tecnicoNombre = usuario ? `${usuario.nombre} ${usuario.apellido}` : user.email || "Técnico";
 
@@ -930,7 +930,7 @@ export default function DiagnosticoInicial() {
         if (!user) throw new Error("No user found");
 
         // Get user profile for name
-        const { results: usuarios } = await apiBackendAction("usuarios.search", { email: user.email });
+        const { results: usuarios } = await mycsapi.fetch("/api/v1/usuarios/search", { method: "GET", query: { email: user.email } }) as any;
         const usuario = usuarios?.[0] as any;
         const tecnicoNombre = usuario ? `${usuario.nombre} ${usuario.apellido}` : user.email || "Técnico";
 
@@ -992,7 +992,7 @@ export default function DiagnosticoInicial() {
       if (!user) throw new Error("No user found");
 
       // Get user profile for name
-      const { results: usuarios } = await apiBackendAction("usuarios.search", { email: user.email });
+      const { results: usuarios } = await mycsapi.fetch("/api/v1/usuarios/search", { method: "GET", query: { email: user.email } }) as any;
       const usuario = usuarios?.[0] as any;
       const tecnicoNombre = usuario ? `${usuario.nombre} ${usuario.apellido}` : user.email || "Técnico";
 
@@ -1093,7 +1093,7 @@ export default function DiagnosticoInicial() {
       const tipoResolucionEnum = mapTipoResolucionToEnum(tipoResolucion);
 
       // Obtener técnico (id numérico)
-      const { result: usuarioResult } = await apiBackendAction("usuarios.getByEmail", { email: user.email });
+      const usuarioResult = await mycsapi.fetch("/api/v1/usuarios/by-email", { method: "GET", query: { email: user.email } }) as any;
       const usuario = usuarioResult as { id: number } | null;
       if (!usuario?.id) throw new Error("No se encontró el perfil del técnico");
 
@@ -1237,7 +1237,7 @@ export default function DiagnosticoInicial() {
       // Si es Nota de Crédito, crear solicitud de cambio para aprobación
       if (tipoResolucion === "Nota de Crédito" && user) {
         // Get user profile for name
-        const { results: usuarios } = await apiBackendAction("usuarios.search", { email: user.email });
+        const { results: usuarios } = await mycsapi.fetch("/api/v1/usuarios/search", { method: "GET", query: { email: user.email } }) as any;
         const usuario = usuarios?.[0] as any;
         const tecnicoNombre = usuario ? `${usuario.nombre} ${usuario.apellido}` : user.email || "Técnico";
 
@@ -1330,7 +1330,7 @@ export default function DiagnosticoInicial() {
     setDesasignando(true);
     try {
       // Get user profile for name
-      const { results: usuarios } = await apiBackendAction("usuarios.search", { email: user.email });
+      const { results: usuarios } = await mycsapi.fetch("/api/v1/usuarios/search", { method: "GET", query: { email: user.email } }) as any;
       const usuario = usuarios?.[0] as any;
       const tecnicoNombre = usuario ? `${usuario.nombre} ${usuario.apellido}` : user.email || "Técnico";
       const userEmail = usuario?.email || user.email || "";

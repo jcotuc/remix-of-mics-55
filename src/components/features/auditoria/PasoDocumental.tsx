@@ -3,12 +3,12 @@
  */
 
 import { useState, useEffect } from "react";
-import { apiBackendAction } from "@/lib/api-backend";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, FileText } from "lucide-react";
 import { PreguntaCard } from "./PreguntaCard";
 import type { PreguntaAuditoria, RespuestaAuditoria } from "./types";
+import { mycsapi } from "@/mics-api";
 
 interface PasoDocumentalProps {
   respuestas: Record<number, string>;
@@ -26,10 +26,10 @@ export function PasoDocumental({ respuestas, onRespuestaChange }: PasoDocumental
   const fetchPreguntas = async () => {
     setLoading(true);
     try {
-      const { results } = await apiBackendAction("preguntas_auditoria.list", {
+      const { results } = await mycsapi.get("/api/v1/preguntas-auditoria", { query: {
         seccion: "documental",
         activo: true,
-      }) as { results: PreguntaAuditoria[] };
+      } }) as any as { results: PreguntaAuditoria[] };
       setPreguntas((results || []).sort((a, b) => a.orden - b.orden));
     } catch (error) {
       console.error("Error fetching preguntas documentales:", error);
